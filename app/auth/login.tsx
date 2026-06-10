@@ -1,17 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, TextInput,
   Pressable, ActivityIndicator, KeyboardAvoidingView, Platform
 } from 'react-native'
 import { router } from 'expo-router'
 import { loginWithUsername } from '@/lib/auth'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { useUserStore } from '@/store/userStore'
+import { colors, spacing, typography, radius } from '@/theme'
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
+
+  const { session, isGuest } = useUserStore()
+
+  // when session appears and user is not guest — navigate away
+  useEffect(() => {
+    if (session && !isGuest) {
+      router.replace('/(tabs)')
+    }
+  }, [session, isGuest])
 
   async function handleLogin() {
     if (!username.trim() || !password.trim()) {
@@ -22,10 +32,9 @@ export default function LoginScreen() {
     setError(null)
     try {
       await loginWithUsername(username.trim(), password)
-      router.replace('/(tabs)')
+      // don't navigate here — useEffect above handles it
     } catch (e: any) {
       setError('Wrong username or password.')
-    } finally {
       setLoading(false)
     }
   }
@@ -36,7 +45,6 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        {/* back */}
         <Pressable onPress={() => router.back()} style={styles.back}>
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
@@ -87,7 +95,6 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        {/* no recovery warning */}
         <View style={styles.warning}>
           <Text style={styles.warningText}>
             ⚠️ There is no password recovery. If you forget your password, your account is gone.
@@ -130,25 +137,25 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   label: {
-    fontSize:   typography.sm,
-    color:      colors.textSecondary,
-    fontWeight: typography.medium,
+    fontSize:     typography.sm,
+    color:        colors.textSecondary,
+    fontWeight:   typography.medium,
     marginBottom: 4,
   },
   input: {
-    backgroundColor: colors.bgCard,
-    borderWidth:     1,
-    borderColor:     colors.border,
-    borderRadius:    radius.md,
+    backgroundColor:   colors.bgCard,
+    borderWidth:       1,
+    borderColor:       colors.border,
+    borderRadius:      radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical:   spacing.md,
-    color:           colors.textPrimary,
-    fontSize:        typography.md,
-    marginBottom:    spacing.sm,
+    color:             colors.textPrimary,
+    fontSize:          typography.md,
+    marginBottom:      spacing.sm,
   },
   error: {
-    color:     colors.danger,
-    fontSize:  typography.sm,
+    color:        colors.danger,
+    fontSize:     typography.sm,
     marginBottom: spacing.sm,
   },
   btn: {
@@ -168,9 +175,9 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   switchRow: {
-    flexDirection: 'row',
+    flexDirection:  'row',
     justifyContent: 'center',
-    marginTop:     spacing.lg,
+    marginTop:      spacing.lg,
   },
   switchText: {
     color:    colors.textSecondary,

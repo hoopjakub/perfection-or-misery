@@ -90,9 +90,13 @@ export default function ModeSelectScreen() {
     if (mode !== 'era') setSelectedEra(null)
   }
 
+  const { setMode } = useGameStore()
+
   function handleContinue() {
+    console.log('[mode-select] selectedMode:', selectedMode, 'selectedEra:', selectedEra)
     if (!selectedMode) return
     if (selectedMode === 'era' && !selectedEra) return
+    setMode(selectedMode, selectedEra ?? undefined)
     router.push('/game/formation-select')
   }
 

@@ -1,0 +1,825 @@
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  View, Text, StyleSheet, Pressable,
+  ScrollView, Animated, Easing, ActivityIndicator
+} from 'react-native'
+import { router } from 'expo-router'
+import { useGameStore } from '@/store/gameStore'
+import { getSlotsForFormation } from '@/engine/formations'
+import { getPlayersForClubSeason } from '@/db/queries/players'
+import { getAllClubSeasons } from '@/db/queries/seasons'
+import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
+import { getRandomFact } from '@/lib/clubFacts'
+import { colors, spacing, typography, radius, shadows } from '@/theme'
+import type { PositionSlot, DraftedPlayer } from '@/types/game'
+import type { PlayerRow } from '@/db/queries/players'
+import type { ClubSeasonRow } from '@/engine/draft'
+
+type DraftPhase = 'idle' | 'spinning' | 'picking' | 'done'
+
+export default function DraftScreen() {
+  const {
+    mode, formation, era,
+    draftedPlayers, spunSeasonIds,
+    rerollsUsed, addPlayer, markSeasonSpun, useReroll,
+  } = useGameStore()
+
+  const [slots,         setSlots]         = useState<PositionSlot[]>([])
+  const [pool,          setPool]          = useState<ClubSeasonRow[]>([])
+  const [phase,         setPhase]         = useState<DraftPhase>('idle')
+  const [currentSpin,   setCurrentSpin]   = useState<ClubSeasonRow | null>(null)
+  const [players,       setPlayers]       = useState<PlayerRow[]>([])
+  const [fact,          setFact]          = useState<string | null>(null)
+  const [loading,       setLoading]       = useState(true)
+  const [spinDisplay,   setSpinDisplay]   = useState<ClubSeasonRow | null>(null)
+
+  // spin animation
+  const spinAnim   = useRef(new Animated.Value(0)).current
+  const fadeAnim   = useRef(new Animated.Value(0)).current
+  const scaleAnim  = useRef(new Animated.Value(0.8)).current
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const rerollLimit  = mode ? getRerollLimit(mode) : 0
+  const rerollsLeft  = rerollLimit - rerollsUsed
+  const openSlots    = slots.filter(s => s.filledBy === null)
+  const filledSlots  = slots.filter(s => s.filledBy !== null)
+  const isDraftDone = slots.length > 0 && openSlots.length === 0
+
+  useEffect(() => {
+    async function init() {
+      if (!formation) return
+      setLoading(true)
+      const formationSlots = getSlotsForFormation(formation)
+      setSlots(formationSlots)
+
+      const allSeasons = await getAllClubSeasons()
+      setPool(allSeasons)
+      setLoading(false)
+    }
+    init()
+  }, [formation])
+
+  useEffect(() => {
+    if (isDraftDone) {
+      setPhase('done')
+    }
+  }, [isDraftDone])
+
+  function runSpinAnimation(finalSpin: ClubSeasonRow) {
+    // rapid cycling through random clubs for slot machine effect
+    let ticks = 0
+    const totalTicks = 20
+    const startInterval = 60
+    let currentInterval = startInterval
+
+    function tick() {
+      const randomIdx = Math.floor(Math.random() * pool.length)
+      setSpinDisplay(pool[randomIdx])
+      ticks++
+
+      // slow down toward the end
+      if (ticks < totalTicks * 0.6) {
+        currentInterval = startInterval
+      } else if (ticks < totalTicks * 0.8) {
+        currentInterval = 120
+      } else {
+        currentInterval = 220
+      }
+
+      if (ticks < totalTicks) {
+        intervalRef.current = setTimeout(tick, currentInterval)
+      } else {
+        // lock on final result
+        setSpinDisplay(finalSpin)
+        setCurrentSpin(finalSpin)
+
+        // fade in the result
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue:         1,
+            duration:        400,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue:         1,
+            friction:        6,
+            useNativeDriver: true,
+          }),
+        ]).start(async () => {
+          // load players for this club season
+          const clubPlayers = await getPlayersForClubSeason(finalSpin.id)
+          setPlayers(clubPlayers)
+          setFact(getRandomFact(finalSpin.id ?? finalSpin.id))
+          setPhase('picking')
+        })
+      }
+    }
+
+    // reset anim values
+    fadeAnim.setValue(0)
+    scaleAnim.setValue(0.8)
+    tick()
+  }
+
+  async function handleSpin() {
+    if (pool.length === 0 || phase === 'spinning') return
+    setPhase('spinning')
+    setPlayers([])
+    setFact(null)
+
+    try {
+      const eraYear = era
+        ? parseInt(era.replace('s+', '').replace('s', ''))
+        : undefined
+
+      const spun = spinClubSeason(
+        pool, spunSeasonIds,
+        mode ?? 'league',
+        eraYear
+      )
+
+      markSeasonSpun(spun.id)
+      runSpinAnimation(spun)
+    } catch (e: any) {
+      if (e.message === 'POOL_EXHAUSTED') {
+        setPhase('idle')
+        // all seasons spun — just proceed
+      }
+    }
+  }
+
+  async function handleReroll() {
+    if (rerollsLeft <= 0 || phase !== 'picking') return
+    useReroll()
+    setPhase('spinning')
+    setPlayers([])
+    setFact(null)
+    setCurrentSpin(null)
+
+    // unmark the last spun season so it can be re-spun later
+    // actually just spin a new one
+    try {
+      const eraYear = era
+        ? parseInt(era.replace('s+', '').replace('s', ''))
+        : undefined
+
+      const spun = spinClubSeason(
+        pool, spunSeasonIds,
+        mode ?? 'league',
+        eraYear
+      )
+
+      markSeasonSpun(spun.id)
+      runSpinAnimation(spun)
+    } catch {
+      setPhase('picking')
+    }
+  }
+
+  function handlePickPlayer(player: PlayerRow, slotIndex: number) {
+    if (!currentSpin) return
+
+    const drafted: DraftedPlayer = {
+      playerId:           player.id,
+      playerSeasonId:     `${player.id}_2025`,
+      name:               player.name,
+      nationality:        player.nationality,
+      primaryPosition:    player.primary_position as any,
+      secondaryPositions: JSON.parse(player.secondary_positions ?? '[]'),
+      ovr:                player.ovr,
+      clubName:           currentSpin.club_name,
+      season:             `${currentSpin.year_start}/${String(currentSpin.year_start + 1).slice(-2)}`,
+      slotIndex:          slotIndex,
+      isIcon:             player.is_icon === 1,
+    }
+
+    // update slot
+    setSlots(prev => prev.map((s, i) =>
+      i === slotIndex ? { ...s, filledBy: drafted } : s
+    ))
+
+    addPlayer(drafted)
+    setPhase('idle')
+    setCurrentSpin(null)
+    setPlayers([])
+    fadeAnim.setValue(0)
+    scaleAnim.setValue(0.8)
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.back}>
+          <Text style={styles.backText}>←</Text>
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Draft</Text>
+          <Text style={styles.headerSub}>
+            {filledSlots.length}/11 picked
+          </Text>
+        </View>
+        <View style={styles.rerollBadge}>
+          <Text style={styles.rerollText}>{rerollsLeft} 🔄</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* formation mini-view */}
+        <View style={styles.formationRow}>
+          {slots.map((slot, i) => (
+            <View
+              key={i}
+              style={[
+                styles.formationDot,
+                slot.filledBy && styles.formationDotFilled,
+                !slot.filledBy && openSlots[0]?.slotIndex === slot.slotIndex && styles.formationDotNext,
+              ]}
+            >
+              <Text style={styles.formationDotText}>{slot.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* spin zone */}
+        {(phase === 'idle' || phase === 'spinning') && (
+          <View style={styles.spinZone}>
+            {phase === 'spinning' && spinDisplay ? (
+              <View style={styles.spinCard}>
+                <Text style={styles.spinClubName}>{spinDisplay.club_name}</Text>
+                <Text style={styles.spinSeason}>
+                  {spinDisplay.year_start}/{String(spinDisplay.year_start + 1).slice(-2)}
+                </Text>
+                <Text style={styles.spinOvr}>OVR {spinDisplay.historical_ovr}</Text>
+              </View>
+            ) : (
+              <View style={styles.spinPlaceholder}>
+                <Text style={styles.spinPlaceholderEmoji}>🎰</Text>
+                <Text style={styles.spinPlaceholderText}>
+                  {openSlots.length > 0
+                    ? `Spin for your ${openSlots[0]?.label}`
+                    : 'Draft complete'}
+                </Text>
+              </View>
+            )}
+
+            {phase === 'idle' && openSlots.length > 0 && (
+              <Pressable style={styles.spinBtn} onPress={handleSpin}>
+                <Text style={styles.spinBtnText}>SPIN</Text>
+              </Pressable>
+            )}
+
+            {phase === 'spinning' && (
+              <View style={[styles.spinBtn, styles.spinBtnSpinning]}>
+                <ActivityIndicator color={colors.textPrimary} />
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* picking phase — club revealed + player cards */}
+        {phase === 'picking' && currentSpin && (
+          <Animated.View style={[
+            styles.pickingZone,
+            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }
+          ]}>
+            {/* club header */}
+            <View style={styles.clubHeader}>
+              <View style={[
+                styles.clubColorBar,
+                { backgroundColor: currentSpin.primary_color ?? colors.accent }
+              ]} />
+              <View style={styles.clubHeaderInfo}>
+                <Text style={styles.clubName}>{currentSpin.club_name}</Text>
+                <Text style={styles.clubSeason}>
+                  {currentSpin.year_start}/{String(currentSpin.year_start + 1).slice(-2)}
+                  {'  ·  '}OVR {currentSpin.historical_ovr}
+                </Text>
+              </View>
+              {rerollsLeft > 0 && (
+                <Pressable style={styles.rerollBtn} onPress={handleReroll}>
+                  <Text style={styles.rerollBtnText}>🔄 Reroll</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* fun fact */}
+            {fact && (
+              <View style={styles.factBox}>
+                <Text style={styles.factLabel}>Did you know?</Text>
+                <Text style={styles.factText}>{fact}</Text>
+              </View>
+            )}
+
+            {/* picking slot label */}
+            <Text style={styles.pickingLabel}>
+              Pick your{' '}
+              <Text style={{ color: colors.accent }}>
+                {openSlots[0]?.label}
+              </Text>
+            </Text>
+
+            {/* player cards */}
+            <View style={styles.playerList}>
+              {players.map(player => {
+                const available = isPlayerAvailable(
+                  player.primary_position,
+                  JSON.parse(player.secondary_positions ?? '[]'),
+                  openSlots
+                )
+
+                // find best slot for this player
+                const bestSlot = openSlots.find(slot => {
+                  const allPos = [player.primary_position, ...JSON.parse(player.secondary_positions ?? '[]')]
+                  return allPos.includes(slot.primary) || slot.accepts.some(a => allPos.includes(a))
+                })
+
+                return (
+                  <Pressable
+                    key={player.id}
+                    style={[
+                      styles.playerCard,
+                      !available && styles.playerCardDisabled,
+                    ]}
+                    onPress={() => available && bestSlot && handlePickPlayer(player, bestSlot.slotIndex)}
+                    disabled={!available}
+                  >
+                    <View style={styles.playerCardLeft}>
+                      <View style={[
+                        styles.positionBadge,
+                        { backgroundColor: (colors.positions as any)[player.primary_position] + '33' }
+                      ]}>
+                        <Text style={[
+                          styles.positionBadgeText,
+                          { color: (colors.positions as any)[player.primary_position] }
+                        ]}>
+                          {player.primary_position}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={[
+                          styles.playerName,
+                          !available && styles.playerNameDisabled
+                        ]}>
+                          {player.name}
+                        </Text>
+                        <Text style={styles.playerNationality}>
+                          {player.nationality}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.playerCardRight}>
+                      {!available && (
+                        <Text style={styles.unavailableLabel}>no slot</Text>
+                      )}
+                      <View style={[
+                        styles.ovrBadge,
+                        !available && styles.ovrBadgeDisabled
+                      ]}>
+                        <Text style={styles.ovrBadgeText}>{player.ovr}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                )
+              })}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* drafted players */}
+        {filledSlots.length > 0 && (
+          <View style={styles.draftedSection}>
+            <Text style={styles.draftedTitle}>Your Squad</Text>
+            {slots.filter(s => s.filledBy).map((slot, i) => (
+              <View key={i} style={styles.draftedRow}>
+                <View style={[
+                  styles.draftedPosBadge,
+                  { backgroundColor: (colors.positions as any)[slot.primary] + '22' }
+                ]}>
+                  <Text style={[
+                    styles.draftedPosText,
+                    { color: (colors.positions as any)[slot.primary] }
+                  ]}>
+                    {slot.label}
+                  </Text>
+                </View>
+                <Text style={styles.draftedName}>{slot.filledBy!.name}</Text>
+                <Text style={styles.draftedClub}>{slot.filledBy!.clubName}</Text>
+                <Text style={styles.draftedOvr}>{slot.filledBy!.ovr}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* done state */}
+        {phase === 'done' && (
+          <View style={styles.doneZone}>
+            <Text style={styles.doneEmoji}>✅</Text>
+            <Text style={styles.doneTitle}>Squad Complete</Text>
+            <Text style={styles.doneSub}>Time to find out where you end up.</Text>
+            <Pressable
+              style={styles.continueBtn}
+              onPress={() => router.push('/game/placement')}
+            >
+              <Text style={styles.continueBtnText}>SPIN PLACEMENT →</Text>
+            </Pressable>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex:            1,
+    backgroundColor: colors.bg,
+  },
+  loadingContainer: {
+    flex:            1,
+    backgroundColor: colors.bg,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  header: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop:        56,
+    paddingBottom:     spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  back: {
+    width:          32,
+    height:         32,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  backText: {
+    color:    colors.textPrimary,
+    fontSize: typography.xl,
+  },
+  headerCenter: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize:   typography.lg,
+    fontWeight: typography.black,
+    color:      colors.textPrimary,
+  },
+  headerSub: {
+    fontSize: typography.xs,
+    color:    colors.textSecondary,
+  },
+  rerollBadge: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   4,
+    borderWidth:     1,
+    borderColor:     colors.border,
+  },
+  rerollText: {
+    fontSize: typography.sm,
+    color:    colors.textPrimary,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding:    spacing.lg,
+    gap:        spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  formationRow: {
+    flexDirection:  'row',
+    flexWrap:       'wrap',
+    gap:            spacing.xs,
+    justifyContent: 'center',
+  },
+  formationDot: {
+    width:          32,
+    height:         32,
+    borderRadius:   16,
+    backgroundColor: colors.bgElevated,
+    borderWidth:    1,
+    borderColor:    colors.border,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  formationDotFilled: {
+    backgroundColor: colors.accent + '44',
+    borderColor:     colors.accent,
+  },
+  formationDotNext: {
+    borderColor: colors.warning,
+    borderWidth: 2,
+  },
+  formationDotText: {
+    fontSize:   6,
+    fontWeight: '700',
+    color:      colors.textSecondary,
+  },
+  spinZone: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.lg,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.xl,
+    alignItems:      'center',
+    gap:             spacing.lg,
+    minHeight:       180,
+    justifyContent:  'center',
+    ...shadows.md,
+  },
+  spinCard: {
+    alignItems: 'center',
+    gap:        spacing.xs,
+  },
+  spinClubName: {
+    fontSize:   typography.xxl,
+    fontWeight: typography.black,
+    color:      colors.textPrimary,
+    textAlign:  'center',
+  },
+  spinSeason: {
+    fontSize: typography.md,
+    color:    colors.textSecondary,
+  },
+  spinOvr: {
+    fontSize:   typography.lg,
+    fontWeight: typography.bold,
+    color:      colors.accent,
+  },
+  spinPlaceholder: {
+    alignItems: 'center',
+    gap:        spacing.sm,
+  },
+  spinPlaceholderEmoji: {
+    fontSize: 40,
+  },
+  spinPlaceholderText: {
+    fontSize:  typography.md,
+    color:     colors.textSecondary,
+    textAlign: 'center',
+  },
+  spinBtn: {
+    backgroundColor: colors.accent,
+    borderRadius:    radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    ...shadows.md,
+  },
+  spinBtnSpinning: {
+    opacity: 0.7,
+  },
+  spinBtnText: {
+    fontSize:      typography.lg,
+    fontWeight:    typography.black,
+    color:         colors.textPrimary,
+    letterSpacing: 4,
+  },
+  pickingZone: {
+    gap: spacing.md,
+  },
+  clubHeader: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.lg,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    overflow:        'hidden',
+    ...shadows.sm,
+  },
+  clubColorBar: {
+    width:  6,
+    height: '100%',
+    minHeight: 60,
+  },
+  clubHeaderInfo: {
+    flex:    1,
+    padding: spacing.md,
+  },
+  clubName: {
+    fontSize:   typography.lg,
+    fontWeight: typography.black,
+    color:      colors.textPrimary,
+  },
+  clubSeason: {
+    fontSize:  typography.sm,
+    color:     colors.textSecondary,
+    marginTop: 2,
+  },
+  rerollBtn: {
+    marginRight:     spacing.md,
+    backgroundColor: colors.bgElevated,
+    borderRadius:    radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    borderWidth:     1,
+    borderColor:     colors.border,
+  },
+  rerollBtnText: {
+    fontSize: typography.sm,
+    color:    colors.textPrimary,
+  },
+  factBox: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.borderLight,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    padding:         spacing.md,
+    gap:             spacing.xs,
+  },
+  factLabel: {
+    fontSize:   typography.xs,
+    color:      colors.accent,
+    fontWeight: typography.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  factText: {
+    fontSize:   typography.sm,
+    color:      colors.textSecondary,
+    lineHeight: 20,
+  },
+  pickingLabel: {
+    fontSize:   typography.lg,
+    fontWeight: typography.bold,
+    color:      colors.textPrimary,
+  },
+  playerList: {
+    gap: spacing.sm,
+  },
+  playerCard: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'space-between',
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.md,
+    ...shadows.sm,
+  },
+  playerCardDisabled: {
+    opacity:     0.4,
+    borderColor: colors.border,
+  },
+  playerCardLeft: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           spacing.md,
+    flex:          1,
+  },
+  positionBadge: {
+    borderRadius:      radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   3,
+    minWidth:          40,
+    alignItems:        'center',
+  },
+  positionBadgeText: {
+    fontSize:   typography.xs,
+    fontWeight: typography.black,
+  },
+  playerName: {
+    fontSize:   typography.md,
+    fontWeight: typography.bold,
+    color:      colors.textPrimary,
+  },
+  playerNameDisabled: {
+    color: colors.textMuted,
+  },
+  playerNationality: {
+    fontSize:  typography.xs,
+    color:     colors.textMuted,
+    marginTop: 1,
+  },
+  playerCardRight: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           spacing.sm,
+  },
+  unavailableLabel: {
+    fontSize: typography.xs,
+    color:    colors.textMuted,
+  },
+  ovrBadge: {
+    backgroundColor: colors.accent,
+    borderRadius:    radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   4,
+    minWidth:          40,
+    alignItems:        'center',
+  },
+  ovrBadgeDisabled: {
+    backgroundColor: colors.bgElevated,
+  },
+  ovrBadgeText: {
+    fontSize:   typography.sm,
+    fontWeight: typography.black,
+    color:      colors.textPrimary,
+  },
+  draftedSection: {
+    gap: spacing.sm,
+  },
+  draftedTitle: {
+    fontSize:   typography.md,
+    fontWeight: typography.bold,
+    color:      colors.textPrimary,
+  },
+  draftedRow: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.md,
+    padding:         spacing.sm,
+    gap:             spacing.sm,
+    borderWidth:     1,
+    borderColor:     colors.border,
+  },
+  draftedPosBadge: {
+    borderRadius:      radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   2,
+    minWidth:          36,
+    alignItems:        'center',
+  },
+  draftedPosText: {
+    fontSize:   typography.xs,
+    fontWeight: typography.black,
+  },
+  draftedName: {
+    flex:       1,
+    fontSize:   typography.sm,
+    fontWeight: typography.medium,
+    color:      colors.textPrimary,
+  },
+  draftedClub: {
+    fontSize: typography.xs,
+    color:    colors.textMuted,
+  },
+  draftedOvr: {
+    fontSize:   typography.sm,
+    fontWeight: typography.black,
+    color:      colors.accent,
+    minWidth:   28,
+    textAlign:  'right',
+  },
+  doneZone: {
+    alignItems:      'center',
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.lg,
+    borderWidth:     1,
+    borderColor:     colors.accent,
+    padding:         spacing.xl,
+    gap:             spacing.md,
+    ...shadows.md,
+  },
+  doneEmoji: {
+    fontSize: 48,
+  },
+  doneTitle: {
+    fontSize:   typography.xxl,
+    fontWeight: typography.black,
+    color:      colors.textPrimary,
+  },
+  doneSub: {
+    fontSize:  typography.sm,
+    color:     colors.textSecondary,
+    textAlign: 'center',
+  },
+  continueBtn: {
+    backgroundColor: colors.accent,
+    borderRadius:    radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    marginTop:       spacing.sm,
+    ...shadows.md,
+  },
+  continueBtnText: {
+    fontSize:      typography.md,
+    fontWeight:    typography.black,
+    color:         colors.textPrimary,
+    letterSpacing: 2,
+  },
+})

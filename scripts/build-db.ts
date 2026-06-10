@@ -63,22 +63,46 @@ for (const file of files) {
 
   // insert league
   db.prepare(`INSERT OR IGNORE INTO leagues (id, name, country, games_per_season, tier)
-    VALUES (@id, @name, @country, @games_per_season, @tier)`).run(data.league)
+  VALUES (?, ?, ?, ?, ?)`).run(
+  data.league.id,
+  data.league.name,
+  data.league.country,
+  data.league.games_per_season,
+  data.league.tier
+  )
 
-  for (const club of data.clubs) {
-    // insert club
-    db.prepare(`INSERT OR IGNORE INTO clubs (id, league_id, name, short_name, primary_color, secondary_color)
-      VALUES (@id, @league_id, @name, @short_name, @primary_color, @secondary_color)`).run(club)
+// replace the club insert
+  db.prepare(`INSERT OR IGNORE INTO clubs (id, league_id, name, short_name, primary_color, secondary_color)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    club.id,
+    club.league_id,
+    club.name,
+    club.short_name,
+    club.primary_color,
+    club.secondary_color ?? null
+  )
 
-    for (const season of club.seasons) {
-      // insert club_season
-      db.prepare(`INSERT OR IGNORE INTO club_seasons (id, club_id, year_start, year_end, historical_ovr, league_position)
-        VALUES (@id, @club_id, @year_start, @year_end, @historical_ovr, @league_position)`).run(season)
+// replace the club_season insert
+  db.prepare(`INSERT OR IGNORE INTO club_seasons (id, club_id, year_start, year_end, historical_ovr, league_position)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    season.id,
+    season.club_id,
+    season.year_start,
+    season.year_end,
+    season.historical_ovr,
+    season.league_position ?? null
+  )
 
-      for (const player of season.players) {
-        // insert player master record
-        db.prepare(`INSERT OR IGNORE INTO players (id, name, nationality, birth_year, primary_position, secondary_positions)
-          VALUES (@id, @name, @nationality, @birth_year, @primary_position, @secondary_positions)`).run(player)
+// replace the player insert
+  db.prepare(`INSERT OR IGNORE INTO players (id, name, nationality, birth_year, primary_position, secondary_positions)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    player.id,
+    player.name,
+    player.nationality,
+    player.birth_year ?? null,
+    player.primary_position,
+    player.secondary_positions
+  )
 
         // insert player_season
         db.prepare(`INSERT OR IGNORE INTO player_seasons

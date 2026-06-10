@@ -37,12 +37,6 @@ export default function ProfileScreen() {
           <Text style={styles.btnText}>SIGN OUT</Text>
         </Pressable>
       )}
-
-      {!isGuest && (
-        <Pressable onPress={handleSignOut} style={styles.signOutLink}>
-          <Text style={styles.signOutText}>Sign out</Text>
-        </Pressable>
-      )}
     </View>
   )
 }

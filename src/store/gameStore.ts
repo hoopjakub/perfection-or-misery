@@ -1,4 +1,7 @@
+import type { LeagueSeason } from '@/types/game'
 import { create } from 'zustand'
+
+
 
 export type GameMode = 'league' | 'all_time' | 'era' | 'chaos' | 'cursed'
 export type Formation = '4-3-3' | '4-4-2' | '4-2-3-1' | '3-5-2' | '5-3-2'
@@ -30,6 +33,9 @@ type GameStore = {
   markSeasonSpun:(id: string) => void
   useReroll:     () => void
   resetRun:      () => void
+  setMode: (mode: GameMode, era?: string) => void
+  setPlacement: (league: LeagueSeason) => void
+placedLeague: LeagueSeason | null
 }
 
 const initialState = {
@@ -39,6 +45,7 @@ const initialState = {
   draftedPlayers: [],
   rerollsUsed:    0,
   spunSeasonIds:  [],
+  placedLeague:   null,
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -49,4 +56,6 @@ export const useGameStore = create<GameStore>((set) => ({
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll: () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),
   resetRun: () => set(initialState),
+  setMode: (mode, era) => set({ mode, era: era ?? null }),
+  setPlacement: (league) => set({ placedLeague: league }),
 }))

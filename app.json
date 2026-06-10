@@ -25,12 +25,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-asset"
     ],
     "androidNavigationBar": {
       "visible": "immersive"
     },
     "expo": {
+      "assets": ["assets/db/players.db"],
       "backgroundColor": "#0A0E1A",
       "android": {
         "backgroundColor": "#0A0E1A"

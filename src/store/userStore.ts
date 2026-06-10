@@ -52,19 +52,10 @@ export const useUserStore = create<UserStore>((set, get) => ({
 }))
 
 export function initAuthListener() {
-  // this fires immediately with the current session on startup
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('[userStore] auth event:', event, 'user:', session?.user?.id ?? 'none')
 
-    useUserStore.getState().setSession(session)
-
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-      if (session) {
-        console.log('[userStore] fetching profile...')
-        await useUserStore.getState().fetchProfile()
-      }
-    }
-
+    // only handle these specific events, ignore the rest
     if (event === 'SIGNED_OUT') {
       useUserStore.setState({
         session:   null,
@@ -73,6 +64,24 @@ export function initAuthListener() {
         isGuest:   true,
         isLoading: false,
       })
+      return
+    }
+
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+      // prevent duplicate fetches — check if we already have this session
+      const currentSession = useUserStore.getState().session
+      if (currentSession?.user?.id === session?.user?.id && event === 'TOKEN_REFRESHED') {
+        // just update the session token silently, don't refetch profile
+        useUserStore.setState({ session })
+        return
+      }
+
+      useUserStore.getState().setSession(session)
+
+      if (session) {
+        console.log('[userStore] fetching profile...')
+        await useUserStore.getState().fetchProfile()
+      }
     }
   })
 }
