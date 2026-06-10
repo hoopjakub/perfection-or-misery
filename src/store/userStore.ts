@@ -52,8 +52,27 @@ export const useUserStore = create<UserStore>((set, get) => ({
 }))
 
 export function initAuthListener() {
-  supabase.auth.onAuthStateChange((_event, session) => {
+  // this fires immediately with the current session on startup
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('[userStore] auth event:', event, 'user:', session?.user?.id ?? 'none')
+
     useUserStore.getState().setSession(session)
-    if (session) useUserStore.getState().fetchProfile()
+
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      if (session) {
+        console.log('[userStore] fetching profile...')
+        await useUserStore.getState().fetchProfile()
+      }
+    }
+
+    if (event === 'SIGNED_OUT') {
+      useUserStore.setState({
+        session:   null,
+        user:      null,
+        profile:   null,
+        isGuest:   true,
+        isLoading: false,
+      })
+    }
   })
 }

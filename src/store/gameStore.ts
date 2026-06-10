@@ -18,31 +18,33 @@ export type DraftedPlayer = {
 }
 
 type GameStore = {
-  mode: GameMode | null
+  mode:      GameMode | null
+  era:       string | null      // add this
   formation: Formation | null
   draftedPlayers: DraftedPlayer[]
   rerollsUsed: number
   spunSeasonIds: string[]
 
-  startRun: (mode: GameMode, formation: Formation) => void
-  addPlayer: (player: DraftedPlayer) => void
-  markSeasonSpun: (id: string) => void
-  useReroll: () => void
-  resetRun: () => void
+  startRun:      (mode: GameMode, formation: Formation, era?: string) => void
+  addPlayer:     (player: DraftedPlayer) => void
+  markSeasonSpun:(id: string) => void
+  useReroll:     () => void
+  resetRun:      () => void
 }
 
 const initialState = {
-  mode: null,
-  formation: null,
+  mode:           null,
+  era:            null,
+  formation:      null,
   draftedPlayers: [],
-  rerollsUsed: 0,
-  spunSeasonIds: [],
+  rerollsUsed:    0,
+  spunSeasonIds:  [],
 }
 
 export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
 
-  startRun: (mode, formation) => set({ ...initialState, mode, formation }),
+  startRun: (mode, formation, era) => set({ ...initialState, mode, formation, era: era ?? null }),
   addPlayer: (player) => set(s => ({ draftedPlayers: [...s.draftedPlayers, player] })),
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll: () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),

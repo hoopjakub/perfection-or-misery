@@ -26,6 +26,15 @@
     "plugins": [
       "expo-router",
       "expo-sqlite"
-    ]
+    ],
+    "androidNavigationBar": {
+      "visible": "immersive"
+    },
+    "expo": {
+      "backgroundColor": "#0A0E1A",
+      "android": {
+        "backgroundColor": "#0A0E1A"
+      }
+    }
   }
 }
