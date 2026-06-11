@@ -1,56 +1,58 @@
-import { GameMode, PositionSlot } from '@/types/game'
+import { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 
-export type ClubSeasonRow = {
-  id: string
-  club_name: string
-  short_name: string
-  year_start: number
-  year_end: number
-  historical_ovr: number
-  league_id: string
-  games_per_season: number
-  primary_color: string
-}
+const DOMINANCE_MARGIN = 8
 
-export function isPlayerAvailable(
-  primaryPos: string,
-  secondaryPositions: string[],
-  openSlots: PositionSlot[]
-): boolean {
-  const allPositions = [primaryPos, ...secondaryPositions]
-  return openSlots.some(slot =>
-    allPositions.includes(slot.primary) ||
-    slot.accepts.some(p => allPositions.includes(p))
-  )
-}
+export function filterEligibleLeagues(
+  teamOvr: number,
+  allSeasons: LeagueSeasonWithTeams[],
+  chaosMode = false
+): LeagueSeasonWithTeams[] {
+  if (chaosMode) return allSeasons
 
-export function spinClubSeason(
-  pool: ClubSeasonRow[],
-  alreadySpun: string[],
-  mode: GameMode,
-  eraFilter?: number
-): ClubSeasonRow {
-  let eligible = pool.filter(cs => !alreadySpun.includes(cs.id))
+  const eligible = allSeasons.filter(s => isEligible(teamOvr, s))
 
-  if (mode === 'era' && eraFilter !== undefined) {
-    eligible = eligible.filter(cs =>
-      Math.floor(cs.year_start / 10) === Math.floor(eraFilter / 10)
-    )
+  if (eligible.length === 0) {
+    return [...allSeasons]
+      .sort((a, b) => getTop4Avg(b) - getTop4Avg(a))
+      .slice(0, 3)
   }
 
-  if (eligible.length === 0) throw new Error('POOL_EXHAUSTED')
-
-  const totalWeight = eligible.reduce((s, cs) => s + cs.historical_ovr, 0)
-  let pick = Math.random() * totalWeight
-  for (const cs of eligible) {
-    pick -= cs.historical_ovr
-    if (pick <= 0) return cs
-  }
-  return eligible[eligible.length - 1]
+  return eligible
 }
 
-export function getRerollLimit(mode: GameMode): number {
-  if (mode === 'chaos' || mode === 'cursed') return 0
-  if (mode === 'all_time' || mode === 'era') return 3
-  return 1
+function isEligible(teamOvr: number, season: LeagueSeasonWithTeams): boolean {
+  return teamOvr <= getTop4Avg(season) + DOMINANCE_MARGIN
+}
+
+function getTop4Avg(season: LeagueSeasonWithTeams): number {
+  const top4 = [...season.teams]
+    .sort((a, b) => b.historical_ovr - a.historical_ovr)
+    .slice(0, 4)
+  return top4.reduce((s, t) => s + t.historical_ovr, 0) / 4
+}
+
+export function spinPlacement(eligible: LeagueSeasonWithTeams[]): LeagueSeasonWithTeams {
+  return eligible[Math.floor(Math.random() * eligible.length)]
+}
+
+export function buildLeagueSeason(
+  raw: LeagueSeasonWithTeams,
+  playerOvr: number
+): LeagueSeason {
+  const sorted  = [...raw.teams].sort((a, b) => a.historical_ovr - b.historical_ovr)
+  const weakest = sorted[0]
+
+  return {
+    leagueId:         raw.leagueId,
+    leagueName:       raw.leagueName,
+    yearStart:        raw.yearStart,
+    gamesPerSeason:   raw.gamesPerSeason,
+    replacedTeamName: weakest.club_name,
+    teams: raw.teams.map(t => ({
+      clubId:   t.club_id,
+      clubName: t.club_name,
+      ovr:      t === weakest ? playerOvr : t.historical_ovr,
+      isPlayer: t === weakest,
+    })),
+  }
 }

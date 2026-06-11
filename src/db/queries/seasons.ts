@@ -1,4 +1,5 @@
 import { getDb } from '../setup'
+import type { LeagueSeasonWithTeams } from '@/types/game'
 
 export type ClubSeasonRow = {
   id: string
@@ -12,18 +13,6 @@ export type ClubSeasonRow = {
   league_name: string
   games_per_season: number
   primary_color: string
-}
-
-export type LeagueSeasonWithTeams = {
-  leagueId: string
-  leagueName: string
-  yearStart: number
-  gamesPerSeason: number
-  teams: {
-    club_id: string
-    club_name: string
-    historical_ovr: number
-  }[]
 }
 
 export async function getAllClubSeasons(): Promise<ClubSeasonRow[]> {

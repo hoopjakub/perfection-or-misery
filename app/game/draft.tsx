@@ -32,6 +32,8 @@ export default function DraftScreen() {
   const [fact,          setFact]          = useState<string | null>(null)
   const [loading,       setLoading]       = useState(true)
   const [spinDisplay,   setSpinDisplay]   = useState<ClubSeasonRow | null>(null)
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerRow | null>(null)
+  const [showSlotPicker, setShowSlotPicker] = useState(false)
 
   // spin animation
   const spinAnim   = useRef(new Animated.Value(0)).current
@@ -64,7 +66,37 @@ export default function DraftScreen() {
       setPhase('done')
     }
   }, [isDraftDone])
+  
+  function handleAssignSlot(slot: PositionSlot) {
+    if (!selectedPlayer || !currentSpin) return
 
+    const drafted: DraftedPlayer = {
+      playerId:           selectedPlayer.id,
+      playerSeasonId:     `${selectedPlayer.id}_${currentSpin.year_start}`,
+      name:               selectedPlayer.name,
+      nationality:        selectedPlayer.nationality,
+      primaryPosition:    selectedPlayer.primary_position as any,
+      secondaryPositions: JSON.parse(selectedPlayer.secondary_positions ?? '[]'),
+      ovr:                selectedPlayer.ovr,
+      clubName:           currentSpin.club_name,
+      season:             `${currentSpin.year_start}/${String(currentSpin.year_start + 1).slice(-2)}`,
+      slotIndex:          slot.slotIndex,
+      isIcon:             selectedPlayer.is_icon === 1,
+    }
+
+    setSlots(prev => prev.map((s, i) =>
+      i === slot.slotIndex ? { ...s, filledBy: drafted } : s
+    ))
+
+    addPlayer(drafted)
+    setSelectedPlayer(null)
+    setShowSlotPicker(false)
+    setPhase('idle')
+    setCurrentSpin(null)
+    setPlayers([])
+    fadeAnim.setValue(0)
+    scaleAnim.setValue(0.8)
+  }
   function runSpinAnimation(finalSpin: ClubSeasonRow) {
     // rapid cycling through random clubs for slot machine effect
     let ticks = 0
@@ -176,35 +208,16 @@ export default function DraftScreen() {
     }
   }
 
-  function handlePickPlayer(player: PlayerRow, slotIndex: number) {
-    if (!currentSpin) return
-
-    const drafted: DraftedPlayer = {
-      playerId:           player.id,
-      playerSeasonId:     `${player.id}_2025`,
-      name:               player.name,
-      nationality:        player.nationality,
-      primaryPosition:    player.primary_position as any,
-      secondaryPositions: JSON.parse(player.secondary_positions ?? '[]'),
-      ovr:                player.ovr,
-      clubName:           currentSpin.club_name,
-      season:             `${currentSpin.year_start}/${String(currentSpin.year_start + 1).slice(-2)}`,
-      slotIndex:          slotIndex,
-      isIcon:             player.is_icon === 1,
-    }
-
-    // update slot
-    setSlots(prev => prev.map((s, i) =>
-      i === slotIndex ? { ...s, filledBy: drafted } : s
-    ))
-
-    addPlayer(drafted)
-    setPhase('idle')
-    setCurrentSpin(null)
-    setPlayers([])
-    fadeAnim.setValue(0)
-    scaleAnim.setValue(0.8)
+  function handleSelectPlayer(player: PlayerRow) {
+    if (!isPlayerAvailable(
+      player.primary_position,
+      JSON.parse(player.secondary_positions ?? '[]'),
+      openSlots
+    )) return
+    setSelectedPlayer(player)
+    setShowSlotPicker(true)
   }
+
 
   if (loading) {
     return (
@@ -323,79 +336,122 @@ export default function DraftScreen() {
               </View>
             )}
 
-            {/* picking slot label */}
-            <Text style={styles.pickingLabel}>
-              Pick your{' '}
-              <Text style={{ color: colors.accent }}>
-                {openSlots[0]?.label}
-              </Text>
-            </Text>
+            <Text style={styles.pickingLabel}>Pick a player</Text>
 
             {/* player cards */}
             <View style={styles.playerList}>
-              {players.map(player => {
-                const available = isPlayerAvailable(
-                  player.primary_position,
-                  JSON.parse(player.secondary_positions ?? '[]'),
-                  openSlots
-                )
+                {players.map(player => {
+                  const available = isPlayerAvailable(
+                    player.primary_position,
+                    JSON.parse(player.secondary_positions ?? '[]'),
+                    openSlots
+                  )
 
-                // find best slot for this player
-                const bestSlot = openSlots.find(slot => {
-                  const allPos = [player.primary_position, ...JSON.parse(player.secondary_positions ?? '[]')]
-                  return allPos.includes(slot.primary) || slot.accepts.some(a => allPos.includes(a))
-                })
-
-                return (
-                  <Pressable
-                    key={player.id}
-                    style={[
-                      styles.playerCard,
-                      !available && styles.playerCardDisabled,
-                    ]}
-                    onPress={() => available && bestSlot && handlePickPlayer(player, bestSlot.slotIndex)}
-                    disabled={!available}
-                  >
-                    <View style={styles.playerCardLeft}>
-                      <View style={[
-                        styles.positionBadge,
-                        { backgroundColor: (colors.positions as any)[player.primary_position] + '33' }
-                      ]}>
-                        <Text style={[
-                          styles.positionBadgeText,
-                          { color: (colors.positions as any)[player.primary_position] }
+                  return (
+                    <Pressable
+                      key={player.id}
+                      style={[styles.playerCard, !available && styles.playerCardDisabled]}
+                      onPress={() => handleSelectPlayer(player)}
+                      disabled={!available}
+                    >
+                      <View style={styles.playerCardLeft}>
+                        <View style={[
+                          styles.positionBadge,
+                          { backgroundColor: (colors.positions as any)[player.primary_position] + '33' }
                         ]}>
-                          {player.primary_position}
-                        </Text>
+                          <Text style={[
+                            styles.positionBadgeText,
+                            { color: (colors.positions as any)[player.primary_position] }
+                          ]}>
+                            {player.primary_position}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text style={[styles.playerName, !available && styles.playerNameDisabled]}>
+                            {player.name}
+                          </Text>
+                          <Text style={styles.playerNationality}>{player.nationality}</Text>
+                        </View>
                       </View>
-                      <View>
-                        <Text style={[
-                          styles.playerName,
-                          !available && styles.playerNameDisabled
-                        ]}>
-                          {player.name}
-                        </Text>
-                        <Text style={styles.playerNationality}>
-                          {player.nationality}
-                        </Text>
+                      <View style={styles.playerCardRight}>
+                        {!available && <Text style={styles.unavailableLabel}>no slot</Text>}
+                        <View style={[styles.ovrBadge, !available && styles.ovrBadgeDisabled]}>
+                          <Text style={styles.ovrBadgeText}>{player.ovr}</Text>
+                        </View>
                       </View>
-                    </View>
-
-                    <View style={styles.playerCardRight}>
-                      {!available && (
-                        <Text style={styles.unavailableLabel}>no slot</Text>
-                      )}
-                      <View style={[
-                        styles.ovrBadge,
-                        !available && styles.ovrBadgeDisabled
-                      ]}>
-                        <Text style={styles.ovrBadgeText}>{player.ovr}</Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                )
-              })}
+                      
+                    </Pressable>
+                    
+                  )
+                  
+                })}
             </View>
+                        {/* slot picker modal */}
+            {showSlotPicker && selectedPlayer && (
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalCard}>
+                  <Text style={styles.modalTitle}>
+                    Where does {selectedPlayer.name.split(' ').slice(-1)[0]} play?
+                  </Text>
+                  <Text style={styles.modalSubtitle}>
+                    Primary: {selectedPlayer.primary_position}
+                    {JSON.parse(selectedPlayer.secondary_positions ?? '[]').length > 0
+                      ? ` · Also: ${JSON.parse(selectedPlayer.secondary_positions ?? '[]').join(', ')}`
+                      : ''}
+                  </Text>
+
+                  <View style={styles.modalSlots}>
+                    {openSlots.map(slot => {
+                      const allPos = [
+                        selectedPlayer.primary_position,
+                        ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')
+                      ]
+                      const isPrimary   = allPos.includes(slot.primary)
+                      const isAccepted  = slot.accepts.some(a => allPos.includes(a))
+                      const canFill     = isPrimary || isAccepted
+                      const penalty     = !isPrimary && isAccepted ? '−5%' : !isPrimary && !isAccepted ? '−18%' : null
+
+                      return (
+                        <Pressable
+                          key={slot.slotIndex}
+                          style={[
+                            styles.slotOption,
+                            canFill && styles.slotOptionAvailable,
+                            !canFill && styles.slotOptionWeak,
+                          ]}
+                          onPress={() => handleAssignSlot(slot)}
+                        >
+                          <View style={[
+                            styles.slotOptionBadge,
+                            { backgroundColor: (colors.positions as any)[slot.primary] + '33' }
+                          ]}>
+                            <Text style={[
+                              styles.slotOptionBadgeText,
+                              { color: (colors.positions as any)[slot.primary] }
+                            ]}>
+                              {slot.label}
+                            </Text>
+                          </View>
+                          {penalty && (
+                            <Text style={styles.slotPenalty}>{penalty} OVR</Text>
+                          )}
+                          {!penalty && (
+                            <Text style={styles.slotNatural}>Natural</Text>
+                          )}
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Pressable
+                    style={styles.modalCancel}
+                    onPress={() => { setShowSlotPicker(false); setSelectedPlayer(null) }}
+                  >
+                    <Text style={styles.modalCancelText}>Cancel</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </Animated.View>
         )}
 
@@ -822,4 +878,78 @@ const styles = StyleSheet.create({
     color:         colors.textPrimary,
     letterSpacing: 2,
   },
+  modalOverlay: {
+  position:        'absolute',
+  top:             0, left: 0, right: 0, bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.7)',
+  justifyContent:  'flex-end',
+  zIndex:          100,
+},
+modalCard: {
+  backgroundColor: colors.bgCard,
+  borderTopLeftRadius:  radius.lg,
+  borderTopRightRadius: radius.lg,
+  padding:         spacing.xl,
+  gap:             spacing.md,
+  borderTopWidth:  1,
+  borderTopColor:  colors.border,
+},
+modalTitle: {
+  fontSize:   typography.lg,
+  fontWeight: typography.black,
+  color:      colors.textPrimary,
+},
+modalSubtitle: {
+  fontSize: typography.sm,
+  color:    colors.textSecondary,
+},
+modalSlots: {
+  gap: spacing.sm,
+},
+slotOption: {
+  flexDirection:   'row',
+  alignItems:      'center',
+  justifyContent:  'space-between',
+  backgroundColor: colors.bgElevated,
+  borderRadius:    radius.md,
+  borderWidth:     1,
+  borderColor:     colors.border,
+  padding:         spacing.md,
+},
+slotOptionAvailable: {
+  borderColor: colors.accent,
+},
+slotOptionWeak: {
+  opacity: 0.6,
+},
+slotOptionBadge: {
+  borderRadius:      radius.sm,
+  paddingHorizontal: spacing.sm,
+  paddingVertical:   3,
+  minWidth:          44,
+  alignItems:        'center',
+},
+slotOptionBadgeText: {
+  fontSize:   typography.sm,
+  fontWeight: typography.black,
+},
+slotNatural: {
+  fontSize: typography.xs,
+  color:    colors.success,
+},
+slotPenalty: {
+  fontSize: typography.xs,
+  color:    colors.warning,
+},
+modalCancel: {
+  alignItems:      'center',
+  paddingVertical: spacing.md,
+  borderTopWidth:  1,
+  borderTopColor:  colors.border,
+  marginTop:       spacing.xs,
+},
+modalCancelText: {
+  fontSize: typography.sm,
+  color:    colors.textMuted,
+},
 })

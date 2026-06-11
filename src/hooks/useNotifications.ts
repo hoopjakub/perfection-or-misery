@@ -45,8 +45,8 @@ export function useNotifications() {
       .order('created_at', { ascending: false })
       .limit(30)
 
-    setNotifications(data ?? [])
-    setUnreadCount((data ?? []).filter(n => !n.read).length)
+    setNotifications((data ?? []) as unknown as AppNotification[])
+    setUnreadCount((data ?? []).filter((n: any) => !n.read).length)
   }
 
   async function markAllRead() {

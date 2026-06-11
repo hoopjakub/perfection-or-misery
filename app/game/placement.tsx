@@ -10,8 +10,7 @@ import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from '@/engin
 import { calcTeamOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
-import type { LeagueSeason } from '@/types/game'
-import type { LeagueSeasonWithTeams } from '@/db/queries/seasons'
+import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 
 type Phase = 'ready' | 'spinning' | 'revealed'
 
