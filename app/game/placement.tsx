@@ -30,11 +30,6 @@ export default function PlacementScreen() {
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.8)).current
 
-  const leagueNames = [
-    'Premier League', 'La Liga', 'Bundesliga',
-    'Serie A', 'Ligue 1', 'Eredivisie',
-    'Primeira Liga', 'Championship',
-  ]
 
   useEffect(() => {
     async function init() {
@@ -89,7 +84,8 @@ export default function PlacementScreen() {
     const totalTicks = 24
 
     function tick() {
-      const name = leagueNames[Math.floor(Math.random() * leagueNames.length)]
+      const randomSeason = eligibleSeasons[Math.floor(Math.random() * eligibleSeasons.length)]
+      const name = randomSeason.leagueName + ' ' + randomSeason.yearStart + '/' + String(randomSeason.yearStart + 1).slice(-2)
       setSpinDisplay(name)
       ticks++
 

@@ -16,16 +16,6 @@ type ModeConfig = {
 
 const MODES: ModeConfig[] = [
   {
-    id:            'league',
-    title:         'League Mode',
-    subtitle:      'One league, all eras',
-    description:   'Pick a league. Every spin comes from that league across all available seasons. Placement stays within it too.',
-    emoji:         '🏴',
-    accentColor:   colors.accent,
-    rerolls:       1,
-    ratingsHidden: false,
-  },
-  {
     id:            'all_time',
     title:         'All Time',
     subtitle:      'Any league, any era',
@@ -33,6 +23,16 @@ const MODES: ModeConfig[] = [
     emoji:         '🌍',
     accentColor:   '#10B981',
     rerolls:       3,
+    ratingsHidden: false,
+  },
+  {
+    id:            'league',
+    title:         'League Mode',
+    subtitle:      'One league, all eras',
+    description:   'Pick a league. Every spin comes from that league across all available seasons. Placement stays within it too.',
+    emoji:         '🏴',
+    accentColor:   colors.accent,
+    rerolls:       1,
     ratingsHidden: false,
   },
   {
@@ -49,7 +49,7 @@ const MODES: ModeConfig[] = [
     id:            'chaos',
     title:         'Chaos Mode',
     subtitle:      'No mercy',
-    description:   'Ratings hidden. No rerolls. Placement weighting disabled — you could end up anywhere. For masochists.',
+    description:   'Ratings hidden. No rerolls. Placement weighting disabled — you could end up anywhere.',
     emoji:         '💀',
     accentColor:   '#EF4444',
     rerolls:       0,

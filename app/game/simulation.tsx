@@ -53,6 +53,9 @@ export default function SimulationScreen() {
   const worstLossRef = useRef<{ score: string; opponent: string } | null>(null)
   const worstLossMarginRef = useRef<number>(-1)
 
+  // Matchday history tracker
+  const matchdayHistoryRef = useRef<{ matchday: number; standings: SimTeam[]; fixtures: Fixture[] }[]>([])
+
   // Initialize Teams & Fixtures
   useEffect(() => {
     if (!placedLeague) return
@@ -196,6 +199,13 @@ export default function SimulationScreen() {
     setSimTeams(updatedTeams)
     setRecentResults(completedFixtures)
 
+    // Save matchday snapshot for history
+    matchdayHistoryRef.current.push({
+      matchday: currentMatchday,
+      standings: sortTeams([...updatedTeams]),
+      fixtures: completedFixtures,
+    })
+
     if (currentMatchday === totalMatchdays) {
       setIsPlaying(false)
       setPhase('completed')
@@ -229,6 +239,7 @@ export default function SimulationScreen() {
       unbeaten,
       perfectSeason,
       tier: assignTier(finalPosition, sorted.length, unbeaten, perfectSeason),
+      matchdayHistory: matchdayHistoryRef.current,
     }
 
     setSimResult(resultObject)

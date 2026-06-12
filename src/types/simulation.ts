@@ -29,6 +29,12 @@ export type MatchResult = {
   isUpset: boolean
 }
 
+export type MatchdaySnapshot = {
+  matchday: number
+  standings: SimTeam[]
+  fixtures: Fixture[]
+}
+
 export type SeasonResult = {
   table: SimTeam[]
   playerTeam: SimTeam
@@ -45,6 +51,7 @@ export type SeasonResult = {
   tier: Tier
   unbeaten: boolean
   perfectSeason: boolean
+  matchdayHistory: MatchdaySnapshot[]
 }
 
 export type Tier =

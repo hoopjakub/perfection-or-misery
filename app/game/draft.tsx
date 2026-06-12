@@ -301,24 +301,22 @@ export default function DraftScreen() {
           return (
             <View style={styles.formationPitch}>
               {lines.map((line, li) => (
-                line.length > 0 && (
-                  <View key={li} style={styles.formationLine}>
-                    {line.map(slot => (
-                      <View
-                        key={slot.slotIndex}
-                        style={[
-                          styles.formationDot,
-                          slot.filledBy && styles.formationDotFilled,
-                          !slot.filledBy && openSlots[0]?.slotIndex === slot.slotIndex && styles.formationDotNext,
-                        ]}
-                      >
-                        <Text style={styles.formationDotText}>
-                          {slot.filledBy ? slot.filledBy.ovr : slot.label}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )
+                <View key={li} style={styles.formationLine}>
+                  {line.map(slot => (
+                    <View
+                      key={slot.slotIndex}
+                      style={[
+                        styles.formationDot,
+                        slot.filledBy && styles.formationDotFilled,
+                        !slot.filledBy && openSlots[0]?.slotIndex === slot.slotIndex && styles.formationDotNext,
+                      ]}
+                    >
+                      <Text style={styles.formationDotText}>
+                        {slot.filledBy ? slot.filledBy.ovr : slot.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               ))}
             </View>
           )

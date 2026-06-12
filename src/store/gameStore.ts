@@ -39,7 +39,16 @@ export const useGameStore = create<GameStore>((set) => ({
   addPlayer:      (player) => set(s => ({ draftedPlayers: [...s.draftedPlayers, player] })),
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll:      () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),
-  resetRun:       () => set(initialState),
+  resetRun:       () => set(s => ({
+    ...s,
+    formation: null,
+    draftedPlayers: [],
+    rerollsUsed: 0,
+    spunSeasonIds: [],
+    placedLeague: null,
+    simResult: null,
+    // Keep mode and era
+  })),
   setMode:        (mode, era) => set({ mode, era: era ?? null }),
   setPlacement:   (league) => set({ placedLeague: league }),
   setSimResult:   (simResult) => set({ simResult }),

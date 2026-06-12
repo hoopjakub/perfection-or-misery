@@ -1,9 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
-  View, Text, StyleSheet, Pressable, ScrollView
+  View, Text, StyleSheet, Pressable, ScrollView, Dimensions
 } from 'react-native'
+import { LineChart } from 'react-native-chart-kit'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
+import { useUserStore } from '@/store/userStore'
+import { saveRun } from '@/db/queries/runs'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { Tier } from '@/types/simulation'
 
@@ -56,7 +59,10 @@ const TIER_META: Record<Tier, { title: string; desc: string; emoji: string }> = 
 }
 
 export default function ResultScreen() {
-  const { simResult, resetRun } = useGameStore()
+  const store = useGameStore()
+  const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers } = store
+  const { user, isGuest } = useUserStore()
+  const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
 
   if (!simResult) {
     return (
@@ -83,16 +89,76 @@ export default function ResultScreen() {
     upsets,
     tier,
     playerTeam,
-    table
+    table,
+    matchdayHistory
   } = simResult
 
   const meta = TIER_META[tier]
   const tierColor = (colors.tiers as any)[tier] ?? colors.accent
   const gd = goalsFor - goalsAgainst
 
-  function handlePlayAgain() {
+  // Default to final matchday if not selected
+  const currentMatchday = selectedMatchday ?? matchdayHistory.length
+  const currentSnapshot = matchdayHistory[currentMatchday - 1]
+
+  // Prepare graph data
+  const graphData = {
+    labels: matchdayHistory.slice(0, currentMatchday).map((_, idx) => `MD${idx + 1}`),
+    datasets: matchdayHistory[0]?.standings.map(team => {
+      const positions = matchdayHistory.slice(0, currentMatchday).map(snapshot => {
+        const position = snapshot.standings.findIndex(s => s.clubId === team.clubId) + 1
+        return position
+      })
+      return {
+        data: positions,
+        color: (opacity = 1) => team.isPlayer ? colors.accent : colors.textMuted,
+        strokeWidth: team.isPlayer ? 3 : 1,
+      }
+    }) || [],
+  }
+
+  async function handlePlayAgain() {
+    if (user && !isGuest && mode && formation && placedLeague && simResult) {
+      try {
+        await saveRun({
+          userId: user.id,
+          mode,
+          formation,
+          teamOvr: playerTeam.ovr,
+          leagueId: placedLeague.leagueId,
+          leagueName: placedLeague.leagueName,
+          yearStart: placedLeague.yearStart,
+          seasonResult: simResult,
+          squad: draftedPlayers,
+        })
+      } catch (error) {
+        console.error('Failed to save run:', error)
+      }
+    }
     resetRun()
     router.replace('/game/mode-select')
+  }
+
+  async function handleReturnToHome() {
+    if (user && !isGuest && mode && formation && placedLeague && simResult) {
+      try {
+        await saveRun({
+          userId: user.id,
+          mode,
+          formation,
+          teamOvr: playerTeam.ovr,
+          leagueId: placedLeague.leagueId,
+          leagueName: placedLeague.leagueName,
+          yearStart: placedLeague.yearStart,
+          seasonResult: simResult,
+          squad: draftedPlayers,
+        })
+      } catch (error) {
+        console.error('Failed to save run:', error)
+      }
+    }
+    resetRun()
+    router.replace('/(tabs)')
   }
 
   return (
@@ -167,6 +233,194 @@ export default function ResultScreen() {
           </View>
         </View>
 
+        {/* Matchday History */}
+        <View style={styles.matchdayCard}>
+          <Text style={styles.sectionTitle}>Matchday History</Text>
+
+          {/* Matchday Selector */}
+          <View style={styles.matchdaySelector}>
+            <Text style={styles.matchdaySelectorLabel}>Matchday {currentMatchday}/{matchdayHistory.length}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.matchdayScroll}>
+              {matchdayHistory.map((_, idx) => (
+                <Pressable
+                  key={idx}
+                  style={[
+                    styles.matchdayChip,
+                    currentMatchday === idx + 1 && styles.matchdayChipActive,
+                  ]}
+                  onPress={() => setSelectedMatchday(idx + 1)}
+                >
+                  <Text style={[
+                    styles.matchdayChipText,
+                    currentMatchday === idx + 1 && styles.matchdayChipTextActive,
+                  ]}>
+                    {idx + 1}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Matchday Fixtures */}
+          {currentSnapshot && (
+            <View style={styles.matchdayFixtures}>
+              <Text style={styles.matchdaySectionTitle}>Matchday {currentMatchday} Results</Text>
+              {currentSnapshot.fixtures.map((fixture, idx) => {
+                const result = fixture.result
+                if (!result) return null
+
+                const isPlayerHome = fixture.home.isPlayer
+                const isPlayerAway = fixture.away.isPlayer
+
+                return (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.fixtureRow,
+                      (isPlayerHome || isPlayerAway) && styles.fixtureRowPlayer,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.fixtureTeam,
+                        styles.fixtureTeamHome,
+                        isPlayerHome && styles.fixtureTeamPlayer,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {fixture.home.clubName}
+                    </Text>
+                    <View style={styles.fixtureScore}>
+                      <Text style={[
+                        styles.fixtureScoreText,
+                        result.outcome === 'home' && styles.fixtureScoreWinner,
+                        isPlayerHome && styles.fixtureScorePlayer,
+                      ]}>
+                        {result.homeGoals}
+                      </Text>
+                      <Text style={styles.fixtureScoreDivider}>-</Text>
+                      <Text style={[
+                        styles.fixtureScoreText,
+                        result.outcome === 'away' && styles.fixtureScoreWinner,
+                        isPlayerAway && styles.fixtureScorePlayer,
+                      ]}>
+                        {result.awayGoals}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.fixtureTeam,
+                        styles.fixtureTeamAway,
+                        isPlayerAway && styles.fixtureTeamPlayer,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {fixture.away.clubName}
+                    </Text>
+                  </View>
+                )
+              })}
+            </View>
+          )}
+
+          {/* Matchday Standings */}
+          {currentSnapshot && (
+            <View style={styles.matchdayStandings}>
+              <Text style={styles.matchdaySectionTitle}>Standings after Matchday {currentMatchday}</Text>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
+                <Text style={[styles.tableCol, styles.colName]}>Club</Text>
+                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
+                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
+                <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
+              </View>
+              {currentSnapshot.standings.map((team, idx) => {
+                const teamGd = team.stats.goalsFor - team.stats.goalsAgainst
+                return (
+                  <View
+                    key={team.clubId}
+                    style={[
+                      styles.tableRow,
+                      team.isPlayer && styles.tableRowPlayer,
+                    ]}
+                  >
+                    <Text style={[styles.tableColData, styles.colPos, team.isPlayer && styles.playerRowText]}>
+                      {idx + 1}
+                    </Text>
+                    <Text
+                      style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]}
+                      numberOfLines={1}
+                    >
+                      {team.clubName}
+                    </Text>
+                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
+                      {team.stats.played}
+                    </Text>
+                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
+                      {teamGd > 0 ? `+${teamGd}` : teamGd}
+                    </Text>
+                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>
+                      {team.stats.points}
+                    </Text>
+                  </View>
+                )
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* Position Tracking Graph */}
+        <View style={styles.graphCard}>
+          <Text style={styles.sectionTitle}>Position Tracking</Text>
+          <Text style={styles.graphSubtitle}>League position throughout the season (up to Matchday {currentMatchday})</Text>
+          <View style={styles.graphContainer}>
+            <LineChart
+              data={{
+                labels: graphData.labels,
+                datasets: graphData.datasets,
+              }}
+              width={Dimensions.get('window').width - spacing.lg * 2}
+              height={220}
+              chartConfig={{
+                backgroundColor: colors.bgCard,
+                backgroundGradientFrom: colors.bgCard,
+                backgroundGradientTo: colors.bgCard,
+                decimalPlaces: 0,
+                color: (opacity = 1) => colors.textSecondary,
+                labelColor: (opacity = 1) => colors.textMuted,
+                style: {
+                  borderRadius: radius.md,
+                },
+                propsForDots: {
+                  r: '0',
+                },
+                propsForLabels: {
+                  fontSize: 8,
+                },
+              }}
+              bezier
+              style={styles.graph}
+              withDots={false}
+              withInnerLines={false}
+              withOuterLines={false}
+              withVerticalLines={false}
+              withHorizontalLines={true}
+              yAxisLabel=""
+              yAxisSuffix=""
+            />
+          </View>
+          <View style={styles.graphLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+              <Text style={styles.legendText}>Your Team</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.textMuted }]} />
+              <Text style={styles.legendText}>Other Teams</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Final Standings Table */}
         <View style={styles.tableCard}>
           <Text style={styles.sectionTitle}>Final Standings</Text>
@@ -211,9 +465,14 @@ export default function ResultScreen() {
         </View>
 
         {/* Play Again Button */}
-        <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
-          <Text style={styles.actionBtnText}>PLAY AGAIN</Text>
-        </Pressable>
+        <View style={styles.buttonRow}>
+          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={handleReturnToHome}>
+            <Text style={styles.actionBtnText}>Return to Home</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
+            <Text style={styles.actionBtnText}>Play Again</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   )
@@ -436,11 +695,163 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
     ...shadows.md,
+    flex: 1,
+  },
+  actionBtnSecondary: {
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   actionBtnText: {
     fontSize: typography.md,
     fontWeight: typography.black,
     color: colors.textPrimary,
     letterSpacing: 1.5,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  matchdayCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
+  },
+  matchdaySelector: {
+    gap: spacing.sm,
+  },
+  matchdaySelectorLabel: {
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    fontWeight: typography.medium,
+  },
+  matchdayScroll: {
+    flexDirection: 'row',
+  },
+  matchdayChip: {
+    backgroundColor: colors.bgElevated,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+  },
+  matchdayChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  matchdayChipText: {
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    fontWeight: typography.bold,
+  },
+  matchdayChipTextActive: {
+    color: colors.textPrimary,
+  },
+  matchdayFixtures: {
+    gap: spacing.sm,
+  },
+  matchdaySectionTitle: {
+    fontSize: typography.sm,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  fixtureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.bgElevated,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fixtureRowPlayer: {
+    backgroundColor: colors.accent + '11',
+    borderColor: colors.accent,
+  },
+  fixtureTeam: {
+    flex: 1,
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    fontWeight: typography.medium,
+  },
+  fixtureTeamHome: {
+    textAlign: 'right',
+  },
+  fixtureTeamAway: {
+    textAlign: 'left',
+  },
+  fixtureTeamPlayer: {
+    color: colors.accent,
+    fontWeight: typography.bold,
+  },
+  fixtureScore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  fixtureScoreText: {
+    fontSize: typography.md,
+    fontWeight: typography.black,
+    color: colors.textPrimary,
+  },
+  fixtureScoreWinner: {
+    color: colors.success,
+  },
+  fixtureScorePlayer: {
+    color: colors.accent,
+  },
+  fixtureScoreDivider: {
+    fontSize: typography.md,
+    color: colors.textMuted,
+    marginHorizontal: spacing.xs,
+  },
+  matchdayStandings: {
+    gap: spacing.sm,
+  },
+  graphCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
+  },
+  graphSubtitle: {
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  graphContainer: {
+    alignItems: 'center',
+  },
+  graph: {
+    borderRadius: radius.md,
+  },
+  graphLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: typography.xs,
+    color: colors.textSecondary,
   },
 })
