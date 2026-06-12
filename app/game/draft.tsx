@@ -17,6 +17,40 @@ import type { ClubSeasonRow } from '@/engine/draft'
 
 type DraftPhase = 'idle' | 'spinning' | 'picking' | 'done'
 
+const FORMATION_SHAPES: Record<string, string[][]> = {
+  '4-3-3': [
+    ['LW', 'ST', 'RW'],
+    ['CM', 'CM', 'CM'],
+    ['LB', 'CB', 'CB', 'RB'],
+    ['GK'],
+  ],
+  '4-4-2': [
+    ['ST', 'ST'],
+    ['LM', 'CM', 'CM', 'RM'],
+    ['LB', 'CB', 'CB', 'RB'],
+    ['GK'],
+  ],
+  '4-2-3-1': [
+    ['ST'],
+    ['LW', 'CAM', 'RW'],
+    ['CDM', 'CDM'],
+    ['LB', 'CB', 'CB', 'RB'],
+    ['GK'],
+  ],
+  '3-5-2': [
+    ['ST', 'ST'],
+    ['LB', 'CM', 'CDM', 'CM', 'RB'],
+    ['CB', 'CB', 'CB'],
+    ['GK'],
+  ],
+  '5-3-2': [
+    ['ST', 'ST'],
+    ['CM', 'CDM', 'CM'],
+    ['LB', 'CB', 'CB', 'CB', 'RB'],
+    ['GK'],
+  ]
+}
+
 export default function DraftScreen() {
   const {
     mode, formation, era,
@@ -250,21 +284,45 @@ export default function DraftScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* formation mini-view */}
-        <View style={styles.formationRow}>
-          {slots.map((slot, i) => (
-            <View
-              key={i}
-              style={[
-                styles.formationDot,
-                slot.filledBy && styles.formationDotFilled,
-                !slot.filledBy && openSlots[0]?.slotIndex === slot.slotIndex && styles.formationDotNext,
-              ]}
-            >
-              <Text style={styles.formationDotText}>{slot.label}</Text>
+        {/* formation pitch view – group by position line */}
+        {(() => {
+          const shape = FORMATION_SHAPES[formation || '4-3-3'] || [['ST'], ['CM'], ['CB'], ['GK']]
+          const remainingSlots = [...slots]
+          const lines = shape.map(row => {
+            return row.map(label => {
+              const idx = remainingSlots.findIndex(s => s.label === label)
+              if (idx !== -1) {
+                return remainingSlots.splice(idx, 1)[0]
+              }
+              return null
+            }).filter((s): s is PositionSlot => s !== null)
+          })
+
+          return (
+            <View style={styles.formationPitch}>
+              {lines.map((line, li) => (
+                line.length > 0 && (
+                  <View key={li} style={styles.formationLine}>
+                    {line.map(slot => (
+                      <View
+                        key={slot.slotIndex}
+                        style={[
+                          styles.formationDot,
+                          slot.filledBy && styles.formationDotFilled,
+                          !slot.filledBy && openSlots[0]?.slotIndex === slot.slotIndex && styles.formationDotNext,
+                        ]}
+                      >
+                        <Text style={styles.formationDotText}>
+                          {slot.filledBy ? slot.filledBy.ovr : slot.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )
+              ))}
             </View>
-          ))}
-        </View>
+          )
+        })()}
 
         {/* spin zone */}
         {(phase === 'idle' || phase === 'spinning') && (
@@ -282,9 +340,12 @@ export default function DraftScreen() {
                 <Text style={styles.spinPlaceholderEmoji}>🎰</Text>
                 <Text style={styles.spinPlaceholderText}>
                   {openSlots.length > 0
-                    ? `Spin for your ${openSlots[0]?.label}`
+                    ? `${openSlots.length} slot${openSlots.length !== 1 ? 's' : ''} remaining`
                     : 'Draft complete'}
                 </Text>
+                {openSlots.length > 0 && (
+                  <Text style={styles.spinPlaceholderHint}>Spin a club to pick from</Text>
+                )}
               </View>
             )}
 
@@ -338,9 +399,41 @@ export default function DraftScreen() {
 
             <Text style={styles.pickingLabel}>Pick a player</Text>
 
-            {/* player cards */}
+            {/* skip if no compatible players at all */}
+            {players.length > 0 && players.every(p =>
+              !isPlayerAvailable(
+                p.primary_position,
+                JSON.parse(p.secondary_positions ?? '[]'),
+                openSlots
+              )
+            ) && (
+              <View style={styles.noPlayersBox}>
+                <Text style={styles.noPlayersText}>
+                  No players fit your remaining slots. Spin another club.
+                </Text>
+                <Pressable style={styles.skipBtn} onPress={() => {
+                  setPhase('idle')
+                  setCurrentSpin(null)
+                  setPlayers([])
+                  fadeAnim.setValue(0)
+                  scaleAnim.setValue(0.8)
+                }}>
+                  <Text style={styles.skipBtnText}>SKIP →</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* player cards — available first, then greyed out */}
             <View style={styles.playerList}>
-                {players.map(player => {
+                {[...players]
+                  .sort((a, b) => {
+                    const aAvail = isPlayerAvailable(a.primary_position, JSON.parse(a.secondary_positions ?? '[]'), openSlots)
+                    const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), openSlots)
+                    if (aAvail && !bAvail) return -1
+                    if (!aAvail && bAvail) return 1
+                    return 0
+                  })
+                  .map(player => {
                   const available = isPlayerAvailable(
                     player.primary_position,
                     JSON.parse(player.secondary_positions ?? '[]'),
@@ -406,18 +499,20 @@ export default function DraftScreen() {
                         selectedPlayer.primary_position,
                         ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')
                       ]
-                      const isPrimary   = allPos.includes(slot.primary)
-                      const isAccepted  = slot.accepts.some(a => allPos.includes(a))
-                      const canFill     = isPrimary || isAccepted
-                      const penalty     = !isPrimary && isAccepted ? '−5%' : !isPrimary && !isAccepted ? '−18%' : null
+                      const isPrimary  = allPos.includes(slot.primary)
+                      const isAccepted = slot.accepts.some(a => allPos.includes(a))
+                      const canFill    = isPrimary || isAccepted
+                      const penalty    = !isPrimary && isAccepted ? '−5% OVR' : null
+
+                      // Hide slots this player genuinely cannot fill
+                      if (!canFill) return null
 
                       return (
                         <Pressable
                           key={slot.slotIndex}
                           style={[
                             styles.slotOption,
-                            canFill && styles.slotOptionAvailable,
-                            !canFill && styles.slotOptionWeak,
+                            styles.slotOptionAvailable,
                           ]}
                           onPress={() => handleAssignSlot(slot)}
                         >
@@ -432,15 +527,21 @@ export default function DraftScreen() {
                               {slot.label}
                             </Text>
                           </View>
-                          {penalty && (
-                            <Text style={styles.slotPenalty}>{penalty} OVR</Text>
-                          )}
-                          {!penalty && (
-                            <Text style={styles.slotNatural}>Natural</Text>
+                          {penalty ? (
+                            <Text style={styles.slotPenalty}>{penalty}</Text>
+                          ) : (
+                            <Text style={styles.slotNatural}>Natural ✓</Text>
                           )}
                         </Pressable>
                       )
                     })}
+                    {/* fallback if no compatible slot exists */}
+                    {openSlots.every(slot => {
+                      const allPos = [selectedPlayer.primary_position, ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')]
+                      return !allPos.includes(slot.primary) && !slot.accepts.some(a => allPos.includes(a))
+                    }) && (
+                      <Text style={styles.noSlotText}>No compatible slots open for this player.</Text>
+                    )}
                   </View>
 
                   <Pressable
@@ -562,11 +663,18 @@ const styles = StyleSheet.create({
     gap:        spacing.lg,
     paddingBottom: spacing.xxl,
   },
-  formationRow: {
+  formationPitch: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.sm,
+    gap:             spacing.xs,
+  },
+  formationLine: {
     flexDirection:  'row',
-    flexWrap:       'wrap',
-    gap:            spacing.xs,
     justifyContent: 'center',
+    gap:            spacing.xs,
   },
   formationDot: {
     width:          32,
@@ -632,6 +740,11 @@ const styles = StyleSheet.create({
   spinPlaceholderText: {
     fontSize:  typography.md,
     color:     colors.textSecondary,
+    textAlign: 'center',
+  },
+  spinPlaceholderHint: {
+    fontSize:  typography.xs,
+    color:     colors.textMuted,
     textAlign: 'center',
   },
   spinBtn: {
@@ -778,6 +891,38 @@ const styles = StyleSheet.create({
   unavailableLabel: {
     fontSize: typography.xs,
     color:    colors.textMuted,
+  },
+  noSlotText: {
+    fontSize:  typography.sm,
+    color:     colors.warning,
+    textAlign: 'center',
+    paddingVertical: spacing.sm,
+  },
+  noPlayersBox: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.warning,
+    padding:         spacing.md,
+    alignItems:      'center',
+    gap:             spacing.sm,
+  },
+  noPlayersText: {
+    fontSize:  typography.sm,
+    color:     colors.warning,
+    textAlign: 'center',
+  },
+  skipBtn: {
+    backgroundColor: colors.warning,
+    borderRadius:    radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  skipBtnText: {
+    fontSize:   typography.sm,
+    fontWeight: typography.black,
+    color:      colors.bg,
+    letterSpacing: 2,
   },
   ovrBadge: {
     backgroundColor: colors.accent,

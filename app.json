@@ -32,7 +32,7 @@
       "visible": "immersive"
     },
     "expo": {
-      "assets": ["assets/db/players.db"],
+      "assets": ["assets/db/players_v4.db"],
       "backgroundColor": "#0A0E1A",
       "android": {
         "backgroundColor": "#0A0E1A"

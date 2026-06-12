@@ -38,7 +38,10 @@ export default function PlacementScreen() {
 
   useEffect(() => {
     async function init() {
-      if (!formation || draftedPlayers.length === 0) return
+      if (!formation || draftedPlayers.length === 0) {
+        setLoading(false)
+        return
+      }
       setLoading(true)
 
       const slots = getSlotsForFormation(formation)
@@ -136,6 +139,18 @@ export default function PlacementScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={colors.accent} size="large" />
         <Text style={styles.loadingText}>Analysing your squad...</Text>
+      </View>
+    )
+  }
+
+  if (!formation || draftedPlayers.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Text style={styles.loadingText}>No squad drafted yet.</Text>
+        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Draft</Text>
+        </Pressable>
       </View>
     )
   }

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { DraftedPlayer, LeagueSeason, Formation, GameMode } from '@/types/game'
+import type { SeasonResult } from '@/types/simulation'
 
 type GameStore = {
   mode:           GameMode | null
@@ -9,6 +10,7 @@ type GameStore = {
   rerollsUsed:    number
   spunSeasonIds:  string[]
   placedLeague:   LeagueSeason | null
+  simResult:      SeasonResult | null
 
   startRun:       (mode: GameMode, formation: Formation, era?: string) => void
   addPlayer:      (player: DraftedPlayer) => void
@@ -17,6 +19,7 @@ type GameStore = {
   resetRun:       () => void
   setMode:        (mode: GameMode, era?: string) => void
   setPlacement:   (league: LeagueSeason) => void
+  setSimResult:   (result: SeasonResult | null) => void
 }
 
 const initialState = {
@@ -27,6 +30,7 @@ const initialState = {
   rerollsUsed:    0,
   spunSeasonIds:  [],
   placedLeague:   null,
+  simResult:      null,
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -38,6 +42,7 @@ export const useGameStore = create<GameStore>((set) => ({
   resetRun:       () => set(initialState),
   setMode:        (mode, era) => set({ mode, era: era ?? null }),
   setPlacement:   (league) => set({ placedLeague: league }),
+  setSimResult:   (simResult) => set({ simResult }),
 }))
 
 // add to src/types/game.ts

@@ -30,6 +30,7 @@ export const colors = {
     almost_perfection:     '#FBBF24',
     champions:             '#10B981',
     title_contender:       '#3B82F6',
+    champions_league:      '#0EA5E9',
     europa_glory:          '#8B5CF6',
     almost_matters:        '#6B7280',
     respectful_mediocrity: '#4B5563',

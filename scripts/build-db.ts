@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 
-const DB_PATH  = path.join(__dirname, '../assets/db/players.db')
+const DB_PATH  = path.join(__dirname, '../assets/db/players_v4.db')
 const SEED_DIR = path.join(__dirname, 'seed')
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
@@ -43,6 +43,10 @@ db.exec(`
     player_b_id TEXT NOT NULL REFERENCES players(id),
     bonus_ovr INTEGER NOT NULL, label TEXT,
     PRIMARY KEY (player_a_id, player_b_id)
+  );
+  CREATE TABLE _meta (
+    key TEXT PRIMARY KEY,
+    value INTEGER NOT NULL
   );
   CREATE INDEX idx_ps_club_season ON player_seasons(club_season_id);
   CREATE INDEX idx_ps_player      ON player_seasons(player_id);
@@ -133,5 +137,8 @@ for (const file of files) {
   }
 }
 
-console.log(`✓ built ${DB_PATH}`)
+// Bake version into the asset so the app knows when to re-copy
+db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', 4)`).run()
+
+console.log(`✓ built ${DB_PATH} (v4)`)
 db.close()
