@@ -1,12 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
-  View, Text, StyleSheet, Pressable, ScrollView, Dimensions
+  View, Text, StyleSheet, Pressable, ScrollView, Dimensions, ActivityIndicator
 } from 'react-native'
 import { LineChart } from 'react-native-chart-kit'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
-import { saveRun } from '@/db/queries/runs'
+import { saveRun, fetchRunById } from '@/db/queries/runs'
+import { getAllClubsData } from '@/db/queries/seasons'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { Tier } from '@/types/simulation'
 
@@ -62,9 +63,127 @@ export default function ResultScreen() {
   const store = useGameStore()
   const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers } = store
   const { user, isGuest } = useUserStore()
+  const params = useLocalSearchParams<{ runId: string }>()
   const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
+  const [loadingRun, setLoadingRun] = useState(false)
+  const [dbRunData, setDbRunData] = useState<any>(null)
+  const [teamDataMap, setTeamDataMap] = useState<Record<string, { color: string; acronym: string }>>({})
 
-  if (!simResult) {
+  // Load run from database if runId is provided
+  useEffect(() => {
+    async function loadRun() {
+      if (params.runId) {
+        console.log('[result] Loading run from database, runId:', params.runId)
+        setLoadingRun(true)
+        try {
+          const run = await fetchRunById(params.runId)
+          console.log('[result] Successfully loaded run data:', run)
+          setDbRunData(run)
+        } catch (error) {
+          console.error('[result] Failed to load run:', error)
+        } finally {
+          setLoadingRun(false)
+        }
+      }
+    }
+    loadRun()
+  }, [params.runId])
+
+  // Load team data from database
+  useEffect(() => {
+    async function loadTeamData() {
+      try {
+        const clubsData = await getAllClubsData()
+        setTeamDataMap(clubsData)
+      } catch (error) {
+        console.error('[result] Failed to load team data:', error)
+      }
+    }
+    loadTeamData()
+  }, [])
+
+  // Use simResult from store or dbRunData from database
+  const resultData = dbRunData ? {
+    finalPosition: dbRunData.final_position,
+    teamsInLeague: dbRunData.teams_in_league,
+    wins: dbRunData.wins,
+    draws: dbRunData.draws,
+    losses: dbRunData.losses,
+    goalsFor: dbRunData.goals_for,
+    goalsAgainst: dbRunData.goals_against,
+    biggestWin: null,
+    worstLoss: null,
+    upsets: [],
+    tier: dbRunData.tier,
+    playerTeam: { ovr: dbRunData.team_ovr, stats: { played: dbRunData.wins + dbRunData.draws + dbRunData.losses, won: dbRunData.wins, drawn: dbRunData.draws, lost: dbRunData.losses, goalsFor: dbRunData.goals_for, goalsAgainst: dbRunData.goals_against, points: dbRunData.wins * 3 + dbRunData.draws } },
+    // Use final matchday standings as table if available
+    table: dbRunData.matchday_history && dbRunData.matchday_history.length > 0 
+      ? dbRunData.matchday_history[dbRunData.matchday_history.length - 1].standings 
+      : [],
+    // @ts-ignore - matchday_history column needs to be added to DB
+    matchdayHistory: dbRunData.matchday_history || []
+  } : simResult
+
+  // Prepare graph data with memoization for performance (must be before early return)
+  const graphData = useMemo(() => {
+    if (!resultData || !resultData.matchdayHistory || resultData.matchdayHistory.length === 0) {
+      return { labels: [], datasets: [], teamAcronyms: [], teamColors: [], teamsInLeague: 20 }
+    }
+    const currentMatchday = selectedMatchday ?? resultData.matchdayHistory.length
+    
+    // Generate team acronyms and colors from dynamic team data mapping
+    // Use final standings order for acronyms
+    const finalStandings = resultData.table || resultData.matchdayHistory[resultData.matchdayHistory.length - 1]?.standings || []
+    const teamAcronyms = finalStandings.map((team: any) => {
+      const teamData = teamDataMap[team.clubName]
+      return teamData?.acronym || team.clubName.substring(0, 3).toUpperCase()
+    }) || []
+
+    // Generate team colors from dynamic team data mapping
+    // Use final standings order for colors
+    const teamColors = finalStandings.map((team: any) => {
+      if (team.isPlayer) return colors.accent
+      const teamData = teamDataMap[team.clubName]
+      if (teamData?.color) return teamData.color
+      // Fallback to hash-based color if not in mapping
+      const hash = team.clubId.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
+      const hue = hash % 360
+      return `hsl(${hue}, 70%, 50%)`
+    }) || []
+
+    // Y-axis: position 1 at top, teamsInLeague at bottom
+    // Chart displays higher values at top, so invert position values
+    const teamsInLeague = resultData.matchdayHistory[0]?.standings.length || 20
+    return {
+      labels: resultData.matchdayHistory.slice(0, currentMatchday).map((_: any, idx: number) => `MD${idx + 1}`),
+      datasets: finalStandings.map((team: any, idx: number) => {
+        const positions = resultData.matchdayHistory.slice(0, currentMatchday).map((snapshot: any) => {
+          const position = snapshot.standings.findIndex((s: any) => s.clubId === team.clubId) + 1
+          // Invert so position 1 appears at top (higher value in chart)
+          return teamsInLeague - position + 1
+        })
+        return {
+          data: positions,
+          color: (opacity = 1) => teamColors[idx],
+          strokeWidth: team.isPlayer ? 3 : 1,
+        }
+      }) || [],
+      teamAcronyms,
+      teamColors,
+      teamsInLeague,
+    }
+  }, [resultData, selectedMatchday, teamDataMap, colors])
+
+  if (loadingRun) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={colors.accent} size="large" />
+        <Text style={styles.loadingText}>Loading run...</Text>
+      </View>
+    )
+  }
+
+  if (!resultData) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={{ fontSize: 40 }}>⚠️</Text>
@@ -91,31 +210,15 @@ export default function ResultScreen() {
     playerTeam,
     table,
     matchdayHistory
-  } = simResult
+  } = resultData
 
-  const meta = TIER_META[tier]
-  const tierColor = (colors.tiers as any)[tier] ?? colors.accent
+  const meta = TIER_META[tier as Tier]
+  const tierColor = (colors.tiers as any)[tier as Tier] ?? colors.accent
   const gd = goalsFor - goalsAgainst
 
   // Default to final matchday if not selected
   const currentMatchday = selectedMatchday ?? matchdayHistory.length
   const currentSnapshot = matchdayHistory[currentMatchday - 1]
-
-  // Prepare graph data
-  const graphData = {
-    labels: matchdayHistory.slice(0, currentMatchday).map((_, idx) => `MD${idx + 1}`),
-    datasets: matchdayHistory[0]?.standings.map(team => {
-      const positions = matchdayHistory.slice(0, currentMatchday).map(snapshot => {
-        const position = snapshot.standings.findIndex(s => s.clubId === team.clubId) + 1
-        return position
-      })
-      return {
-        data: positions,
-        color: (opacity = 1) => team.isPlayer ? colors.accent : colors.textMuted,
-        strokeWidth: team.isPlayer ? 3 : 1,
-      }
-    }) || [],
-  }
 
   async function handlePlayAgain() {
     if (user && !isGuest && mode && formation && placedLeague && simResult) {
@@ -130,6 +233,7 @@ export default function ResultScreen() {
           yearStart: placedLeague.yearStart,
           seasonResult: simResult,
           squad: draftedPlayers,
+          matchdayHistory: simResult.matchdayHistory,
         })
       } catch (error) {
         console.error('Failed to save run:', error)
@@ -152,6 +256,7 @@ export default function ResultScreen() {
           yearStart: placedLeague.yearStart,
           seasonResult: simResult,
           squad: draftedPlayers,
+          matchdayHistory: simResult.matchdayHistory,
         })
       } catch (error) {
         console.error('Failed to save run:', error)
@@ -187,15 +292,15 @@ export default function ResultScreen() {
               <Text style={styles.statLbl}>Points</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statVal}>{wins}</Text>
+              <Text style={[styles.statVal, { color: colors.success }]}>{wins}</Text>
               <Text style={styles.statLbl}>Wins</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statVal}>{draws}</Text>
+              <Text style={[styles.statVal, { color: colors.warning }]}>{draws}</Text>
               <Text style={styles.statLbl}>Draws</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statVal}>{losses}</Text>
+              <Text style={[styles.statVal, { color: '#DC2626' }]}>{losses}</Text>
               <Text style={styles.statLbl}>Losses</Text>
             </View>
           </View>
@@ -241,7 +346,7 @@ export default function ResultScreen() {
           <View style={styles.matchdaySelector}>
             <Text style={styles.matchdaySelectorLabel}>Matchday {currentMatchday}/{matchdayHistory.length}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.matchdayScroll}>
-              {matchdayHistory.map((_, idx) => (
+              {matchdayHistory.map((_: any, idx: number) => (
                 <Pressable
                   key={idx}
                   style={[
@@ -265,7 +370,7 @@ export default function ResultScreen() {
           {currentSnapshot && (
             <View style={styles.matchdayFixtures}>
               <Text style={styles.matchdaySectionTitle}>Matchday {currentMatchday} Results</Text>
-              {currentSnapshot.fixtures.map((fixture, idx) => {
+              {currentSnapshot.fixtures.map((fixture: any, idx: number) => {
                 const result = fixture.result
                 if (!result) return null
 
@@ -334,8 +439,19 @@ export default function ResultScreen() {
                 <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
                 <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
               </View>
-              {currentSnapshot.standings.map((team, idx) => {
+              {currentSnapshot.standings.map((team: any, idx: number) => {
                 const teamGd = team.stats.goalsFor - team.stats.goalsAgainst
+                
+                // Calculate position change from previous matchday
+                let positionChange = null
+                if (currentMatchday > 1) {
+                  const prevSnapshot = matchdayHistory[currentMatchday - 2]
+                  if (prevSnapshot) {
+                    const prevPosition = prevSnapshot.standings.findIndex((s: any) => s.clubId === team.clubId) + 1
+                    positionChange = prevPosition - (idx + 1)
+                  }
+                }
+                
                 return (
                   <View
                     key={team.clubId}
@@ -344,9 +460,17 @@ export default function ResultScreen() {
                       team.isPlayer && styles.tableRowPlayer,
                     ]}
                   >
-                    <Text style={[styles.tableColData, styles.colPos, team.isPlayer && styles.playerRowText]}>
-                      {idx + 1}
-                    </Text>
+                    <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
+                      <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
+                      {positionChange !== null && positionChange !== 0 && (
+                        <Text style={[
+                          styles.positionChangeIndicator,
+                          positionChange > 0 ? styles.positionUp : styles.positionDown
+                        ]}>
+                          {positionChange > 0 ? ` ↑${Math.abs(positionChange)}` : ` ↓${Math.abs(positionChange)}`}
+                        </Text>
+                      )}
+                    </View>
                     <Text
                       style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]}
                       numberOfLines={1}
@@ -379,14 +503,14 @@ export default function ResultScreen() {
                 labels: graphData.labels,
                 datasets: graphData.datasets,
               }}
-              width={Dimensions.get('window').width - spacing.lg * 2}
+              width={Dimensions.get('window').width - spacing.lg * 2 - 60}
               height={220}
               chartConfig={{
                 backgroundColor: colors.bgCard,
                 backgroundGradientFrom: colors.bgCard,
                 backgroundGradientTo: colors.bgCard,
                 decimalPlaces: 0,
-                color: (opacity = 1) => colors.textSecondary,
+                color: (opacity = 1) => colors.bgCard,
                 labelColor: (opacity = 1) => colors.textMuted,
                 style: {
                   borderRadius: radius.md,
@@ -395,7 +519,13 @@ export default function ResultScreen() {
                   r: '0',
                 },
                 propsForLabels: {
-                  fontSize: 8,
+                  fontSize: 7,
+                },
+                formatYLabel: (value) => {
+                  // Convert back from inverted value to actual position
+                  const teamsInLeague = graphData.teamsInLeague || 20
+                  const actualPosition = teamsInLeague - parseInt(value) + 1
+                  return actualPosition.toString()
                 },
               }}
               bezier
@@ -408,17 +538,32 @@ export default function ResultScreen() {
               yAxisLabel=""
               yAxisSuffix=""
             />
-          </View>
-          <View style={styles.graphLegend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
-              <Text style={styles.legendText}>Your Team</Text>
+            {/* Team Acronyms on Right Side */}
+            <View style={styles.graphRightLabels}>
+              {graphData.teamAcronyms?.map((acronym: any, idx: number) => {
+                const team = resultData.table[idx]
+                if (!team || !graphData.teamColors) return null
+                const finalInvertedPosition = graphData.datasets[idx]?.data?.[graphData.datasets[idx].data.length - 1] || 0
+                const teamsInLeague = graphData.teamsInLeague || 20
+                // Calculate Y position based on inverted position (higher value = top)
+                const yPosition = ((finalInvertedPosition - 1) / (teamsInLeague - 1)) * 220
+                return (
+                  <Text
+                    key={team.clubId}
+                    style={[
+                      styles.graphRightLabel,
+                      { color: graphData.teamColors[idx], top: yPosition - 6 },
+                      team.isPlayer && styles.graphRightLabelPlayer, 
+                    ]}
+                  >
+                    {acronym}
+                  </Text>
+                )
+              })}
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.textMuted }]} />
-              <Text style={styles.legendText}>Other Teams</Text>
-            </View>
           </View>
+          {/* Team Legend with Acronyms */}
+          
         </View>
 
         {/* Final Standings Table */}
@@ -431,7 +576,7 @@ export default function ResultScreen() {
             <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
             <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
           </View>
-          {table.map((team, idx) => {
+          {table.map((team: any, idx: number) => {
             const teamGd = team.stats.goalsFor - team.stats.goalsAgainst
             return (
               <View
@@ -830,15 +975,35 @@ const styles = StyleSheet.create({
   },
   graphContainer: {
     alignItems: 'center',
+    flexDirection: 'row',
   },
   graph: {
     borderRadius: radius.md,
+  },
+  graphRightLabels: {
+    right: 0,
+    top: 0,
+    height: 150,
+    width: 50,
+  },
+  graphRightLabel: {
+    position: 'absolute',
+    right: 0,
+    fontSize: 6,
+    fontWeight: typography.bold,
+  },
+  graphRightLabelPlayer: {
+    fontWeight: typography.black,
+    fontSize: 10,
+  },
+  graphLegendScroll: {
+    marginTop: spacing.sm,
   },
   graphLegend: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.lg,
-    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   legendItem: {
     flexDirection: 'row',
@@ -853,5 +1018,20 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: typography.xs,
     color: colors.textSecondary,
+  },
+  legendTextPlayer: {
+    color: colors.accent,
+    fontWeight: typography.bold,
+  },
+  positionChangeIndicator: {
+    fontSize: 10,
+    fontWeight: typography.bold,
+    marginLeft: 4,
+  },
+  positionUp: {
+    color: colors.success,
+  },
+  positionDown: {
+    color: '#DC2626',
   },
 })

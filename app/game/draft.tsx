@@ -4,8 +4,9 @@ import {
   ScrollView, Animated, Easing, ActivityIndicator
 } from 'react-native'
 import { router } from 'expo-router'
-import { useGameStore } from '@/store/gameStore'
+import { useGameStore, type Difficulty } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
+import { calcTeamOvr, calcChemistry, effectiveOvr } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
@@ -15,7 +16,7 @@ import type { PositionSlot, DraftedPlayer } from '@/types/game'
 import type { PlayerRow } from '@/db/queries/players'
 import type { ClubSeasonRow } from '@/engine/draft'
 
-type DraftPhase = 'idle' | 'spinning' | 'picking' | 'done'
+type DraftPhase = 'idle' | 'spinning_position' | 'spinning' | 'picking' | 'done'
 
 const FORMATION_SHAPES: Record<string, string[][]> = {
   '4-3-3': [
@@ -53,7 +54,7 @@ const FORMATION_SHAPES: Record<string, string[][]> = {
 
 export default function DraftScreen() {
   const {
-    mode, formation, era,
+    mode, formation, era, difficulty,
     draftedPlayers, spunSeasonIds,
     rerollsUsed, addPlayer, markSeasonSpun, useReroll,
   } = useGameStore()
@@ -68,6 +69,8 @@ export default function DraftScreen() {
   const [spinDisplay,   setSpinDisplay]   = useState<ClubSeasonRow | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerRow | null>(null)
   const [showSlotPicker, setShowSlotPicker] = useState(false)
+  const [spunPosition,  setSpunPosition]  = useState<PositionSlot | null>(null)
+  const [positionSpinDisplay, setPositionSpinDisplay] = useState<string>('')
 
   // spin animation
   const spinAnim   = useRef(new Animated.Value(0)).current
@@ -75,11 +78,24 @@ export default function DraftScreen() {
   const scaleAnim  = useRef(new Animated.Value(0.8)).current
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const rerollLimit  = mode ? getRerollLimit(mode) : 0
+  const rerollLimit  = getRerollLimit(difficulty ?? null, mode ?? null)
   const rerollsLeft  = rerollLimit - rerollsUsed
   const openSlots    = slots.filter(s => s.filledBy === null)
   const filledSlots  = slots.filter(s => s.filledBy !== null)
   const isDraftDone = slots.length > 0 && openSlots.length === 0
+  // Hide ratings in chaos/cursed modes and hard mode
+  const ratingsHidden = mode === 'chaos' || mode === 'cursed' || difficulty === 'hard'
+
+  // Calculate chemistry-affected OVR for squad display
+  const baseTeamOvr = slots.length > 0 && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
+  const chem = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
+  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+
+  function getPlayerInitials(name: string): string {
+    const parts = name.split(' ')
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+    return parts.map(part => part.charAt(0).toUpperCase()).join('')
+  }
 
   useEffect(() => {
     async function init() {
@@ -188,30 +204,87 @@ export default function DraftScreen() {
   }
 
   async function handleSpin() {
-    if (pool.length === 0 || phase === 'spinning') return
-    setPhase('spinning')
-    setPlayers([])
-    setFact(null)
+    if (pool.length === 0 || phase === 'spinning' || phase === 'spinning_position') return
+    setSpunPosition(null)
+    
+    if (mode === 'cursed') {
+      setPhase('spinning_position')
+      runPositionSpinAnimation()
+    } else {
+      setPhase('spinning')
+      setPlayers([])
+      setFact(null)
 
-    try {
-      const eraYear = era
-        ? parseInt(era.replace('s+', '').replace('s', ''))
-        : undefined
+      try {
+        const eraYear = era
+          ? parseInt(era.replace('s+', '').replace('s', ''))
+          : undefined
 
-      const spun = spinClubSeason(
-        pool, spunSeasonIds,
-        mode ?? 'league',
-        eraYear
-      )
+        const spun = spinClubSeason(
+          pool, spunSeasonIds,
+          mode ?? 'league',
+          eraYear
+        )
 
-      markSeasonSpun(spun.id)
-      runSpinAnimation(spun)
-    } catch (e: any) {
-      if (e.message === 'POOL_EXHAUSTED') {
-        setPhase('idle')
-        // all seasons spun — just proceed
+        markSeasonSpun(spun.id)
+        runSpinAnimation(spun)
+      } catch (e: any) {
+        if (e.message === 'POOL_EXHAUSTED') {
+          setPhase('idle')
+          // all seasons spun — just proceed
+        }
       }
     }
+  }
+
+  function runPositionSpinAnimation() {
+    let ticks = 0
+    const totalTicks = 20
+
+    function tick() {
+      const randomSlot = openSlots[Math.floor(Math.random() * openSlots.length)]
+      setPositionSpinDisplay(randomSlot.label)
+      ticks++
+
+      const delay = ticks < totalTicks * 0.6 ? 80
+                  : ticks < totalTicks * 0.8 ? 160 : 280
+
+      if (ticks < totalTicks) {
+        setTimeout(tick, delay)
+      } else {
+        const finalSlot = openSlots[Math.floor(Math.random() * openSlots.length)]
+        setSpunPosition(finalSlot)
+        setPositionSpinDisplay(finalSlot.label)
+
+        // After position is revealed, spin for club
+        setTimeout(() => {
+          setPhase('spinning')
+          setPlayers([])
+          setFact(null)
+
+          try {
+            const eraYear = era
+              ? parseInt(era.replace('s+', '').replace('s', ''))
+              : undefined
+
+            const spun = spinClubSeason(
+              pool, spunSeasonIds,
+              mode ?? 'league',
+              eraYear
+            )
+
+            markSeasonSpun(spun.id)
+            runSpinAnimation(spun)
+          } catch (e: any) {
+            if (e.message === 'POOL_EXHAUSTED') {
+              setPhase('idle')
+            }
+          }
+        }, 1000)
+      }
+    }
+
+    tick()
   }
 
   async function handleReroll() {
@@ -279,6 +352,93 @@ export default function DraftScreen() {
         </View>
       </View>
 
+      {/* slot picker modal - positioned at top */}
+      {showSlotPicker && selectedPlayer && (
+        <View style={styles.topModalOverlay}>
+          <View style={styles.topModalCard}>
+            <Text style={styles.modalTitle}>
+              Where does {selectedPlayer.name.split(' ').slice(-1)[0]} play?
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              Primary: {selectedPlayer.primary_position}
+              {JSON.parse(selectedPlayer.secondary_positions ?? '[]').length > 0
+                ? ` · Also: ${JSON.parse(selectedPlayer.secondary_positions ?? '[]').join(', ')}`
+                : ''}
+            </Text>
+            {mode === 'cursed' && spunPosition && (
+              <Text style={styles.cursedPositionHint}>
+                Cursed Mode: Must pick {spunPosition.label} position
+              </Text>
+            )}
+
+            <View style={styles.modalSlots}>
+              {openSlots.map(slot => {
+                // In cursed mode, only show the spun position
+                if (mode === 'cursed' && spunPosition && slot.slotIndex !== spunPosition.slotIndex) {
+                  return null
+                }
+
+                const allPos = [
+                  selectedPlayer.primary_position,
+                  ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')
+                ]
+                const isPrimary  = allPos.includes(slot.primary)
+                const isAccepted = slot.accepts.some(a => allPos.includes(a))
+                const canFill    = isPrimary || isAccepted
+                const penaltyOvr = !isPrimary && isAccepted ? Math.round(selectedPlayer.ovr * 0.95) : selectedPlayer.ovr
+
+                // Hide slots this player genuinely cannot fill
+                if (!canFill) return null
+
+                return (
+                  <Pressable
+                    key={slot.slotIndex}
+                    style={[
+                      styles.slotOption,
+                      styles.slotOptionAvailable,
+                    ]}
+                    onPress={() => handleAssignSlot(slot)}
+                  >
+                    <View style={[
+                      styles.slotOptionBadge,
+                      { backgroundColor: (colors.positions as any)[slot.primary] + '33' }
+                    ]}>
+                      <Text style={[
+                        styles.slotOptionBadgeText,
+                        { color: (colors.positions as any)[slot.primary] }
+                      ]}>
+                        {slot.label}
+                      </Text>
+                    </View>
+                    {!ratingsHidden && (
+                      !isPrimary && isAccepted ? (
+                        <Text style={styles.slotPenalty}>OVR {penaltyOvr}</Text>
+                      ) : (
+                        <Text style={styles.slotNatural}>OVR {penaltyOvr}</Text>
+                      )
+                    )}
+                  </Pressable>
+                )
+              })}
+              {/* fallback if no compatible slot exists */}
+              {openSlots.every(slot => {
+                const allPos = [selectedPlayer.primary_position, ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')]
+                return !allPos.includes(slot.primary) && !slot.accepts.some(a => allPos.includes(a))
+              }) && (
+                <Text style={styles.noSlotText}>No compatible slots open for this player.</Text>
+              )}
+            </View>
+
+            <Pressable
+              style={styles.modalCancel}
+              onPress={() => { setShowSlotPicker(false); setSelectedPlayer(null) }}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -292,7 +452,9 @@ export default function DraftScreen() {
             return row.map(label => {
               const idx = remainingSlots.findIndex(s => s.label === label)
               if (idx !== -1) {
-                return remainingSlots.splice(idx, 1)[0]
+                const slot = remainingSlots[idx]
+                remainingSlots.splice(idx, 1)
+                return slot
               }
               return null
             }).filter((s): s is PositionSlot => s !== null)
@@ -312,7 +474,7 @@ export default function DraftScreen() {
                       ]}
                     >
                       <Text style={styles.formationDotText}>
-                        {slot.filledBy ? slot.filledBy.ovr : slot.label}
+                        {slot.filledBy ? getPlayerInitials(slot.filledBy.name) : slot.label}
                       </Text>
                     </View>
                   ))}
@@ -323,8 +485,15 @@ export default function DraftScreen() {
         })()}
 
         {/* spin zone */}
-        {(phase === 'idle' || phase === 'spinning') && (
+        {(phase === 'idle' || phase === 'spinning' || phase === 'spinning_position') && (
           <View style={styles.spinZone}>
+            {phase === 'spinning_position' && (
+              <View style={styles.spinCard}>
+                <Text style={styles.spinClubName}>Position Spin</Text>
+                <Text style={styles.spinSeason}>{positionSpinDisplay}</Text>
+                <Text style={styles.spinOvr}>Cursed Mode</Text>
+              </View>
+            )}
             {phase === 'spinning' && spinDisplay ? (
               <View style={styles.spinCard}>
                 <Text style={styles.spinClubName}>{spinDisplay.club_name}</Text>
@@ -333,7 +502,7 @@ export default function DraftScreen() {
                 </Text>
                 <Text style={styles.spinOvr}>OVR {spinDisplay.historical_ovr}</Text>
               </View>
-            ) : (
+            ) : phase !== 'spinning_position' && (
               <View style={styles.spinPlaceholder}>
                 <Text style={styles.spinPlaceholderEmoji}>🎰</Text>
                 <Text style={styles.spinPlaceholderText}>
@@ -342,7 +511,9 @@ export default function DraftScreen() {
                     : 'Draft complete'}
                 </Text>
                 {openSlots.length > 0 && (
-                  <Text style={styles.spinPlaceholderHint}>Spin a club to pick from</Text>
+                  <Text style={styles.spinPlaceholderHint}>
+                    {mode === 'cursed' ? 'Spin for position first' : 'Spin a club to pick from'}
+                  </Text>
                 )}
               </View>
             )}
@@ -353,7 +524,7 @@ export default function DraftScreen() {
               </Pressable>
             )}
 
-            {phase === 'spinning' && (
+            {(phase === 'spinning' || phase === 'spinning_position') && (
               <View style={[styles.spinBtn, styles.spinBtnSpinning]}>
                 <ActivityIndicator color={colors.textPrimary} />
               </View>
@@ -395,7 +566,9 @@ export default function DraftScreen() {
               </View>
             )}
 
-            <Text style={styles.pickingLabel}>Pick a player</Text>
+            <Text style={styles.pickingLabel}>
+              Pick a player{mode === 'cursed' && spunPosition ? ` (${spunPosition.label})` : ''}
+            </Text>
 
             {/* skip if no compatible players at all */}
             {players.length > 0 && players.every(p =>
@@ -429,6 +602,12 @@ export default function DraftScreen() {
                     const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), openSlots)
                     if (aAvail && !bAvail) return -1
                     if (!aAvail && bAvail) return 1
+                    // In Chaos/Cursed modes, sort by last name instead of OVR
+                    if (mode === 'chaos' || mode === 'cursed') {
+                      const aLastName = a.name.split(' ').slice(-1)[0]
+                      const bLastName = b.name.split(' ').slice(-1)[0]
+                      return aLastName.localeCompare(bLastName)
+                    }
                     return 0
                   })
                   .map(player => {
@@ -466,91 +645,17 @@ export default function DraftScreen() {
                       </View>
                       <View style={styles.playerCardRight}>
                         {!available && <Text style={styles.unavailableLabel}>no slot</Text>}
-                        <View style={[styles.ovrBadge, !available && styles.ovrBadgeDisabled]}>
-                          <Text style={styles.ovrBadgeText}>{player.ovr}</Text>
-                        </View>
+                        {!ratingsHidden && (
+                          <View style={[styles.ovrBadge, !available && styles.ovrBadgeDisabled]}>
+                            <Text style={styles.ovrBadgeText}>{player.ovr}</Text>
+                          </View>
+                        )}
                       </View>
                       
                     </Pressable>
-                    
                   )
-                  
                 })}
             </View>
-                        {/* slot picker modal */}
-            {showSlotPicker && selectedPlayer && (
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalCard}>
-                  <Text style={styles.modalTitle}>
-                    Where does {selectedPlayer.name.split(' ').slice(-1)[0]} play?
-                  </Text>
-                  <Text style={styles.modalSubtitle}>
-                    Primary: {selectedPlayer.primary_position}
-                    {JSON.parse(selectedPlayer.secondary_positions ?? '[]').length > 0
-                      ? ` · Also: ${JSON.parse(selectedPlayer.secondary_positions ?? '[]').join(', ')}`
-                      : ''}
-                  </Text>
-
-                  <View style={styles.modalSlots}>
-                    {openSlots.map(slot => {
-                      const allPos = [
-                        selectedPlayer.primary_position,
-                        ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')
-                      ]
-                      const isPrimary  = allPos.includes(slot.primary)
-                      const isAccepted = slot.accepts.some(a => allPos.includes(a))
-                      const canFill    = isPrimary || isAccepted
-                      const penalty    = !isPrimary && isAccepted ? '−5% OVR' : null
-
-                      // Hide slots this player genuinely cannot fill
-                      if (!canFill) return null
-
-                      return (
-                        <Pressable
-                          key={slot.slotIndex}
-                          style={[
-                            styles.slotOption,
-                            styles.slotOptionAvailable,
-                          ]}
-                          onPress={() => handleAssignSlot(slot)}
-                        >
-                          <View style={[
-                            styles.slotOptionBadge,
-                            { backgroundColor: (colors.positions as any)[slot.primary] + '33' }
-                          ]}>
-                            <Text style={[
-                              styles.slotOptionBadgeText,
-                              { color: (colors.positions as any)[slot.primary] }
-                            ]}>
-                              {slot.label}
-                            </Text>
-                          </View>
-                          {penalty ? (
-                            <Text style={styles.slotPenalty}>{penalty}</Text>
-                          ) : (
-                            <Text style={styles.slotNatural}>Natural ✓</Text>
-                          )}
-                        </Pressable>
-                      )
-                    })}
-                    {/* fallback if no compatible slot exists */}
-                    {openSlots.every(slot => {
-                      const allPos = [selectedPlayer.primary_position, ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')]
-                      return !allPos.includes(slot.primary) && !slot.accepts.some(a => allPos.includes(a))
-                    }) && (
-                      <Text style={styles.noSlotText}>No compatible slots open for this player.</Text>
-                    )}
-                  </View>
-
-                  <Pressable
-                    style={styles.modalCancel}
-                    onPress={() => { setShowSlotPicker(false); setSelectedPlayer(null) }}
-                  >
-                    <Text style={styles.modalCancelText}>Cancel</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
           </Animated.View>
         )}
 
@@ -558,24 +663,43 @@ export default function DraftScreen() {
         {filledSlots.length > 0 && (
           <View style={styles.draftedSection}>
             <Text style={styles.draftedTitle}>Your Squad</Text>
-            {slots.filter(s => s.filledBy).map((slot, i) => (
-              <View key={i} style={styles.draftedRow}>
-                <View style={[
-                  styles.draftedPosBadge,
-                  { backgroundColor: (colors.positions as any)[slot.primary] + '22' }
-                ]}>
-                  <Text style={[
-                    styles.draftedPosText,
-                    { color: (colors.positions as any)[slot.primary] }
-                  ]}>
-                    {slot.label}
-                  </Text>
-                </View>
-                <Text style={styles.draftedName}>{slot.filledBy!.name}</Text>
-                <Text style={styles.draftedClub}>{slot.filledBy!.clubName}</Text>
-                <Text style={styles.draftedOvr}>{slot.filledBy!.ovr}</Text>
+            {!ratingsHidden && (
+              <View style={styles.teamOvrRow}>
+                <Text style={styles.teamOvrLabel}>Team OVR: </Text>
+                <Text style={[styles.teamOvrValue, { color: colors.warning }]}>{totalTeamOvr}</Text>
+                <Text style={styles.teamOvrBreakdown}>({baseTeamOvr} +{chem.bonusOvr})</Text>
               </View>
-            ))}
+            )}
+            {slots.filter(s => s.filledBy).map((slot, i) => {
+              const player = slot.filledBy!
+              const effectiveRating = effectiveOvr(player, slot)
+              const isAffected = effectiveRating !== player.ovr
+              return (
+                <View key={i} style={styles.draftedRow}>
+                  <View style={[
+                    styles.draftedPosBadge,
+                    { backgroundColor: (colors.positions as any)[slot.primary] + '22' }
+                  ]}>
+                    <Text style={[
+                      styles.draftedPosText,
+                      { color: (colors.positions as any)[slot.primary] }
+                    ]}>
+                      {slot.label}
+                    </Text>
+                  </View>
+                  <Text style={styles.draftedName}>{player.name}</Text>
+                  <Text style={styles.draftedClub}>{player.clubName}</Text>
+                  {!ratingsHidden && (
+                    <Text style={[
+                      styles.draftedOvr,
+                      isAffected && { color: colors.warning }
+                    ]}>
+                      {effectiveRating}
+                    </Text>
+                  )}
+                </View>
+              )
+            })}
           </View>
         )}
 
@@ -946,6 +1070,30 @@ const styles = StyleSheet.create({
     fontWeight: typography.bold,
     color:      colors.textPrimary,
   },
+  teamOvrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  teamOvrLabel: {
+    fontSize: typography.sm,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+  },
+  teamOvrValue: {
+    fontSize: typography.md,
+    fontWeight: typography.black,
+  },
+  teamOvrBreakdown: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    marginLeft: spacing.xs,
+  },
   draftedRow: {
     flexDirection:   'row',
     alignItems:      'center',
@@ -1037,6 +1185,25 @@ modalCard: {
   borderTopWidth:  1,
   borderTopColor:  colors.border,
 },
+topModalOverlay: {
+  position:        'absolute',
+  top:             0, left: 0, right: 0, bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.7)',
+  justifyContent:  'center',
+  alignItems:      'center',
+  zIndex:          100,
+  paddingTop:      80,
+},
+topModalCard: {
+  backgroundColor: colors.bgCard,
+  borderRadius:    radius.lg,
+  padding:         spacing.xl,
+  gap:             spacing.md,
+  borderWidth:     1,
+  borderColor:     colors.border,
+  width:           '90%',
+  maxWidth:         400,
+},
 modalTitle: {
   fontSize:   typography.lg,
   fontWeight: typography.black,
@@ -1045,6 +1212,12 @@ modalTitle: {
 modalSubtitle: {
   fontSize: typography.sm,
   color:    colors.textSecondary,
+},
+cursedPositionHint: {
+  fontSize: typography.xs,
+  color:    colors.warning,
+  fontStyle: 'italic',
+  marginBottom: spacing.sm,
 },
 modalSlots: {
   gap: spacing.sm,

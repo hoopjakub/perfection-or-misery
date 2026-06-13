@@ -1,11 +1,79 @@
-import { View, Text, StyleSheet } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import { fetchLeaderboard, type LeaderboardEntry } from '@/db/queries/leaderboard'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 export default function LeaderboardScreen() {
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadLeaderboard() {
+      try {
+        const data = await fetchLeaderboard({ limit: 50 })
+        setLeaderboard(data)
+      } catch (error) {
+        console.error('Failed to load leaderboard:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadLeaderboard()
+  }, [])
+
+  function formatTier(tier: string): string {
+    return tier
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Leaderboard</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.accent} size="large" />
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Leaderboard</Text>
-      <Text style={styles.sub}>Coming once you have runs to show.</Text>
+
+      {leaderboard.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}>😬</Text>
+          <Text style={styles.emptyText}>No runs yet. Be the first!</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          {leaderboard.map((entry, index) => (
+            <View key={entry.id} style={styles.entryCard}>
+              <View style={styles.rankBadge}>
+                <Text style={styles.rankText}>#{index + 1}</Text>
+              </View>
+              <View style={styles.entryContent}>
+                <Text style={styles.username}>{entry.profiles.username}</Text>
+                <Text style={styles.entryTier}>{formatTier(entry.tier)}</Text>
+                <Text style={styles.entryLeague}>{entry.league_name}</Text>
+              </View>
+              <View style={styles.entryStats}>
+                <Text style={styles.entryScore}>{entry.score}</Text>
+                <Text style={styles.entryDate}>{formatDate(entry.created_at)}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
     </View>
   )
 }
@@ -21,10 +89,81 @@ const styles = StyleSheet.create({
     fontSize:     typography.xxl,
     fontWeight:   typography.black,
     color:        colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: spacing.xxl,
+  },
+  emptyEmoji: {
+    fontSize: 40,
+    marginBottom: spacing.md,
+  },
+  emptyText: {
+    fontSize: typography.sm,
+    color: colors.textMuted,
+  },
+  scroll: {
+    flex: 1,
+  },
+  entryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  sub: {
+  rankBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  rankText: {
     fontSize: typography.sm,
-    color:    colors.textMuted,
+    fontWeight: typography.black,
+    color: colors.textPrimary,
+  },
+  entryContent: {
+    flex: 1,
+  },
+  username: {
+    fontSize: typography.md,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+  },
+  entryTier: {
+    fontSize: typography.sm,
+    color: colors.accent,
+    fontWeight: typography.medium,
+  },
+  entryLeague: {
+    fontSize: typography.xs,
+    color: colors.textSecondary,
+  },
+  entryStats: {
+    alignItems: 'flex-end',
+  },
+  entryScore: {
+    fontSize: typography.lg,
+    fontWeight: typography.black,
+    color: colors.textPrimary,
+  },
+  entryDate: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
   },
 })

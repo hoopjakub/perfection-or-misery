@@ -1,19 +1,31 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { signOut } from '@/lib/auth'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 export default function ProfileScreen() {
-  const { profile, isGuest } = useUserStore()
+  const { profile, isGuest, user } = useUserStore()
 
   async function handleSignOut() {
     await signOut()
     router.replace('/(tabs)')
   }
 
+  function handleSeeAllRuns() {
+    router.push('/(tabs)/runs')
+  }
+
+  function handleHowToPlay() {
+    router.push('/(tabs)/how-to-play')
+  }
+
+  function handleAboutMe() {
+    router.push('/(tabs)/about')
+  }
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Profile</Text>
 
       <View style={styles.card}>
@@ -24,6 +36,20 @@ export default function ProfileScreen() {
           {isGuest ? '👤 Guest Account' : '✅ Registered'}
         </Text>
       </View>
+
+      {!isGuest && (
+        <Pressable style={styles.btn} onPress={handleSeeAllRuns}>
+          <Text style={styles.btnText}>SEE ALL RUNS</Text>
+        </Pressable>
+      )}
+
+      <Pressable style={styles.btn} onPress={handleHowToPlay}>
+        <Text style={styles.btnText}>HOW TO PLAY</Text>
+      </Pressable>
+
+      <Pressable style={styles.btn} onPress={handleAboutMe}>
+        <Text style={styles.btnText}>ABOUT ME</Text>
+      </Pressable>
 
       {isGuest ? (
         <Pressable
@@ -37,7 +63,7 @@ export default function ProfileScreen() {
           <Text style={styles.btnText}>SIGN OUT</Text>
         </Pressable>
       )}
-    </View>
+    </ScrollView>
   )
 }
 
@@ -47,6 +73,9 @@ const styles = StyleSheet.create({
     backgroundColor:   colors.bg,
     paddingTop:        64,
     paddingHorizontal: spacing.lg,
+  },
+  content: {
+    paddingBottom: spacing.xxl,
   },
   title: {
     fontSize:     typography.xxl,

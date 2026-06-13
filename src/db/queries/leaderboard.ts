@@ -24,6 +24,12 @@ export type LeaderboardFilter = {
   offset?: number
 }
 
+export type UserStats = {
+  bestScore: number | null
+  bestTier: string | null
+  totalRuns: number
+}
+
 export async function fetchLeaderboard(
   filter: LeaderboardFilter = {}
 ): Promise<LeaderboardEntry[]> {
@@ -77,6 +83,64 @@ export async function fetchRunHistory(userId: string, limit = 20) {
 
   if (error) throw error
   return data ?? []
+}
+
+export async function fetchUserStats(userId: string): Promise<UserStats> {
+  // Get total runs
+  const { count: totalRuns, error: countError } = await supabase
+    .from('runs')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  if (countError) throw countError
+
+  // Get best score
+  const { data: bestRun, error: scoreError } = await supabase
+    .from('runs')
+    .select('score, tier')
+    .eq('user_id', userId)
+    .order('score', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (scoreError && scoreError.code !== 'PGRST116') throw scoreError
+
+  // Calculate best tier by checking from perfection down
+  const TIER_HIERARCHY = [
+    'perfection',
+    'almost_perfection',
+    'champions',
+    'title_contender',
+    'champions_league',
+    'europa_glory',
+    'almost_matters',
+    'respectful_mediocrity',
+    'absolute_misery'
+  ]
+
+  let bestTier: string | null = null
+  if (bestRun) {
+    // If user has runs, find their best tier
+    const { data: allTiers } = await supabase
+      .from('runs')
+      .select('tier')
+      .eq('user_id', userId)
+
+    if (allTiers) {
+      for (const tier of TIER_HIERARCHY) {
+        if (allTiers.some((run: any) => run.tier === tier)) {
+          bestTier = tier
+          break
+        }
+      }
+    }
+  }
+
+  return {
+    bestScore: bestRun?.score ?? null,
+    bestTier,
+    totalRuns: totalRuns ?? 0
+  }
 }
 
 export function calculateScore(params: {

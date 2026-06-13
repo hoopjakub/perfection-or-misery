@@ -15,6 +15,11 @@ export type ClubSeasonRow = {
   primary_color: string
 }
 
+export type LeagueOption = {
+  id: string
+  name: string
+}
+
 export async function getAllClubSeasons(): Promise<ClubSeasonRow[]> {
   const db = await getDb()
   return db.getAllAsync<ClubSeasonRow>(
@@ -24,6 +29,17 @@ export async function getAllClubSeasons(): Promise<ClubSeasonRow[]> {
      JOIN clubs c ON c.id = cs.club_id
      JOIN leagues l ON l.id = c.league_id
      ORDER BY cs.historical_ovr DESC`
+  )
+}
+
+export async function getAvailableLeagues(): Promise<LeagueOption[]> {
+  const db = await getDb()
+  return db.getAllAsync<LeagueOption>(
+    `SELECT DISTINCT l.id, l.name
+     FROM leagues l
+     JOIN clubs c ON c.league_id = l.id
+     JOIN club_seasons cs ON cs.club_id = c.id
+     ORDER BY l.name ASC`
   )
 }
 
@@ -66,4 +82,21 @@ export async function getLeagueSeasonWithTeams(
     gamesPerSeason: league?.games_per_season ?? 38,
     teams,
   }
+}
+
+export async function getAllClubsData(): Promise<Record<string, { color: string; acronym: string }>> {
+  const db = await getDb()
+  const clubs = await db.getAllAsync<{ name: string; short_name: string; primary_color: string }>(
+    `SELECT name, short_name, primary_color FROM clubs`
+  )
+  
+  const clubDataMap: Record<string, { color: string; acronym: string }> = {}
+  clubs.forEach(club => {
+    clubDataMap[club.name] = {
+      color: club.primary_color,
+      acronym: club.short_name
+    }
+  })
+  
+  return clubDataMap
 }

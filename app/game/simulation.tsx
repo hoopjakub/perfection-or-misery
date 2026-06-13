@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
-import { calcTeamOvr, calcChemistry } from '@/engine/rating'
+import { calcTeamOvr, calcChemistry, effectiveOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { generateFixtures } from '@/engine/fixtures'
 import { simulateMatch } from '@/engine/match'
@@ -17,7 +17,7 @@ type SimPhase = 'review' | 'simulating' | 'completed'
 type Speed = 'slow' | 'normal' | 'fast'
 
 const SPEED_MS: Record<Speed, number> = {
-  slow: 1000,
+  slow: 2000,
   normal: 400,
   fast: 100,
 }
@@ -27,7 +27,8 @@ export default function SimulationScreen() {
     draftedPlayers,
     formation,
     placedLeague,
-    setSimResult
+    setSimResult,
+    difficulty
   } = useGameStore()
 
   // Calculate OVR & Chem safely at the top with defaults in case of empty store
@@ -43,6 +44,11 @@ export default function SimulationScreen() {
   const [recentResults, setRecentResults] = useState<Fixture[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>('normal')
+  const [previousPlayerPosition, setPreviousPlayerPosition] = useState<number | null>(null)
+  const [positionChangeAnim] = useState(new Animated.Value(0))
+  const [animatedPositions, setAnimatedPositions] = useState<Record<string, Animated.Value>>({})
+  const [isStartingSimulation, setIsStartingSimulation] = useState(false)
+  const [isFinishingSimulation, setIsFinishingSimulation] = useState(false)
 
   const totalMatchdays = placedLeague?.gamesPerSeason ?? 38
 
@@ -94,16 +100,21 @@ export default function SimulationScreen() {
       <View style={styles.loadingContainer}>
         <Text style={{ fontSize: 40 }}>⚠️</Text>
         <Text style={styles.loadingText}>No squad or placement found.</Text>
-        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Draft</Text>
+        <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: 12 }}>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Mode Select</Text>
         </Pressable>
       </View>
     )
   }
 
   function startSimulation() {
-    setPhase('simulating')
-    setIsPlaying(true)
+    setIsStartingSimulation(true)
+    // Small delay to show loading animation
+    setTimeout(() => {
+      setPhase('simulating')
+      setIsPlaying(true)
+      setIsStartingSimulation(false)
+    }, 500)
   }
 
   function simulateNextMatchday() {
@@ -199,12 +210,51 @@ export default function SimulationScreen() {
     setSimTeams(updatedTeams)
     setRecentResults(completedFixtures)
 
-    // Save matchday snapshot for history
+    // Save matchday snapshot for history with deep copy of team stats
+    const standingsSnapshot = sortTeams([...updatedTeams]).map(team => ({
+      ...team,
+      stats: { ...team.stats }
+    }))
     matchdayHistoryRef.current.push({
       matchday: currentMatchday,
-      standings: sortTeams([...updatedTeams]),
+      standings: standingsSnapshot,
       fixtures: completedFixtures,
     })
+
+    // Update previous player position before changing matchday
+    const currentPlayerPos = standingsSnapshot.findIndex(t => t.isPlayer) + 1
+    if (currentMatchday > 1) {
+      const prevPos = previousPlayerPosition
+      setPreviousPlayerPosition(currentPlayerPos)
+      // Animate position change indicator
+      positionChangeAnim.setValue(0)
+      Animated.timing(positionChangeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start()
+
+      // In slow mode, animate all position changes smoothly
+      if (speed === 'slow') {
+        const newAnimatedPositions: Record<string, Animated.Value> = { ...animatedPositions }
+        standingsSnapshot.forEach((team, idx) => {
+          const currentPos = idx + 1
+          if (!animatedPositions[team.clubId]) {
+            newAnimatedPositions[team.clubId] = new Animated.Value(currentPos)
+          } else {
+            Animated.timing(animatedPositions[team.clubId], {
+              toValue: currentPos,
+              duration: 800,
+              useNativeDriver: false,
+            }).start()
+          }
+        })
+        setAnimatedPositions(newAnimatedPositions)
+      }
+    } else {
+      // Initialize previous position on first matchday
+      setPreviousPlayerPosition(currentPlayerPos)
+    }
 
     if (currentMatchday === totalMatchdays) {
       setIsPlaying(false)
@@ -214,36 +264,154 @@ export default function SimulationScreen() {
     }
   }
 
-  function finishSimulation() {
-    const sorted = sortTeams(simTeams)
-    const playerTeam = sorted.find(t => t.isPlayer)!
-    const finalPosition = sorted.findIndex(t => t.isPlayer) + 1
+  function skipAllMatchdays() {
+    setIsPlaying(false)
+    let updatedTeams = [...simTeams]
+    
+    for (let md = currentMatchday; md <= totalMatchdays; md++) {
+      const mdFixtures = allFixtures.filter(f => f.matchday === md)
+      
+      // Skip if no fixtures for this matchday
+      if (mdFixtures.length === 0) {
+        // Don't add to matchday history if no fixtures
+        continue
+      }
+      
+      const completedFixtures: Fixture[] = []
 
-    const { won, drawn, lost, goalsFor, goalsAgainst } = playerTeam.stats
-    const unbeaten = lost === 0
-    const perfectSeason = lost === 0 && drawn === 0
+      // Simulate each fixture on this matchday
+      mdFixtures.forEach(fixture => {
+        const homeTeam = updatedTeams.find(t => t.clubId === fixture.home.clubId)!
+        const awayTeam = updatedTeams.find(t => t.clubId === fixture.away.clubId)!
 
-    const resultObject: SeasonResult = {
-      table: sorted,
-      playerTeam,
-      finalPosition,
-      teamsInLeague: sorted.length,
-      wins: won,
-      draws: drawn,
-      losses: lost,
-      goalsFor,
-      goalsAgainst,
-      biggestWin: biggestWinRef.current,
-      worstLoss: worstLossRef.current,
-      upsets: upsetsRef.current,
-      unbeaten,
-      perfectSeason,
-      tier: assignTier(finalPosition, sorted.length, unbeaten, perfectSeason),
-      matchdayHistory: matchdayHistoryRef.current,
+        const result = simulateMatch(homeTeam, awayTeam)
+        fixture.result = result
+
+        // Update statistics
+        homeTeam.stats.played++
+        awayTeam.stats.played++
+        homeTeam.stats.goalsFor += result.homeGoals
+        homeTeam.stats.goalsAgainst += result.awayGoals
+        awayTeam.stats.goalsFor += result.awayGoals
+        awayTeam.stats.goalsAgainst += result.homeGoals
+
+        if (result.outcome === 'home') {
+          homeTeam.stats.won++
+          homeTeam.stats.points += 3
+          awayTeam.stats.lost++
+        } else if (result.outcome === 'away') {
+          awayTeam.stats.won++
+          awayTeam.stats.points += 3
+          homeTeam.stats.lost++
+        } else {
+          homeTeam.stats.drawn++
+          homeTeam.stats.points += 1
+          awayTeam.stats.drawn++
+          awayTeam.stats.points += 1
+        }
+
+        // Update Form
+        const updateForm = (team: SimTeam, outcome: 'win' | 'draw' | 'loss') => {
+          const delta = outcome === 'win' ? 0.15 : outcome === 'draw' ? 0 : -0.15
+          team.form = Math.max(-1.0, Math.min(1.0, team.form * 0.85 + delta))
+        }
+        updateForm(homeTeam, result.outcome === 'home' ? 'win' : result.outcome === 'draw' ? 'draw' : 'loss')
+        updateForm(awayTeam, result.outcome === 'away' ? 'win' : result.outcome === 'draw' ? 'draw' : 'loss')
+
+        completedFixtures.push(fixture)
+
+        // Track Player Team stats for margins & upsets
+        if (homeTeam.isPlayer || awayTeam.isPlayer) {
+          const isPlayerHome = homeTeam.isPlayer
+          const playerGoals = isPlayerHome ? result.homeGoals : result.awayGoals
+          const oppGoals = isPlayerHome ? result.awayGoals : result.homeGoals
+          const oppName = isPlayerHome ? awayTeam.clubName : homeTeam.clubName
+          const oppOvr = isPlayerHome ? awayTeam.ovr : homeTeam.ovr
+          const margin = playerGoals - oppGoals
+
+          // Biggest Win
+          if (margin > biggestWinMarginRef.current) {
+            biggestWinMarginRef.current = margin
+            biggestWinRef.current = { score: `${playerGoals}-${oppGoals}`, opponent: oppName }
+          }
+
+          // Worst Loss
+          if (worstLossMarginRef.current === -1 || margin < worstLossMarginRef.current) {
+            worstLossMarginRef.current = margin
+            if (margin < 0) {
+              worstLossRef.current = { score: `${playerGoals}-${oppGoals}`, opponent: oppName }
+            }
+          }
+
+          // Upset (Player lost to a lower-rated team)
+          if (result.isUpset) {
+            const playerLost =
+              (isPlayerHome && result.outcome === 'away') ||
+              (!isPlayerHome && result.outcome === 'home')
+            if (playerLost) {
+              upsetsRef.current.push({
+                score: `${playerGoals}-${oppGoals}`,
+                opponent: oppName,
+                ovrGap: totalTeamOvr - oppOvr,
+              })
+            }
+          }
+        }
+      })
+
+      // Save matchday snapshot for history with deep copy of team stats
+      const standingsSnapshot = sortTeams([...updatedTeams]).map(team => ({
+        ...team,
+        stats: { ...team.stats }
+      }))
+      matchdayHistoryRef.current.push({
+        matchday: md,
+        standings: standingsSnapshot,
+        fixtures: completedFixtures,
+      })
     }
 
-    setSimResult(resultObject)
-    router.push('/game/result')
+    setSimTeams(updatedTeams)
+    setRecentResults(allFixtures.filter(f => f.matchday === totalMatchdays))
+    setCurrentMatchday(totalMatchdays)
+    setPhase('completed')
+  }
+
+  function finishSimulation() {
+    setIsFinishingSimulation(true)
+    // Small delay to show loading animation
+    setTimeout(() => {
+      const sorted = sortTeams(simTeams)
+      const playerTeam = sorted.find(t => t.isPlayer)!
+      const finalPosition = sorted.findIndex(t => t.isPlayer) + 1
+
+      const { won, drawn, lost, goalsFor, goalsAgainst } = playerTeam.stats
+      const unbeaten = lost === 0
+      const perfectSeason = lost === 0 && drawn === 0
+
+      const resultObject: SeasonResult = {
+        table: sorted,
+        playerTeam,
+        finalPosition,
+        teamsInLeague: sorted.length,
+        wins: won,
+        draws: drawn,
+        losses: lost,
+        goalsFor,
+        goalsAgainst,
+        biggestWin: biggestWinRef.current,
+        worstLoss: worstLossRef.current,
+        upsets: upsetsRef.current,
+        unbeaten,
+        perfectSeason,
+        tier: assignTier(finalPosition, sorted.length, unbeaten, perfectSeason),
+        matchdayHistory: matchdayHistoryRef.current,
+      }
+
+      setSimResult(resultObject)
+      setIsFinishingSimulation(false)
+      router.push('/game/result')
+    }, 500)
   }
 
   function sortTeams(teams: SimTeam[]) {
@@ -257,6 +425,13 @@ export default function SimulationScreen() {
   }
 
   const sortedStandings = sortTeams(simTeams)
+  
+  // Get standings for the current matchday from history
+  // Match the header matchday counter with the standings display
+  const currentMatchdayStandings = matchdayHistoryRef.current.length > 0
+    ? matchdayHistoryRef.current.find(h => h.matchday === currentMatchday)?.standings
+      ?? matchdayHistoryRef.current[matchdayHistoryRef.current.length - 1].standings
+    : sortedStandings
 
   return (
     <View style={styles.container}>
@@ -327,6 +502,7 @@ export default function SimulationScreen() {
               <View style={styles.pitchRow}>
                 {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
                     <View key={i} style={styles.pitchPlayer}>
                       <View style={[styles.posIndicator, { backgroundColor: colors.positions.ST }]}>
@@ -335,7 +511,7 @@ export default function SimulationScreen() {
                       <Text style={styles.playerNameText} numberOfLines={1}>
                         {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
                       </Text>
-                      <Text style={styles.playerOvrText}>{player ? player.ovr : '--'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
                     </View>
                   )
                 })}
@@ -345,6 +521,7 @@ export default function SimulationScreen() {
               <View style={styles.pitchRow}>
                 {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
                     <View key={i} style={styles.pitchPlayer}>
                       <View style={[styles.posIndicator, { backgroundColor: colors.positions.CM }]}>
@@ -353,7 +530,7 @@ export default function SimulationScreen() {
                       <Text style={styles.playerNameText} numberOfLines={1}>
                         {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
                       </Text>
-                      <Text style={styles.playerOvrText}>{player ? player.ovr : '--'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
                     </View>
                   )
                 })}
@@ -363,6 +540,7 @@ export default function SimulationScreen() {
               <View style={styles.pitchRow}>
                 {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
                     <View key={i} style={styles.pitchPlayer}>
                       <View style={[styles.posIndicator, { backgroundColor: colors.positions.CB }]}>
@@ -371,7 +549,7 @@ export default function SimulationScreen() {
                       <Text style={styles.playerNameText} numberOfLines={1}>
                         {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
                       </Text>
-                      <Text style={styles.playerOvrText}>{player ? player.ovr : '--'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
                     </View>
                   )
                 })}
@@ -381,6 +559,7 @@ export default function SimulationScreen() {
               <View style={styles.pitchRow}>
                 {slots.filter(s => s.label === 'GK').map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
                     <View key={i} style={styles.pitchPlayer}>
                       <View style={[styles.posIndicator, { backgroundColor: colors.positions.GK }]}>
@@ -389,7 +568,7 @@ export default function SimulationScreen() {
                       <Text style={styles.playerNameText} numberOfLines={1}>
                         {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
                       </Text>
-                      <Text style={styles.playerOvrText}>{player ? player.ovr : '--'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
                     </View>
                   )
                 })}
@@ -398,8 +577,19 @@ export default function SimulationScreen() {
           </View>
 
           {/* Action button */}
-          <Pressable style={styles.actionBtn} onPress={startSimulation}>
-            <Text style={styles.actionBtnText}>START SEASON SIMULATION</Text>
+          <Pressable 
+            style={[styles.actionBtn, isStartingSimulation && styles.actionBtnDisabled]} 
+            onPress={startSimulation}
+            disabled={isStartingSimulation}
+          >
+            {isStartingSimulation ? (
+              <View style={styles.actionBtnContent}>
+                <ActivityIndicator color={colors.textPrimary} size="small" />
+                <Text style={[styles.actionBtnText, styles.actionBtnTextLoading]}>Starting simulation...</Text>
+              </View>
+            ) : (
+              <Text style={styles.actionBtnText}>START SEASON SIMULATION</Text>
+            )}
           </Pressable>
         </ScrollView>
       ) : (
@@ -429,6 +619,13 @@ export default function SimulationScreen() {
                   onPress={() => setIsPlaying(!isPlaying)}
                 >
                   <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.controlBtn, styles.skipAllBtn]}
+                  onPress={skipAllMatchdays}
+                >
+                  <Text style={styles.controlBtnText}>⏩ Skip All</Text>
                 </Pressable>
 
                 <View style={styles.speedSelector}>
@@ -461,8 +658,14 @@ export default function SimulationScreen() {
                 <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
               </View>
               <ScrollView style={styles.tableScroll} showsVerticalScrollIndicator={false}>
-                {sortedStandings.map((team, idx) => {
+                {currentMatchdayStandings.map((team, idx) => {
                   const gd = team.stats.goalsFor - team.stats.goalsAgainst
+                  const positionChange = team.isPlayer && previousPlayerPosition !== null 
+                    ? previousPlayerPosition - (idx + 1) 
+                    : null
+                  
+                  const useAnimatedPosition = speed === 'slow' && animatedPositions[team.clubId]
+                  
                   return (
                     <View
                       key={team.clubId}
@@ -471,9 +674,28 @@ export default function SimulationScreen() {
                         team.isPlayer && styles.tableRowPlayer
                       ]}
                     >
-                      <Text style={[styles.tableColData, styles.colPos, team.isPlayer && styles.playerRowText]}>
-                        {idx + 1}
-                      </Text>
+                      <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
+                        {useAnimatedPosition ? (
+                          <Animated.Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>
+                            {animatedPositions[team.clubId].interpolate({
+                              inputRange: [1, 20],
+                              outputRange: ['1', '20'],
+                              extrapolate: 'clamp'
+                            })}
+                          </Animated.Text>
+                        ) : (
+                          <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
+                        )}
+                        {positionChange !== null && positionChange !== 0 && (
+                          <Animated.Text style={[
+                            styles.positionChangeIndicator,
+                            positionChange > 0 ? styles.positionUp : styles.positionDown,
+                            { opacity: positionChangeAnim }
+                          ]}>
+                            {positionChange > 0 ? ` ↑${Math.abs(positionChange)}` : ` ↓${Math.abs(positionChange)}`}
+                          </Animated.Text>
+                        )}
+                      </View>
                       <Text
                         style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]}
                         numberOfLines={1}
@@ -508,12 +730,29 @@ export default function SimulationScreen() {
                     const result = fixture.result!
                     const isPlayerHome = fixture.home.isPlayer
                     const isPlayerAway = fixture.away.isPlayer
+                    const isPlayerMatch = isPlayerHome || isPlayerAway
+                    
+                    // Determine result color for player's matches
+                    let resultColor = null
+                    if (isPlayerMatch) {
+                      if (isPlayerHome && result.outcome === 'home') {
+                        resultColor = colors.success
+                      } else if (isPlayerAway && result.outcome === 'away') {
+                        resultColor = colors.success
+                      } else if (result.outcome === 'draw') {
+                        resultColor = colors.warning
+                      } else {
+                        resultColor = '#DC2626' // red for losses
+                      }
+                    }
+                    
                     return (
                       <View
                         key={i}
                         style={[
                           styles.resultRow,
-                          (isPlayerHome || isPlayerAway) && styles.resultRowPlayerHighlight
+                          isPlayerMatch && styles.resultRowPlayerHighlight,
+                          resultColor && { backgroundColor: resultColor + '15' }
                         ]}
                       >
                         <Text
@@ -526,8 +765,8 @@ export default function SimulationScreen() {
                         >
                           {fixture.home.clubName}
                         </Text>
-                        <View style={styles.scoreBadge}>
-                          <Text style={styles.scoreText}>
+                        <View style={[styles.scoreBadge, resultColor && { backgroundColor: resultColor + '33' }]}>
+                          <Text style={[styles.scoreText, resultColor && { color: resultColor }]}>
                             {result.homeGoals} - {result.awayGoals}
                           </Text>
                         </View>
@@ -551,8 +790,19 @@ export default function SimulationScreen() {
 
           {/* Completed CTA */}
           {phase === 'completed' && (
-            <Pressable style={styles.finishBtn} onPress={finishSimulation}>
-              <Text style={styles.finishBtnText}>VIEW FINAL RESULTS & REWARDS →</Text>
+            <Pressable 
+              style={[styles.finishBtn, isFinishingSimulation && styles.finishBtnDisabled]} 
+              onPress={finishSimulation}
+              disabled={isFinishingSimulation}
+            >
+              {isFinishingSimulation ? (
+                <View style={styles.finishBtnContent}>
+                  <ActivityIndicator color={colors.textPrimary} size="small" />
+                  <Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Loading results...</Text>
+                </View>
+              ) : (
+                <Text style={styles.finishBtnText}>VIEW FINAL RESULTS & REWARDS →</Text>
+              )}
             </Pressable>
           )}
         </View>
@@ -759,11 +1009,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     ...shadows.md,
   },
+  actionBtnDisabled: {
+    opacity: 0.6,
+  },
+  actionBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   actionBtnText: {
     fontSize: typography.md,
     fontWeight: typography.black,
     color: colors.textPrimary,
     letterSpacing: 1.5,
+  },
+  actionBtnTextLoading: {
+    marginLeft: spacing.sm,
   },
   simContainer: {
     flex: 1,
@@ -819,6 +1080,10 @@ const styles = StyleSheet.create({
   },
   controlBtnActive: {
     borderColor: colors.accent,
+  },
+  skipAllBtn: {
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
   },
   controlBtnText: {
     fontSize: typography.sm,
@@ -900,6 +1165,17 @@ const styles = StyleSheet.create({
   tableColData: {
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  positionChangeIndicator: {
+    fontSize: 10,
+    fontWeight: typography.bold,
+    marginLeft: 4,
+  },
+  positionUp: {
+    color: colors.success,
+  },
+  positionDown: {
+    color: '#DC2626',
   },
   colPos: {
     width: 20,
@@ -991,10 +1267,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.md,
   },
+  finishBtnDisabled: {
+    opacity: 0.6,
+  },
+  finishBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   finishBtnText: {
     fontSize: typography.sm,
     fontWeight: typography.black,
     color: colors.bg,
     letterSpacing: 1,
+  },
+  finishBtnTextLoading: {
+    marginLeft: spacing.sm,
   },
 })

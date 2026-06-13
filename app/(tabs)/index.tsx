@@ -1,10 +1,52 @@
-import { View, Text, StyleSheet, Pressable, StatusBar, ImageBackground } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, Pressable, StatusBar, ScrollView, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
+import { fetchUserStats, fetchRunHistory, type UserStats } from '@/db/queries/leaderboard'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 export default function HomeScreen() {
-  const { profile, isGuest } = useUserStore()
+  const { profile, isGuest, user } = useUserStore()
+  const [stats, setStats] = useState<UserStats | null>(null)
+  const [recentRuns, setRecentRuns] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      if (!user || isGuest) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const [userStats, runs] = await Promise.all([
+          fetchUserStats(user.id),
+          fetchRunHistory(user.id, 3)
+        ])
+        setStats(userStats)
+        setRecentRuns(runs)
+      } catch (error) {
+        console.error('Failed to load user data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [user, isGuest])
+
+  function formatTier(tier: string | null | undefined): string {
+    if (!tier) return '—'
+    return tier
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
 
   return (
     <View style={styles.container}>
@@ -50,31 +92,59 @@ export default function HomeScreen() {
         </Pressable>
 
         {/* best run teaser */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>—</Text>
-            <Text style={styles.statLabel}>Best Score</Text>
+        {loading ? (
+          <View style={styles.statsRow}>
+            <ActivityIndicator color={colors.accent} />
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>—</Text>
-            <Text style={styles.statLabel}>Best Tier</Text>
+        ) : (
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats?.bestScore ?? '—'}</Text>
+              <Text style={styles.statLabel}>Best Score</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{formatTier(stats?.bestTier)}</Text>
+              <Text style={styles.statLabel}>Best Tier</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats?.totalRuns ?? 0}</Text>
+              <Text style={styles.statLabel}>Total Runs</Text>
+            </View>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Total Runs</Text>
-          </View>
-        </View>
+        )}
       </View>
 
-      {/* recent runs placeholder */}
+      {/* recent runs */}
       <View style={styles.recentSection}>
         <Text style={styles.sectionTitle}>Recent Runs</Text>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>😬</Text>
-          <Text style={styles.emptyText}>No runs yet. Start suffering.</Text>
-        </View>
+        {loading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        ) : recentRuns.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>😬</Text>
+            <Text style={styles.emptyText}>No runs yet. Start suffering.</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.recentScroll} showsVerticalScrollIndicator={false}>
+            {recentRuns.map((run) => (
+              <View key={run.id} style={styles.runCard}>
+                <View style={styles.runCardHeader}>
+                  <Text style={styles.runTier}>{formatTier(run.tier)}</Text>
+                  <Text style={styles.runDate}>{formatDate(run.created_at)}</Text>
+                </View>
+                <Text style={styles.runLeague}>{run.league_name}</Text>
+                <View style={styles.runStats}>
+                  <Text style={styles.runStat}>Score: {run.score}</Text>
+                  <Text style={styles.runStat}>#{run.final_position}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
       </View>
     </View>
   )
@@ -200,6 +270,46 @@ const styles = StyleSheet.create({
     fontWeight:   typography.bold,
     color:        colors.textPrimary,
     marginBottom: spacing.md,
+  },
+  recentScroll: {
+    flex: 1,
+  },
+  runCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.md,
+    marginBottom:    spacing.sm,
+  },
+  runCardHeader: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'center',
+    marginBottom:    spacing.xs,
+  },
+  runTier: {
+    fontSize:   typography.sm,
+    fontWeight: typography.bold,
+    color:      colors.accent,
+  },
+  runDate: {
+    fontSize:  typography.xs,
+    color:     colors.textMuted,
+  },
+  runLeague: {
+    fontSize:   typography.md,
+    fontWeight: typography.bold,
+    color:      colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  runStats: {
+    flexDirection: 'row',
+    gap:           spacing.md,
+  },
+  runStat: {
+    fontSize: typography.sm,
+    color:    colors.textSecondary,
   },
   emptyState: {
     alignItems:  'center',

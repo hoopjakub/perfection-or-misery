@@ -50,7 +50,7 @@ export function buildLeagueSeason(
     replacedTeamName: weakest.club_name,
     teams: raw.teams.map(t => ({
       clubId:   t.club_id,
-      clubName: t.club_name,
+      clubName: t === weakest ? 'Your XI' : t.club_name,
       ovr:      t === weakest ? playerOvr : t.historical_ovr,
       isPlayer: t === weakest,
     })),

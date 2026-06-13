@@ -1,4 +1,5 @@
 import { GameMode, PositionSlot } from '@/types/game'
+import type { Difficulty } from '@/store/gameStore'
 
 export type ClubSeasonRow = {
   id: string
@@ -49,8 +50,31 @@ export function spinClubSeason(
   return eligible[eligible.length - 1]
 }
 
-export function getRerollLimit(mode: GameMode): number {
+export function getRerollLimit(difficulty: Difficulty | null, mode: GameMode | null): number {
+  // Chaos and Cursed modes always have 0 rerolls regardless of difficulty
   if (mode === 'chaos' || mode === 'cursed') return 0
-  if (mode === 'all_time' || mode === 'era') return 3
-  return 1
+
+  // If no difficulty set, use mode-based defaults (legacy behavior)
+  if (!difficulty) {
+    if (mode === 'all_time' || mode === 'era') return 3
+    return 1
+  }
+
+  // Difficulty-based rerolls for All Time, League, and Era modes
+  switch (difficulty) {
+    case 'easy': return 3
+    case 'medium': return 1
+    case 'hard': return 0
+    default: return 1
+  }
+}
+
+export function isRatingsHidden(difficulty: Difficulty | null, mode: GameMode | null): boolean {
+  // Chaos and Cursed modes always hide ratings
+  if (mode === 'chaos' || mode === 'cursed') return true
+
+  // Hard difficulty hides ratings
+  if (difficulty === 'hard') return true
+
+  return false
 }

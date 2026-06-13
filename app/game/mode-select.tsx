@@ -1,6 +1,8 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
-import { useGameStore, GameMode } from '@/store/gameStore'
+import { useGameStore, GameMode, type Difficulty } from '@/store/gameStore'
+import { getAvailableLeagues, type LeagueOption } from '@/db/queries/seasons'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 type ModeConfig = {
@@ -10,8 +12,7 @@ type ModeConfig = {
   description: string
   emoji: string
   accentColor: string
-  rerolls: number
-  ratingsHidden: boolean
+  hasDifficulty: boolean
 }
 
 const MODES: ModeConfig[] = [
@@ -22,8 +23,7 @@ const MODES: ModeConfig[] = [
     description:   'The full pool. Any club, any season, any league. The main experience.',
     emoji:         '🌍',
     accentColor:   '#10B981',
-    rerolls:       3,
-    ratingsHidden: false,
+    hasDifficulty: true,
   },
   {
     id:            'league',
@@ -32,8 +32,7 @@ const MODES: ModeConfig[] = [
     description:   'Pick a league. Every spin comes from that league across all available seasons. Placement stays within it too.',
     emoji:         '🏴',
     accentColor:   colors.accent,
-    rerolls:       1,
-    ratingsHidden: false,
+    hasDifficulty: true,
   },
   {
     id:            'era',
@@ -42,8 +41,7 @@ const MODES: ModeConfig[] = [
     description:   'Lock the draft to a specific decade. All clubs, all leagues — but only from your chosen era.',
     emoji:         '📅',
     accentColor:   '#8B5CF6',
-    rerolls:       3,
-    ratingsHidden: false,
+    hasDifficulty: true,
   },
   {
     id:            'chaos',
@@ -52,8 +50,7 @@ const MODES: ModeConfig[] = [
     description:   'Ratings hidden. No rerolls. Placement weighting disabled — you could end up anywhere.',
     emoji:         '💀',
     accentColor:   '#EF4444',
-    rerolls:       0,
-    ratingsHidden: true,
+    hasDifficulty: false,
   },
   {
     id:            'cursed',
@@ -62,8 +59,7 @@ const MODES: ModeConfig[] = [
     description:   'Like Chaos but you also have no idea which position you\'re drafting for until after you pick.',
     emoji:         '☠️',
     accentColor:   '#DC2626',
-    rerolls:       0,
-    ratingsHidden: true,
+    hasDifficulty: false,
   },
 ]
 
@@ -80,28 +76,64 @@ const ERAS = [
   { id: '1980s+', label: '1980s+',  year: 1980 },
 ]
 
+const DIFFICULTIES: { id: Difficulty; label: string; description: string }[] = [
+  { id: 'easy', label: 'Easy', description: '3 rerolls, ratings shown' },
+  { id: 'medium', label: 'Medium', description: '1 reroll, ratings shown' },
+  { id: 'hard', label: 'Hard', description: 'No rerolls, ratings hidden' },
+]
+
 export default function ModeSelectScreen() {
-  const { startRun } = useGameStore()
-  const [selectedMode, setSelectedMode] = React.useState<GameMode | null>(null)
-  const [selectedEra,  setSelectedEra]  = React.useState<string | null>(null)
+  const { setMode, setDifficulty, setSelectedLeague } = useGameStore()
+  const [selectedMode, setSelectedMode] = useState<GameMode | null>(null)
+  const [selectedEra, setSelectedEra] = useState<string | null>(null)
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
+  const [selectedLeague, setSelectedLeagueState] = useState<string | null>(null)
+  const [leagues, setLeagues] = useState<LeagueOption[]>([])
+  const [loadingLeagues, setLoadingLeagues] = useState(false)
+
+  useEffect(() => {
+    async function loadLeagues() {
+      setLoadingLeagues(true)
+      try {
+        const data = await getAvailableLeagues()
+        setLeagues(data)
+      } catch (error) {
+        console.error('Failed to load leagues:', error)
+      } finally {
+        setLoadingLeagues(false)
+      }
+    }
+    loadLeagues()
+  }, [])
 
   function handleModePress(mode: GameMode) {
     setSelectedMode(mode)
     if (mode !== 'era') setSelectedEra(null)
+    if (mode !== 'league') setSelectedLeagueState(null)
+    if (!MODES.find(m => m.id === mode)?.hasDifficulty) {
+      setSelectedDifficulty(null)
+    }
   }
 
-  const { setMode } = useGameStore()
-
   function handleContinue() {
-    console.log('[mode-select] selectedMode:', selectedMode, 'selectedEra:', selectedEra)
+    console.log('[mode-select] selectedMode:', selectedMode, 'selectedEra:', selectedEra, 'selectedDifficulty:', selectedDifficulty, 'selectedLeague:', selectedLeague)
     if (!selectedMode) return
     if (selectedMode === 'era' && !selectedEra) return
+    if (selectedMode === 'league' && !selectedLeague) return
+    if (MODES.find(m => m.id === selectedMode)?.hasDifficulty && !selectedDifficulty) return
+
     setMode(selectedMode, selectedEra ?? undefined)
+    if (selectedDifficulty) setDifficulty(selectedDifficulty)
+    setSelectedLeague(selectedLeague)
     router.push('/game/formation-select')
   }
 
   const canContinue = selectedMode !== null &&
-    (selectedMode !== 'era' || selectedEra !== null)
+    (selectedMode === 'era' ? selectedEra !== null : true) &&
+    (selectedMode === 'league' ? selectedLeague !== null : true) &&
+    (!MODES.find(m => m.id === selectedMode)?.hasDifficulty || selectedDifficulty !== null)
+
+  const currentMode = MODES.find(m => m.id === selectedMode)
 
   return (
     <View style={styles.container}>
@@ -148,36 +180,23 @@ export default function ModeSelectScreen() {
 
               <Text style={styles.cardDescription}>{mode.description}</Text>
 
-              <View style={styles.cardMeta}>
-                <View style={styles.metaBadge}>
-                  <Text style={styles.metaText}>
-                    {mode.rerolls === 0 ? 'No rerolls' : `${mode.rerolls} reroll${mode.rerolls > 1 ? 's' : ''}`}
-                  </Text>
-                </View>
-                {mode.ratingsHidden && (
-                  <View style={[styles.metaBadge, styles.metaBadgeDanger]}>
-                    <Text style={styles.metaText}>Ratings hidden</Text>
-                  </View>
-                )}
-              </View>
-
               {/* era picker — only shows when era mode selected */}
               {mode.id === 'era' && selected && (
-                <View style={styles.eraPicker}>
-                  <Text style={styles.eraLabel}>Choose era:</Text>
-                  <View style={styles.eraGrid}>
+                <View style={styles.pickerSection}>
+                  <Text style={styles.pickerLabel}>Choose era:</Text>
+                  <View style={styles.pickerGrid}>
                     {ERAS.map(era => (
                       <Pressable
                         key={era.id}
                         style={[
-                          styles.eraChip,
-                          selectedEra === era.id && styles.eraChipSelected
+                          styles.pickerChip,
+                          selectedEra === era.id && styles.pickerChipSelected
                         ]}
                         onPress={() => setSelectedEra(era.id)}
                       >
                         <Text style={[
-                          styles.eraChipText,
-                          selectedEra === era.id && styles.eraChipTextSelected
+                          styles.pickerChipText,
+                          selectedEra === era.id && styles.pickerChipTextSelected
                         ]}>
                           {era.label}
                         </Text>
@@ -185,8 +204,69 @@ export default function ModeSelectScreen() {
                     ))}
                   </View>
                   {selectedEra?.endsWith('+') && (
-                    <Text style={styles.eraHint}>
+                    <Text style={styles.pickerHint}>
                       + means that era and everything after it
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* league picker — only shows when league mode selected */}
+              {mode.id === 'league' && selected && (
+                <View style={styles.pickerSection}>
+                  <Text style={styles.pickerLabel}>Choose league:</Text>
+                  {loadingLeagues ? (
+                    <ActivityIndicator color={colors.accent} />
+                  ) : (
+                    <View style={styles.pickerGrid}>
+                      {leagues.map(league => (
+                        <Pressable
+                          key={league.id}
+                          style={[
+                            styles.pickerChip,
+                            selectedLeague === league.id && styles.pickerChipSelected
+                          ]}
+                          onPress={() => setSelectedLeagueState(league.id)}
+                        >
+                          <Text style={[
+                            styles.pickerChipText,
+                            selectedLeague === league.id && styles.pickerChipTextSelected
+                          ]}>
+                            {league.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* difficulty picker — only shows for modes with difficulty */}
+              {mode.hasDifficulty && selected && (
+                <View style={styles.pickerSection}>
+                  <Text style={styles.pickerLabel}>Choose difficulty:</Text>
+                  <View style={styles.pickerGrid}>
+                    {DIFFICULTIES.map(diff => (
+                      <Pressable
+                        key={diff.id}
+                        style={[
+                          styles.pickerChip,
+                          selectedDifficulty === diff.id && styles.pickerChipSelected
+                        ]}
+                        onPress={() => setSelectedDifficulty(diff.id)}
+                      >
+                        <Text style={[
+                          styles.pickerChipText,
+                          selectedDifficulty === diff.id && styles.pickerChipTextSelected
+                        ]}>
+                          {diff.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {selectedDifficulty && (
+                    <Text style={styles.pickerHint}>
+                      {DIFFICULTIES.find(d => d.id === selectedDifficulty)?.description}
                     </Text>
                   )}
                 </View>
@@ -199,21 +279,22 @@ export default function ModeSelectScreen() {
       {/* continue button */}
       <View style={styles.footer}>
         <Pressable
-          style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
+          style={[
+            styles.continueBtn,
+            !canContinue && styles.continueBtnDisabled,
+            selectedMode && { backgroundColor: currentMode?.accentColor || colors.accent }
+          ]}
           onPress={handleContinue}
           disabled={!canContinue}
         >
           <Text style={styles.continueBtnText}>
-            {selectedMode ? `Continue with ${MODES.find(m => m.id === selectedMode)?.title}` : 'Select a mode'}
+            {selectedMode ? `Continue with ${currentMode?.title}` : 'Select a mode'}
           </Text>
         </Pressable>
       </View>
     </View>
   )
 }
-
-// missing React import
-import React from 'react'
 
 const styles = StyleSheet.create({
   container: {
@@ -382,5 +463,50 @@ const styles = StyleSheet.create({
     fontWeight:    typography.black,
     color:         colors.textPrimary,
     letterSpacing: 1,
+  },
+  continueBtnActive: {
+    backgroundColor: colors.accent,
+  },
+  pickerSection: {
+    marginTop:       spacing.md,
+    borderTopWidth:  1,
+    borderTopColor:  colors.border,
+    paddingTop:      spacing.md,
+    gap:             spacing.sm,
+  },
+  pickerLabel: {
+    fontSize:   typography.sm,
+    color:      colors.textSecondary,
+    fontWeight: typography.medium,
+  },
+  pickerGrid: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           spacing.sm,
+  },
+  pickerChip: {
+    backgroundColor:   colors.bgElevated,
+    borderRadius:      radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    borderWidth:       1,
+    borderColor:       colors.border,
+  },
+  pickerChipSelected: {
+    backgroundColor: colors.accent,
+    borderColor:     colors.accent,
+  },
+  pickerChipText: {
+    fontSize: typography.sm,
+    color:    colors.textSecondary,
+  },
+  pickerChipTextSelected: {
+    color:      colors.textPrimary,
+    fontWeight: typography.bold,
+  },
+  pickerHint: {
+    fontSize:  typography.xs,
+    color:     colors.textMuted,
+    fontStyle: 'italic',
   },
 })

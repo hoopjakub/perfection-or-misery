@@ -51,7 +51,7 @@ export type SeasonResult = {
   tier: Tier
   unbeaten: boolean
   perfectSeason: boolean
-  matchdayHistory: MatchdaySnapshot[]
+  matchdayHistory: MatchdaySnapshot[] // Stored locally, not in database
 }
 
 export type Tier =

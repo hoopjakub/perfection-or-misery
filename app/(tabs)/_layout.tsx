@@ -41,6 +41,30 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="runs"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Text style={[styles.icon, focused && styles.iconActive]}>🥇</Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="how-to-play"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Text style={[styles.icon, focused && styles.iconActive]}>🎮</Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="about"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Text style={[styles.icon, focused && styles.iconActive]}>📝</Text>
+          ),
+        }}
+      />
     </Tabs>
   )
 }
@@ -50,15 +74,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgCard,
     borderTopColor:  colors.border,
     borderTopWidth:  1,
-    height:          50,
+    height:          60,
+    paddingTop:    10,
   },
   icon: {
-    fontSize:  26,
+    fontSize:  24,
     opacity:   0.5,
-    paddingTop:      6,
-    width:     40,
-    height:    40,
+    width:     32,
+    height:    32,
     textAlign: 'center',
+    lineHeight: 32,
   },
   iconActive: {
     opacity: 1,

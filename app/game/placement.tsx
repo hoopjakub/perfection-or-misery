@@ -7,7 +7,7 @@ import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { getAllClubSeasons, getLeagueSeasonWithTeams } from '@/db/queries/seasons'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from '@/engine/placement'
-import { calcTeamOvr } from '@/engine/rating'
+import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
@@ -17,7 +17,7 @@ type Phase = 'ready' | 'spinning' | 'revealed'
 export default function PlacementScreen() {
   const {
     draftedPlayers, formation,
-    mode
+    mode, selectedLeague
   } = useGameStore()
 
   const [phase,           setPhase]           = useState<Phase>('ready')
@@ -26,9 +26,13 @@ export default function PlacementScreen() {
   const [spinDisplay,     setSpinDisplay]     = useState<string>('')
   const [teamOvr,         setTeamOvr]         = useState(0)
   const [loading,         setLoading]         = useState(true)
+  const [leagueFilter,    setLeagueFilter]    = useState<'all' | 'specific'>('all')
 
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.8)).current
+
+  // Calculate slots for effective OVR calculation
+  const slots = formation ? getSlotsForFormation(formation) : []
 
 
   useEffect(() => {
@@ -67,9 +71,16 @@ export default function PlacementScreen() {
       }
 
       const allLeagueSeasons = Array.from(seasonMap.values())
+
+      // Filter by selected league if league mode and specific filter is chosen
+      let filteredSeasons = allLeagueSeasons
+      if (mode === 'league' && selectedLeague && leagueFilter === 'specific') {
+        filteredSeasons = allLeagueSeasons.filter(s => s.leagueId === selectedLeague)
+      }
+
       const eligible = filterEligibleLeagues(
         ovr,
-        allLeagueSeasons,
+        filteredSeasons,
         mode === 'chaos'
       )
 
@@ -168,14 +179,18 @@ export default function PlacementScreen() {
             {draftedPlayers
               .sort((a, b) => b.ovr - a.ovr)
               .slice(0, 5)
-              .map((p, i) => (
-                <View key={i} style={styles.squadPlayer}>
-                  <Text style={styles.squadPlayerOvr}>{p.ovr}</Text>
-                  <Text style={styles.squadPlayerName} numberOfLines={1}>
-                    {p.name.split(' ').slice(-1)[0]}
-                  </Text>
-                </View>
-              ))}
+              .map((p, i) => {
+                const slot = slots[p.slotIndex]
+                const effectiveRating = slot ? effectiveOvr(p, slot) : p.ovr
+                return (
+                  <View key={i} style={styles.squadPlayer}>
+                    <Text style={styles.squadPlayerOvr}>{effectiveRating}</Text>
+                    <Text style={styles.squadPlayerName} numberOfLines={1}>
+                      {p.name.split(' ').slice(-1)[0]}
+                    </Text>
+                  </View>
+                )
+              })}
             {draftedPlayers.length > 5 && (
               <View style={styles.squadPlayer}>
                 <Text style={styles.squadPlayerOvr}>+{draftedPlayers.length - 5}</Text>
@@ -184,6 +199,31 @@ export default function PlacementScreen() {
             )}
           </View>
         </View>
+
+        {/* league filter option - only for league mode */}
+        {mode === 'league' && selectedLeague && (
+          <View style={styles.filterCard}>
+            <Text style={styles.filterLabel}>League Pool</Text>
+            <View style={styles.filterOptions}>
+              <Pressable
+                style={[styles.filterOption, leagueFilter === 'all' && styles.filterOptionActive]}
+                onPress={() => setLeagueFilter('all')}
+              >
+                <Text style={[styles.filterOptionText, leagueFilter === 'all' && styles.filterOptionTextActive]}>
+                  All Leagues
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.filterOption, leagueFilter === 'specific' && styles.filterOptionActive]}
+                onPress={() => setLeagueFilter('specific')}
+              >
+                <Text style={[styles.filterOptionText, leagueFilter === 'specific' && styles.filterOptionTextActive]}>
+                  One League Specific
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* spin zone */}
         <View style={styles.spinZone}>
@@ -342,6 +382,48 @@ const styles = StyleSheet.create({
     fontSize:  typography.xs,
     color:     colors.textSecondary,
     textAlign: 'center',
+  },
+  filterCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.lg,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.md,
+    gap:             spacing.sm,
+  },
+  filterLabel: {
+    fontSize:   typography.xs,
+    color:      colors.textMuted,
+    fontWeight: typography.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    gap:           spacing.sm,
+  },
+  filterOption: {
+    flex:            1,
+    backgroundColor: colors.bgElevated,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems:      'center',
+  },
+  filterOptionActive: {
+    backgroundColor: colors.accent,
+    borderColor:     colors.accent,
+  },
+  filterOptionText: {
+    fontSize:   typography.sm,
+    color:      colors.textSecondary,
+    fontWeight: typography.medium,
+  },
+  filterOptionTextActive: {
+    color:      colors.textPrimary,
+    fontWeight: typography.bold,
   },
   spinZone: {
     flex:            1,

@@ -2,9 +2,13 @@ import { create } from 'zustand'
 import type { DraftedPlayer, LeagueSeason, Formation, GameMode } from '@/types/game'
 import type { SeasonResult } from '@/types/simulation'
 
+export type Difficulty = 'easy' | 'medium' | 'hard'
+
 type GameStore = {
   mode:           GameMode | null
   era:            string | null
+  difficulty:     Difficulty | null
+  selectedLeague: string | null
   formation:      Formation | null
   draftedPlayers: DraftedPlayer[]
   rerollsUsed:    number
@@ -18,6 +22,8 @@ type GameStore = {
   useReroll:      () => void
   resetRun:       () => void
   setMode:        (mode: GameMode, era?: string) => void
+  setDifficulty:  (difficulty: Difficulty) => void
+  setSelectedLeague: (league: string | null) => void
   setPlacement:   (league: LeagueSeason) => void
   setSimResult:   (result: SeasonResult | null) => void
 }
@@ -25,6 +31,8 @@ type GameStore = {
 const initialState = {
   mode:           null,
   era:            null,
+  difficulty:     null,
+  selectedLeague: null,
   formation:      null,
   draftedPlayers: [],
   rerollsUsed:    0,
@@ -47,9 +55,11 @@ export const useGameStore = create<GameStore>((set) => ({
     spunSeasonIds: [],
     placedLeague: null,
     simResult: null,
-    // Keep mode and era
+    // Keep mode, era, difficulty, and selectedLeague
   })),
   setMode:        (mode, era) => set({ mode, era: era ?? null }),
+  setDifficulty:  (difficulty) => set({ difficulty }),
+  setSelectedLeague: (league) => set({ selectedLeague: league }),
   setPlacement:   (league) => set({ placedLeague: league }),
   setSimResult:   (simResult) => set({ simResult }),
 }))

@@ -13,6 +13,7 @@ export async function saveRun(params: {
   yearStart: number
   seasonResult: SeasonResult
   squad: DraftedPlayer[]
+  matchdayHistory: unknown
 }) {
   const score = calculateScore({
     mode: params.mode,
@@ -41,7 +42,20 @@ export async function saveRun(params: {
     goals_against: params.seasonResult.goalsAgainst,
     score,
     squad: params.squad,
+    // @ts-ignore - matchday_history column needs to be added to DB
+    matchday_history: params.matchdayHistory,
   })
 
   if (error) throw error
+}
+
+export async function fetchRunById(runId: string) {
+  const { data, error } = await supabase
+    .from('runs')
+    .select('*')
+    .eq('id', runId)
+    .single()
+
+  if (error) throw error
+  return data
 }
