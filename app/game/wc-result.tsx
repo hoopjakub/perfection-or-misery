@@ -2,8 +2,11 @@ import React from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
+import { useUserStore } from '@/store/userStore'
+import { saveWCRun } from '@/db/queries/runs'
+import { getFlag } from '@/lib/flagMap'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
-import type { WCSeasonResult, WCKnockoutMatch, WCTeam } from '@/engine/world-cup-sim'
+import type { WCKnockoutMatch, WCTeam, WCGroup } from '@/engine/world-cup-sim'
 
 const ROUND_LABELS: Record<string, string> = {
   groups:  'Eliminated in Group Stage',
@@ -33,8 +36,19 @@ const KO_ROUND_NAMES: Record<string, string> = {
   final: 'Final',
 }
 
+// bracket sizing
+const CARD_W = 150
+const ROW_H  = 62
+
+function sortGroupTeams(a: WCTeam, b: WCTeam): number {
+  if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
+  const gd = (b.stats.goalsFor - b.stats.goalsAgainst) - (a.stats.goalsFor - a.stats.goalsAgainst)
+  return gd !== 0 ? gd : b.stats.goalsFor - a.stats.goalsFor
+}
+
 export default function WCResultScreen() {
-  const { wcResult, resetRun } = useGameStore()
+  const { wcResult, resetRun, formation, draftedPlayers } = useGameStore()
+  const { user, isGuest } = useUserStore()
 
   if (!wcResult) {
     return (
@@ -56,19 +70,41 @@ export default function WCResultScreen() {
   const resultLabel = ROUND_LABELS[playerFinalRound] ?? playerFinalRound
   const isChampion  = playerFinalRound === 'winner'
 
-  // Player's group
-  const myGroup = groups.find(g => g.id === playerGroup)
-  const myGroupSorted = myGroup
-    ? [...myGroup.teams].sort((a, b) => {
-        if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-        const gd = (b.stats.goalsFor - b.stats.goalsAgainst) - (a.stats.goalsFor - a.stats.goalsAgainst)
-        return gd !== 0 ? gd : b.stats.goalsFor - a.stats.goalsFor
-      })
-    : []
+  // Pre-sort every group once
+  const sortedGroups: WCGroup[] = groups.map(g => ({ id: g.id, teams: [...g.teams].sort(sortGroupTeams) }))
+  const myGroup = sortedGroups.find(g => g.id === playerGroup)
+  const myGroupSorted = myGroup ? myGroup.teams : []
 
-  function handlePlayAgain() {
+  // Best third-place ranking across all groups
+  const thirdPlaceTeams = sortedGroups.map(g => g.teams[2]).filter(Boolean).sort(sortGroupTeams)
+  const q3Count = Math.min(8, thirdPlaceTeams.length)
+
+  async function persistRun() {
+    if (user && !isGuest && formation) {
+      try {
+        await saveWCRun({
+          userId: user.id,
+          formation,
+          teamOvr: playerTeam.ovr,
+          result: wcResult!,
+          squad: draftedPlayers,
+        })
+      } catch (error) {
+        console.error('Failed to save WC run:', error)
+      }
+    }
+  }
+
+  async function handlePlayAgain() {
+    await persistRun()
     resetRun()
     router.replace('/game/mode-select')
+  }
+
+  async function handleReturnToHome() {
+    await persistRun()
+    resetRun()
+    router.replace('/(tabs)')
   }
 
   return (
@@ -82,7 +118,7 @@ export default function WCResultScreen() {
 
       {/* Player team summary */}
       <View style={[styles.card, { borderColor: resultColor }]}>
-        <Text style={styles.playerTeamName}>{playerTeam.clubName}</Text>
+        <Text style={styles.playerTeamName}>{getFlag(playerTeam.clubId)} {playerTeam.clubName}</Text>
         <Text style={styles.playerTeamMeta}>
           OVR {playerTeam.ovr} · Group {playerGroup} · Finished {playerGroupPos}{ordinal(playerGroupPos)} in group
         </Text>
@@ -94,7 +130,7 @@ export default function WCResultScreen() {
         </View>
       </View>
 
-      {/* Group standings */}
+      {/* Player group standings */}
       {myGroupSorted.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Group {playerGroup} Final Standings</Text>
@@ -111,7 +147,9 @@ export default function WCResultScreen() {
             return (
               <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, qualified && styles.tableRowQ]}>
                 <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{idx + 1}</Text>
-                <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerText]} numberOfLines={1}>{team.clubName}</Text>
+                <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerText]} numberOfLines={1}>
+                  {getFlag(team.clubId)} {team.clubName}
+                </Text>
                 <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{team.stats.played}</Text>
                 <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{gd > 0 ? `+${gd}` : gd}</Text>
                 <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerText]}>{team.stats.points}</Text>
@@ -122,19 +160,59 @@ export default function WCResultScreen() {
         </View>
       )}
 
-      {/* Knockout rounds */}
+      {/* All groups */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>All Groups</Text>
+        <View style={styles.groupsGrid}>
+          {sortedGroups.map(group => {
+            const playerInGroup = group.teams.some(t => t.isPlayer)
+            return (
+              <View key={group.id} style={[styles.groupCard, playerInGroup && styles.groupCardPlayer]}>
+                <Text style={styles.groupCardTitle}>Group {group.id}</Text>
+                {group.teams.map((team, idx) => {
+                  const qualified = idx < 2
+                  return (
+                    <View key={team.clubId} style={[styles.groupTeamRow, qualified && styles.groupTeamRowQ, team.isPlayer && styles.groupTeamRowSelf]}>
+                      <Text style={styles.groupTeamRank}>{idx + 1}</Text>
+                      <Text style={[styles.groupTeamName, team.isPlayer && styles.groupTeamNameSelf]} numberOfLines={1}>
+                        {getFlag(team.clubId)} {team.clubName}
+                      </Text>
+                      <Text style={styles.groupTeamPts}>{team.stats.points}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+            )
+          })}
+        </View>
+      </View>
+
+      {/* Best third-place teams */}
+      {thirdPlaceTeams.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Best Third-Place Teams</Text>
+          <Text style={styles.phaseNote}>Top {q3Count} advanced to the Round of 32</Text>
+          {thirdPlaceTeams.map((team, idx) => {
+            const advances = idx < q3Count
+            return (
+              <View key={team.clubId} style={[styles.tableRow, advances && styles.tableRowQ, team.isPlayer && styles.tableRowPlayer]}>
+                <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{idx + 1}</Text>
+                <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerText]} numberOfLines={1}>
+                  {getFlag(team.clubId)} {team.clubName}
+                </Text>
+                <Text style={[styles.tableColData, styles.colStat, styles.colPts, advances && { color: colors.success }]}>{team.stats.points}</Text>
+              </View>
+            )
+          })}
+        </View>
+      )}
+
+      {/* Knockout bracket */}
       {knockoutRounds.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Knockout Rounds</Text>
-          {knockoutRounds.map(({ round, matches }) => (
-            <KnockoutSection
-              key={round}
-              label={KO_ROUND_NAMES[round] ?? round.toUpperCase()}
-              matches={matches}
-              playerTeam={playerTeam}
-              isFinal={round === 'final'}
-            />
-          ))}
+          <Text style={styles.sectionTitle}>Knockout Bracket</Text>
+          <Text style={styles.phaseNote}>Scroll sideways · your matches are highlighted</Text>
+          <BracketView knockoutRounds={knockoutRounds} />
         </View>
       )}
 
@@ -142,14 +220,20 @@ export default function WCResultScreen() {
       {winner && (
         <View style={[styles.card, styles.winnerCard]}>
           <Text style={styles.winnerLabel}>World Cup Champion</Text>
-          <Text style={styles.winnerName}>{winner.clubName}</Text>
+          <Text style={styles.winnerName}>{getFlag(winner.clubId)} {winner.clubName}</Text>
           <Text style={styles.winnerOvr}>OVR {winner.ovr}</Text>
         </View>
       )}
 
-      <Pressable style={styles.playAgainBtn} onPress={handlePlayAgain}>
-        <Text style={styles.playAgainText}>PLAY AGAIN</Text>
-      </Pressable>
+      {/* Buttons */}
+      <View style={styles.buttonRow}>
+        <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={handleReturnToHome}>
+          <Text style={styles.actionBtnText}>Return to Home</Text>
+        </Pressable>
+        <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
+          <Text style={styles.actionBtnText}>Play Again</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   )
 }
@@ -165,52 +249,55 @@ function StatBox({ label, value }: { label: string; value: string }) {
   )
 }
 
-function KnockoutSection({
-  label, matches, playerTeam, isFinal = false,
-}: { label: string; matches: WCKnockoutMatch[]; playerTeam: WCTeam; isFinal?: boolean }) {
-  // Only show player's match + final in full; collapse others
-  const playerMatch = matches.find(m => m.teamA.isPlayer || m.teamB.isPlayer)
-  const displayMatches = playerMatch
-    ? isFinal ? matches : [playerMatch]
-    : isFinal ? matches : matches.slice(0, 2)
+function BracketView({ knockoutRounds }: { knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] }) {
+  const maxMatches = Math.max(...knockoutRounds.map(r => r.matches.length), 1)
+  const colHeight = maxMatches * ROW_H
 
   return (
-    <View style={styles.knockoutSection}>
-      <Text style={styles.knockoutLabel}>{label}</Text>
-      {displayMatches.map((m, i) => {
-        const isPM = m.teamA.isPlayer || m.teamB.isPlayer
-        const extraTime = m.result.extraTime
-        const pens = m.result.homePens !== null ? `(${m.result.homePens}-${m.result.awayPens} pens)` : null
-        const suffix = pens ?? (extraTime ? '(AET)' : null)
-
-        return (
-          <View key={i} style={[styles.koRow, isPM && styles.koRowPlayer]}>
-            <Text
-              style={[styles.koTeam, styles.koTeamA,
-                m.winner.clubId === m.teamA.clubId && styles.koWinner,
-                m.teamA.isPlayer && styles.koPlayerTeam]}
-              numberOfLines={1}
-            >
-              {m.teamA.clubName}
-            </Text>
-            <View style={styles.koScore}>
-              <Text style={styles.koScoreText}>{m.result.homeGoals} - {m.result.awayGoals}</Text>
-              {suffix && <Text style={styles.koSuffix}>{suffix}</Text>}
+    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.bracketScroll}>
+      <View style={styles.bracketRow}>
+        {knockoutRounds.map(({ round, matches }) => (
+          <View key={round} style={styles.bracketCol}>
+            <Text style={styles.bracketColLabel}>{KO_ROUND_NAMES[round] ?? round.toUpperCase()}</Text>
+            <View style={[styles.bracketColBody, { height: colHeight }]}>
+              {matches.map((m, i) => (
+                <BracketMatch key={i} match={m} />
+              ))}
             </View>
-            <Text
-              style={[styles.koTeam, styles.koTeamB,
-                m.winner.clubId === m.teamB.clubId && styles.koWinner,
-                m.teamB.isPlayer && styles.koPlayerTeam]}
-              numberOfLines={1}
-            >
-              {m.teamB.clubName}
-            </Text>
           </View>
-        )
-      })}
-      {!playerMatch && !isFinal && matches.length > 2 && (
-        <Text style={styles.phaseNote}>+{matches.length - 2} more matches</Text>
-      )}
+        ))}
+      </View>
+    </ScrollView>
+  )
+}
+
+function BracketMatch({ match: m }: { match: WCKnockoutMatch }) {
+  const isPM = m.teamA.isPlayer || m.teamB.isPlayer
+  const aWon = m.winner.clubId === m.teamA.clubId
+  const pens = m.result.homePens !== null ? `p${m.result.homePens}-${m.result.awayPens}` : null
+  const suffix = pens ?? (m.result.extraTime ? 'AET' : null)
+
+  return (
+    <View style={[styles.bracketCard, isPM && styles.bracketCardPlayer]}>
+      <BracketTeam team={m.teamA} won={aWon} goals={m.result.homeGoals} />
+      <View style={styles.bracketDivider}>
+        {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
+      </View>
+      <BracketTeam team={m.teamB} won={!aWon} goals={m.result.awayGoals} />
+    </View>
+  )
+}
+
+function BracketTeam({ team, won, goals }: { team: WCTeam; won: boolean; goals: number }) {
+  return (
+    <View style={styles.bracketTeamRow}>
+      <Text
+        style={[styles.bracketTeamName, won && styles.bracketTeamWon, team.isPlayer && styles.bracketTeamPlayer]}
+        numberOfLines={1}
+      >
+        {getFlag(team.clubId)} {team.clubName}
+      </Text>
+      <Text style={[styles.bracketTeamGoals, won && styles.bracketTeamWon]}>{goals}</Text>
     </View>
   )
 }
@@ -312,35 +399,93 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
-  knockoutSection: { gap: spacing.sm },
-  knockoutLabel: {
+  // all-groups grid
+  groupsGrid: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           spacing.sm,
+  },
+  groupCard: {
+    width:           '48%',
+    backgroundColor: colors.bgElevated,
+    borderRadius:    radius.md,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.sm,
+    gap:             2,
+  },
+  groupCardPlayer: {
+    borderColor: colors.accent,
+  },
+  groupCardTitle: {
     fontSize:      typography.xs,
-    fontWeight:    typography.bold,
+    fontWeight:    typography.black,
+    color:         colors.textPrimary,
+    marginBottom:  2,
+  },
+  groupTeamRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           4,
+    paddingVertical: 2,
+  },
+  groupTeamRowQ: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.success,
+    paddingLeft:     4,
+  },
+  groupTeamRowSelf: {
+    backgroundColor: colors.accent + '15',
+    borderRadius:    radius.sm,
+  },
+  groupTeamRank: { fontSize: 9, color: colors.textMuted, width: 12 },
+  groupTeamName: { flex: 1, fontSize: 10, color: colors.textSecondary },
+  groupTeamNameSelf: { color: colors.accent, fontWeight: typography.bold },
+  groupTeamPts: { fontSize: 10, fontWeight: typography.bold, color: colors.textPrimary, width: 18, textAlign: 'right' },
+
+  // bracket
+  bracketScroll: { marginHorizontal: -spacing.xs },
+  bracketRow:    { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xs },
+  bracketCol:    { width: CARD_W, gap: spacing.sm },
+  bracketColLabel: {
+    fontSize:      typography.xs,
+    fontWeight:    typography.black,
     color:         colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
+    textAlign:     'center',
   },
-  koRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
+  bracketColBody: {
+    justifyContent: 'space-around',
+  },
+  bracketCard: {
     backgroundColor: colors.bgElevated,
     borderRadius:    radius.md,
-    padding:         spacing.sm,
-    gap:             spacing.sm,
-  },
-  koRowPlayer: {
-    backgroundColor: colors.accent + '15',
     borderWidth:     1,
-    borderColor:     colors.accent + '44',
+    borderColor:     colors.border,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
   },
-  koTeam:       { flex: 1, fontSize: typography.xs, color: colors.textSecondary },
-  koTeamA:      { textAlign: 'right' as any },
-  koTeamB:      { textAlign: 'left' as any },
-  koWinner:     { color: colors.textPrimary, fontWeight: typography.bold },
-  koPlayerTeam: { color: colors.accent },
-  koScore: { alignItems: 'center', minWidth: 55, gap: 2 },
-  koScoreText: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary },
-  koSuffix:    { fontSize: 8, color: colors.textMuted },
+  bracketCardPlayer: {
+    borderColor:     colors.accent,
+    backgroundColor: colors.accent + '11',
+  },
+  bracketTeamRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    gap:            4,
+  },
+  bracketTeamName:   { flex: 1, fontSize: 10, color: colors.textMuted },
+  bracketTeamWon:    { color: colors.textPrimary, fontWeight: typography.black },
+  bracketTeamPlayer: { color: colors.accent },
+  bracketTeamGoals:  { fontSize: 11, fontWeight: typography.bold, color: colors.textSecondary, width: 14, textAlign: 'right' },
+  bracketDivider: {
+    height: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bracketSuffix: { fontSize: 8, color: colors.warning, fontWeight: typography.bold },
 
   winnerCard: {
     alignItems:      'center',
@@ -351,18 +496,28 @@ const styles = StyleSheet.create({
   winnerName:  { fontSize: typography.xxl, fontWeight: typography.black, color: colors.tiers.perfection },
   winnerOvr:   { fontSize: typography.sm, color: colors.textSecondary },
 
-  playAgainBtn: {
+  buttonRow: {
+    flexDirection: 'row',
+    gap:           spacing.md,
+    marginTop:     spacing.md,
+  },
+  actionBtn: {
+    flex:            1,
     backgroundColor: colors.accent,
     borderRadius:    radius.md,
     paddingVertical: spacing.lg,
     alignItems:      'center',
-    marginTop:       spacing.md,
     ...shadows.md,
   },
-  playAgainText: {
-    fontSize:      typography.lg,
+  actionBtnSecondary: {
+    backgroundColor: colors.bgElevated,
+    borderWidth:     1,
+    borderColor:     colors.border,
+  },
+  actionBtnText: {
+    fontSize:      typography.md,
     fontWeight:    typography.black,
     color:         colors.textPrimary,
-    letterSpacing: 3,
+    letterSpacing: 1.5,
   },
 })

@@ -1,6 +1,6 @@
 import type { SimTeam } from '@/types/simulation'
 import { simulateMatch } from './match'
-import { simulateKnockout } from './knockout-match'
+import { simulateKnockout, simulateTwoLegs } from './knockout-match'
 
 export type CLPot = 1 | 2 | 3 | 4
 
@@ -13,8 +13,10 @@ export type CLKnockoutMatch = {
   teamA:     CLTeam
   teamB:     CLTeam
   winner:    CLTeam
-  aGoals:    number
-  bGoals:    number
+  aGoals:    number   // aggregate goals for teamA
+  bGoals:    number   // aggregate goals for teamB
+  leg1?:     { aGoals: number; bGoals: number }  // two-leg ties only (teamA at home)
+  leg2?:     { aGoals: number; bGoals: number }  // two-leg ties only (teamB at home)
   extraTime: boolean
   aPens?:    number
   bPens?:    number
@@ -116,7 +118,7 @@ export function simulateCLKnockoutsOnly(
   const playoffWinners: CLTeam[] = []
 
   for (let i = 0; i < shuffledPlayoff.length; i += 2) {
-    const m = singleKO('playoff', shuffledPlayoff[i], shuffledPlayoff[i + 1])
+    const m = twoLegKO('playoff', shuffledPlayoff[i], shuffledPlayoff[i + 1])
     playoffRound.push(m)
     playoffWinners.push(m.winner)
   }
@@ -141,7 +143,7 @@ export function simulateCLKnockoutsOnly(
   const r16Winners: CLTeam[] = []
 
   for (let i = 0; i < r16Teams.length; i += 2) {
-    const m = singleKO('r16', r16Teams[i], r16Teams[i + 1])
+    const m = twoLegKO('r16', r16Teams[i], r16Teams[i + 1])
     r16.push(m)
     r16Winners.push(m.winner)
   }
@@ -165,7 +167,7 @@ export function simulateCLKnockoutsOnly(
   const qfWinners: CLTeam[] = []
 
   for (let i = 0; i < qfTeams.length; i += 2) {
-    const m = singleKO('qf', qfTeams[i], qfTeams[i + 1])
+    const m = twoLegKO('qf', qfTeams[i], qfTeams[i + 1])
     qf.push(m)
     qfWinners.push(m.winner)
   }
@@ -189,7 +191,7 @@ export function simulateCLKnockoutsOnly(
   const sfWinners: CLTeam[] = []
 
   for (let i = 0; i < sfTeams.length; i += 2) {
-    const m = singleKO('sf', sfTeams[i], sfTeams[i + 1])
+    const m = twoLegKO('sf', sfTeams[i], sfTeams[i + 1])
     sf.push(m)
     sfWinners.push(m.winner)
   }
@@ -215,6 +217,24 @@ export function simulateCLKnockoutsOnly(
   }
 }
 
+// Two-leg tie used for all UCL knockout rounds except the final
+function twoLegKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch {
+  const result = simulateTwoLegs(teamA, teamB)
+  const winner = result.winner === 'home' ? teamA : teamB
+  return {
+    round, teamA, teamB, winner,
+    aGoals:    result.totalA,
+    bGoals:    result.totalB,
+    // leg1: teamA at home. leg2: teamB at home (teamA is away).
+    leg1:      { aGoals: result.leg1.homeGoals, bGoals: result.leg1.awayGoals },
+    leg2:      { aGoals: result.leg2.awayGoals, bGoals: result.leg2.homeGoals },
+    extraTime: result.extraTime,
+    aPens:     result.homePens ?? undefined,
+    bPens:     result.awayPens ?? undefined,
+  }
+}
+
+// Single-leg for the final (neutral venue)
 function singleKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch {
   const result = simulateKnockout(teamA, teamB)
   const winner = result.winner === 'home' ? teamA : teamB

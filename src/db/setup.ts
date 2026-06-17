@@ -3,9 +3,9 @@ import * as SQLite from 'expo-sqlite'
 import { Asset } from 'expo-asset'
 import * as FileSystem from 'expo-file-system/legacy'
 
-// Increment this whenever the bundled players_v4.db changes.
+// Increment this whenever the bundled players_v5.db changes.
 // This forces the device to re-copy the fresh DB on next launch.
-const DB_VERSION = 4
+const DB_VERSION = 6
 
 let _db: SQLite.SQLiteDatabase | null = null
 
@@ -51,7 +51,7 @@ export async function initBundledDb(): Promise<void> {
 
     // Copy fresh DB from bundled asset
     await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true })
-    const asset = Asset.fromModule(require('../../assets/db/players_v4.db'))
+    const asset = Asset.fromModule(require('../../assets/db/players_v5.db'))
     await asset.downloadAsync()
 
     if (asset.localUri) {

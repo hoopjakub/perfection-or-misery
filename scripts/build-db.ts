@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 
-const DB_PATH  = path.join(__dirname, '../assets/db/players_v4.db')
+const DB_PATH  = path.join(__dirname, '../assets/db/players_v5.db')
 const SEED_DIR = path.join(__dirname, 'seed')
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
@@ -18,7 +18,8 @@ db.exec(`
   CREATE TABLE clubs (
     id TEXT PRIMARY KEY, league_id TEXT NOT NULL REFERENCES leagues(id),
     name TEXT NOT NULL, short_name TEXT NOT NULL,
-    primary_color TEXT NOT NULL, secondary_color TEXT
+    primary_color TEXT NOT NULL, secondary_color TEXT,
+    logo TEXT
   );
   CREATE TABLE club_seasons (
     id TEXT PRIMARY KEY, club_id TEXT NOT NULL REFERENCES clubs(id),
@@ -59,7 +60,7 @@ const insertLeague = db.prepare(
   `INSERT OR IGNORE INTO leagues (id, name, country, games_per_season, tier) VALUES (?, ?, ?, ?, ?)`
 )
 const insertClub = db.prepare(
-  `INSERT OR IGNORE INTO clubs (id, league_id, name, short_name, primary_color, secondary_color) VALUES (?, ?, ?, ?, ?, ?)`
+  `INSERT OR IGNORE INTO clubs (id, league_id, name, short_name, primary_color, secondary_color, logo) VALUES (?, ?, ?, ?, ?, ?, ?)`
 )
 const insertClubSeason = db.prepare(
   `INSERT OR IGNORE INTO club_seasons (id, club_id, year_start, year_end, historical_ovr, league_position) VALUES (?, ?, ?, ?, ?, ?)`
@@ -94,7 +95,8 @@ for (const file of files) {
       club.name,
       club.short_name,
       club.primary_color,
-      club.secondary_color ?? null
+      club.secondary_color ?? null,
+      club.logo ?? null
     )
 
     for (const season of club.seasons) {
@@ -108,13 +110,16 @@ for (const file of files) {
       )
 
       for (const player of season.players) {
+        const secPos = Array.isArray(player.secondary_positions)
+          ? JSON.stringify(player.secondary_positions)
+          : (player.secondary_positions ?? '[]')
         insertPlayer.run(
           player.id,
           player.name,
           player.nationality,
           player.birth_year ?? null,
           player.primary_position,
-          player.secondary_positions
+          secPos
         )
 
         insertPlayerSeason.run(
@@ -138,7 +143,7 @@ for (const file of files) {
 }
 
 // Bake version into the asset so the app knows when to re-copy
-db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', 4)`).run()
+db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', 6)`).run()
 
-console.log(`✓ built ${DB_PATH} (v4)`)
+console.log(`✓ built ${DB_PATH} (v6)`)
 db.close()

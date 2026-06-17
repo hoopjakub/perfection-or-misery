@@ -84,22 +84,39 @@ export async function getLeagueSeasonWithTeams(
   }
 }
 
-export async function getAllClubsData(): Promise<Record<string, { color: string; acronym: string }>> {
+export async function getAllClubsData(): Promise<Record<string, { color: string; acronym: string; logoKey: string }>> {
   const db = await getDb()
-  const clubs = await db.getAllAsync<{ name: string; short_name: string; primary_color: string }>(
-    `SELECT name, short_name, primary_color FROM clubs`
+  const clubs = await db.getAllAsync<{ id: string; name: string; short_name: string; primary_color: string; logo: string | null }>(
+    `SELECT id, name, short_name, primary_color, logo FROM clubs`
   )
-  
-  const clubDataMap: Record<string, { color: string; acronym: string }> = {}
+
+  const clubDataMap: Record<string, { color: string; acronym: string; logoKey: string }> = {}
   clubs.forEach(club => {
     clubDataMap[club.name] = {
       color: club.primary_color,
-      acronym: club.short_name
+      acronym: club.short_name,
+      logoKey: club.logo ?? club.id,
     }
   })
-  
+
   return clubDataMap
 }
+// Returns player names ordered by (attack + technical) DESC for a given club — used for pen kick order
+export async function getTopKickers(clubId: string, limit = 8): Promise<string[]> {
+  const db = await getDb()
+  const rows = await db.getAllAsync<{ name: string }>(
+    `SELECT p.name
+     FROM player_seasons ps
+     JOIN players p ON p.id = ps.player_id
+     JOIN club_seasons cs ON cs.id = ps.club_season_id
+     WHERE cs.club_id = ?
+     ORDER BY (COALESCE(ps.attack, 0) + COALESCE(ps.technical, 0)) DESC
+     LIMIT ?`,
+    [clubId, limit]
+  )
+  return rows.map(r => r.name)
+}
+
 // mode-aware pool - CL/WC get their own competition pools,
 // regular modes exclude CL/WC to avoid Vinicius Jr popping up in league mode
 export async function getClubSeasonsForMode(

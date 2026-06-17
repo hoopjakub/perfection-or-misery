@@ -2,6 +2,8 @@ import { SimTeam } from '@/types/simulation'
 import { simulateMatch } from './match'
 import { poissonSample } from '@/lib/math'
 
+export type PenKick = { playerName: string; scored: boolean }
+
 export type KnockoutResult = {
   homeGoals:   number
   awayGoals:   number
@@ -126,6 +128,57 @@ export function simulateTwoLegs(
     awayPens:  pb,
     winner:    pa > pb ? 'home' : 'away',
   }
+}
+
+// Given known pen totals (aPens, bPens), generates a realistic-looking kick-by-kick sequence.
+// This is for UI display only — the outcome is already determined by the simulation.
+export function expandPenaltyKicks(
+  namesA: string[],
+  namesB: string[],
+  aPens: number,
+  bPens: number
+): { kicksA: PenKick[]; kicksB: PenKick[] } {
+  const getNameA = (i: number) => namesA[i] ?? `Player ${i + 1}`
+  const getNameB = (i: number) => namesB[i] ?? `Player ${i + 1}`
+  const aWins = aPens > bPens
+
+  // Determine if sudden death occurred (winner scored more than 5)
+  const hasSuddenDeath = aPens > 5 || bPens > 5
+  const regA = hasSuddenDeath ? 5 : aPens
+  const regB = hasSuddenDeath ? 5 : bPens
+
+  const kicksA: PenKick[] = shuffleGoals(regA, 5).map((scored, i) => ({
+    playerName: getNameA(i), scored,
+  }))
+  const kicksB: PenKick[] = shuffleGoals(regB, 5).map((scored, i) => ({
+    playerName: getNameB(i), scored,
+  }))
+
+  if (hasSuddenDeath) {
+    // Both scored 5 in regulation, now sudden death. The margin in sudden death
+    // is always exactly 1: every round before the last has both teams scoring,
+    // and in the decisive round the winner scores while the loser misses.
+    const sdGoalsA = aPens - 5
+    const sdGoalsB = bPens - 5
+    const sdRounds = Math.max(sdGoalsA, sdGoalsB)
+
+    for (let i = 0; i < sdRounds; i++) {
+      const isDecisive = i === sdRounds - 1
+      kicksA.push({ playerName: getNameA(5 + i), scored: isDecisive ? aWins : true })
+      kicksB.push({ playerName: getNameB(5 + i), scored: isDecisive ? !aWins : true })
+    }
+  }
+
+  return { kicksA, kicksB }
+}
+
+function shuffleGoals(goals: number, total: number): boolean[] {
+  const arr = [...Array(goals).fill(true), ...Array(total - goals).fill(false)]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
 }
 
 function simulatePenalties(t1: SimTeam, t2: SimTeam): [number, number] {
