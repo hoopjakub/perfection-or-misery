@@ -8,13 +8,14 @@ import { useGameStore, type Difficulty } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
 import { calcTeamOvr, calcChemistry, effectiveOvr } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
-import { getAllClubSeasons } from '@/db/queries/seasons'
+import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
 import { getRandomFact } from '@/lib/clubFacts'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { PositionSlot, DraftedPlayer } from '@/types/game'
 import type { PlayerRow } from '@/db/queries/players'
 import type { ClubSeasonRow } from '@/engine/draft'
+
 
 type DraftPhase = 'idle' | 'spinning_position' | 'spinning' | 'picking' | 'done'
 
@@ -55,6 +56,7 @@ const FORMATION_SHAPES: Record<string, string[][]> = {
 export default function DraftScreen() {
   const {
     mode, formation, era, difficulty,
+    selectedLeague,
     draftedPlayers, spunSeasonIds,
     rerollsUsed, addPlayer, markSeasonSpun, useReroll,
   } = useGameStore()
@@ -104,7 +106,7 @@ export default function DraftScreen() {
       const formationSlots = getSlotsForFormation(formation)
       setSlots(formationSlots)
 
-      const allSeasons = await getAllClubSeasons()
+      const allSeasons = await getClubSeasonsForMode(mode ?? 'league', selectedLeague)  
       setPool(allSeasons)
       setLoading(false)
     }

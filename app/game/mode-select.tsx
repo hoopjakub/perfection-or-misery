@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore, GameMode, type Difficulty } from '@/store/gameStore'
 import { getAvailableLeagues, type LeagueOption } from '@/db/queries/seasons'
@@ -13,6 +13,7 @@ type ModeConfig = {
   emoji: string
   accentColor: string
   hasDifficulty: boolean
+  image?: any // Image require statement
 }
 
 const MODES: ModeConfig[] = [
@@ -42,6 +43,26 @@ const MODES: ModeConfig[] = [
     emoji:         '📅',
     accentColor:   '#8B5CF6',
     hasDifficulty: true,
+  },
+  {
+    id:            'champions_league',
+    title:         'Champions League',
+    subtitle:      'European elite',
+    description:   'Only the best clubs from Europe\'s top competitions. Compete for the ultimate prize.',
+    emoji:         '🏆',
+    accentColor:   '#1A237E',
+    hasDifficulty: true,
+    image:         require('../../assets/modes/champions-league.png'),
+  },
+  {
+    id:            'world_cup',
+    title:         'World Cup',
+    subtitle:      'Global glory',
+    description:   'National teams from around the world. Draft your squad and lead your country to victory.',
+    emoji:         '⚽',
+    accentColor:   '#FFD700',
+    hasDifficulty: true,
+    image:         require('../../assets/modes/world-cup.png'),
   },
   {
     id:            'chaos',
@@ -83,7 +104,7 @@ const DIFFICULTIES: { id: Difficulty; label: string; description: string }[] = [
 ]
 
 export default function ModeSelectScreen() {
-  const { setMode, setDifficulty, setSelectedLeague } = useGameStore()
+  const { setMode, setDifficulty, setSelectedLeague, setAccentColor } = useGameStore()
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null)
   const [selectedEra, setSelectedEra] = useState<string | null>(null)
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
@@ -122,9 +143,15 @@ export default function ModeSelectScreen() {
     if (selectedMode === 'league' && !selectedLeague) return
     if (MODES.find(m => m.id === selectedMode)?.hasDifficulty && !selectedDifficulty) return
 
+    const selectedModeConfig = MODES.find(m => m.id === selectedMode)
     setMode(selectedMode, selectedEra ?? undefined)
     if (selectedDifficulty) setDifficulty(selectedDifficulty)
     setSelectedLeague(selectedLeague)
+    // Store accent color for use in other screens
+    if (selectedModeConfig) {
+      // @ts-ignore - adding accentColor to store temporarily
+      useGameStore.setState({ accentColor: selectedModeConfig.accentColor })
+    }
     router.push('/game/formation-select')
   }
 
@@ -163,7 +190,15 @@ export default function ModeSelectScreen() {
               onPress={() => handleModePress(mode.id)}
             >
               <View style={styles.cardHeader}>
-                <Text style={styles.cardEmoji}>{mode.emoji}</Text>
+                {mode.image ? (
+                  <Image 
+                    source={mode.image} 
+                    style={styles.cardImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Text style={styles.cardEmoji}>{mode.emoji}</Text>
+                )}
                 <View style={styles.cardTitles}>
                   <Text style={styles.cardTitle}>{mode.title}</Text>
                   <Text style={styles.cardSubtitle}>{mode.subtitle}</Text>
@@ -348,6 +383,10 @@ const styles = StyleSheet.create({
   },
   cardEmoji: {
     fontSize: 28,
+  },
+  cardImage: {
+    width: 40,
+    height: 40,
   },
   cardTitles: {
     flex: 1,

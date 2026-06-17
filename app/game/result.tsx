@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import {
   View, Text, StyleSheet, Pressable, ScrollView, Dimensions, ActivityIndicator
 } from 'react-native'
-import { LineChart } from 'react-native-chart-kit'
+import Svg, { Line, Polyline, Text as SvgText, G } from 'react-native-svg'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
@@ -10,6 +10,130 @@ import { saveRun, fetchRunById } from '@/db/queries/runs'
 import { getAllClubsData } from '@/db/queries/seasons'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { Tier } from '@/types/simulation'
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
+
+// Custom SVG position chart — position 1 at top, scrollable horizontally
+function PositionChart({ graphData }: { graphData: any }) {
+  const TEAM_COUNT = graphData.teamsInLeague || 1
+  const MATCH_COUNT = graphData.labels?.length ?? 0
+
+  if (MATCH_COUNT === 0 || graphData.datasets?.length === 0) {
+    return (
+      <View style={styles.graphEmpty}>
+        <Text style={styles.graphEmptyText}>No matchday data available.</Text>
+      </View>
+    )
+  }
+
+  const PAD_LEFT   = 28
+  const PAD_RIGHT  = 46
+  const PAD_TOP    = 14
+  const PAD_BOTTOM = 26
+  const CHART_H    = 300
+  const cardPad    = spacing.lg * 2
+  const MIN_COL_W  = 36
+  const COL_W = Math.max(MIN_COL_W, (SCREEN_WIDTH - cardPad - PAD_LEFT - PAD_RIGHT) / MATCH_COUNT)
+  const CHART_W = COL_W * MATCH_COUNT
+  const SVG_W   = PAD_LEFT + CHART_W + PAD_RIGHT
+  const SVG_H   = PAD_TOP + CHART_H + PAD_BOTTOM
+
+  const yForPos = (pos: number) =>
+    PAD_TOP + ((pos - 1) / Math.max(TEAM_COUNT - 1, 1)) * CHART_H
+  const xForMD = (mi: number) => PAD_LEFT + mi * COL_W + COL_W / 2
+
+  // Y-axis ticks
+  const yTicks: number[] = []
+  for (let p = 1; p <= TEAM_COUNT; p++) {
+    if (p === 1 || p % 5 === 0 || p === TEAM_COUNT) yTicks.push(p)
+  }
+
+  // X-axis ticks (first, every 5, last)
+  const xTicks = graphData.labels
+    .map((lbl: string, i: number) => ({ i, lbl }))
+    .filter(({ i }: { i: number }) => i === 0 || (i + 1) % 5 === 0 || i === MATCH_COUNT - 1)
+
+  // Build team lines — convert inverted position back to actual position
+  type TeamLine = { pts: string; color: string; isPlayer: boolean; acronym: string; lastPos: number }
+  const lines: TeamLine[] = graphData.datasets.map((ds: any, idx: number) => {
+    const isPlayer = graphData.isPlayerFlags?.[idx] ?? ds.isPlayer ?? false
+    const color = graphData.teamColors?.[idx] ?? '#666'
+    const positions = (ds.data as number[]).map(inv => TEAM_COUNT - inv + 1)
+    const pts = positions.map((pos, mi) => `${xForMD(mi)},${yForPos(pos)}`).join(' ')
+    const lastPos = positions[positions.length - 1] ?? 1
+    return { pts, color, isPlayer, acronym: graphData.teamAcronyms?.[idx] ?? '', lastPos }
+  })
+
+  const nonPlayers = lines.filter(l => !l.isPlayer)
+  const playerLine  = lines.find(l => l.isPlayer)
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.graphScrollH}>
+      <Svg width={SVG_W} height={SVG_H}>
+        {/* Horizontal grid lines + Y labels */}
+        {yTicks.map(pos => (
+          <G key={pos}>
+            <Line
+              x1={PAD_LEFT} y1={yForPos(pos)}
+              x2={PAD_LEFT + CHART_W} y2={yForPos(pos)}
+              stroke={colors.border} strokeWidth={0.5}
+            />
+            <SvgText
+              x={PAD_LEFT - 4} y={yForPos(pos) + 4}
+              fontSize={9} fill={colors.textMuted} textAnchor="end"
+            >
+              {pos}
+            </SvgText>
+          </G>
+        ))}
+
+        {/* X axis baseline */}
+        <Line
+          x1={PAD_LEFT} y1={PAD_TOP + CHART_H}
+          x2={PAD_LEFT + CHART_W} y2={PAD_TOP + CHART_H}
+          stroke={colors.border} strokeWidth={1}
+        />
+
+        {/* X labels */}
+        {xTicks.map(({ i, lbl }: { i: number; lbl: string }) => (
+          <SvgText key={i} x={xForMD(i)} y={SVG_H - 5} fontSize={8} fill={colors.textMuted} textAnchor="middle">
+            {lbl}
+          </SvgText>
+        ))}
+
+        {/* Non-player team lines (drawn first, behind player) */}
+        {nonPlayers.map((l, idx) => (
+          <Polyline
+            key={idx} points={l.pts}
+            stroke={l.color} strokeWidth={1.2} fill="none" strokeOpacity={0.55}
+          />
+        ))}
+
+        {/* Player line on top */}
+        {playerLine && (
+          <Polyline
+            points={playerLine.pts}
+            stroke={playerLine.color} strokeWidth={3} fill="none"
+          />
+        )}
+
+        {/* Right-side team acronym labels */}
+        {lines.map((l, idx) => (
+          <SvgText
+            key={idx}
+            x={PAD_LEFT + CHART_W + 4}
+            y={yForPos(l.lastPos) + 4}
+            fontSize={l.isPlayer ? 10 : 7}
+            fontWeight={l.isPlayer ? 'bold' : 'normal'}
+            fill={l.color}
+          >
+            {l.acronym}
+          </SvgText>
+        ))}
+      </Svg>
+    </ScrollView>
+  )
+}
 
 const TIER_META: Record<Tier, { title: string; desc: string; emoji: string }> = {
   perfection: {
@@ -166,10 +290,12 @@ export default function ResultScreen() {
           data: positions,
           color: (opacity = 1) => teamColors[idx],
           strokeWidth: team.isPlayer ? 3 : 1,
+          isPlayer: team.isPlayer,
         }
       }) || [],
       teamAcronyms,
       teamColors,
+      isPlayerFlags: finalStandings.map((team: any) => !!team.isPlayer),
       teamsInLeague,
     }
   }, [resultData, selectedMatchday, teamDataMap, colors])
@@ -330,8 +456,8 @@ export default function ResultScreen() {
             {upsets.length > 0 && (
               <View style={styles.highlightItem}>
                 <Text style={styles.highlightLabel}>⚠️ Shock Defeats</Text>
-                <Text style={styles.highlightValue}>
-                  {upsets.length} upset{upsets.length > 1 ? 's' : ''} (e.g. {upsets[0].score} vs {upsets[0].opponent})
+                <Text style={styles.highlightValueBlock}>
+                  {upsets.length} upset{upsets.length > 1 ? 's' : ''} — e.g. {upsets[0].score} vs {upsets[0].opponent}
                 </Text>
               </View>
             )}
@@ -496,74 +622,8 @@ export default function ResultScreen() {
         {/* Position Tracking Graph */}
         <View style={styles.graphCard}>
           <Text style={styles.sectionTitle}>Position Tracking</Text>
-          <Text style={styles.graphSubtitle}>League position throughout the season (up to Matchday {currentMatchday})</Text>
-          <View style={styles.graphContainer}>
-            <LineChart
-              data={{
-                labels: graphData.labels,
-                datasets: graphData.datasets,
-              }}
-              width={Dimensions.get('window').width - spacing.lg * 2 - 60}
-              height={220}
-              chartConfig={{
-                backgroundColor: colors.bgCard,
-                backgroundGradientFrom: colors.bgCard,
-                backgroundGradientTo: colors.bgCard,
-                decimalPlaces: 0,
-                color: (opacity = 1) => colors.bgCard,
-                labelColor: (opacity = 1) => colors.textMuted,
-                style: {
-                  borderRadius: radius.md,
-                },
-                propsForDots: {
-                  r: '0',
-                },
-                propsForLabels: {
-                  fontSize: 7,
-                },
-                formatYLabel: (value) => {
-                  // Convert back from inverted value to actual position
-                  const teamsInLeague = graphData.teamsInLeague || 20
-                  const actualPosition = teamsInLeague - parseInt(value) + 1
-                  return actualPosition.toString()
-                },
-              }}
-              bezier
-              style={styles.graph}
-              withDots={false}
-              withInnerLines={false}
-              withOuterLines={false}
-              withVerticalLines={false}
-              withHorizontalLines={true}
-              yAxisLabel=""
-              yAxisSuffix=""
-            />
-            {/* Team Acronyms on Right Side */}
-            <View style={styles.graphRightLabels}>
-              {graphData.teamAcronyms?.map((acronym: any, idx: number) => {
-                const team = resultData.table[idx]
-                if (!team || !graphData.teamColors) return null
-                const finalInvertedPosition = graphData.datasets[idx]?.data?.[graphData.datasets[idx].data.length - 1] || 0
-                const teamsInLeague = graphData.teamsInLeague || 20
-                // Calculate Y position based on inverted position (higher value = top)
-                const yPosition = ((finalInvertedPosition - 1) / (teamsInLeague - 1)) * 220
-                return (
-                  <Text
-                    key={team.clubId}
-                    style={[
-                      styles.graphRightLabel,
-                      { color: graphData.teamColors[idx], top: yPosition - 6 },
-                      team.isPlayer && styles.graphRightLabelPlayer, 
-                    ]}
-                  >
-                    {acronym}
-                  </Text>
-                )
-              })}
-            </View>
-          </View>
-          {/* Team Legend with Acronyms */}
-          
+          <Text style={styles.graphSubtitle}>Position {currentMatchday > 0 ? `after MD ${currentMatchday}` : 'throughout season'} — position 1 at top</Text>
+          <PositionChart graphData={graphData} />
         </View>
 
         {/* Final Standings Table */}
@@ -758,9 +818,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   highlightItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
     backgroundColor: colors.bgElevated,
     padding: spacing.md,
     borderRadius: radius.md,
@@ -775,6 +835,11 @@ const styles = StyleSheet.create({
   highlightValue: {
     fontSize: typography.sm,
     color: colors.textSecondary,
+  },
+  highlightValueBlock: {
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    flexWrap: 'wrap',
   },
   tableCard: {
     backgroundColor: colors.bgCard,
@@ -971,57 +1036,19 @@ const styles = StyleSheet.create({
   graphSubtitle: {
     fontSize: typography.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
   },
-  graphContainer: {
+  graphScrollH: {
+    marginHorizontal: -spacing.xs,
+  },
+  graphEmpty: {
+    height: 100,
     alignItems: 'center',
-    flexDirection: 'row',
-  },
-  graph: {
-    borderRadius: radius.md,
-  },
-  graphRightLabels: {
-    right: 0,
-    top: 0,
-    height: 150,
-    width: 50,
-  },
-  graphRightLabel: {
-    position: 'absolute',
-    right: 0,
-    fontSize: 6,
-    fontWeight: typography.bold,
-  },
-  graphRightLabelPlayer: {
-    fontWeight: typography.black,
-    fontSize: 10,
-  },
-  graphLegendScroll: {
-    marginTop: spacing.sm,
-  },
-  graphLegend: {
-    flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing.lg,
-    paddingHorizontal: spacing.md,
   },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: typography.xs,
-    color: colors.textSecondary,
-  },
-  legendTextPlayer: {
-    color: colors.accent,
-    fontWeight: typography.bold,
+  graphEmptyText: {
+    fontSize: typography.sm,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   positionChangeIndicator: {
     fontSize: 10,

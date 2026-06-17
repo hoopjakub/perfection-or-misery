@@ -121,7 +121,7 @@ const visualStyles = StyleSheet.create({
 })
 
 export default function FormationSelectScreen() {
-  const { mode, era, startRun } = useGameStore()
+  const { mode, era, startRun, accentColor } = useGameStore()
   const [selected, setSelected] = useState<Formation>('4-3-3')
 
   function handleContinue() {
@@ -160,12 +160,18 @@ export default function FormationSelectScreen() {
             return (
               <Pressable
                 key={f.id}
-                style={[styles.formationCard, isSelected && styles.formationCardSelected]}
+                style={[
+                  styles.formationCard, 
+                  isSelected && { 
+                    borderColor: accentColor || colors.accent, 
+                    borderWidth: 2 
+                  }
+                ]}
                 onPress={() => setSelected(f.id)}
               >
                 <FormationVisual
                   shape={f.shape}
-                  accentColor={isSelected ? colors.accent : colors.bgElevated}
+                  accentColor={isSelected ? (accentColor || colors.accent) : colors.bgElevated}
                 />
                 <Text style={[
                   styles.formationLabel,
@@ -210,7 +216,7 @@ export default function FormationSelectScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.continueBtn} onPress={handleContinue}>
+        <Pressable style={[styles.continueBtn, { backgroundColor: accentColor || colors.accent }]} onPress={handleContinue}>
           <Text style={styles.continueBtnText}>
             Draft with {selected}
           </Text>

@@ -1,0 +1,49 @@
+{
+  "league": {
+    "id": "wc_2026",
+    "name": "FIFA World Cup",
+    "country": "USA/Canada/Mexico",
+    "games_per_season": 3,
+    "tier": 1
+  },
+  "clubs": [
+    {
+      "id": "brazil_nt",
+      "league_id": "wc_2026",
+      "name": "Brazil",
+      "short_name": "BRA",
+      "primary_color": "#FFD700",
+      "secondary_color": "#009739",
+      "seasons": [
+        {
+          "id": "brazil_wc_2026",
+          "club_id": "brazil_nt",
+          "year_start": 2026,
+          "year_end": 2026,
+          "historical_ovr": 88,
+          "league_position": null,
+          "players": [
+            {
+              "id": "vinicius_jr_nt",
+              "name": "Vinicius Jr",
+              "nationality": "Brazilian",
+              "birth_year": 2000,
+              "primary_position": "LW",
+              "secondary_positions": "[\"ST\"]",
+              "ovr": 91,
+              "attack": 92,
+              "defense": 40,
+              "physical": 74,
+              "pace": 96,
+              "technical": 88,
+              "goals": 8,
+              "assists": 4,
+              "appearances": 7,
+              "is_icon": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

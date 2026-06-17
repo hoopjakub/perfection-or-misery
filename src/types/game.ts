@@ -1,4 +1,4 @@
-export type GameMode = 'league' | 'all_time' | 'era' | 'chaos' | 'cursed'
+export type GameMode = 'league' | 'all_time' | 'era' | 'chaos' | 'cursed' | 'champions_league' | 'world_cup'
 
 export type Position =
   'GK' | 'CB' | 'LB' | 'RB' | 'CDM' |

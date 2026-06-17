@@ -1,0 +1,49 @@
+{
+  "league": {
+    "id": "ucl_2025",
+    "name": "UEFA Champions League ",
+    "country": "Europe",
+    "games_per_season": 8,
+    "tier": 1
+  },
+  "clubs": [
+    {
+      "id": "real_madrid",
+      "league_id": "ucl_2025",
+      "name": "Real Madrid",
+      "short_name": "RMA",
+      "primary_color": "#FFFFFF",
+      "secondary_color": "#00529F",
+      "seasons": [
+        {
+          "id": "real_madrid_ucl_2025",
+          "club_id": "real_madrid",
+          "year_start": 2025,
+          "year_end": 2026,
+          "historical_ovr": 88,
+          "league_position": 1,
+          "players": [
+            {
+              "id": "vinicius_jr",
+              "name": "Vinicius Jr",
+              "nationality": "Brazilian",
+              "birth_year": 2000,
+              "primary_position": "LW",
+              "secondary_positions": "[\"ST\"]",
+              "ovr": 88,
+              "attack": 88,
+              "defense": 40,
+              "physical": 74,
+              "pace": 96,
+              "technical": 84,
+              "goals": 16,
+              "assists": 8,
+              "appearances": 29,
+              "is_icon": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   View, Text, StyleSheet, Pressable,
-  ScrollView, Animated, ActivityIndicator
+  ScrollView, Animated, ActivityIndicator,
+  LayoutAnimation, Platform, UIManager,
 } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
@@ -10,8 +11,16 @@ import { getSlotsForFormation } from '@/engine/formations'
 import { generateFixtures } from '@/engine/fixtures'
 import { simulateMatch } from '@/engine/match'
 import { assignTier } from '@/engine/tier'
+import { generateCLLeagueFixtures, simulateCLKnockoutsOnly } from '@/engine/cl-sim'
+import type { CLTeam } from '@/engine/cl-sim'
+import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
+import type { WCTeam, WCGroup } from '@/engine/world-cup-sim'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
+
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true)
+}
 
 type SimPhase = 'review' | 'simulating' | 'completed'
 type Speed = 'slow' | 'normal' | 'fast'
@@ -22,7 +31,33 @@ const SPEED_MS: Record<Speed, number> = {
   fast: 100,
 }
 
+type CompMatchResult = {
+  home: SimTeam
+  away: SimTeam
+  homeGoals: number
+  awayGoals: number
+  outcome: 'home' | 'away' | 'draw'
+}
+
+function sortByStats(teams: SimTeam[]): SimTeam[] {
+  return [...teams].sort((a, b) => {
+    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
+    const gdA = a.stats.goalsFor - a.stats.goalsAgainst
+    const gdB = b.stats.goalsFor - b.stats.goalsAgainst
+    if (gdB !== gdA) return gdB - gdA
+    return b.stats.goalsFor - a.stats.goalsFor
+  })
+}
+
+// Top-level router — delegates to the right simulation per mode
 export default function SimulationScreen() {
+  const mode = useGameStore(s => s.mode)
+  if (mode === 'champions_league') return <CLSimulation />
+  if (mode === 'world_cup')        return <WCSimulation />
+  return <LeagueSimulation />
+}
+
+function LeagueSimulation() {
   const {
     draftedPlayers,
     formation,
@@ -46,7 +81,6 @@ export default function SimulationScreen() {
   const [speed, setSpeed] = useState<Speed>('normal')
   const [previousPlayerPosition, setPreviousPlayerPosition] = useState<number | null>(null)
   const [positionChangeAnim] = useState(new Animated.Value(0))
-  const [animatedPositions, setAnimatedPositions] = useState<Record<string, Animated.Value>>({})
   const [isStartingSimulation, setIsStartingSimulation] = useState(false)
   const [isFinishingSimulation, setIsFinishingSimulation] = useState(false)
 
@@ -221,39 +255,24 @@ export default function SimulationScreen() {
       fixtures: completedFixtures,
     })
 
-    // Update previous player position before changing matchday
+    // Track player position for ↑↓ indicator
     const currentPlayerPos = standingsSnapshot.findIndex(t => t.isPlayer) + 1
     if (currentMatchday > 1) {
-      const prevPos = previousPlayerPosition
-      setPreviousPlayerPosition(currentPlayerPos)
-      // Animate position change indicator
       positionChangeAnim.setValue(0)
       Animated.timing(positionChangeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start()
+    }
+    setPreviousPlayerPosition(currentPlayerPos)
 
-      // In slow mode, animate all position changes smoothly
-      if (speed === 'slow') {
-        const newAnimatedPositions: Record<string, Animated.Value> = { ...animatedPositions }
-        standingsSnapshot.forEach((team, idx) => {
-          const currentPos = idx + 1
-          if (!animatedPositions[team.clubId]) {
-            newAnimatedPositions[team.clubId] = new Animated.Value(currentPos)
-          } else {
-            Animated.timing(animatedPositions[team.clubId], {
-              toValue: currentPos,
-              duration: 800,
-              useNativeDriver: false,
-            }).start()
-          }
-        })
-        setAnimatedPositions(newAnimatedPositions)
-      }
-    } else {
-      // Initialize previous position on first matchday
-      setPreviousPlayerPosition(currentPlayerPos)
+    // Animate standings reorder in slow mode
+    if (speed === 'slow') {
+      LayoutAnimation.configureNext({
+        duration: 700,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      })
     }
 
     if (currentMatchday === totalMatchdays) {
@@ -660,12 +679,10 @@ export default function SimulationScreen() {
               <ScrollView style={styles.tableScroll} showsVerticalScrollIndicator={false}>
                 {currentMatchdayStandings.map((team, idx) => {
                   const gd = team.stats.goalsFor - team.stats.goalsAgainst
-                  const positionChange = team.isPlayer && previousPlayerPosition !== null 
-                    ? previousPlayerPosition - (idx + 1) 
+                  const positionChange = team.isPlayer && previousPlayerPosition !== null
+                    ? previousPlayerPosition - (idx + 1)
                     : null
-                  
-                  const useAnimatedPosition = speed === 'slow' && animatedPositions[team.clubId]
-                  
+
                   return (
                     <View
                       key={team.clubId}
@@ -675,17 +692,7 @@ export default function SimulationScreen() {
                       ]}
                     >
                       <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
-                        {useAnimatedPosition ? (
-                          <Animated.Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>
-                            {animatedPositions[team.clubId].interpolate({
-                              inputRange: [1, 20],
-                              outputRange: ['1', '20'],
-                              extrapolate: 'clamp'
-                            })}
-                          </Animated.Text>
-                        ) : (
-                          <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
-                        )}
+                        <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
                         {positionChange !== null && positionChange !== 0 && (
                           <Animated.Text style={[
                             styles.positionChangeIndicator,
@@ -803,6 +810,563 @@ export default function SimulationScreen() {
               ) : (
                 <Text style={styles.finishBtnText}>VIEW FINAL RESULTS & REWARDS →</Text>
               )}
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  )
+}
+
+// ── Champions League Simulation ──────────────────────────────────────────────
+
+function CLSimulation() {
+  const { draftedPlayers, formation, clTeams, setClResult } = useGameStore()
+
+  const slots       = formation ? getSlotsForFormation(formation) : []
+  const baseTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
+  const chem        = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
+  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+
+  const [phase,                  setPhase]                  = useState<SimPhase>('review')
+  const [currentMD,              setCurrentMD]              = useState(1)
+  const [simTeams,               setSimTeams]               = useState<CLTeam[]>([])
+  const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
+  const [recentResults,          setRecentResults]          = useState<CompMatchResult[]>([])
+  const [isPlaying,              setIsPlaying]              = useState(false)
+  const [speed,                  setSpeed]                  = useState<Speed>('normal')
+  const [isStarting,             setIsStarting]             = useState(false)
+  const [isFinishing,            setIsFinishing]            = useState(false)
+  const [previousPlayerPosition, setPreviousPlayerPosition] = useState<number | null>(null)
+  const [positionChangeAnim]                                = useState(new Animated.Value(0))
+
+  const totalMatchdays = 8
+
+  useEffect(() => {
+    if (!clTeams) return
+    const teams: CLTeam[] = clTeams.map(t => ({
+      ...t,
+      ovr:  t.isPlayer ? totalTeamOvr : t.ovr,
+      form: 0,
+      stats: { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
+    }))
+    setSimTeams(teams)
+    setFixtures(generateCLLeagueFixtures(teams))
+  }, [clTeams, totalTeamOvr])
+
+  useEffect(() => {
+    if (phase !== 'simulating' || !isPlaying) return
+    const timer = setInterval(simulateNextMD, SPEED_MS[speed])
+    return () => clearInterval(timer)
+  }, [phase, isPlaying, currentMD, simTeams, fixtures, speed])
+
+  if (!clTeams || !formation || draftedPlayers.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Text style={styles.loadingText}>No CL data found.</Text>
+        <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: 12 }}>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back</Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  function simulateNextMD() {
+    if (currentMD > totalMatchdays) { handleFinish(); return }
+
+    const mdFixtures = fixtures.filter(f => f.matchday === currentMD)
+    const teams      = [...simTeams]
+    const results: CompMatchResult[] = []
+
+    mdFixtures.forEach(({ home: h, away: a }) => {
+      const home = teams.find(t => t.clubId === h.clubId)!
+      const away = teams.find(t => t.clubId === a.clubId)!
+      const r    = simulateMatch(home, away)
+
+      home.stats.played++; away.stats.played++
+      home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
+      away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
+
+      if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
+      else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
+      else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+
+      const upd = (t: CLTeam, out: 'win' | 'draw' | 'loss') => {
+        t.form = Math.max(-1, Math.min(1, t.form * 0.85 + (out === 'win' ? 0.15 : out === 'draw' ? 0 : -0.15)))
+      }
+      upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+      upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome })
+    })
+
+    // Track player position for ↑↓ indicator
+    const clSorted = sortByStats(teams) as CLTeam[]
+    const currentPlayerPos = clSorted.findIndex(t => t.isPlayer) + 1
+    if (currentMD > 1) {
+      positionChangeAnim.setValue(0)
+      Animated.timing(positionChangeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start()
+    }
+    setPreviousPlayerPosition(currentPlayerPos)
+
+    // Animate standings reorder in slow mode
+    if (speed === 'slow') {
+      LayoutAnimation.configureNext({
+        duration: 700,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      })
+    }
+
+    setSimTeams(teams)
+    setRecentResults(results)
+
+    if (currentMD === totalMatchdays) { setIsPlaying(false); setPhase('completed') }
+    else { setCurrentMD(prev => prev + 1) }
+  }
+
+  function skipAll() {
+    setIsPlaying(false)
+    let teams = [...simTeams]
+    for (let md = currentMD; md <= totalMatchdays; md++) {
+      fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
+        const home = teams.find(t => t.clubId === h.clubId)!
+        const away = teams.find(t => t.clubId === a.clubId)!
+        const r = simulateMatch(home, away)
+        home.stats.played++; away.stats.played++
+        home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
+        away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
+        if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
+        else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
+        else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+      })
+    }
+    setSimTeams(teams)
+    setCurrentMD(totalMatchdays)
+    setRecentResults([])
+    setPhase('completed')
+  }
+
+  function handleFinish() {
+    setIsFinishing(true)
+    setTimeout(() => {
+      const sorted   = sortByStats(simTeams) as CLTeam[]
+      const knockouts = simulateCLKnockoutsOnly(sorted)
+      setClResult({ leaguePhaseStandings: sorted, ...knockouts })
+      setIsFinishing(false)
+      router.push('/game/cl-result')
+    }, 500)
+  }
+
+  const sorted = sortByStats(simTeams)
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>UEFA Champions League</Text>
+          <Text style={styles.headerSub}>League Phase · 8 matchdays</Text>
+        </View>
+        <View style={{ width: 32 }} />
+      </View>
+
+      {phase === 'review' ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.ovrOverview}>
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Squad OVR</Text><Text style={styles.ovrValue}>{baseTeamOvr}</Text></View>
+            <View style={styles.ovrDivider} />
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Chem Bonus</Text><Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text></View>
+            <View style={styles.ovrDivider} />
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: colors.accent }]}>{totalTeamOvr}</Text></View>
+          </View>
+          <View style={styles.replacementCard}>
+            <Text style={styles.replacementTitle}>UCL League Phase</Text>
+            <Text style={styles.replacementText}>
+              Your squad plays <Text style={styles.replacementHighlight}>8 games</Text> in a 36-team single league table.{'\n'}
+              Top 8 → Round of 16 direct · 9th-24th → Playoff round · Bottom 12 eliminated.
+            </Text>
+          </View>
+          <Pressable
+            style={[styles.actionBtn, isStarting && styles.actionBtnDisabled]}
+            onPress={() => { setIsStarting(true); setTimeout(() => { setPhase('simulating'); setIsPlaying(true); setIsStarting(false) }, 500) }}
+            disabled={isStarting}
+          >
+            {isStarting
+              ? <View style={styles.actionBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.actionBtnText, styles.actionBtnTextLoading]}>Starting...</Text></View>
+              : <Text style={styles.actionBtnText}>START UCL SIMULATION</Text>}
+          </Pressable>
+        </ScrollView>
+      ) : (
+        <View style={styles.simContainer}>
+          <View style={styles.progressCard}>
+            <View style={styles.progressTextRow}>
+              <Text style={styles.matchdayLabel}>Matchday {currentMD} / {totalMatchdays}</Text>
+              <Text style={styles.simStatusText}>{phase === 'completed' ? 'Phase Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%` }]} />
+            </View>
+            {phase !== 'completed' && (
+              <View style={styles.controlsRow}>
+                <Pressable style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(!isPlaying)}>
+                  <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
+                </Pressable>
+                <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
+                  <Text style={styles.controlBtnText}>⏩ Skip All</Text>
+                </Pressable>
+                <View style={styles.speedSelector}>
+                  {(['slow', 'normal', 'fast'] as Speed[]).map(s => (
+                    <Pressable key={s} style={[styles.speedBtn, speed === s && styles.speedBtnActive]} onPress={() => setSpeed(s)}>
+                      <Text style={[styles.speedBtnText, speed === s && styles.speedBtnTextActive]}>{s.toUpperCase()}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.simSplitGrid}>
+            <View style={styles.tableCard}>
+              <Text style={styles.cardHeaderTitle}>League Phase</Text>
+              <View style={styles.tableHeaderRow}>
+                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
+                <Text style={[styles.tableCol, styles.colName]}>Club</Text>
+                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
+                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
+                <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
+              </View>
+              <ScrollView style={styles.tableScroll} showsVerticalScrollIndicator={false}>
+                {sorted.map((team, idx) => {
+                  const gd = team.stats.goalsFor - team.stats.goalsAgainst
+                  const positionChange = team.isPlayer && previousPlayerPosition !== null
+                    ? previousPlayerPosition - (idx + 1)
+                    : null
+                  return (
+                    <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer]}>
+                      <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
+                        <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
+                        {positionChange !== null && positionChange !== 0 && (
+                          <Animated.Text style={[
+                            styles.positionChangeIndicator,
+                            positionChange > 0 ? styles.positionUp : styles.positionDown,
+                            { opacity: positionChangeAnim }
+                          ]}>
+                            {positionChange > 0 ? ` ↑${Math.abs(positionChange)}` : ` ↓${Math.abs(positionChange)}`}
+                          </Animated.Text>
+                        )}
+                      </View>
+                      <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]} numberOfLines={1}>{team.clubName}</Text>
+                      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{team.stats.played}</Text>
+                      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{gd > 0 ? `+${gd}` : gd}</Text>
+                      <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>{team.stats.points}</Text>
+                    </View>
+                  )
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={styles.resultsCard}>
+              <Text style={styles.cardHeaderTitle}>MD Results</Text>
+              {recentResults.length === 0 ? (
+                <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for kickoff...</Text></View>
+              ) : (
+                <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
+                  {recentResults.map((r, i) => {
+                    const isPM = r.home.isPlayer || r.away.isPlayer
+                    const rc = isPM
+                      ? (r.home.isPlayer && r.outcome === 'home') || (r.away.isPlayer && r.outcome === 'away') ? colors.success
+                        : r.outcome === 'draw' ? colors.warning : '#DC2626'
+                      : null
+                    return (
+                      <View key={i} style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
+                        <Text style={[styles.resultClubName, styles.alignRight, r.home.isPlayer && styles.highlightClubText]} numberOfLines={1}>{r.home.clubName}</Text>
+                        <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
+                          <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                        </View>
+                        <Text style={[styles.resultClubName, styles.alignLeft, r.away.isPlayer && styles.highlightClubText]} numberOfLines={1}>{r.away.clubName}</Text>
+                      </View>
+                    )
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          </View>
+
+          {phase === 'completed' && (
+            <Pressable style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
+              {isFinishing
+                ? <View style={styles.finishBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Simulating knockouts...</Text></View>
+                : <Text style={styles.finishBtnText}>VIEW UCL RESULTS →</Text>}
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  )
+}
+
+// ── World Cup Simulation ─────────────────────────────────────────────────────
+
+function WCSimulation() {
+  const { draftedPlayers, formation, wcTeams, setWcResult } = useGameStore()
+
+  const slots        = formation ? getSlotsForFormation(formation) : []
+  const baseTeamOvr  = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
+  const chem         = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
+  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+
+  const [phase,         setPhase]         = useState<SimPhase>('review')
+  const [currentMD,     setCurrentMD]     = useState(1)
+  const [simTeams,      setSimTeams]      = useState<WCTeam[]>([])
+  const [groups,        setGroups]        = useState<WCGroup[]>([])
+  const [fixtures,      setFixtures]      = useState<{ matchday: number; home: WCTeam; away: WCTeam }[]>([])
+  const [recentResults, setRecentResults] = useState<CompMatchResult[]>([])
+  const [isPlaying,     setIsPlaying]     = useState(false)
+  const [speed,         setSpeed]         = useState<Speed>('normal')
+  const [isStarting,    setIsStarting]    = useState(false)
+  const [isFinishing,   setIsFinishing]   = useState(false)
+
+  const totalMatchdays = 3
+
+  useEffect(() => {
+    if (!wcTeams) return
+    const teams: WCTeam[] = wcTeams.map(t => ({
+      ...t,
+      ovr:  t.isPlayer ? totalTeamOvr : t.ovr,
+      form: 0,
+      stats: { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
+    }))
+    const assignedGroups = assignGroups(teams)
+    setGroups(assignedGroups)
+    setSimTeams(teams)
+    setFixtures(generateWCGroupFixtures(assignedGroups))
+  }, [wcTeams, totalTeamOvr])
+
+  useEffect(() => {
+    if (phase !== 'simulating' || !isPlaying) return
+    const timer = setInterval(simulateNextMD, SPEED_MS[speed])
+    return () => clearInterval(timer)
+  }, [phase, isPlaying, currentMD, simTeams, fixtures, speed])
+
+  if (!wcTeams || !formation || draftedPlayers.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Text style={styles.loadingText}>No World Cup data found.</Text>
+        <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: 12 }}>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back</Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  function simulateNextMD() {
+    if (currentMD > totalMatchdays) { handleFinish(); return }
+
+    const mdFixtures = fixtures.filter(f => f.matchday === currentMD)
+    const teams      = [...simTeams]
+    const results: CompMatchResult[] = []
+
+    mdFixtures.forEach(({ home: h, away: a }) => {
+      const home = teams.find(t => t.clubId === h.clubId)!
+      const away = teams.find(t => t.clubId === a.clubId)!
+      const r    = simulateMatch(home, away)
+
+      home.stats.played++; away.stats.played++
+      home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
+      away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
+
+      if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
+      else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
+      else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+
+      const upd = (t: WCTeam, out: 'win' | 'draw' | 'loss') => {
+        t.form = Math.max(-1, Math.min(1, t.form * 0.85 + (out === 'win' ? 0.15 : out === 'draw' ? 0 : -0.15)))
+      }
+      upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+      upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome })
+    })
+
+    setSimTeams(teams)
+    setRecentResults(results)
+
+    if (currentMD === totalMatchdays) { setIsPlaying(false); setPhase('completed') }
+    else { setCurrentMD(prev => prev + 1) }
+  }
+
+  function skipAll() {
+    setIsPlaying(false)
+    let teams = [...simTeams]
+    for (let md = currentMD; md <= totalMatchdays; md++) {
+      fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
+        const home = teams.find(t => t.clubId === h.clubId)!
+        const away = teams.find(t => t.clubId === a.clubId)!
+        const r = simulateMatch(home, away)
+        home.stats.played++; away.stats.played++
+        home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
+        away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
+        if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
+        else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
+        else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+      })
+    }
+    setSimTeams(teams)
+    setCurrentMD(totalMatchdays)
+    setRecentResults([])
+    setPhase('completed')
+  }
+
+  function handleFinish() {
+    setIsFinishing(true)
+    setTimeout(() => {
+      const clonedGroups: WCGroup[] = groups.map(g => ({
+        id: g.id,
+        teams: g.teams.map(t => ({ ...t, stats: { ...t.stats } })),
+      }))
+      const knockouts = simulateWCKnockoutsOnly(clonedGroups, simTeams)
+      setWcResult({ groups: clonedGroups, ...knockouts })
+      setIsFinishing(false)
+      router.push('/game/wc-result')
+    }, 500)
+  }
+
+  // Find player's group for the left standings panel
+  const playerGroup = groups.find(g => g.teams.some(t => t.isPlayer))
+  const playerGroupSorted = playerGroup
+    ? [...playerGroup.teams].sort((a, b) => {
+        if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
+        const gd = (b.stats.goalsFor - b.stats.goalsAgainst) - (a.stats.goalsFor - a.stats.goalsAgainst)
+        return gd !== 0 ? gd : b.stats.goalsFor - a.stats.goalsFor
+      })
+    : []
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>FIFA World Cup</Text>
+          <Text style={styles.headerSub}>Group Stage{playerGroup ? ` · Group ${playerGroup.id}` : ''}</Text>
+        </View>
+        <View style={{ width: 32 }} />
+      </View>
+
+      {phase === 'review' ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.ovrOverview}>
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Squad OVR</Text><Text style={styles.ovrValue}>{baseTeamOvr}</Text></View>
+            <View style={styles.ovrDivider} />
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Chem Bonus</Text><Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text></View>
+            <View style={styles.ovrDivider} />
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: colors.accent }]}>{totalTeamOvr}</Text></View>
+          </View>
+          <View style={styles.replacementCard}>
+            <Text style={styles.replacementTitle}>World Cup Group Stage</Text>
+            <Text style={styles.replacementText}>
+              Your squad plays <Text style={styles.replacementHighlight}>3 group stage games</Text> in a group of 4.{'\n'}
+              Top 2 per group + 8 best 3rd-place teams qualify for the Round of 32.
+            </Text>
+          </View>
+          <Pressable
+            style={[styles.actionBtn, isStarting && styles.actionBtnDisabled]}
+            onPress={() => { setIsStarting(true); setTimeout(() => { setPhase('simulating'); setIsPlaying(true); setIsStarting(false) }, 500) }}
+            disabled={isStarting}
+          >
+            {isStarting
+              ? <View style={styles.actionBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.actionBtnText, styles.actionBtnTextLoading]}>Drawing groups...</Text></View>
+              : <Text style={styles.actionBtnText}>START WORLD CUP SIMULATION</Text>}
+          </Pressable>
+        </ScrollView>
+      ) : (
+        <View style={styles.simContainer}>
+          <View style={styles.progressCard}>
+            <View style={styles.progressTextRow}>
+              <Text style={styles.matchdayLabel}>Round {currentMD} / {totalMatchdays}</Text>
+              <Text style={styles.simStatusText}>{phase === 'completed' ? 'Groups Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%` }]} />
+            </View>
+            {phase !== 'completed' && (
+              <View style={styles.controlsRow}>
+                <Pressable style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(!isPlaying)}>
+                  <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
+                </Pressable>
+                <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
+                  <Text style={styles.controlBtnText}>⏩ Skip All</Text>
+                </Pressable>
+                <View style={styles.speedSelector}>
+                  {(['slow', 'normal', 'fast'] as Speed[]).map(s => (
+                    <Pressable key={s} style={[styles.speedBtn, speed === s && styles.speedBtnActive]} onPress={() => setSpeed(s)}>
+                      <Text style={[styles.speedBtnText, speed === s && styles.speedBtnTextActive]}>{s.toUpperCase()}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.simSplitGrid}>
+            <View style={styles.tableCard}>
+              <Text style={styles.cardHeaderTitle}>
+                {playerGroup ? `Group ${playerGroup.id}` : 'Your Group'}
+              </Text>
+              <View style={styles.tableHeaderRow}>
+                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
+                <Text style={[styles.tableCol, styles.colName]}>Team</Text>
+                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
+                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
+                <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
+              </View>
+              {playerGroupSorted.map((team, idx) => {
+                const gd = team.stats.goalsFor - team.stats.goalsAgainst
+                return (
+                  <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer]}>
+                    <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
+                    <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]} numberOfLines={1}>{team.clubName}</Text>
+                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{team.stats.played}</Text>
+                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{gd > 0 ? `+${gd}` : gd}</Text>
+                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>{team.stats.points}</Text>
+                  </View>
+                )
+              })}
+            </View>
+
+            <View style={styles.resultsCard}>
+              <Text style={styles.cardHeaderTitle}>Round Results</Text>
+              {recentResults.length === 0 ? (
+                <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for kickoff...</Text></View>
+              ) : (
+                <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
+                  {recentResults.map((r, i) => {
+                    const isPM = r.home.isPlayer || r.away.isPlayer
+                    const rc = isPM
+                      ? (r.home.isPlayer && r.outcome === 'home') || (r.away.isPlayer && r.outcome === 'away') ? colors.success
+                        : r.outcome === 'draw' ? colors.warning : '#DC2626'
+                      : null
+                    return (
+                      <View key={i} style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
+                        <Text style={[styles.resultClubName, styles.alignRight, r.home.isPlayer && styles.highlightClubText]} numberOfLines={1}>{r.home.clubName}</Text>
+                        <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
+                          <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                        </View>
+                        <Text style={[styles.resultClubName, styles.alignLeft, r.away.isPlayer && styles.highlightClubText]} numberOfLines={1}>{r.away.clubName}</Text>
+                      </View>
+                    )
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          </View>
+
+          {phase === 'completed' && (
+            <Pressable style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
+              {isFinishing
+                ? <View style={styles.finishBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Simulating knockouts...</Text></View>
+                : <Text style={styles.finishBtnText}>VIEW WORLD CUP RESULTS →</Text>}
             </Pressable>
           )}
         </View>
