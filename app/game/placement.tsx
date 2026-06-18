@@ -382,11 +382,12 @@ function CLPlacement() {
 function WCPlacement() {
   const { draftedPlayers, formation, setWcTeams } = useGameStore()
 
-  const [teamOvr,   setTeamOvr]   = useState(0)
-  const [teamCount, setTeamCount] = useState(0)
-  const [yearLabel, setYearLabel] = useState('')
-  const [loading,   setLoading]   = useState(true)
-  const [revealed,  setRevealed]  = useState(false)
+  const [teamOvr,      setTeamOvr]      = useState(0)
+  const [teamCount,    setTeamCount]    = useState(0)
+  const [yearLabel,    setYearLabel]    = useState('')
+  const [replacedName, setReplacedName] = useState('')
+  const [loading,      setLoading]      = useState(true)
+  const [revealed,     setRevealed]     = useState(false)
 
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.9)).current
@@ -405,16 +406,20 @@ function WCPlacement() {
       const editionRows = rows.filter(r => r.year_start === latestYear)
       setYearLabel(String(latestYear))
 
-      const clubs = editionRows
-        .sort((a, b) => a.historical_ovr - b.historical_ovr)
-        .map((r, idx) => ({
-          clubId:   r.club_id,
-          clubName: r.club_name,
-          ovr:      r.historical_ovr,
-          isPlayer: idx === 0,
-        }))
+      // Replace one of the three weakest nations (chosen at random for variety),
+      // and badge the player's side as "<Nation> XI" so it's clearly their team.
+      const sortedRows = [...editionRows].sort((a, b) => a.historical_ovr - b.historical_ovr)
+      const replaceIdx = Math.floor(Math.random() * Math.min(3, sortedRows.length))
+      setReplacedName(sortedRows[replaceIdx].club_name)
 
-      clubs[0].ovr = ovr
+      const clubs = sortedRows.map((r, idx) => ({
+        clubId:   r.club_id,
+        clubName: idx === replaceIdx ? `${r.club_name} XI` : r.club_name,
+        ovr:      r.historical_ovr,
+        isPlayer: idx === replaceIdx,
+      }))
+
+      clubs[replaceIdx].ovr = ovr
 
       const teams = buildWCTeams(clubs)
       setTeamCount(teams.length)
@@ -471,7 +476,7 @@ function WCPlacement() {
           <Text style={styles.compRevealYear}>{yearLabel}</Text>
 
           <Text style={styles.compRevealSubtitle}>
-            Your squad has qualified for the World Cup {yearLabel} among {teamCount} national teams. Groups will be drawn at the start of simulation.
+            Your squad takes the place of <Text style={{ color: colors.accent, fontWeight: typography.bold }}>{replacedName}</Text> at the World Cup {yearLabel}, among {teamCount} national teams. Groups will be drawn at the start of simulation.
           </Text>
 
           <View style={styles.compInfoRow}>

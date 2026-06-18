@@ -6,7 +6,7 @@ import {
 import { router } from 'expo-router'
 import { useGameStore, type Difficulty } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
-import { calcTeamOvr, calcChemistry, effectiveOvr } from '@/engine/rating'
+import { calcTeamOvr, calcChemistry, effectiveOvr, positionFitMultiplier } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
@@ -380,14 +380,16 @@ export default function DraftScreen() {
                   return null
                 }
 
-                const allPos = [
-                  selectedPlayer.primary_position,
-                  ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')
-                ]
-                const isPrimary  = allPos.includes(slot.primary)
-                const isAccepted = slot.accepts.some(a => allPos.includes(a))
-                const canFill    = isPrimary || isAccepted
-                const penaltyOvr = !isPrimary && isAccepted ? Math.round(selectedPlayer.ovr * 0.95) : selectedPlayer.ovr
+                // Use the exact same fit logic as effectiveOvr so the rating
+                // shown here matches the rating applied once the player is placed.
+                const fitPlayer = {
+                  primaryPosition: selectedPlayer.primary_position,
+                  secondaryPositions: JSON.parse(selectedPlayer.secondary_positions ?? '[]'),
+                } as any
+                const fitMult  = positionFitMultiplier(fitPlayer, slot)
+                const penaltyOvr = Math.round(selectedPlayer.ovr * fitMult)
+                const isNatural  = fitMult >= 1.0
+                const canFill    = fitMult >= 0.93  // primary, accepted, or secondary fit
 
                 // Hide slots this player genuinely cannot fill
                 if (!canFill) return null
@@ -413,10 +415,10 @@ export default function DraftScreen() {
                       </Text>
                     </View>
                     {!ratingsHidden && (
-                      !isPrimary && isAccepted ? (
-                        <Text style={styles.slotPenalty}>OVR {penaltyOvr}</Text>
-                      ) : (
+                      isNatural ? (
                         <Text style={styles.slotNatural}>OVR {penaltyOvr}</Text>
+                      ) : (
+                        <Text style={styles.slotPenalty}>OVR {penaltyOvr}</Text>
                       )
                     )}
                   </Pressable>
@@ -604,13 +606,15 @@ export default function DraftScreen() {
                     const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), openSlots)
                     if (aAvail && !bAvail) return -1
                     if (!aAvail && bAvail) return 1
-                    // In Chaos/Cursed modes, sort by last name instead of OVR
+                    // In Chaos/Cursed modes, scramble to last-name order so OVR
+                    // can't be inferred from the list. Everything else (incl.
+                    // hard mode, CL and WC) stays ordered by OVR, highest first.
                     if (mode === 'chaos' || mode === 'cursed') {
                       const aLastName = a.name.split(' ').slice(-1)[0]
                       const bLastName = b.name.split(' ').slice(-1)[0]
                       return aLastName.localeCompare(bLastName)
                     }
-                    return 0
+                    return b.ovr - a.ovr
                   })
                   .map(player => {
                   const available = isPlayerAvailable(

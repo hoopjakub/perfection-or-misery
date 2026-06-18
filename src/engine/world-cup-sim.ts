@@ -28,6 +28,16 @@ export type WCKnockoutMatch = {
   winner:  WCTeam
 }
 
+// A single group-stage fixture result, recorded for the results screen.
+export type WCGroupMatch = {
+  groupId:   string
+  matchday:  number
+  home:      { clubId: string; clubName: string; isPlayer: boolean }
+  away:      { clubId: string; clubName: string; isPlayer: boolean }
+  homeGoals: number
+  awayGoals: number
+}
+
 export type WCSeasonResult = {
   groups:           WCGroup[]
   r32Teams:         WCTeam[]
@@ -37,6 +47,7 @@ export type WCSeasonResult = {
   playerFinalRound: string
   playerGroup:      string
   playerGroupPos:   number
+  groupMatchdays?:  WCGroupMatch[]   // populated by the simulation component
 }
 
 export function simulateWorldCup(teams: WCTeam[]): WCSeasonResult {
@@ -115,24 +126,23 @@ export function simulateWorldCup(teams: WCTeam[]): WCSeasonResult {
   // --- KNOCKOUT ROUNDS (all single leg + ET/PKs) ---
   const knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] = []
   const roundNames = ['r32', 'r16', 'qf', 'sf', 'final']
-  let current = r32Teams
+  // The bracket is drawn ONCE here, then fixed: every later round pairs
+  // consecutive winners, so the winners of two adjacent ties always meet in the
+  // next round. (Re-drawing each round broke the visual bracket tree.)
+  let current = [...r32Teams].sort(() => Math.random() - 0.5)
   let playerFinalRound = 'groups'
 
   for (const round of roundNames) {
-    const pairs = current.length === 2
-      ? [[current[0], current[1]]] as [WCTeam, WCTeam][]
-      : createKnockoutPairs(current)
-
     const roundMatches: WCKnockoutMatch[] = []
     const winners: WCTeam[] = []
 
-    for (const [teamA, teamB] of pairs) {
+    for (let i = 0; i < current.length; i += 2) {
+      const teamA = current[i]
+      const teamB = current[i + 1]
       const result = simulateKnockout(teamA as any, teamB as any) as KnockoutResult
       const winner = result.winner === 'home' ? teamA : teamB
       winners.push(winner)
-
       roundMatches.push({ round, teamA, teamB, result, winner })
-
       if ((teamA.isPlayer || teamB.isPlayer) && !winner.isPlayer) {
         playerFinalRound = round
       }
@@ -140,7 +150,6 @@ export function simulateWorldCup(teams: WCTeam[]): WCSeasonResult {
 
     knockoutRounds.push({ round, matches: roundMatches })
     current = winners
-
     if (current.length === 1) break
   }
 
@@ -201,34 +210,25 @@ export function simulateWCKnockoutsOnly(
 
   const playerTeam   = allTeams.find(t => t.isPlayer)!
   const playerGroup  = groups.find(g => g.teams.some(t => t.isPlayer))!
-  const playerGroupPos = playerGroup.teams.indexOf(playerTeam) + 1
+  // groups here are cloned objects, so match the player by flag, not reference.
+  const playerGroupPos = playerGroup.teams.findIndex(t => t.isPlayer) + 1
 
-  if (!r32Teams.some(t => t.isPlayer)) {
-    return {
-      r32Teams,
-      knockoutRounds:   [],
-      winner:           r32Teams[0],
-      playerTeam,
-      playerFinalRound: 'groups',
-      playerGroup:      playerGroup.id,
-      playerGroupPos,
-    }
-  }
-
+  // We always simulate the full knockout bracket — even when the player is
+  // eliminated in the group stage — so the results screen can show it play out.
   const knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] = []
   const roundNames = ['r32', 'r16', 'qf', 'sf', 'final']
-  let current          = r32Teams
+  // Draw the bracket ONCE, then keep it fixed: each round pairs consecutive
+  // winners so adjacent ties feed the same next-round match (a real tree).
+  let current          = [...r32Teams].sort(() => Math.random() - 0.5)
   let playerFinalRound = 'groups'
 
   for (const round of roundNames) {
-    const pairs = current.length === 2
-      ? [[current[0], current[1]]] as [WCTeam, WCTeam][]
-      : createKnockoutPairs(current)
-
     const roundMatches: WCKnockoutMatch[] = []
     const winners: WCTeam[] = []
 
-    for (const [teamA, teamB] of pairs) {
+    for (let i = 0; i < current.length; i += 2) {
+      const teamA = current[i]
+      const teamB = current[i + 1]
       const result = simulateKnockout(teamA as any, teamB as any) as KnockoutResult
       const winner = result.winner === 'home' ? teamA : teamB
       winners.push(winner)
@@ -287,15 +287,6 @@ function compareGroupTeams(a: WCTeam, b: WCTeam): number {
   const gdB = b.groupGF - b.groupGA
   if (gdB !== gdA) return gdB - gdA
   return b.groupGF - a.groupGF
-}
-
-function createKnockoutPairs(teams: WCTeam[]): [WCTeam, WCTeam][] {
-  const shuffled = [...teams].sort(() => Math.random() - 0.5)
-  const pairs: [WCTeam, WCTeam][] = []
-  for (let i = 0; i < shuffled.length; i += 2) {
-    pairs.push([shuffled[i], shuffled[i + 1]])
-  }
-  return pairs
 }
 
 function updateForm(team: WCTeam, result: 'win' | 'draw' | 'loss') {

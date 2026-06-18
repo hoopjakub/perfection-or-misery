@@ -22,6 +22,15 @@ export type CLKnockoutMatch = {
   bPens?:    number
 }
 
+// A single league-phase fixture result, recorded for the results screen.
+export type CLLeagueMatch = {
+  matchday:  number
+  home:      { clubId: string; clubName: string; isPlayer: boolean }
+  away:      { clubId: string; clubName: string; isPlayer: boolean }
+  homeGoals: number
+  awayGoals: number
+}
+
 export type CLSeasonResult = {
   leaguePhaseStandings: CLTeam[]
   playoffRound:         CLKnockoutMatch[]
@@ -33,6 +42,7 @@ export type CLSeasonResult = {
   playerTeam:           CLTeam
   playerFinalRound:     'league_exit' | 'playoff_exit' | 'r16_exit' | 'qf_exit' | 'sf_exit' | 'finalist' | 'winner'
   playerPot:            CLPot
+  leagueMatchdays?:     CLLeagueMatch[]   // populated by the simulation component
 }
 
 export function buildCLTeams(
@@ -84,132 +94,87 @@ export function generateCLLeagueFixtures(
   return fixtures
 }
 
-// Runs knockout phase after the league phase matchdays are done
+// Runs the knockout phase after the league phase matchdays are done.
+//
+// The FULL bracket is always simulated — even when the player is eliminated in
+// the league phase or an early knockout round — so the results screen can show
+// the whole thing playing out. Once the player loses, they simply stop showing
+// up in the winners arrays, so later rounds continue with the other teams.
 export function simulateCLKnockoutsOnly(
   sortedLeagueStandings: CLTeam[]
 ): Omit<CLSeasonResult, 'leaguePhaseStandings'> {
   const playerTeam = sortedLeagueStandings.find(t => t.isPlayer)!
   const playerPos  = sortedLeagueStandings.findIndex(t => t.isPlayer) + 1
 
-  // Direct R16 qualifiers: positions 1-8
-  const r16Direct  = sortedLeagueStandings.slice(0, 8)
-  // Playoff spots: positions 9-24
+  // Direct R16 qualifiers: positions 1-8 · Playoff spots: positions 9-24
+  const r16Direct   = sortedLeagueStandings.slice(0, 8)
   const playoffPool = sortedLeagueStandings.slice(8, 24)
 
-  const playerDirectR16 = playerPos <= 8
-  const playerPlayoff   = playerPos >= 9 && playerPos <= 24
-
-  if (!playerDirectR16 && !playerPlayoff) {
-    return {
-      playoffRound: [], r16: [], qf: [], sf: [],
-      final: null,
-      winner: sortedLeagueStandings[0],
-      playerTeam,
-      playerFinalRound: 'league_exit',
-      playerPot: playerTeam.pot,
-    }
-  }
-
-  let playerFinalRound: CLSeasonResult['playerFinalRound'] = 'playoff_exit'
-
-  // Playoff round (positions 9-24, 8 matches)
+  // Playoff round (positions 9-24, 8 two-leg ties → 8 winners)
   const shuffledPlayoff = shuffle([...playoffPool])
   const playoffRound: CLKnockoutMatch[] = []
   const playoffWinners: CLTeam[] = []
-
   for (let i = 0; i < shuffledPlayoff.length; i += 2) {
     const m = twoLegKO('playoff', shuffledPlayoff[i], shuffledPlayoff[i + 1])
-    playoffRound.push(m)
-    playoffWinners.push(m.winner)
+    playoffRound.push(m); playoffWinners.push(m.winner)
   }
 
-  const playerSurvivedPlayoff = playerDirectR16 || playoffRound
-    .find(m => m.teamA.isPlayer || m.teamB.isPlayer)?.winner.isPlayer
-
-  if (!playerSurvivedPlayoff) {
-    return {
-      playoffRound, r16: [], qf: [], sf: [],
-      final: null,
-      winner: sortedLeagueStandings[0],
-      playerTeam,
-      playerFinalRound: 'playoff_exit',
-      playerPot: playerTeam.pot,
-    }
-  }
-
-  // R16 (8 direct + 8 playoff winners = 16 teams, 8 matches)
-  const r16Teams = shuffle([...r16Direct, ...playoffWinners])
+  // R16: each tie pairs a direct qualifier (1st-8th) with a Playoff winner, so
+  // two top-8 sides can NEVER meet here — only from the quarter-finals onward.
+  // Playoff winners keep their column order (playoff tie i feeds R16 tie i); the
+  // direct qualifiers are drawn at random against them.
+  const directDraw = shuffle([...r16Direct])
   const r16: CLKnockoutMatch[] = []
   const r16Winners: CLTeam[] = []
-
-  for (let i = 0; i < r16Teams.length; i += 2) {
-    const m = twoLegKO('r16', r16Teams[i], r16Teams[i + 1])
-    r16.push(m)
-    r16Winners.push(m.winner)
+  for (let i = 0; i < playoffWinners.length; i++) {
+    const m = twoLegKO('r16', directDraw[i], playoffWinners[i])
+    r16.push(m); r16Winners.push(m.winner)
   }
 
-  const playerSurvivedR16 = r16.find(m => m.teamA.isPlayer || m.teamB.isPlayer)?.winner.isPlayer
-  if (!playerSurvivedR16) {
-    return {
-      playoffRound, r16, qf: [], sf: [],
-      final: null,
-      winner: r16Winners.sort((a, b) => b.ovr - a.ovr)[0],
-      playerTeam,
-      playerFinalRound: 'r16_exit',
-      playerPot: playerTeam.pot,
-    }
-  }
-  playerFinalRound = 'qf_exit'
-
-  // QF (8 teams, 4 matches)
-  const qfTeams = shuffle(r16Winners)
+  // From here the bracket is FIXED — each round pairs consecutive winners, so
+  // the winners of two adjacent ties always meet in the next round (a real tree
+  // rather than a fresh random draw every round).
   const qf: CLKnockoutMatch[] = []
   const qfWinners: CLTeam[] = []
-
-  for (let i = 0; i < qfTeams.length; i += 2) {
-    const m = twoLegKO('qf', qfTeams[i], qfTeams[i + 1])
-    qf.push(m)
-    qfWinners.push(m.winner)
+  for (let i = 0; i < r16Winners.length; i += 2) {
+    const m = twoLegKO('qf', r16Winners[i], r16Winners[i + 1])
+    qf.push(m); qfWinners.push(m.winner)
   }
 
-  const playerSurvivedQF = qf.find(m => m.teamA.isPlayer || m.teamB.isPlayer)?.winner.isPlayer
-  if (!playerSurvivedQF) {
-    return {
-      playoffRound, r16, qf, sf: [],
-      final: null,
-      winner: qfWinners.sort((a, b) => b.ovr - a.ovr)[0],
-      playerTeam,
-      playerFinalRound: 'qf_exit',
-      playerPot: playerTeam.pot,
-    }
-  }
-  playerFinalRound = 'sf_exit'
-
-  // SF (4 teams, 2 matches)
-  const sfTeams = shuffle(qfWinners)
   const sf: CLKnockoutMatch[] = []
   const sfWinners: CLTeam[] = []
-
-  for (let i = 0; i < sfTeams.length; i += 2) {
-    const m = twoLegKO('sf', sfTeams[i], sfTeams[i + 1])
-    sf.push(m)
-    sfWinners.push(m.winner)
+  for (let i = 0; i < qfWinners.length; i += 2) {
+    const m = twoLegKO('sf', qfWinners[i], qfWinners[i + 1])
+    sf.push(m); sfWinners.push(m.winner)
   }
 
-  const playerSurvivedSF = sf.find(m => m.teamA.isPlayer || m.teamB.isPlayer)?.winner.isPlayer
-
-  // Final
+  // Final (single leg, neutral venue)
   const final = singleKO('final', sfWinners[0], sfWinners[1])
 
-  if (playerSurvivedSF) {
-    playerFinalRound = final.winner.isPlayer ? 'winner' : 'finalist'
+  // Where did the player bow out? Find their tie in each round in order; the
+  // first round they don't win is their exit.
+  const playerTie = (arr: CLKnockoutMatch[]) =>
+    arr.find(m => m.teamA.isPlayer || m.teamB.isPlayer)
+
+  let playerFinalRound: CLSeasonResult['playerFinalRound']
+  if (playerPos > 24) {
+    playerFinalRound = 'league_exit'
   } else {
-    playerFinalRound = 'sf_exit'
+    const po = playerTie(playoffRound)
+    const r  = playerTie(r16)
+    const q  = playerTie(qf)
+    const s  = playerTie(sf)
+    if (po && !po.winner.isPlayer)                      playerFinalRound = 'playoff_exit'
+    else if (r && !r.winner.isPlayer)                   playerFinalRound = 'r16_exit'
+    else if (q && !q.winner.isPlayer)                   playerFinalRound = 'qf_exit'
+    else if (s && !s.winner.isPlayer)                   playerFinalRound = 'sf_exit'
+    else if (final.teamA.isPlayer || final.teamB.isPlayer)
+                                                        playerFinalRound = final.winner.isPlayer ? 'winner' : 'finalist'
+    else playerFinalRound = playerPos <= 8 ? 'r16_exit' : 'playoff_exit'
   }
 
   return {
-    playoffRound, r16, qf, sf,
-    final,
+    playoffRound, r16, qf, sf, final,
     winner: final.winner,
     playerTeam,
     playerFinalRound,

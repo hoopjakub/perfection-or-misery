@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy'
 
 // Increment this whenever the bundled players_v5.db changes.
 // This forces the device to re-copy the fresh DB on next launch.
-const DB_VERSION = 6
+const DB_VERSION = 8
 
 let _db: SQLite.SQLiteDatabase | null = null
 

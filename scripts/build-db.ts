@@ -143,7 +143,7 @@ for (const file of files) {
 }
 
 // Bake version into the asset so the app knows when to re-copy
-db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', 6)`).run()
+db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', 8)`).run()
 
-console.log(`✓ built ${DB_PATH} (v6)`)
+console.log(`✓ built ${DB_PATH} (v8)`)
 db.close()

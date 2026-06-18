@@ -1,9 +1,11 @@
-import React from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
-import { router } from 'expo-router'
+import React, { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator } from 'react-native'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
+import { useUserStore } from '@/store/userStore'
+import { saveCLRun, fetchRunById } from '@/db/queries/runs'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
-import type { CLSeasonResult, CLKnockoutMatch, CLPot } from '@/engine/cl-sim'
+import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 
 const ROUND_LABELS: Record<string, string> = {
   league_exit:   'Eliminated in League Phase',
@@ -26,14 +28,45 @@ const ROUND_COLORS: Record<string, string> = {
 }
 
 const POT_COLORS: Record<number, string> = {
-  1: '#F59E0B',
-  2: '#A78BFA',
-  3: '#34D399',
-  4: '#60A5FA',
+  1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA',
 }
 
 export default function CLResultScreen() {
-  const { clResult, resetRun } = useGameStore()
+  const store = useGameStore()
+  const { resetRun, formation, draftedPlayers } = store
+  const { user, isGuest } = useUserStore()
+  const params = useLocalSearchParams<{ runId?: string }>()
+  const fromHistory = !!params.runId
+
+  const [dbRun, setDbRun] = useState<any>(null)
+  const [loading, setLoading] = useState(fromHistory)
+  const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
+
+  useEffect(() => {
+    if (!params.runId) return
+    let active = true
+    fetchRunById(params.runId)
+      .then(run => { if (active) setDbRun(run) })
+      .catch(err => console.error('[cl-result] failed to load run:', err))
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [params.runId])
+
+  const clResult: CLSeasonResult | null =
+    (dbRun?.cl_result as CLSeasonResult | undefined) ?? store.clResult ?? null
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.accent} size="large" />
+        <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
+      </View>
+    )
+  }
+
+  if (!clResult && dbRun) {
+    return <CLHistorySummary run={dbRun} />
+  }
 
   if (!clResult) {
     return (
@@ -51,10 +84,42 @@ export default function CLResultScreen() {
   const resultLabel = ROUND_LABELS[playerFinalRound] ?? playerFinalRound
   const isChampion  = playerFinalRound === 'winner'
   const playerPos   = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
+  const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
+
+  // Player's knockout run summary (aggregate goals across two-leg ties)
+  const playerKoTies = [...playoffRound, ...r16, ...qf, ...sf, ...(final ? [final] : [])]
+    .filter(m => m.teamA.isPlayer || m.teamB.isPlayer)
+  let koW = 0, koL = 0, koGF = 0, koGA = 0
+  playerKoTies.forEach(m => {
+    const isA = m.teamA.isPlayer
+    koGF += isA ? m.aGoals : m.bGoals
+    koGA += isA ? m.bGoals : m.aGoals
+    if (m.winner.isPlayer) koW++; else koL++
+  })
+
+  function persistRun() {
+    if (fromHistory) return
+    if (user && !isGuest && formation) {
+      saveCLRun({
+        userId: user.id,
+        formation,
+        teamOvr: playerTeam.ovr,
+        result: clResult!,
+        squad: draftedPlayers,
+      }).catch(error => console.error('Failed to save CL run:', error))
+    }
+  }
 
   function handlePlayAgain() {
+    persistRun()
     resetRun()
     router.replace('/game/mode-select')
+  }
+
+  function handleReturnToHome() {
+    persistRun()
+    resetRun()
+    router.replace('/(tabs)')
   }
 
   return (
@@ -86,9 +151,10 @@ export default function CLResultScreen() {
         </View>
       </View>
 
-      {/* League phase standings (top 12 + player's position) */}
+      {/* Full league phase standings — all 36, scrollable, tap a row for matchdays */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>League Phase Standings</Text>
+        <Text style={styles.phaseNote}>Tap any club to see its matchday results</Text>
         <View style={styles.tableHeaderRow}>
           <Text style={[styles.tableCol, styles.colPos]}>#</Text>
           <Text style={[styles.tableCol, styles.colName]}>Club</Text>
@@ -96,45 +162,52 @@ export default function CLResultScreen() {
           <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
           <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>Pts</Text>
         </View>
-        {leaguePhaseStandings.slice(0, 8).map((team, idx) => (
-          <StandingsRow key={team.clubId} team={team} pos={idx + 1} highlight={idx < 8} />
-        ))}
-        {playerPos > 8 && playerPos <= 24 && (
-          <>
-            <Text style={styles.ellipsis}>· · ·</Text>
-            <StandingsRow team={playerTeam} pos={playerPos} highlight={false} />
-          </>
-        )}
-        {playerPos > 24 && (
-          <>
-            <Text style={styles.ellipsis}>· · ·</Text>
-            <StandingsRow team={playerTeam} pos={playerPos} highlight={false} />
-            <Text style={styles.phaseNote}>↑ Top 8 → R16 direct  ·  9-24 → Playoff  ·  25-36 eliminated</Text>
-          </>
-        )}
-        <Text style={styles.phaseNote}>Top 8 advance directly to Round of 16 · 9-24 enter Playoff round</Text>
+        <ScrollView style={styles.standingsScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+          {leaguePhaseStandings.map((team, idx) => (
+            <Pressable key={team.clubId} onPress={() => setOpenTeam({ clubId: team.clubId, clubName: team.clubName })}>
+              <StandingsRow team={team} pos={idx + 1} />
+            </Pressable>
+          ))}
+        </ScrollView>
+        <Text style={styles.phaseNote}>
+          <Text style={{ color: colors.success }}>■</Text> 1-8 → R16 direct   ·   <Text style={{ color: colors.warning }}>■</Text> 9-24 → Playoff   ·   <Text style={{ color: '#DC2626' }}>■</Text> 25-36 out
+        </Text>
       </View>
 
-      {/* Knockout bracket */}
+      {/* Player's own matchdays */}
+      {leagueMatchdays.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Your League Phase</Text>
+          <TeamMatchdays matches={leagueMatchdays} clubId={playerTeam.clubId} />
+        </View>
+      )}
+
+      {/* Knockout bracket + player's KO stat row */}
       {(playoffRound.length > 0 || r16.length > 0) && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Knockout Rounds</Text>
+          {playerKoTies.length > 0 && (
+            <View style={styles.statsRow}>
+              <StatBox label="KO Ties" value={String(playerKoTies.length)} />
+              <StatBox label="Record" value={`${koW}W ${koL}L`} />
+              <StatBox label="Goals" value={`${koGF}-${koGA}`} />
+            </View>
+          )}
 
-          {playoffRound.length > 0 && (
-            <KnockoutSection label="Playoff Round" matches={playoffRound} playerTeam={playerTeam} />
-          )}
-          {r16.length > 0 && (
-            <KnockoutSection label="Round of 16" matches={r16} playerTeam={playerTeam} />
-          )}
-          {qf.length > 0 && (
-            <KnockoutSection label="Quarter-Finals" matches={qf} playerTeam={playerTeam} />
-          )}
-          {sf.length > 0 && (
-            <KnockoutSection label="Semi-Finals" matches={sf} playerTeam={playerTeam} />
-          )}
-          {final && (
-            <KnockoutSection label="Final" matches={[final]} playerTeam={playerTeam} isFinal />
-          )}
+          <Text style={styles.phaseNote}>Scroll sideways · your ties are highlighted</Text>
+          <BracketView
+            rounds={[
+              { key: 'playoff', label: 'Playoff',        sub: '16 → 8', matches: playoffRound },
+              { key: 'r16',     label: 'Round of 16',    sub: '8 + 8',  matches: r16, showDirect: true },
+              { key: 'qf',      label: 'Quarter-Finals', sub: '',       matches: qf },
+              { key: 'sf',      label: 'Semi-Finals',    sub: '',       matches: sf },
+              { key: 'final',   label: 'Final',          sub: '',       matches: final ? [final] : [] },
+            ].filter(r => r.matches.length > 0)}
+            directIds={new Set(leaguePhaseStandings.slice(0, 8).map(t => t.clubId))}
+          />
+          <Text style={styles.phaseNote}>
+            <Text style={{ color: colors.tiers.perfection }}>◆</Text> entered the Round of 16 directly (1st–8th) · all others came through the Playoff round
+          </Text>
         </View>
       )}
 
@@ -147,9 +220,30 @@ export default function CLResultScreen() {
         </View>
       )}
 
-      <Pressable style={styles.playAgainBtn} onPress={handlePlayAgain}>
-        <Text style={styles.playAgainText}>PLAY AGAIN</Text>
-      </Pressable>
+      {/* Buttons */}
+      {fromHistory ? (
+        <View style={styles.buttonRow}>
+          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+            <Text style={styles.actionBtnText}>Back</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.buttonRow}>
+          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={handleReturnToHome}>
+            <Text style={styles.actionBtnText}>Return to Home</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
+            <Text style={styles.actionBtnText}>Play Again</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Team matchday modal */}
+      <TeamModal
+        team={openTeam}
+        matches={openTeam ? leagueMatchdays : []}
+        onClose={() => setOpenTeam(null)}
+      />
     </ScrollView>
   )
 }
@@ -165,11 +259,16 @@ function StatBox({ label, value }: { label: string; value: string }) {
   )
 }
 
-function StandingsRow({ team, pos, highlight }: { team: any; pos: number; highlight: boolean }) {
+function StandingsRow({ team, pos }: { team: any; pos: number }) {
   const gd = team.stats.goalsFor - team.stats.goalsAgainst
+  // qualification zone accent on the position number
+  const zone = pos <= 8 ? colors.success : pos <= 24 ? colors.warning : '#DC2626'
   return (
     <View style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer]}>
-      <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{pos}</Text>
+      <View style={[styles.colPos, styles.posCell]}>
+        <View style={[styles.zoneDot, { backgroundColor: zone }]} />
+        <Text style={[styles.tableColData, team.isPlayer && styles.playerText]}>{pos}</Text>
+      </View>
       <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerText]} numberOfLines={1}>{team.clubName}</Text>
       <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{team.stats.played}</Text>
       <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{gd > 0 ? `+${gd}` : gd}</Text>
@@ -178,43 +277,151 @@ function StandingsRow({ team, pos, highlight }: { team: any; pos: number; highli
   )
 }
 
-function KnockoutSection({
-  label, matches, playerTeam, isFinal = false
-}: { label: string; matches: CLKnockoutMatch[]; playerTeam: any; isFinal?: boolean }) {
-  return (
-    <View style={styles.knockoutSection}>
-      <Text style={styles.knockoutLabel}>{label}</Text>
-      {matches.map((m, i) => {
-        const isPlayerMatch = m.teamA.isPlayer || m.teamB.isPlayer
-        const playerWon     = m.winner.isPlayer
-        const scoreA = m.extraTime ? `${m.aGoals}` : `${m.aGoals}`
-        const scoreB = m.extraTime ? `${m.bGoals}` : `${m.bGoals}`
-        const suffix = m.aPens !== undefined ? ` (${m.aPens}-${m.bPens} pens)` : m.extraTime ? ' (AET)' : ''
+// One team's league-phase fixtures, from that team's perspective.
+function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: string }) {
+  const own = matches
+    .filter(m => m.home.clubId === clubId || m.away.clubId === clubId)
+    .sort((a, b) => a.matchday - b.matchday)
+  if (own.length === 0) return <Text style={styles.phaseNote}>No matchday data.</Text>
 
+  return (
+    <View style={styles.mdList}>
+      {own.map((m, i) => {
+        const atHome = m.home.clubId === clubId
+        const oppName = atHome ? m.away.clubName : m.home.clubName
+        const gf = atHome ? m.homeGoals : m.awayGoals
+        const ga = atHome ? m.awayGoals : m.homeGoals
+        const rc = gf > ga ? colors.success : gf < ga ? '#DC2626' : colors.warning
         return (
-          <View key={i} style={[styles.koRow, isPlayerMatch && styles.koRowPlayer]}>
-            <Text
-              style={[styles.koTeam, styles.koTeamA, m.winner.clubId === m.teamA.clubId && styles.koWinner, m.teamA.isPlayer && styles.koPlayerTeam]}
-              numberOfLines={1}
-            >
-              {m.teamA.clubName}
-            </Text>
-            <View style={styles.koScore}>
-              <Text style={styles.koScoreText}>{scoreA} - {scoreB}</Text>
-              {(m.extraTime || m.aPens !== undefined) && (
-                <Text style={styles.koSuffix}>{suffix}</Text>
-              )}
+          <View key={i} style={styles.mdRow}>
+            <Text style={styles.mdNum}>MD{m.matchday}</Text>
+            <Text style={styles.mdVenue}>{atHome ? 'vs' : '@'}</Text>
+            <Text style={styles.mdOpp} numberOfLines={1}>{oppName}</Text>
+            <View style={[styles.mdScoreBadge, { backgroundColor: rc + '22' }]}>
+              <Text style={[styles.mdScoreText, { color: rc }]}>{gf}-{ga}</Text>
             </View>
-            <Text
-              style={[styles.koTeam, styles.koTeamB, m.winner.clubId === m.teamB.clubId && styles.koWinner, m.teamB.isPlayer && styles.koPlayerTeam]}
-              numberOfLines={1}
-            >
-              {m.teamB.clubName}
-            </Text>
           </View>
         )
       })}
     </View>
+  )
+}
+
+function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void }) {
+  return (
+    <Modal visible={team !== null} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalCard} onPress={() => {}}>
+          {team && (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>{team.clubName}</Text>
+              <Text style={styles.phaseNote}>League phase results</Text>
+              <TeamMatchdays matches={matches} clubId={team.clubId} />
+            </ScrollView>
+          )}
+          <Pressable style={styles.modalClose} onPress={onClose}>
+            <Text style={styles.modalCloseText}>Close</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
+
+// Horizontal column-per-round bracket. The Playoff is the left-most feeder
+// column (16→8); direct qualifiers (1st–8th) appear in the R16 column with a
+// ◆ marker since they skip the Playoff entirely.
+type BracketRound = { key: string; label: string; sub: string; matches: CLKnockoutMatch[]; showDirect?: boolean }
+const BRACKET_ROW_H = 72
+
+function BracketView({ rounds, directIds }: { rounds: BracketRound[]; directIds: Set<string> }) {
+  const maxMatches = Math.max(...rounds.map(r => r.matches.length), 1)
+  const colHeight = maxMatches * BRACKET_ROW_H
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.bracketScroll}>
+      <View style={styles.bracketRow}>
+        {rounds.map(r => (
+          <View key={r.key} style={styles.bracketCol}>
+            <Text style={styles.bracketColLabel}>{r.label}</Text>
+            <Text style={styles.bracketColSub}>{r.sub || ' '}</Text>
+            <View style={[styles.bracketColBody, { height: colHeight }]}>
+              {r.matches.map((m, i) => (
+                <BracketMatch key={i} match={m} directIds={directIds} showDirect={!!r.showDirect} />
+              ))}
+            </View>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  )
+}
+
+function BracketMatch({ match: m, directIds, showDirect }: { match: CLKnockoutMatch; directIds: Set<string>; showDirect: boolean }) {
+  const isPM   = m.teamA.isPlayer || m.teamB.isPlayer
+  const aWon   = m.winner.clubId === m.teamA.clubId
+  const suffix = m.aPens !== undefined ? `pens ${m.aPens}-${m.bPens}` : m.extraTime ? 'AET' : null
+  return (
+    <View style={[styles.bracketCard, isPM && styles.bracketCardPlayer]}>
+      <BracketTeam team={m.teamA} won={aWon} goals={m.aGoals} direct={showDirect && directIds.has(m.teamA.clubId)} />
+      <View style={styles.bracketDivider}>
+        {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
+        {m.leg1 && m.leg2 && (
+          <Text style={styles.bracketLegs}>{m.leg1.aGoals}-{m.leg1.bGoals} · {m.leg2.aGoals}-{m.leg2.bGoals}</Text>
+        )}
+      </View>
+      <BracketTeam team={m.teamB} won={!aWon} goals={m.bGoals} direct={showDirect && directIds.has(m.teamB.clubId)} />
+    </View>
+  )
+}
+
+function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; goals: number; direct: boolean }) {
+  return (
+    <View style={styles.bracketTeamRow}>
+      <Text
+        style={[styles.bracketTeamName, won && styles.bracketTeamWon, team.isPlayer && styles.bracketTeamPlayer]}
+        numberOfLines={1}
+      >
+        {direct && <Text style={styles.bracketDirect}>◆ </Text>}{team.clubName}
+      </Text>
+      <Text style={[styles.bracketTeamGoals, won && styles.bracketTeamWon]}>{goals}</Text>
+    </View>
+  )
+}
+
+// Degraded view for older CL runs saved before the full tournament was stored.
+function CLHistorySummary({ run }: { run: any }) {
+  const round = String(run.tier ?? '')
+  const color = ROUND_COLORS[round] ?? colors.accent
+  const label = ROUND_LABELS[round] ?? round
+  const games = (run.wins ?? 0) + (run.draws ?? 0) + (run.losses ?? 0)
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <Text style={styles.competitionLabel}>UEFA CHAMPIONS LEAGUE</Text>
+        <Text style={[styles.resultBanner, { color }]}>{label.toUpperCase()}</Text>
+        {round === 'winner' && <Text style={styles.trophy}>🏆</Text>}
+      </View>
+      <View style={[styles.card, { borderColor: color }]}>
+        <Text style={styles.playerTeamName}>Your Club</Text>
+        <Text style={styles.playerTeamMeta}>OVR {run.team_ovr} · Finished #{run.final_position} of {run.teams_in_league}</Text>
+        <View style={styles.statsRow}>
+          <StatBox label="Games" value={String(games)} />
+          <StatBox label="Record" value={`${run.wins}W ${run.draws}D ${run.losses}L`} />
+          <StatBox label="Goals" value={`${run.goals_for}-${run.goals_against}`} />
+        </View>
+      </View>
+      <Text style={styles.phaseNote}>
+        Full tournament details aren’t saved for this older run. Play a new Champions
+        League to see the complete league table and bracket here.
+      </Text>
+      <View style={styles.buttonRow}>
+        <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+          <Text style={styles.actionBtnText}>Back</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   )
 }
 
@@ -269,16 +476,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems:     'center',
   },
-  playerTeamName: {
-    fontSize:   typography.xl,
-    fontWeight: typography.black,
-    color:      colors.textPrimary,
-  },
-  playerTeamMeta: {
-    fontSize: typography.sm,
-    color:    colors.textSecondary,
-    marginTop: 2,
-  },
+  playerTeamName: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
+  playerTeamMeta: { fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 },
   potPill: {
     borderRadius:      radius.full,
     borderWidth:       2,
@@ -298,11 +497,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary },
   statLabel: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
 
-  sectionTitle: {
-    fontSize:   typography.md,
-    fontWeight: typography.bold,
-    color:      colors.textPrimary,
-  },
+  sectionTitle: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
 
   tableHeaderRow: {
     flexDirection:     'row',
@@ -310,6 +505,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  standingsScroll: { maxHeight: 360 },
   tableRow: {
     flexDirection:     'row',
     paddingVertical:   spacing.sm,
@@ -326,7 +522,9 @@ const styles = StyleSheet.create({
   tableCol:     { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
   tableColData: { fontSize: 11, color: colors.textSecondary },
   playerText:   { color: colors.accent, fontWeight: typography.bold },
-  colPos:  { width: 24, textAlign: 'center' as any },
+  colPos:  { width: 34, textAlign: 'center' as any },
+  posCell: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  zoneDot: { width: 6, height: 6, borderRadius: 3 },
   colName: { flex: 1,  paddingLeft: spacing.xs },
   colStat: { width: 28, textAlign: 'center' as any },
   colPts:  { width: 32, fontWeight: typography.bold },
@@ -337,53 +535,66 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
-  ellipsis: {
-    textAlign: 'center',
-    color:     colors.textMuted,
-    fontSize:  typography.md,
-    paddingVertical: spacing.xs,
-  },
 
-  knockoutSection: { gap: spacing.sm },
-  knockoutLabel: {
+  // matchday list
+  mdList: { gap: spacing.xs },
+  mdRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           spacing.sm,
+    paddingVertical: 3,
+  },
+  mdNum:   { width: 34, fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
+  mdVenue: { width: 16, fontSize: 10, color: colors.textMuted },
+  mdOpp:   { flex: 1, fontSize: 12, color: colors.textSecondary },
+  mdScoreBadge: { borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2, minWidth: 40, alignItems: 'center' },
+  mdScoreText:  { fontSize: 12, fontWeight: typography.black },
+
+  // knockout bracket
+  bracketScroll: { marginHorizontal: -spacing.xs, marginTop: spacing.sm },
+  bracketRow:    { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xs },
+  bracketCol:    { width: 158 },
+  bracketColLabel: {
     fontSize:      typography.xs,
-    fontWeight:    typography.bold,
+    fontWeight:    typography.black,
     color:         colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
+    textAlign:     'center',
   },
-  koRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    backgroundColor: colors.bgElevated,
-    borderRadius:  radius.md,
-    padding:       spacing.sm,
-    gap:           spacing.sm,
+  bracketColSub: {
+    fontSize:  8,
+    color:     colors.accent,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
-  koRowPlayer: {
-    backgroundColor: colors.accent + '15',
-    borderWidth:     1,
-    borderColor:     colors.accent + '44',
+  bracketColBody: { justifyContent: 'space-around' },
+  bracketCard: {
+    backgroundColor:   colors.bgElevated,
+    borderRadius:      radius.md,
+    borderWidth:       1,
+    borderColor:       colors.border,
+    paddingVertical:   4,
+    paddingHorizontal: spacing.sm,
   },
-  koTeam:       { flex: 1, fontSize: typography.xs, color: colors.textSecondary },
-  koTeamA:      { textAlign: 'right' as any },
-  koTeamB:      { textAlign: 'left' as any },
-  koWinner:     { color: colors.textPrimary, fontWeight: typography.bold },
-  koPlayerTeam: { color: colors.accent },
-  koScore: {
-    alignItems: 'center',
-    minWidth:   55,
-    gap:        2,
+  bracketCardPlayer: {
+    borderColor:     colors.accent,
+    backgroundColor: colors.accent + '11',
   },
-  koScoreText: {
-    fontSize:   typography.sm,
-    fontWeight: typography.black,
-    color:      colors.textPrimary,
+  bracketTeamRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    gap:            4,
   },
-  koSuffix: {
-    fontSize: 8,
-    color:    colors.textMuted,
-  },
+  bracketTeamName:   { flex: 1, fontSize: 10, color: colors.textMuted },
+  bracketTeamWon:    { color: colors.textPrimary, fontWeight: typography.black },
+  bracketTeamPlayer: { color: colors.accent },
+  bracketTeamGoals:  { fontSize: 11, fontWeight: typography.bold, color: colors.textSecondary, width: 14, textAlign: 'right' },
+  bracketDirect:     { color: colors.tiers.perfection },
+  bracketDivider: { minHeight: 10, alignItems: 'center', justifyContent: 'center' },
+  bracketSuffix: { fontSize: 8, color: colors.warning, fontWeight: typography.bold },
+  bracketLegs:   { fontSize: 8, color: colors.textMuted },
 
   winnerCard: {
     alignItems:      'center',
@@ -394,18 +605,54 @@ const styles = StyleSheet.create({
   winnerName:  { fontSize: typography.xxl, fontWeight: typography.black, color: colors.tiers.perfection },
   winnerOvr:   { fontSize: typography.sm, color: colors.textSecondary },
 
-  playAgainBtn: {
+  // modal
+  modalOverlay: {
+    flex:            1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent:  'center',
+    alignItems:      'center',
+    padding:         spacing.lg,
+  },
+  modalCard: {
+    width:           '100%',
+    maxHeight:       '80%',
+    backgroundColor: colors.bgCard,
+    borderRadius:    radius.lg,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    padding:         spacing.lg,
+    gap:             spacing.sm,
+  },
+  modalTitle: { fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary },
+  modalClose: {
+    marginTop:       spacing.md,
+    backgroundColor: colors.bgElevated,
+    borderRadius:    radius.md,
+    paddingVertical: spacing.md,
+    alignItems:      'center',
+    borderWidth:     1,
+    borderColor:     colors.border,
+  },
+  modalCloseText: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
+
+  buttonRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
+  actionBtn: {
+    flex:            1,
     backgroundColor: colors.accent,
     borderRadius:    radius.md,
     paddingVertical: spacing.lg,
     alignItems:      'center',
-    marginTop:       spacing.md,
     ...shadows.md,
   },
-  playAgainText: {
-    fontSize:      typography.lg,
+  actionBtnSecondary: {
+    backgroundColor: colors.bgElevated,
+    borderWidth:     1,
+    borderColor:     colors.border,
+  },
+  actionBtnText: {
+    fontSize:      typography.md,
     fontWeight:    typography.black,
     color:         colors.textPrimary,
-    letterSpacing: 3,
+    letterSpacing: 1.5,
   },
 })

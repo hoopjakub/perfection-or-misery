@@ -235,9 +235,9 @@ export default function ResultScreen() {
     losses: dbRunData.losses,
     goalsFor: dbRunData.goals_for,
     goalsAgainst: dbRunData.goals_against,
-    biggestWin: null,
-    worstLoss: null,
-    upsets: [],
+    biggestWin: dbRunData.highlights?.biggestWin ?? null,
+    worstLoss: dbRunData.highlights?.worstLoss ?? null,
+    upsets: dbRunData.highlights?.upsets ?? [],
     tier: dbRunData.tier,
     playerTeam: { ovr: dbRunData.team_ovr, stats: { played: dbRunData.wins + dbRunData.draws + dbRunData.losses, won: dbRunData.wins, drawn: dbRunData.draws, lost: dbRunData.losses, goalsFor: dbRunData.goals_for, goalsAgainst: dbRunData.goals_against, points: dbRunData.wins * 3 + dbRunData.draws } },
     // Use final matchday standings as table if available
@@ -338,7 +338,13 @@ export default function ResultScreen() {
     matchdayHistory
   } = resultData
 
-  const meta = TIER_META[tier as Tier]
+  // Fall back gracefully for non-league tiers (e.g. World Cup / UCL runs loaded
+  // from history store a round name like "winner" or "sf" as their tier).
+  const meta = TIER_META[tier as Tier] ?? {
+    title: String(tier ?? 'Result').replace(/_/g, ' ').toUpperCase(),
+    desc: '',
+    emoji: '🏆',
+  }
   const tierColor = (colors.tiers as any)[tier as Tier] ?? colors.accent
   const gd = goalsFor - goalsAgainst
 

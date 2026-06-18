@@ -141,7 +141,12 @@ export default function RunsScreen() {
             <Pressable
               key={run.id}
               style={styles.runCard}
-              onPress={() => router.push({ pathname: '/game/result', params: { runId: run.id } })}
+              onPress={() => router.push({
+                pathname: run.mode === 'world_cup' ? '/game/wc-result'
+                        : run.mode === 'champions_league' ? '/game/cl-result'
+                        : '/game/result',
+                params: { runId: run.id },
+              })}
             >
               <View style={styles.runCardHeader}>
                 <Text style={styles.runTier}>{formatTier(run.tier)}</Text>

@@ -11,9 +11,9 @@ import { generateFixtures } from '@/engine/fixtures'
 import { simulateMatch } from '@/engine/match'
 import { assignTier } from '@/engine/tier'
 import { generateCLLeagueFixtures, simulateCLKnockoutsOnly } from '@/engine/cl-sim'
-import type { CLTeam, CLKnockoutMatch, CLSeasonResult } from '@/engine/cl-sim'
+import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/engine/cl-sim'
 import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
-import type { WCTeam, WCGroup, WCKnockoutMatch, WCSeasonResult } from '@/engine/world-cup-sim'
+import type { WCTeam, WCGroup, WCKnockoutMatch, WCSeasonResult, WCGroupMatch } from '@/engine/world-cup-sim'
 import { expandPenaltyKicks } from '@/engine/knockout-match'
 import type { PenKick } from '@/engine/knockout-match'
 import { getTopKickers } from '@/db/queries/seasons'
@@ -58,6 +58,14 @@ type CompMatchResult = {
   homeGoals: number
   awayGoals: number
   outcome: 'home' | 'away' | 'draw'
+}
+
+// Left-to-right ordering for the pitch view: L* on the left, R* on the right,
+// central positions in between. Keeps the on-screen lineup mirror-correct.
+function pitchRowOrder(label: string): number {
+  if (label.startsWith('L')) return -1
+  if (label.startsWith('R')) return 1
+  return 0
 }
 
 function sortByStats(teams: SimTeam[]): SimTeam[] {
@@ -575,7 +583,7 @@ function LeagueSimulation() {
             <View style={styles.pitch}>
               {/* Attackers */}
               <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').map((slot, i) => {
+                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
                   const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
@@ -594,7 +602,7 @@ function LeagueSimulation() {
 
               {/* Midfielders */}
               <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').map((slot, i) => {
+                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
                   const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
@@ -613,7 +621,7 @@ function LeagueSimulation() {
 
               {/* Defenders */}
               <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').map((slot, i) => {
+                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
                   const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
@@ -889,9 +897,12 @@ function CLSimulation() {
   const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
   const [recentResults,          setRecentResults]          = useState<CompMatchResult[]>([])
   const [isPlaying,              setIsPlaying]              = useState(false)
-  const [speed,                  setSpeed]                  = useState<Speed>('normal')
+  // League phase always runs at "slow" — the pace is locked (matches WC).
+  const speed: Speed = 'slow'
   const [isStarting,   setIsStarting]   = useState(false)
   const [isFinishing,  setIsFinishing]  = useState(false)
+  // Records every league-phase result so the results screen can show matchdays.
+  const leagueHistoryRef = useRef<CLLeagueMatch[]>([])
   const clPrevPosRef = useRef<number | null>(null)
   const [clPosDelta, setClPosDelta]     = useState<number | null>(null)
   const [positionChangeAnim]            = useState(new Animated.Value(0))
@@ -1010,6 +1021,12 @@ function CLSimulation() {
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
       results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome })
+      leagueHistoryRef.current.push({
+        matchday: currentMD,
+        home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
+        away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+      })
     })
 
     // Track player position delta for ↑↓ indicator
@@ -1070,6 +1087,12 @@ function CLSimulation() {
         if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+        leagueHistoryRef.current.push({
+          matchday: md,
+          home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
+          away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
+          homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+        })
       })
     }
     setSimTeams(teams)
@@ -1138,7 +1161,23 @@ function CLSimulation() {
         : null,
     ].filter(Boolean) as KnockoutRound[]
 
-    koStoredResultRef.current = { leaguePhaseStandings: sorted, ...result }
+    koStoredResultRef.current = {
+      leaguePhaseStandings: sorted,
+      ...result,
+      leagueMatchdays: leagueHistoryRef.current,
+    }
+
+    // If the player was eliminated in the league phase, there's no drama to
+    // play through — jump straight to the results screen (which still shows the
+    // full bracket of the teams that did qualify).
+    if (result.playerFinalRound === 'league_exit') {
+      setClResult(koStoredResultRef.current)
+      koFinishedRef.current = true
+      setIsFinishing(false)
+      router.push('/game/cl-result')
+      return
+    }
+
     setKoRounds(rounds)
     setKoVisibleCount(1)
     setKoPenReveal(0)
@@ -1182,6 +1221,95 @@ function CLSimulation() {
               Top 8 → Round of 16 direct · 9th-24th → Playoff round · Bottom 12 eliminated.
             </Text>
           </View>
+
+          {/* Chemistry Breakdown */}
+          <View style={styles.chemCard}>
+            <Text style={styles.sectionTitle}>Chemistry Breakdown</Text>
+            {chem.bonuses.length === 0 ? (
+              <Text style={styles.emptyChemText}>No active chemistry bonuses. Try linking players from the same club or country next time!</Text>
+            ) : (
+              <View style={styles.chemList}>
+                {chem.bonuses.map((bonus, idx) => (
+                  <View key={idx} style={styles.chemRow}>
+                    <Text style={styles.chemLabel}>{bonus.label}</Text>
+                    <Text style={styles.chemBonusText}>+{bonus.bonus.toFixed(1)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Squad Pitch Layout */}
+          <View style={styles.pitchContainer}>
+            <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
+            <View style={styles.pitch}>
+              {/* Attackers */}
+              <View style={styles.pitchRow}>
+                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
+                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
+                  return (
+                    <View key={i} style={styles.pitchPlayer}>
+                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.ST }]}>
+                        <Text style={styles.posText}>{slot.label}</Text>
+                      </View>
+                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+              {/* Midfielders */}
+              <View style={styles.pitchRow}>
+                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
+                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
+                  return (
+                    <View key={i} style={styles.pitchPlayer}>
+                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CM }]}>
+                        <Text style={styles.posText}>{slot.label}</Text>
+                      </View>
+                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+              {/* Defenders */}
+              <View style={styles.pitchRow}>
+                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
+                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
+                  return (
+                    <View key={i} style={styles.pitchPlayer}>
+                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CB }]}>
+                        <Text style={styles.posText}>{slot.label}</Text>
+                      </View>
+                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+              {/* Goalkeeper */}
+              <View style={styles.pitchRow}>
+                {slots.filter(s => s.label === 'GK').map((slot, i) => {
+                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+                  const playerOvr = player ? effectiveOvr(player, slot) : 0
+                  return (
+                    <View key={i} style={styles.pitchPlayer}>
+                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.GK }]}>
+                        <Text style={styles.posText}>{slot.label}</Text>
+                      </View>
+                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
+                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+            </View>
+          </View>
+
           <Pressable
             style={[styles.actionBtn, isStarting && styles.actionBtnDisabled]}
             onPress={() => { setIsStarting(true); setTimeout(() => { setPhase('simulating'); setIsPlaying(true); setIsStarting(false) }, 500) }}
@@ -1219,12 +1347,8 @@ function CLSimulation() {
                 <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
                   <Text style={styles.controlBtnText}>⏩ Skip All</Text>
                 </Pressable>
-                <View style={styles.speedSelector}>
-                  {(['slow', 'normal', 'fast'] as Speed[]).map(s => (
-                    <Pressable key={s} style={[styles.speedBtn, speed === s && styles.speedBtnActive]} onPress={() => setSpeed(s)}>
-                      <Text style={[styles.speedBtnText, speed === s && styles.speedBtnTextActive]}>{s.toUpperCase()}</Text>
-                    </Pressable>
-                  ))}
+                <View style={styles.speedLockBadge}>
+                  <Text style={styles.speedLockText}>🐢 SLOW</Text>
                 </View>
               </View>
             )}
@@ -1344,6 +1468,8 @@ function WCSimulation() {
   const [wcKoPenReveal,    setWcKoPenReveal]    = useState(0)
   const wcKoStoredResultRef = useRef<WCSeasonResult | null>(null)
   const wcKoFinishedRef = useRef(false)
+  // Records every group-stage result so the results screen can show matchdays.
+  const groupHistoryRef = useRef<WCGroupMatch[]>([])
 
   useEffect(() => {
     if (phase !== 'knockout_phase' || wcKoVisibleCount < 1) return
@@ -1433,6 +1559,12 @@ function WCSimulation() {
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
       results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome })
+      groupHistoryRef.current.push({
+        groupId: home.groupId, matchday: currentMD,
+        home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
+        away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+      })
     })
 
     setSimTeams(teams)
@@ -1456,6 +1588,12 @@ function WCSimulation() {
         if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+        groupHistoryRef.current.push({
+          groupId: home.groupId, matchday: md,
+          home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
+          away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
+          homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+        })
       })
     }
     setSimTeams(teams)
@@ -1523,7 +1661,19 @@ function WCSimulation() {
       ties: r.matches.map(buildWCTie),
     }))
 
-    wcKoStoredResultRef.current = { groups: clonedGroups, ...result }
+    wcKoStoredResultRef.current = { groups: clonedGroups, ...result, groupMatchdays: groupHistoryRef.current }
+
+    // If the player was knocked out in the group stage, there's no drama to
+    // play through — jump straight to the results screen (which still shows the
+    // full bracket of the teams that did qualify).
+    if (result.playerFinalRound === 'groups') {
+      setWcResult(wcKoStoredResultRef.current)
+      wcKoFinishedRef.current = true
+      setIsFinishing(false)
+      router.push('/game/wc-result')
+      return
+    }
+
     setWcKoRounds(wcRounds)
     setWcKoVisibleCount(1)
     setWcKoPenReveal(0)
@@ -1599,7 +1749,7 @@ function WCSimulation() {
             <View style={styles.pitch}>
               {/* Attackers */}
               <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').map((slot, i) => {
+                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
                   const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
@@ -1617,7 +1767,7 @@ function WCSimulation() {
               </View>
               {/* Midfielders */}
               <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').map((slot, i) => {
+                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
                   const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
@@ -1635,7 +1785,7 @@ function WCSimulation() {
               </View>
               {/* Defenders */}
               <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').map((slot, i) => {
+                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
                   const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
                   const playerOvr = player ? effectiveOvr(player, slot) : 0
                   return (
@@ -2622,7 +2772,7 @@ const styles = StyleSheet.create({
   },
   groupTeamRowSelf: {
     backgroundColor: colors.accent + '18',
-    borderRadius: radius.xs,
+    borderRadius: radius.sm,
   },
   groupTeamRank: {
     fontSize: 10,
