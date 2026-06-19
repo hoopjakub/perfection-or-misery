@@ -9,6 +9,7 @@ import { useUserStore } from '@/store/userStore'
 import { saveRun, fetchRunById } from '@/db/queries/runs'
 import { getAllClubsData } from '@/db/queries/seasons'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { useModeTheme } from '@/hooks/useModeTheme'
 import type { Tier } from '@/types/simulation'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -187,6 +188,7 @@ export default function ResultScreen() {
   const store = useGameStore()
   const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers } = store
   const { user, isGuest } = useUserStore()
+  const theme = useModeTheme()
   const params = useLocalSearchParams<{ runId: string }>()
   const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
   const [loadingRun, setLoadingRun] = useState(false)
@@ -399,7 +401,7 @@ export default function ResultScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Season Summary</Text>
@@ -680,7 +682,7 @@ export default function ResultScreen() {
           <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={handleReturnToHome}>
             <Text style={styles.actionBtnText}>Return to Home</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
+          <Pressable style={[styles.actionBtn, { backgroundColor: theme.accent }]} onPress={handlePlayAgain}>
             <Text style={styles.actionBtnText}>Play Again</Text>
           </Pressable>
         </View>

@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator } from 'react-native'
+import React, { useEffect, useRef, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator, Animated } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
+
+const CL = MODE_THEMES.champions_league
 
 const ROUND_LABELS: Record<string, string> = {
   league_exit:   'Eliminated in League Phase',
@@ -42,6 +44,14 @@ export default function CLResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
 
+  // Hero entrance — fade + rise the banner in once the result is on screen.
+  const heroAnim = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (loading) return
+    heroAnim.setValue(0)
+    Animated.timing(heroAnim, { toValue: 1, duration: 650, useNativeDriver: true }).start()
+  }, [loading])
+
   useEffect(() => {
     if (!params.runId) return
     let active = true
@@ -58,7 +68,7 @@ export default function CLResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
+        <ActivityIndicator color={CL.accent} size="large" />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -73,14 +83,14 @@ export default function CLResultScreen() {
       <View style={styles.center}>
         <Text style={styles.errorText}>No CL result found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: spacing.lg }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Menu</Text>
+          <Text style={{ color: CL.accent, fontWeight: '700' }}>← Back to Menu</Text>
         </Pressable>
       </View>
     )
   }
 
   const { leaguePhaseStandings, playoffRound, r16, qf, sf, final, winner, playerTeam, playerFinalRound, playerPot } = clResult
-  const resultColor = ROUND_COLORS[playerFinalRound] ?? colors.accent
+  const resultColor = ROUND_COLORS[playerFinalRound] ?? CL.accent
   const resultLabel = ROUND_LABELS[playerFinalRound] ?? playerFinalRound
   const isChampion  = playerFinalRound === 'winner'
   const playerPos   = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
@@ -123,13 +133,16 @@ export default function CLResultScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: CL.bgTint }]} contentContainerStyle={styles.content}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View style={[
+        styles.header,
+        { opacity: heroAnim, transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] },
+      ]}>
         <Text style={styles.competitionLabel}>UEFA CHAMPIONS LEAGUE</Text>
         <Text style={[styles.resultBanner, { color: resultColor }]}>{resultLabel.toUpperCase()}</Text>
         {isChampion && <Text style={styles.trophy}>🏆</Text>}
-      </View>
+      </Animated.View>
 
       {/* Player team summary */}
       <View style={[styles.card, { borderColor: resultColor }]}>
@@ -392,12 +405,12 @@ function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; go
 // Degraded view for older CL runs saved before the full tournament was stored.
 function CLHistorySummary({ run }: { run: any }) {
   const round = String(run.tier ?? '')
-  const color = ROUND_COLORS[round] ?? colors.accent
+  const color = ROUND_COLORS[round] ?? CL.accent
   const label = ROUND_LABELS[round] ?? round
   const games = (run.wins ?? 0) + (run.draws ?? 0) + (run.losses ?? 0)
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: CL.bgTint }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.competitionLabel}>UEFA CHAMPIONS LEAGUE</Text>
         <Text style={[styles.resultBanner, { color }]}>{label.toUpperCase()}</Text>
@@ -449,7 +462,7 @@ const styles = StyleSheet.create({
   competitionLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         colors.accent,
+    color:         CL.accent,
     letterSpacing: 3,
     textTransform: 'uppercase',
   },
@@ -514,14 +527,14 @@ const styles = StyleSheet.create({
     alignItems:        'center',
   },
   tableRowPlayer: {
-    backgroundColor: colors.accent + '11',
-    borderColor:     colors.accent,
+    backgroundColor: CL.accent + '11',
+    borderColor:     CL.accent,
     borderWidth:     1,
     borderRadius:    radius.sm,
   },
   tableCol:     { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
   tableColData: { fontSize: 11, color: colors.textSecondary },
-  playerText:   { color: colors.accent, fontWeight: typography.bold },
+  playerText:   { color: CL.accent, fontWeight: typography.bold },
   colPos:  { width: 34, textAlign: 'center' as any },
   posCell: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   zoneDot: { width: 6, height: 6, borderRadius: 3 },
@@ -564,7 +577,7 @@ const styles = StyleSheet.create({
   },
   bracketColSub: {
     fontSize:  8,
-    color:     colors.accent,
+    color:     CL.accent,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
@@ -578,8 +591,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   bracketCardPlayer: {
-    borderColor:     colors.accent,
-    backgroundColor: colors.accent + '11',
+    borderColor:     CL.accent,
+    backgroundColor: CL.accent + '11',
   },
   bracketTeamRow: {
     flexDirection:  'row',
@@ -589,7 +602,7 @@ const styles = StyleSheet.create({
   },
   bracketTeamName:   { flex: 1, fontSize: 10, color: colors.textMuted },
   bracketTeamWon:    { color: colors.textPrimary, fontWeight: typography.black },
-  bracketTeamPlayer: { color: colors.accent },
+  bracketTeamPlayer: { color: CL.accent },
   bracketTeamGoals:  { fontSize: 11, fontWeight: typography.bold, color: colors.textSecondary, width: 14, textAlign: 'right' },
   bracketDirect:     { color: colors.tiers.perfection },
   bracketDivider: { minHeight: 10, alignItems: 'center', justifyContent: 'center' },
@@ -638,7 +651,7 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   actionBtn: {
     flex:            1,
-    backgroundColor: colors.accent,
+    backgroundColor: CL.accent,
     borderRadius:    radius.md,
     paddingVertical: spacing.lg,
     alignItems:      'center',

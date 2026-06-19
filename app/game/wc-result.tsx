@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator } from 'react-native'
+import React, { useEffect, useRef, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator, Animated } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveWCRun, fetchRunById } from '@/db/queries/runs'
 import { TeamLabel } from '@/components/TeamLabel'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
+
+const WC = MODE_THEMES.world_cup
 
 const ROUND_LABELS: Record<string, string> = {
   groups:  'Eliminated in Group Stage',
@@ -57,6 +59,14 @@ export default function WCResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
 
+  // Hero entrance — fade + rise the banner in once the result is on screen.
+  const heroAnim = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (loading) return
+    heroAnim.setValue(0)
+    Animated.timing(heroAnim, { toValue: 1, duration: 650, useNativeDriver: true }).start()
+  }, [loading])
+
   // When opened from run history, rehydrate the full tournament from the DB.
   useEffect(() => {
     if (!params.runId) return
@@ -75,7 +85,7 @@ export default function WCResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
+        <ActivityIndicator color={WC.accent} size="large" />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -91,7 +101,7 @@ export default function WCResultScreen() {
       <View style={styles.center}>
         <Text style={styles.errorText}>No World Cup result found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: spacing.lg }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Menu</Text>
+          <Text style={{ color: WC.accent, fontWeight: '700' }}>← Back to Menu</Text>
         </Pressable>
       </View>
     )
@@ -102,7 +112,7 @@ export default function WCResultScreen() {
     playerTeam, playerFinalRound, playerGroup, playerGroupPos,
   } = wcResult
 
-  const resultColor = ROUND_COLORS[playerFinalRound] ?? colors.accent
+  const resultColor = ROUND_COLORS[playerFinalRound] ?? WC.accent
   const resultLabel = ROUND_LABELS[playerFinalRound] ?? playerFinalRound
   const isChampion  = playerFinalRound === 'winner'
 
@@ -156,13 +166,16 @@ export default function WCResultScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: WC.bgTint }]} contentContainerStyle={styles.content}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View style={[
+        styles.header,
+        { opacity: heroAnim, transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] },
+      ]}>
         <Text style={styles.competitionLabel}>FIFA WORLD CUP</Text>
         <Text style={[styles.resultBanner, { color: resultColor }]}>{resultLabel.toUpperCase()}</Text>
         {isChampion && <Text style={styles.trophy}>🏆</Text>}
-      </View>
+      </Animated.View>
 
       {/* Player team summary */}
       <View style={[styles.card, { borderColor: resultColor }]}>
@@ -341,12 +354,12 @@ function StatBox({ label, value }: { label: string; value: string }) {
 // Degraded view for older WC runs saved before the full tournament was stored.
 function WCHistorySummary({ run }: { run: any }) {
   const round = String(run.tier ?? '')
-  const color = ROUND_COLORS[round] ?? colors.accent
+  const color = ROUND_COLORS[round] ?? WC.accent
   const label = ROUND_LABELS[round] ?? round
   const games = (run.wins ?? 0) + (run.draws ?? 0) + (run.losses ?? 0)
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: WC.bgTint }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.competitionLabel}>FIFA WORLD CUP</Text>
         <Text style={[styles.resultBanner, { color }]}>{label.toUpperCase()}</Text>
@@ -538,7 +551,7 @@ const styles = StyleSheet.create({
   competitionLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         colors.accent,
+    color:         WC.accent,
     letterSpacing: 3,
     textTransform: 'uppercase',
   },
@@ -590,15 +603,15 @@ const styles = StyleSheet.create({
     alignItems:        'center',
   },
   tableRowPlayer: {
-    backgroundColor: colors.accent + '11',
-    borderColor:     colors.accent,
+    backgroundColor: WC.accent + '11',
+    borderColor:     WC.accent,
     borderWidth:     1,
     borderRadius:    radius.sm,
   },
   tableRowQ: { borderLeftWidth: 3, borderLeftColor: colors.success },
   tableCol:     { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
   tableColData: { fontSize: 11, color: colors.textSecondary },
-  playerText:   { color: colors.accent, fontWeight: typography.bold },
+  playerText:   { color: WC.accent, fontWeight: typography.bold },
   colPos:  { width: 24, textAlign: 'center' as any },
   colName: { flex: 1,  paddingLeft: spacing.xs },
   colStat: { width: 28, textAlign: 'center' as any },
@@ -627,7 +640,7 @@ const styles = StyleSheet.create({
     gap:             2,
   },
   groupCardPlayer: {
-    borderColor: colors.accent,
+    borderColor: WC.accent,
   },
   groupCardTitle: {
     fontSize:      typography.xs,
@@ -647,13 +660,13 @@ const styles = StyleSheet.create({
     paddingLeft:     4,
   },
   groupTeamRowSelf: {
-    backgroundColor: colors.accent + '15',
+    backgroundColor: WC.accent + '15',
     borderRadius:    radius.sm,
   },
   groupTeamRank: { fontSize: 9, color: colors.textMuted, width: 12 },
   groupTeamName: { flex: 1 },
   groupTeamNameText: { fontSize: 10, color: colors.textSecondary },
-  groupTeamNameSelf: { color: colors.accent, fontWeight: typography.bold },
+  groupTeamNameSelf: { color: WC.accent, fontWeight: typography.bold },
   groupTeamPts: { fontSize: 10, fontWeight: typography.bold, color: colors.textPrimary, width: 18, textAlign: 'right' },
 
   // bracket
@@ -680,8 +693,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   bracketCardPlayer: {
-    borderColor:     colors.accent,
-    backgroundColor: colors.accent + '11',
+    borderColor:     WC.accent,
+    backgroundColor: WC.accent + '11',
   },
   bracketTeamRow: {
     flexDirection:  'row',
@@ -692,7 +705,7 @@ const styles = StyleSheet.create({
   bracketTeamLabel:  { flex: 1 },
   bracketTeamName:   { fontSize: 10, color: colors.textMuted },
   bracketTeamWon:    { color: colors.textPrimary, fontWeight: typography.black },
-  bracketTeamPlayer: { color: colors.accent },
+  bracketTeamPlayer: { color: WC.accent },
   bracketTeamGoals:  { fontSize: 11, fontWeight: typography.bold, color: colors.textSecondary, width: 14, textAlign: 'right' },
   bracketDivider: {
     height: 10,
@@ -735,7 +748,7 @@ const styles = StyleSheet.create({
   mdTeam:       { flex: 1 },
   mdTeamRight:  { justifyContent: 'flex-end' },
   mdTeamText:   { fontSize: 11, color: colors.textSecondary },
-  mdTeamPlayer: { color: colors.accent, fontWeight: typography.bold },
+  mdTeamPlayer: { color: WC.accent, fontWeight: typography.bold },
   mdScore: {
     fontSize:   12,
     fontWeight: typography.black,
@@ -790,7 +803,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex:            1,
-    backgroundColor: colors.accent,
+    backgroundColor: WC.accent,
     borderRadius:    radius.md,
     paddingVertical: spacing.lg,
     alignItems:      'center',

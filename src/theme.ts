@@ -58,6 +58,68 @@ export const colors = {
   },
 }
 
+// Per-mode palettes. WC/UCL/Chaos/Cursed each get a distinct identity instead
+// of the default blue accent. Applied via useModeTheme() at high-impact
+// touchpoints (headers, CTAs, hero banners, brackets, highlights).
+export type ModeTheme = {
+  accent:    string   // primary — CTAs, highlights, player rows
+  accentDim: string   // pressed/secondary shade of accent
+  secondary: string   // supporting hue (emerald, silver, amber, toxic green)
+  highlight: string   // brighter pop for winners / emphasis
+  bgTint:    string   // subtle mode-tinted background (used in Tier 3)
+  banner:    string   // hero/banner backdrop
+}
+
+export const MODE_THEMES: Record<string, ModeTheme> = {
+  world_cup: {
+    accent:    '#F5C518',
+    accentDim: '#B8910F',
+    secondary: '#0E9F6E',
+    highlight: '#FACC15',
+    bgTint:    '#0A1410',
+    banner:    '#0E2A1F',
+  },
+  champions_league: {
+    accent:    '#4FA9FF',
+    accentDim: '#1A237E',
+    secondary: '#C7D2FE',
+    highlight: '#8AB4F8',
+    bgTint:    '#070B1E',
+    banner:    '#0C153A',
+  },
+  chaos: {
+    accent:    '#FF3B30',
+    accentDim: '#B91C1C',
+    secondary: '#F59E0B',
+    highlight: '#FF7849',
+    bgTint:    '#160606',
+    banner:    '#2A0A06',
+  },
+  cursed: {
+    accent:    '#A855F7',
+    accentDim: '#7C2D91',
+    secondary: '#84CC16',
+    highlight: '#C084FC',
+    bgTint:    '#0E0614',
+    banner:    '#1E0A2E',
+  },
+}
+
+// Resolve the active palette: mode-specific theme, else the league accent (or
+// the default blue) wrapped in a neutral ModeTheme so callers are uniform.
+export function getModeTheme(mode: string | null | undefined, leagueAccent?: string | null): ModeTheme {
+  if (mode && MODE_THEMES[mode]) return MODE_THEMES[mode]
+  const accent = leagueAccent ?? colors.accent
+  return {
+    accent,
+    accentDim: colors.accentDim,
+    secondary: colors.success,
+    highlight: accent,
+    bgTint:    colors.bg,
+    banner:    colors.bgElevated,
+  }
+}
+
 export const spacing = {
   xs:  4,
   sm:  8,

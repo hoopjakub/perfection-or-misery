@@ -17,9 +17,10 @@ import type { WCTeam, WCGroup, WCKnockoutMatch, WCSeasonResult, WCGroupMatch } f
 import { expandPenaltyKicks } from '@/engine/knockout-match'
 import type { PenKick } from '@/engine/knockout-match'
 import { getTopKickers } from '@/db/queries/seasons'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
+import { useModeTheme } from '@/hooks/useModeTheme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
-import { getFlag } from '@/lib/flagMap'
+import { TeamLabel } from '@/components/TeamLabel'
 
 type SimPhase = 'review' | 'simulating' | 'completed' | 'group_review' | 'knockout_phase'
 type Speed = 'slow' | 'normal' | 'fast'
@@ -100,6 +101,8 @@ function LeagueSimulation() {
   const baseTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
   const chem = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
   const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+  // Chaos = red, Cursed = violet, league/all-time/era = league accent.
+  const theme = useModeTheme()
 
   const [phase, setPhase] = useState<SimPhase>('review')
   const [currentMatchday, setCurrentMatchday] = useState(1)
@@ -517,7 +520,7 @@ function LeagueSimulation() {
     : sortedStandings
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}>
@@ -548,7 +551,7 @@ function LeagueSimulation() {
             <View style={styles.ovrDivider} />
             <View style={styles.ovrCol}>
               <Text style={styles.ovrLabel}>Total OVR</Text>
-              <Text style={[styles.ovrValue, { color: colors.accent }]}>{totalTeamOvr}</Text>
+              <Text style={[styles.ovrValue, { color: theme.accent }]}>{totalTeamOvr}</Text>
             </View>
           </View>
 
@@ -556,7 +559,7 @@ function LeagueSimulation() {
           <View style={styles.replacementCard}>
             <Text style={styles.replacementTitle}>Entering the League</Text>
             <Text style={styles.replacementText}>
-              Your squad replaces <Text style={styles.replacementHighlight}>{placedLeague.replacedTeamName}</Text> for this season. Good luck!
+              Your squad replaces <Text style={[styles.replacementHighlight, { color: theme.accent }]}>{placedLeague.replacedTeamName}</Text> for this season. Good luck!
             </Text>
           </View>
 
@@ -661,7 +664,7 @@ function LeagueSimulation() {
 
           {/* Action button */}
           <Pressable 
-            style={[styles.actionBtn, isStartingSimulation && styles.actionBtnDisabled]} 
+            style={[styles.actionBtn, { backgroundColor: theme.accent }, isStartingSimulation && styles.actionBtnDisabled]}
             onPress={startSimulation}
             disabled={isStartingSimulation}
           >
@@ -689,7 +692,7 @@ function LeagueSimulation() {
               <View
                 style={[
                   styles.progressBarFill,
-                  { width: `${(currentMatchday / totalMatchdays) * 100}%` }
+                  { width: `${(currentMatchday / totalMatchdays) * 100}%`, backgroundColor: theme.accent }
                 ]}
               />
             </View>
@@ -744,6 +747,8 @@ function LeagueSimulation() {
                 {currentMatchdayStandings.map((team, idx) => {
                   const gd = team.stats.goalsFor - team.stats.goalsAgainst
                   const slideAnim = rowTransAnims.current[team.clubId]
+                  const pText = team.isPlayer ? { color: theme.accent, fontWeight: typography.bold } : null
+                  const rowHi = team.isPlayer ? { borderColor: theme.accent, backgroundColor: theme.accent + '11' } : null
                   return (
                     <Animated.View
                       key={team.clubId}
@@ -751,11 +756,12 @@ function LeagueSimulation() {
                       style={[
                         styles.tableRow,
                         team.isPlayer && styles.tableRowPlayer,
+                        rowHi,
                         slideAnim && speed === 'slow' ? { transform: [{ translateY: slideAnim }] } : undefined,
                       ]}
                     >
                       <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
-                        <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
+                        <Text style={[styles.tableColData, pText]}>{idx + 1}</Text>
                         {team.isPlayer && playerPosDelta !== null && (
                           <Animated.Text style={[
                             styles.positionChangeIndicator,
@@ -766,19 +772,20 @@ function LeagueSimulation() {
                           </Animated.Text>
                         )}
                       </View>
-                      <Text
-                        style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]}
-                        numberOfLines={1}
-                      >
-                        {team.clubName}
-                      </Text>
-                      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
+                      <TeamLabel
+                        clubId={team.clubId}
+                        name={team.clubName}
+                        textStyle={[styles.tableColData, pText]}
+                        containerStyle={styles.colName}
+                        size={16}
+                      />
+                      <Text style={[styles.tableColData, styles.colStat, pText]}>
                         {team.stats.played}
                       </Text>
-                      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
+                      <Text style={[styles.tableColData, styles.colStat, pText]}>
                         {gd > 0 ? `+${gd}` : gd}
                       </Text>
-                      <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>
+                      <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>
                         {team.stats.points}
                       </Text>
                     </Animated.View>
@@ -825,31 +832,25 @@ function LeagueSimulation() {
                           resultColor && { backgroundColor: resultColor + '15' }
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.resultClubName,
-                            styles.alignRight,
-                            isPlayerHome && styles.highlightClubText
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {fixture.home.clubName}
-                        </Text>
+                        <TeamLabel
+                          clubId={fixture.home.clubId}
+                          name={fixture.home.clubName}
+                          textStyle={[styles.resultClubNameText, isPlayerHome && { color: theme.accent, fontWeight: typography.bold }]}
+                          containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
+                          size={15}
+                        />
                         <View style={[styles.scoreBadge, resultColor && { backgroundColor: resultColor + '33' }]}>
                           <Text style={[styles.scoreText, resultColor && { color: resultColor }]}>
                             {result.homeGoals} - {result.awayGoals}
                           </Text>
                         </View>
-                        <Text
-                          style={[
-                            styles.resultClubName,
-                            styles.alignLeft,
-                            isPlayerAway && styles.highlightClubText
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {fixture.away.clubName}
-                        </Text>
+                        <TeamLabel
+                          clubId={fixture.away.clubId}
+                          name={fixture.away.clubName}
+                          textStyle={[styles.resultClubNameText, isPlayerAway && { color: theme.accent, fontWeight: typography.bold }]}
+                          containerStyle={styles.resultTeamSide}
+                          size={15}
+                        />
                       </View>
                     )
                   })}
@@ -861,7 +862,7 @@ function LeagueSimulation() {
           {/* Completed CTA */}
           {phase === 'completed' && (
             <Pressable 
-              style={[styles.finishBtn, isFinishingSimulation && styles.finishBtnDisabled]} 
+              style={[styles.finishBtn, { backgroundColor: theme.accent }, isFinishingSimulation && styles.finishBtnDisabled]}
               onPress={finishSimulation}
               disabled={isFinishingSimulation}
             >
@@ -899,6 +900,7 @@ function CLSimulation() {
   const [isPlaying,              setIsPlaying]              = useState(false)
   // League phase always runs at "slow" — the pace is locked (matches WC).
   const speed: Speed = 'slow'
+  const theme = MODE_THEMES.champions_league
   const [isStarting,   setIsStarting]   = useState(false)
   const [isFinishing,  setIsFinishing]  = useState(false)
   // Records every league-phase result so the results screen can show matchdays.
@@ -1195,11 +1197,11 @@ function CLSimulation() {
   const sorted = sortByStats(simTeams)
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>UEFA Champions League</Text>
+          <Text style={[styles.headerTitle, { color: theme.accent }]}>UEFA Champions League</Text>
           <Text style={styles.headerSub}>League Phase · 8 matchdays</Text>
         </View>
         <View style={{ width: 32 }} />
@@ -1212,12 +1214,12 @@ function CLSimulation() {
             <View style={styles.ovrDivider} />
             <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Chem Bonus</Text><Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text></View>
             <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: colors.accent }]}>{totalTeamOvr}</Text></View>
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{totalTeamOvr}</Text></View>
           </View>
           <View style={styles.replacementCard}>
             <Text style={styles.replacementTitle}>UCL League Phase</Text>
             <Text style={styles.replacementText}>
-              Your squad plays <Text style={styles.replacementHighlight}>8 games</Text> in a 36-team single league table.{'\n'}
+              Your squad plays <Text style={[styles.replacementHighlight, { color: theme.accent }]}>8 games</Text> in a 36-team single league table.{'\n'}
               Top 8 → Round of 16 direct · 9th-24th → Playoff round · Bottom 12 eliminated.
             </Text>
           </View>
@@ -1311,7 +1313,7 @@ function CLSimulation() {
           </View>
 
           <Pressable
-            style={[styles.actionBtn, isStarting && styles.actionBtnDisabled]}
+            style={[styles.actionBtn, { backgroundColor: theme.accent }, isStarting && styles.actionBtnDisabled]}
             onPress={() => { setIsStarting(true); setTimeout(() => { setPhase('simulating'); setIsPlaying(true); setIsStarting(false) }, 500) }}
             disabled={isStarting}
           >
@@ -1326,6 +1328,8 @@ function CLSimulation() {
           visibleCount={koVisibleCount}
           penReveal={koPenReveal}
           competitionLabel="UEFA Champions League"
+          accent={theme.accent}
+          bgTint={theme.bgTint}
           onFinish={finishKnockoutPhase}
           onSkipToRound={(idx) => { setKoVisibleCount(idx + 1); setKoPenReveal(Infinity) }}
         />
@@ -1337,7 +1341,7 @@ function CLSimulation() {
               <Text style={styles.simStatusText}>{phase === 'completed' ? 'Phase Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%` }]} />
+              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
             </View>
             {phase !== 'completed' && (
               <View style={styles.controlsRow}>
@@ -1368,6 +1372,8 @@ function CLSimulation() {
                 {sorted.map((team, idx) => {
                   const gd = team.stats.goalsFor - team.stats.goalsAgainst
                   const slideAnim = clRowTransAnims.current[team.clubId]
+                  const pText = team.isPlayer ? { color: theme.accent, fontWeight: typography.bold } : null
+                  const rowHi = team.isPlayer ? { borderColor: theme.accent, backgroundColor: theme.accent + '11' } : null
                   return (
                     <Animated.View
                       key={team.clubId}
@@ -1375,11 +1381,12 @@ function CLSimulation() {
                       style={[
                         styles.tableRow,
                         team.isPlayer && styles.tableRowPlayer,
+                        rowHi,
                         slideAnim && speed === 'slow' ? { transform: [{ translateY: slideAnim }] } : undefined,
                       ]}
                     >
                       <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
-                        <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
+                        <Text style={[styles.tableColData, pText]}>{idx + 1}</Text>
                         {team.isPlayer && clPosDelta !== null && (
                           <Animated.Text style={[
                             styles.positionChangeIndicator,
@@ -1390,10 +1397,16 @@ function CLSimulation() {
                           </Animated.Text>
                         )}
                       </View>
-                      <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]} numberOfLines={1}>{team.clubName}</Text>
-                      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{team.stats.played}</Text>
-                      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                      <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>{team.stats.points}</Text>
+                      <TeamLabel
+                        clubId={team.clubId}
+                        name={team.clubName}
+                        textStyle={[styles.tableColData, pText]}
+                        containerStyle={styles.colName}
+                        size={16}
+                      />
+                      <Text style={[styles.tableColData, styles.colStat, pText]}>{team.stats.played}</Text>
+                      <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
+                      <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{team.stats.points}</Text>
                     </Animated.View>
                   )
                 })}
@@ -1414,11 +1427,23 @@ function CLSimulation() {
                       : null
                     return (
                       <View key={i} style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
-                        <Text style={[styles.resultClubName, styles.alignRight, r.home.isPlayer && styles.highlightClubText]} numberOfLines={1}>{r.home.clubName}</Text>
+                        <TeamLabel
+                          clubId={r.home.clubId}
+                          name={r.home.clubName}
+                          textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                          containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
+                          size={15}
+                        />
                         <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
                           <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
                         </View>
-                        <Text style={[styles.resultClubName, styles.alignLeft, r.away.isPlayer && styles.highlightClubText]} numberOfLines={1}>{r.away.clubName}</Text>
+                        <TeamLabel
+                          clubId={r.away.clubId}
+                          name={r.away.clubName}
+                          textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                          containerStyle={styles.resultTeamSide}
+                          size={15}
+                        />
                       </View>
                     )
                   })}
@@ -1428,7 +1453,7 @@ function CLSimulation() {
           </View>
 
           {phase === 'completed' && (
-            <Pressable style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
+            <Pressable style={[styles.finishBtn, { backgroundColor: theme.accent }, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
               {isFinishing
                 ? <View style={styles.finishBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Simulating knockouts...</Text></View>
                 : <Text style={styles.finishBtnText}>VIEW UCL RESULTS →</Text>}
@@ -1459,6 +1484,7 @@ function WCSimulation() {
   const [isPlaying,     setIsPlaying]     = useState(false)
   // World Cup group stage always runs at "slow" — the pace is locked.
   const speed: Speed = 'slow'
+  const theme = MODE_THEMES.world_cup
   const [isStarting,    setIsStarting]    = useState(false)
   const [isFinishing,   setIsFinishing]   = useState(false)
 
@@ -1699,11 +1725,11 @@ function WCSimulation() {
     : []
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>FIFA World Cup</Text>
+          <Text style={[styles.headerTitle, { color: theme.accent }]}>FIFA World Cup</Text>
           <Text style={styles.headerSub}>Group Stage{playerGroup ? ` · Group ${playerGroup.id}` : ''}</Text>
         </View>
         <View style={{ width: 32 }} />
@@ -1716,12 +1742,12 @@ function WCSimulation() {
             <View style={styles.ovrDivider} />
             <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Chem Bonus</Text><Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text></View>
             <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: colors.accent }]}>{totalTeamOvr}</Text></View>
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{totalTeamOvr}</Text></View>
           </View>
           <View style={styles.replacementCard}>
             <Text style={styles.replacementTitle}>World Cup Group Stage</Text>
             <Text style={styles.replacementText}>
-              Your squad plays <Text style={styles.replacementHighlight}>3 group stage games</Text> in a group of 4.{'\n'}
+              Your squad plays <Text style={[styles.replacementHighlight, { color: theme.accent }]}>3 group stage games</Text> in a group of 4.{'\n'}
               Top 2 per group + 8 best 3rd-place teams qualify for the Round of 32.
             </Text>
           </View>
@@ -1823,7 +1849,7 @@ function WCSimulation() {
           </View>
 
           <Pressable
-            style={[styles.actionBtn, isStarting && styles.actionBtnDisabled]}
+            style={[styles.actionBtn, { backgroundColor: theme.accent }, isStarting && styles.actionBtnDisabled]}
             onPress={() => { setIsStarting(true); setTimeout(() => { setPhase('simulating'); setIsPlaying(true); setIsStarting(false) }, 500) }}
             disabled={isStarting}
           >
@@ -1856,14 +1882,18 @@ function WCSimulation() {
                   <View key={group.id} style={[styles.groupCard, playerInGroup && styles.groupCardPlayer]}>
                     <Text style={styles.groupCardTitle}>Group {group.id}</Text>
                     {group.teams.map((team, idx) => {
-                      const flag = getFlag(team.clubId)
                       const qualified = idx < 2
                       return (
                         <View key={team.clubId} style={[styles.groupTeamRow, qualified && styles.groupTeamRowQ, team.isPlayer && styles.groupTeamRowSelf]}>
                           <Text style={[styles.groupTeamRank, team.isPlayer && styles.groupTeamRankSelf]}>{idx + 1}</Text>
-                          <Text style={[styles.groupTeamName, team.isPlayer && styles.groupTeamNameSelf]} numberOfLines={1}>
-                            {flag ? `${flag} ` : ''}{team.clubName}
-                          </Text>
+                          <TeamLabel
+                            clubId={team.clubId}
+                            name={team.clubName}
+                            textStyle={[styles.groupTeamName, team.isPlayer && styles.groupTeamNameSelf]}
+                            containerStyle={styles.groupTeamLabel}
+                            size={13}
+                            gap={4}
+                          />
                           <Text style={[styles.groupTeamPts, team.isPlayer && styles.groupTeamNameSelf]}>{team.stats.points}</Text>
                         </View>
                       )
@@ -1878,14 +1908,17 @@ function WCSimulation() {
                 <Text style={styles.thirdPlaceTitle}>Best Third-Place Teams</Text>
                 <Text style={styles.thirdPlaceSub}>Top {q3Count} advance to Round of 32</Text>
                 {thirdPlaceTeams.map((team, idx) => {
-                  const flag = getFlag(team.clubId)
                   const advances = idx < q3Count
                   return (
                     <View key={team.clubId} style={[styles.thirdPlaceRow, advances && styles.thirdPlaceRowQ, team.isPlayer && styles.groupTeamRowSelf]}>
                       <Text style={styles.thirdPlaceRank}>{idx + 1}</Text>
-                      <Text style={[styles.thirdPlaceTeamName, team.isPlayer && styles.groupTeamNameSelf]} numberOfLines={1}>
-                        {flag ? `${flag} ` : ''}{team.clubName}
-                      </Text>
+                      <TeamLabel
+                        clubId={team.clubId}
+                        name={team.clubName}
+                        textStyle={[styles.thirdPlaceTeamName, team.isPlayer && styles.groupTeamNameSelf]}
+                        containerStyle={styles.groupTeamLabel}
+                        size={14}
+                      />
                       <Text style={[styles.thirdPlacePts, advances && { color: colors.success }]}>{team.stats.points} pts</Text>
                     </View>
                   )
@@ -1894,7 +1927,7 @@ function WCSimulation() {
             )}
 
             <Pressable
-              style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]}
+              style={[styles.finishBtn, { backgroundColor: theme.accent }, isFinishing && styles.finishBtnDisabled]}
               onPress={handleFinish}
               disabled={isFinishing}
             >
@@ -1910,6 +1943,8 @@ function WCSimulation() {
           visibleCount={wcKoVisibleCount}
           penReveal={wcKoPenReveal}
           competitionLabel="FIFA World Cup"
+          accent={theme.accent}
+          bgTint={theme.bgTint}
           onFinish={finishWCKnockoutPhase}
           onSkipToRound={(idx) => { setWcKoVisibleCount(idx + 1); setWcKoPenReveal(Infinity) }}
         />
@@ -1921,7 +1956,7 @@ function WCSimulation() {
               <Text style={styles.simStatusText}>{phase === 'completed' ? 'Groups Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%` }]} />
+              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
             </View>
             {phase !== 'completed' && (
               <View style={styles.controlsRow}>
@@ -1952,16 +1987,21 @@ function WCSimulation() {
               </View>
               {playerGroupSorted.map((team, idx) => {
                 const gd = team.stats.goalsFor - team.stats.goalsAgainst
-                const flag = getFlag(team.clubId)
+                const pText = team.isPlayer ? { color: theme.accent, fontWeight: typography.bold } : null
+                const rowHi = team.isPlayer ? { borderColor: theme.accent, backgroundColor: theme.accent + '11' } : null
                 return (
-                  <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer]}>
-                    <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
-                    <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]} numberOfLines={1}>
-                      {flag ? `${flag} ` : ''}{team.clubName}
-                    </Text>
-                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{team.stats.played}</Text>
-                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>{team.stats.points}</Text>
+                  <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, rowHi]}>
+                    <Text style={[styles.tableColData, styles.colPos as any, pText]}>{idx + 1}</Text>
+                    <TeamLabel
+                      clubId={team.clubId}
+                      name={team.clubName}
+                      textStyle={[styles.tableColData, pText]}
+                      containerStyle={styles.colName}
+                      size={16}
+                    />
+                    <Text style={[styles.tableColData, styles.colStat, pText]}>{team.stats.played}</Text>
+                    <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
+                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{team.stats.points}</Text>
                   </View>
                 )
               })}
@@ -1979,19 +2019,25 @@ function WCSimulation() {
                       ? (r.home.isPlayer && r.outcome === 'home') || (r.away.isPlayer && r.outcome === 'away') ? colors.success
                         : r.outcome === 'draw' ? colors.warning : '#DC2626'
                       : null
-                    const homeFlag = getFlag(r.home.clubId)
-                    const awayFlag = getFlag(r.away.clubId)
                     return (
                       <View key={i} style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
-                        <Text style={[styles.resultClubName, styles.alignRight, r.home.isPlayer && styles.highlightClubText]} numberOfLines={1}>
-                          {homeFlag ? `${homeFlag} ` : ''}{r.home.clubName}
-                        </Text>
+                        <TeamLabel
+                          clubId={r.home.clubId}
+                          name={r.home.clubName}
+                          textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                          containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
+                          size={15}
+                        />
                         <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
                           <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
                         </View>
-                        <Text style={[styles.resultClubName, styles.alignLeft, r.away.isPlayer && styles.highlightClubText]} numberOfLines={1}>
-                          {awayFlag ? `${awayFlag} ` : ''}{r.away.clubName}
-                        </Text>
+                        <TeamLabel
+                          clubId={r.away.clubId}
+                          name={r.away.clubName}
+                          textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                          containerStyle={styles.resultTeamSide}
+                          size={15}
+                        />
                       </View>
                     )
                   })}
@@ -2001,7 +2047,7 @@ function WCSimulation() {
           </View>
 
           {phase === 'completed' && (
-            <Pressable style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
+            <Pressable style={[styles.finishBtn, { backgroundColor: theme.accent }, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
               {isFinishing
                 ? <View style={styles.finishBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Simulating knockouts...</Text></View>
                 : <Text style={styles.finishBtnText}>VIEW WORLD CUP RESULTS →</Text>}
@@ -2020,18 +2066,20 @@ type KnockoutPhaseViewProps = {
   visibleCount: number
   penReveal: number   // number of interleaved pen kicks revealed in current round
   competitionLabel: string
+  accent: string      // mode accent (WC gold / UCL navy)
+  bgTint: string      // mode-tinted backdrop
   onFinish: () => void
   onSkipToRound: (idx: number) => void  // reserved for future skip UI
 }
 
-function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, onFinish }: KnockoutPhaseViewProps) {
+function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, accent, bgTint, onFinish }: KnockoutPhaseViewProps) {
   const allVisible = visibleCount >= rounds.length
   const currentRound = rounds[visibleCount - 1]
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: bgTint }}>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
-        <Text style={styles.koTitle}>{competitionLabel}</Text>
+        <Text style={[styles.koTitle, { color: accent }]}>{competitionLabel}</Text>
         <Text style={styles.koSubtitle}>Knockout Phase</Text>
 
         {rounds.slice(0, visibleCount).map((round, roundIdx) => {
@@ -2060,6 +2108,7 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
                   tie={playerTie}
                   penReveal={currentPenReveal}
                   isFinal={round.round === 'final'}
+                  accent={accent}
                 />
               )}
             </View>
@@ -2069,14 +2118,14 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
         {/* Loading indicator between rounds */}
         {!allVisible && visibleCount > 0 && (
           <View style={styles.koLoadingRow}>
-            <ActivityIndicator color={colors.accent} size="small" />
+            <ActivityIndicator color={accent} size="small" />
             <Text style={styles.koLoadingText}>Next round incoming...</Text>
           </View>
         )}
 
         {/* Final CTA */}
         {allVisible && (
-          <Pressable style={styles.finishBtn} onPress={onFinish}>
+          <Pressable style={[styles.finishBtn, { backgroundColor: accent }]} onPress={onFinish}>
             <Text style={styles.finishBtnText}>VIEW FINAL RESULTS →</Text>
           </Pressable>
         )}
@@ -2088,8 +2137,6 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
 function KnockoutTieCompact({ tie }: { tie: KnockoutTie }) {
   const { teamA, teamB, winner, aGoals, bGoals, extraTime, aPens, bPens } = tie
   const aWins = winner.clubId === teamA.clubId
-  const flagA = getFlag(teamA.clubId)
-  const flagB = getFlag(teamB.clubId)
 
   let suffix = ''
   if (aPens !== undefined) suffix = ` (P ${aPens}-${bPens})`
@@ -2097,24 +2144,32 @@ function KnockoutTieCompact({ tie }: { tie: KnockoutTie }) {
 
   return (
     <View style={styles.koTieCompact}>
-      <Text style={[styles.koTieCompactTeam, aWins && styles.koTieWinner]} numberOfLines={1}>
-        {flagA ? `${flagA} ` : ''}{teamA.clubName}
-      </Text>
+      <TeamLabel
+        clubId={teamA.clubId}
+        name={teamA.clubName}
+        textStyle={[styles.koTieCompactTeam, aWins && styles.koTieWinner]}
+        containerStyle={styles.koTieLabelSide}
+        size={13}
+        gap={4}
+      />
       <Text style={styles.koTieCompactScore}>
         {aGoals}-{bGoals}{suffix}
       </Text>
-      <Text style={[styles.koTieCompactTeam, !aWins && styles.koTieWinner]} numberOfLines={1}>
-        {flagB ? `${flagB} ` : ''}{teamB.clubName}
-      </Text>
+      <TeamLabel
+        clubId={teamB.clubId}
+        name={teamB.clubName}
+        textStyle={[styles.koTieCompactTeam, !aWins && styles.koTieWinner]}
+        containerStyle={styles.koTieLabelSide}
+        size={13}
+        gap={4}
+      />
     </View>
   )
 }
 
-function KnockoutTieFull({ tie, penReveal }: { tie: KnockoutTie; penReveal: number; isFinal: boolean }) {
+function KnockoutTieFull({ tie, penReveal, accent }: { tie: KnockoutTie; penReveal: number; isFinal: boolean; accent: string }) {
   const { teamA, teamB, winner, aGoals, bGoals, leg1, leg2, extraTime, aPens, bPens, penKicksA, penKicksB } = tie
   const aWins = winner.clubId === teamA.clubId
-  const flagA = getFlag(teamA.clubId)
-  const flagB = getFlag(teamB.clubId)
   const hasPens = aPens !== undefined && bPens !== undefined
 
   // Build interleaved kick list for reveal
@@ -2135,21 +2190,33 @@ function KnockoutTieFull({ tie, penReveal }: { tie: KnockoutTie; penReveal: numb
   const shootoutStarted = hasPens && revealedKicks.length > 0
 
   return (
-    <View style={[styles.koTieFull, penComplete ? (winner.isPlayer ? styles.koTileWin : styles.koTileLoss) : styles.koTilePending]}>
+    <View style={[
+      styles.koTieFull,
+      penComplete ? (winner.isPlayer ? styles.koTileWin : styles.koTileLoss) : styles.koTilePending,
+      penComplete && winner.isPlayer && { borderColor: accent, backgroundColor: accent + '14' },
+    ]}>
       {/* Header row */}
       <View style={styles.koTileHeader}>
-        <Text style={[styles.koTileTeam, penComplete && aWins && styles.koTileTeamWinner]} numberOfLines={1}>
-          {flagA ? `${flagA} ` : ''}{teamA.clubName}
-        </Text>
+        <TeamLabel
+          clubId={teamA.clubId}
+          name={teamA.clubName}
+          textStyle={[styles.koTileTeam, penComplete && aWins && styles.koTileTeamWinner]}
+          containerStyle={styles.koTieLabelSide}
+          size={18}
+        />
         <View style={styles.koTileScoreBadge}>
           <Text style={styles.koTileScore}>{aGoals} – {bGoals}</Text>
           {hasPens && penComplete && <Text style={styles.koTilePenScore}>pens {aPens}-{bPens}</Text>}
           {hasPens && !penComplete && <Text style={styles.koTileAet}>{extraTime ? 'AET' : 'FT'} · PENS</Text>}
           {!hasPens && extraTime && <Text style={styles.koTileAet}>AET</Text>}
         </View>
-        <Text style={[styles.koTileTeam, penComplete && !aWins && styles.koTileTeamWinner]} numberOfLines={1}>
-          {flagB ? `${flagB} ` : ''}{teamB.clubName}
-        </Text>
+        <TeamLabel
+          clubId={teamB.clubId}
+          name={teamB.clubName}
+          textStyle={[styles.koTileTeam, penComplete && !aWins && styles.koTileTeamWinner]}
+          containerStyle={[styles.koTieLabelSide, { justifyContent: 'flex-end' }]}
+          size={18}
+        />
       </View>
 
       {/* Two-leg details (UCL) */}
@@ -2670,6 +2737,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textSecondary,
   },
+  resultTeamSide: {
+    flex: 1,
+  },
+  resultClubNameText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
   alignRight: {
     textAlign: 'right',
     paddingRight: spacing.xs,
@@ -2789,6 +2863,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textSecondary,
   },
+  groupTeamLabel: {
+    flex: 1,
+  },
   groupTeamNameSelf: {
     color: colors.accent,
     fontWeight: typography.bold,
@@ -2896,6 +2973,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.xs,
     color: colors.textMuted,
+  },
+  koTieLabelSide: {
+    flex: 1,
   },
   koTieWinner: {
     color: colors.textPrimary,

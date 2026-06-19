@@ -12,6 +12,7 @@ import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
 import { getRandomFact } from '@/lib/clubFacts'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { useModeTheme } from '@/hooks/useModeTheme'
 import type { PositionSlot, DraftedPlayer } from '@/types/game'
 import type { PlayerRow } from '@/db/queries/players'
 import type { ClubSeasonRow } from '@/engine/draft'
@@ -60,6 +61,7 @@ export default function DraftScreen() {
     draftedPlayers, spunSeasonIds,
     rerollsUsed, addPlayer, markSeasonSpun, useReroll,
   } = useGameStore()
+  const theme = useModeTheme()
 
   const [slots,         setSlots]         = useState<PositionSlot[]>([])
   const [pool,          setPool]          = useState<ClubSeasonRow[]>([])
@@ -337,14 +339,14 @@ export default function DraftScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       {/* header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Draft</Text>
+          <Text style={[styles.headerTitle, { color: theme.accent }]}>Draft</Text>
           <Text style={styles.headerSub}>
             {filledSlots.length}/11 picked
           </Text>
@@ -523,7 +525,7 @@ export default function DraftScreen() {
             )}
 
             {phase === 'idle' && openSlots.length > 0 && (
-              <Pressable style={styles.spinBtn} onPress={handleSpin}>
+              <Pressable style={[styles.spinBtn, { backgroundColor: theme.accent }]} onPress={handleSpin}>
                 <Text style={styles.spinBtnText}>SPIN</Text>
               </Pressable>
             )}
@@ -716,7 +718,7 @@ export default function DraftScreen() {
             <Text style={styles.doneTitle}>Squad Complete</Text>
             <Text style={styles.doneSub}>Time to find out where you end up.</Text>
             <Pressable
-              style={styles.continueBtn}
+              style={[styles.continueBtn, { backgroundColor: theme.accent }]}
               onPress={() => router.push('/game/placement')}
             >
               <Text style={styles.continueBtnText}>SPIN PLACEMENT →</Text>

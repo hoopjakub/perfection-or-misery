@@ -6,6 +6,7 @@ import { router } from 'expo-router'
 import { useGameStore, Formation } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { useModeTheme } from '@/hooks/useModeTheme'
 
 type FormationConfig = {
   id: Formation
@@ -121,7 +122,8 @@ const visualStyles = StyleSheet.create({
 })
 
 export default function FormationSelectScreen() {
-  const { mode, era, startRun, accentColor } = useGameStore()
+  const { mode, era, startRun } = useGameStore()
+  const theme = useModeTheme()
   const [selected, setSelected] = useState<Formation>('4-3-3')
 
   function handleContinue() {
@@ -137,12 +139,12 @@ export default function FormationSelectScreen() {
   const selectedConfig = FORMATIONS.find(f => f.id === selected)!
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Formation</Text>
+        <Text style={[styles.title, { color: theme.accent }]}>Formation</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -161,21 +163,22 @@ export default function FormationSelectScreen() {
               <Pressable
                 key={f.id}
                 style={[
-                  styles.formationCard, 
-                  isSelected && { 
-                    borderColor: accentColor || colors.accent, 
-                    borderWidth: 2 
+                  styles.formationCard,
+                  isSelected && {
+                    borderColor: theme.accent,
+                    borderWidth: 2
                   }
                 ]}
                 onPress={() => setSelected(f.id)}
               >
                 <FormationVisual
                   shape={f.shape}
-                  accentColor={isSelected ? (accentColor || colors.accent) : colors.bgElevated}
+                  accentColor={isSelected ? theme.accent : colors.bgElevated}
                 />
                 <Text style={[
                   styles.formationLabel,
-                  isSelected && styles.formationLabelSelected
+                  isSelected && styles.formationLabelSelected,
+                  isSelected && { color: theme.accent }
                 ]}>
                   {f.label}
                 </Text>
@@ -216,7 +219,7 @@ export default function FormationSelectScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={[styles.continueBtn, { backgroundColor: accentColor || colors.accent }]} onPress={handleContinue}>
+        <Pressable style={[styles.continueBtn, { backgroundColor: theme.accent }]} onPress={handleContinue}>
           <Text style={styles.continueBtnText}>
             Draft with {selected}
           </Text>
