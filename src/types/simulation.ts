@@ -20,6 +20,7 @@ export type Fixture = {
   home: SimTeam
   away: SimTeam
   result: MatchResult | null
+  scorers?: import('./stats').MatchScorers   // attributed once during sim, stored here
 }
 
 export type MatchResult = {

@@ -1,6 +1,7 @@
 import { SimTeam } from '@/types/simulation'
+import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
-import { simulateKnockout, KnockoutResult } from './knockout-match'
+import { simulateKnockout, KnockoutResult, type PenKick } from './knockout-match'
 import { clamp } from '@/lib/math'
 
 export type WCTeam = SimTeam & {
@@ -26,6 +27,9 @@ export type WCKnockoutMatch = {
   teamB:   WCTeam
   result:  KnockoutResult
   winner:  WCTeam
+  scorers?: MatchScorers   // attributed once, stored
+  penKicksHome?: PenKick[] // shootout sequence, stored for the result screen
+  penKicksAway?: PenKick[]
 }
 
 // A single group-stage fixture result, recorded for the results screen.
@@ -36,6 +40,7 @@ export type WCGroupMatch = {
   away:      { clubId: string; clubName: string; isPlayer: boolean }
   homeGoals: number
   awayGoals: number
+  scorers?:  MatchScorers
 }
 
 export type WCSeasonResult = {

@@ -1,5 +1,6 @@
 import { getDb } from '../setup'
 import type { LeagueSeasonWithTeams } from '@/types/game'
+import type { RosterPlayer } from '@/types/stats'
 
 export type ClubSeasonRow = {
   id: string
@@ -32,13 +33,56 @@ export async function getAllClubSeasons(): Promise<ClubSeasonRow[]> {
   )
 }
 
+// Scorer-attribution rosters for a set of clubs in one competition edition.
+// All clubs in a given competition share one `yearStart` (a league-season year,
+// or the CL/WC edition year), so we filter by it to get the right squads.
+type RosterRow = {
+  club_id: string; club_name: string; year_start: number
+  player_id: string; player_name: string; primary_position: string
+  birth_year: number | null; attack: number | null; ovr: number
+}
+export async function getRostersForClubs(
+  clubIds: string[],
+  yearStart: number,
+): Promise<Map<string, RosterPlayer[]>> {
+  const map = new Map<string, RosterPlayer[]>()
+  if (clubIds.length === 0) return map
+  const db = await getDb()
+  const placeholders = clubIds.map(() => '?').join(',')
+  const rows = await db.getAllAsync<RosterRow>(
+    `SELECT cs.club_id, c.name AS club_name, cs.year_start,
+            p.id AS player_id, p.name AS player_name, p.primary_position,
+            p.birth_year, ps.attack, ps.ovr
+     FROM player_seasons ps
+     JOIN players p ON p.id = ps.player_id
+     JOIN club_seasons cs ON cs.id = ps.club_season_id
+     JOIN clubs c ON c.id = cs.club_id
+     WHERE cs.club_id IN (${placeholders}) AND cs.year_start = ?`,
+    [...clubIds, yearStart],
+  )
+  const label = `${String(yearStart).slice(-2)}/${String(yearStart + 1).slice(-2)}`
+  for (const r of rows) {
+    const rp: RosterPlayer = {
+      playerId: r.player_id, name: r.player_name, primaryPosition: r.primary_position,
+      attack: r.attack ?? r.ovr, ovr: r.ovr, birthYear: r.birth_year,
+      yearStart: r.year_start, seasonLabel: label, clubId: r.club_id, clubName: r.club_name,
+    }
+    if (!map.has(r.club_id)) map.set(r.club_id, [])
+    map.get(r.club_id)!.push(rp)
+  }
+  return map
+}
+
 export async function getAvailableLeagues(): Promise<LeagueOption[]> {
   const db = await getDb()
+  // Champions League / World Cup are their own modes — never offer them as a
+  // pickable domestic league in League mode.
   return db.getAllAsync<LeagueOption>(
     `SELECT DISTINCT l.id, l.name
      FROM leagues l
      JOIN clubs c ON c.league_id = l.id
      JOIN club_seasons cs ON cs.club_id = c.id
+     WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%'
      ORDER BY l.name ASC`
   )
 }

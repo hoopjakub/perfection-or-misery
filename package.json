@@ -5,9 +5,11 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.107.0",
+    "d3-geo": "^3.1.1",
     "expo": "~54.0.35",
     "expo-asset": "~12.0.13",
     "expo-constants": "~18.0.13",
+    "expo-dev-client": "~6.0.21",
     "expo-file-system": "~19.0.23",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
@@ -33,11 +35,15 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
+    "@types/d3-geo": "^3.1.0",
     "@types/react": "~19.2.2",
+    "@types/topojson-client": "^3.1.5",
     "better-sqlite3": "^12.10.0",
     "node-html-parser": "^7.1.0",
+    "topojson-client": "^3.1.0",
     "tsx": "^4.22.4",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "world-atlas": "^2.0.2"
   },
   "scripts": {
     "start": "expo start",

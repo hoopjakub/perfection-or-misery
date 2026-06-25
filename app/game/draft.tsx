@@ -136,6 +136,8 @@ export default function DraftScreen() {
       season:             `${currentSpin.year_start}/${String(currentSpin.year_start + 1).slice(-2)}`,
       slotIndex:          slot.slotIndex,
       isIcon:             selectedPlayer.is_icon === 1,
+      birthYear:          selectedPlayer.birth_year ?? null,
+      yearStart:          currentSpin.year_start,
     }
 
     setSlots(prev => prev.map((s, i) =>

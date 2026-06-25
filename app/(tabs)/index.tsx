@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { View, Text, StyleSheet, Pressable, StatusBar, ScrollView, ActivityIndicator } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { fetchUserStats, fetchRunHistory, type UserStats } from '@/db/queries/leaderboard'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
@@ -11,29 +11,31 @@ export default function HomeScreen() {
   const [recentRuns, setRecentRuns] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function loadData() {
-      if (!user || isGuest) {
-        setLoading(false)
-        return
+  // Refetch every time Home gains focus (tabs persist, so a plain mount effect
+  // would go stale) — this is what makes a freshly-finished run show up.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      async function loadData() {
+        if (!user || isGuest) { setLoading(false); return }
+        try {
+          const [userStats, runs] = await Promise.all([
+            fetchUserStats(user.id),
+            fetchRunHistory(user.id, 3),
+          ])
+          if (!active) return
+          setStats(userStats)
+          setRecentRuns(runs)
+        } catch (error) {
+          console.error('Failed to load user data:', error)
+        } finally {
+          if (active) setLoading(false)
+        }
       }
-
-      try {
-        const [userStats, runs] = await Promise.all([
-          fetchUserStats(user.id),
-          fetchRunHistory(user.id, 3)
-        ])
-        setStats(userStats)
-        setRecentRuns(runs)
-      } catch (error) {
-        console.error('Failed to load user data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
-  }, [user, isGuest])
+      loadData()
+      return () => { active = false }
+    }, [user, isGuest])
+  )
 
   function formatTier(tier: string | null | undefined): string {
     if (!tier) return '—'

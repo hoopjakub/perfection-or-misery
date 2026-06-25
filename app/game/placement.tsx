@@ -13,6 +13,8 @@ import { buildCLTeams } from '@/engine/cl-sim'
 import { buildWCTeams } from '@/engine/world-cup-sim'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
+import { GlobeReveal } from '@/components/GlobeReveal'
+import { isoForLeague, isoForNationId } from '@/data/geo-iso'
 import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 
 // Top-level router — delegates to the right placement component per mode
@@ -37,26 +39,29 @@ function LeaguePlacement() {
   const [phase,           setPhase]           = useState<Phase>('ready')
   const [eligibleSeasons, setEligibleSeasons] = useState<LeagueSeasonWithTeams[]>([])
   const [placedLeague,    setPlacedLeague]    = useState<LeagueSeason | null>(null)
-  const [spinDisplay,     setSpinDisplay]     = useState<string>('')
   const [teamOvr,         setTeamOvr]         = useState(0)
   const [loading,         setLoading]         = useState(true)
   const [leagueFilter,    setLeagueFilter]    = useState<'all' | 'specific'>('all')
+  const [allSeasons,      setAllSeasons]      = useState<LeagueSeasonWithTeams[]>([])
 
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.8)).current
   const slots = formation ? getSlotsForFormation(formation) : []
 
+  // Fetch the league-season pool once. Champions League / World Cup are their
+  // own modes — exclude their competitions entirely so they can never appear in
+  // domestic (League / All-Time / Era) placement.
   useEffect(() => {
     async function init() {
       if (!formation || draftedPlayers.length === 0) { setLoading(false); return }
       setLoading(true)
       const slots = getSlotsForFormation(formation)
-      const ovr   = calcTeamOvr(draftedPlayers, slots)
-      setTeamOvr(ovr)
+      setTeamOvr(calcTeamOvr(draftedPlayers, slots))
 
-      const allSeasons = await getAllClubSeasons()
-      const seasonMap  = new Map<string, LeagueSeasonWithTeams>()
-      for (const cs of allSeasons) {
+      const rows = await getAllClubSeasons()
+      const seasonMap = new Map<string, LeagueSeasonWithTeams>()
+      for (const cs of rows) {
+        if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_')) continue
         const key = `${cs.league_id}_${cs.year_start}`
         if (!seasonMap.has(key)) {
           seasonMap.set(key, {
@@ -68,46 +73,40 @@ function LeaguePlacement() {
           club_id: cs.club_id, club_name: cs.club_name, historical_ovr: cs.historical_ovr,
         })
       }
-
-      let filteredSeasons = Array.from(seasonMap.values())
-      if (mode === 'league' && selectedLeague && leagueFilter === 'specific') {
-        filteredSeasons = filteredSeasons.filter(s => s.leagueId === selectedLeague)
-      }
-
-      setEligibleSeasons(filterEligibleLeagues(ovr, filteredSeasons, mode === 'chaos'))
+      setAllSeasons(Array.from(seasonMap.values()))
       setLoading(false)
     }
     init()
   }, [])
 
-  function runSpinAnimation(final: LeagueSeasonWithTeams) {
-    let ticks = 0
-    const totalTicks = 24
-    function tick() {
-      const randomSeason = eligibleSeasons[Math.floor(Math.random() * eligibleSeasons.length)]
-      setSpinDisplay(randomSeason.leagueName + ' ' + randomSeason.yearStart + '/' + String(randomSeason.yearStart + 1).slice(-2))
-      ticks++
-      const delay = ticks < totalTicks * 0.6 ? 80 : ticks < totalTicks * 0.8 ? 160 : 280
-      if (ticks < totalTicks) {
-        setTimeout(tick, delay)
-      } else {
-        setSpinDisplay(`${final.leagueName} ${final.yearStart}/${String(final.yearStart + 1).slice(-2)}`)
-        const built = buildLeagueSeason(final, teamOvr)
-        setPlacedLeague(built)
-        Animated.parallel([
-          Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-          Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }),
-        ]).start(() => setPhase('revealed'))
-      }
+  // Re-derive the eligible pool whenever the league filter (or OVR) changes.
+  // This is what makes the "All Leagues / One League" toggle actually do
+  // something — previously the pool was only computed once on mount.
+  useEffect(() => {
+    if (allSeasons.length === 0) return
+    let pool = allSeasons
+    if (mode === 'league' && selectedLeague && leagueFilter === 'specific') {
+      pool = pool.filter(s => s.leagueId === selectedLeague)
     }
-    fadeAnim.setValue(0); scaleAnim.setValue(0.8)
-    tick()
-  }
+    setEligibleSeasons(filterEligibleLeagues(teamOvr, pool, mode === 'chaos'))
+  }, [allSeasons, leagueFilter, teamOvr, mode, selectedLeague])
 
+  // The globe IS the spin now: pick the placement up front, then let the globe
+  // rotate and lock onto the country before we reveal the league/season text.
   function handleSpin() {
     if (eligibleSeasons.length === 0) return
+    const built = buildLeagueSeason(spinPlacement(eligibleSeasons), teamOvr)
+    setPlacedLeague(built)
+    fadeAnim.setValue(0); scaleAnim.setValue(0.8)
     setPhase('spinning')
-    runSpinAnimation(spinPlacement(eligibleSeasons))
+  }
+
+  function handleGlobeLock() {
+    setPhase('revealed')
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }),
+    ]).start()
   }
 
   function handleContinue() {
@@ -197,11 +196,11 @@ function LeaguePlacement() {
               <Text style={styles.spinReadySubtitle}>{eligibleSeasons.length} league{eligibleSeasons.length !== 1 ? 's' : ''} eligible</Text>
             </>
           )}
-          {phase === 'spinning' && (
-            <>
-              <Text style={styles.spinningDisplay}>{spinDisplay}</Text>
-              <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.sm }} />
-            </>
+          {phase !== 'ready' && placedLeague && (
+            <View style={{ alignItems: 'center' }}>
+              <GlobeReveal targetId={isoForLeague(placedLeague.leagueId)} accent={theme.accent} onLock={handleGlobeLock} />
+              {phase === 'spinning' && <Text style={styles.spinningDisplay}>Spinning the globe…</Text>}
+            </View>
           )}
           {phase === 'revealed' && placedLeague && (
             <Animated.View style={[styles.revealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
@@ -417,6 +416,7 @@ function WCPlacement() {
   const [teamCount,    setTeamCount]    = useState(0)
   const [yearLabel,    setYearLabel]    = useState('')
   const [replacedName, setReplacedName] = useState('')
+  const [replacedId,   setReplacedId]   = useState('')
   const [loading,      setLoading]      = useState(true)
   const [revealed,     setRevealed]     = useState(false)
 
@@ -437,11 +437,12 @@ function WCPlacement() {
       const editionRows = rows.filter(r => r.year_start === latestYear)
       setYearLabel(String(latestYear))
 
-      // Replace one of the three weakest nations (chosen at random for variety),
-      // and badge the player's side as "<Nation> XI" so it's clearly their team.
+      // You can now land on ANY of the 48 nations — uniform over the full field,
+      // so you might take over Brazil *or* a minnow. The globe makes it dramatic.
       const sortedRows = [...editionRows].sort((a, b) => a.historical_ovr - b.historical_ovr)
-      const replaceIdx = Math.floor(Math.random() * Math.min(3, sortedRows.length))
+      const replaceIdx = Math.floor(Math.random() * sortedRows.length)
       setReplacedName(sortedRows[replaceIdx].club_name)
+      setReplacedId(sortedRows[replaceIdx].club_id)
 
       const clubs = sortedRows.map((r, idx) => ({
         clubId:   r.club_id,
@@ -456,16 +457,17 @@ function WCPlacement() {
       setTeamCount(teams.length)
       setWcTeams(teams)
       setLoading(false)
-
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
-          Animated.spring(scaleAnim, { toValue: 1, friction: 5,   useNativeDriver: true }),
-        ]).start(() => setRevealed(true))
-      }, 300)
+      // The globe spin drives the reveal now (see handleGlobeLock).
     }
     init()
   }, [])
+
+  function handleGlobeLock() {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 5,   useNativeDriver: true }),
+    ]).start(() => setRevealed(true))
+  }
 
   if (loading) {
     return (
@@ -502,6 +504,11 @@ function WCPlacement() {
       </View>
 
       <View style={styles.body}>
+        <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+          <GlobeReveal targetId={isoForNationId(replacedId)} accent={theme.accent} onLock={handleGlobeLock} />
+          {!revealed && <Text style={styles.spinningDisplay}>Spinning the globe…</Text>}
+        </View>
+
         <Animated.View style={[styles.compRevealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }], borderColor: theme.accent }]}>
           <Text style={[styles.compRevealBadge, { color: theme.accent }]}>FIFA WORLD CUP</Text>
           <Text style={styles.compRevealYear}>{yearLabel}</Text>

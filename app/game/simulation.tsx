@@ -21,6 +21,8 @@ import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/the
 import { useModeTheme } from '@/hooks/useModeTheme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
 import { TeamLabel } from '@/components/TeamLabel'
+import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers } from '@/engine/run-stats'
+import type { RosterPlayer, MatchScorers } from '@/types/stats'
 
 type SimPhase = 'review' | 'simulating' | 'completed' | 'group_review' | 'knockout_phase'
 type Speed = 'slow' | 'normal' | 'fast'
@@ -39,6 +41,9 @@ type KnockoutTie = {
   bPens?: number
   penKicksA?: PenKick[]
   penKicksB?: PenKick[]
+  leg1Scorers?: MatchScorers   // CL two-leg
+  leg2Scorers?: MatchScorers
+  scorers?: MatchScorers       // WC single match
 }
 type KnockoutRound = {
   round: string
@@ -59,6 +64,7 @@ type CompMatchResult = {
   homeGoals: number
   awayGoals: number
   outcome: 'home' | 'away' | 'draw'
+  scorers?: MatchScorers
 }
 
 // Left-to-right ordering for the pitch view: L* on the left, R* on the right,
@@ -77,6 +83,19 @@ function sortByStats(teams: SimTeam[]): SimTeam[] {
     if (gdB !== gdA) return gdB - gdA
     return b.stats.goalsFor - a.stats.goalsFor
   })
+}
+
+// Goalscorers under a match (home on the left, away on the right). `big` for your match.
+function ScorerLine({ scorers, big }: { scorers?: MatchScorers; big?: boolean }) {
+  const h = summariseScorers(scorers?.home)
+  const a = summariseScorers(scorers?.away)
+  if (!h && !a) return null
+  return (
+    <View style={styles.scorerRow}>
+      <Text style={[styles.scorerHalf, big && styles.scorerBig, { textAlign: 'right' }]} numberOfLines={2}>{h ? `⚽ ${h}` : ''}</Text>
+      <Text style={[styles.scorerHalf, big && styles.scorerBig]} numberOfLines={2}>{a ? `${a} ⚽` : ''}</Text>
+    </View>
+  )
 }
 
 // Top-level router — delegates to the right simulation per mode
@@ -116,6 +135,7 @@ function LeagueSimulation() {
   const [positionChangeAnim] = useState(new Animated.Value(0))
   const [isStartingSimulation, setIsStartingSimulation] = useState(false)
   const [isFinishingSimulation, setIsFinishingSimulation] = useState(false)
+  const finishingRef = useRef(false)   // bulletproof re-entry guard (state lags a tap)
 
   const totalMatchdays = placedLeague?.gamesPerSeason ?? 38
 
@@ -128,6 +148,9 @@ function LeagueSimulation() {
 
   // Matchday history tracker
   const matchdayHistoryRef = useRef<{ matchday: number; standings: SimTeam[]; fixtures: Fixture[] }[]>([])
+
+  // Goalscorer attribution pools (per club) — loaded async during the review screen.
+  const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
 
   // Smooth row-slide animation (FLIP technique via useLayoutEffect)
   const rowTransAnims = useRef<Record<string, Animated.Value>>({})
@@ -168,6 +191,11 @@ function LeagueSimulation() {
     const fixtures = generateFixtures(teams)
     setSimTeams(teams)
     setAllFixtures(fixtures)
+
+    // Load goalscorer pools in the background (ready well before kickoff).
+    loadLeaguePools(placedLeague.teams, draftedPlayers, placedLeague.yearStart)
+      .then(p => { poolByClubRef.current = p.poolByClub })
+      .catch(e => console.warn('[stats] roster load failed:', e))
   }, [placedLeague, totalTeamOvr])
 
   // Simulation loop — setTimeout (not setInterval) so each step fires exactly once.
@@ -193,6 +221,7 @@ function LeagueSimulation() {
   }
 
   function startSimulation() {
+    if (isStartingSimulation || phase !== 'review') return  // ignore double-taps
     setIsStartingSimulation(true)
     // Small delay to show loading animation
     setTimeout(() => {
@@ -219,6 +248,7 @@ function LeagueSimulation() {
 
       const result = simulateMatch(homeTeam, awayTeam)
       fixture.result = result
+      fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals)
 
       // Update statistics
       homeTeam.stats.played++
@@ -372,6 +402,7 @@ function LeagueSimulation() {
 
         const result = simulateMatch(homeTeam, awayTeam)
         fixture.result = result
+        fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals)
 
         // Update statistics
         homeTeam.stats.played++
@@ -464,6 +495,8 @@ function LeagueSimulation() {
   }
 
   function finishSimulation() {
+    if (finishingRef.current) return
+    finishingRef.current = true
     setIsFinishingSimulation(true)
     // Small delay to show loading animation
     setTimeout(() => {
@@ -511,7 +544,11 @@ function LeagueSimulation() {
   }
 
   const sortedStandings = sortTeams(simTeams)
-  
+  // Matchdays actually completed (the player plays once per matchday). Use this
+  // for the header/bar so the counter matches the "P" column instead of showing
+  // the upcoming matchday.
+  const playedCount = sortedStandings.find(t => t.isPlayer)?.stats.played ?? 0
+
   // Get standings for the current matchday from history
   // Match the header matchday counter with the standings display
   const currentMatchdayStandings = matchdayHistoryRef.current.length > 0
@@ -683,7 +720,7 @@ function LeagueSimulation() {
           {/* Progress Header */}
           <View style={styles.progressCard}>
             <View style={styles.progressTextRow}>
-              <Text style={styles.matchdayLabel}>Matchday {currentMatchday} / {totalMatchdays}</Text>
+              <Text style={styles.matchdayLabel}>Matchday {playedCount} / {totalMatchdays}</Text>
               <Text style={styles.simStatusText}>
                 {phase === 'completed' ? 'Season Complete' : isPlaying ? 'Simulating...' : 'Paused'}
               </Text>
@@ -692,7 +729,7 @@ function LeagueSimulation() {
               <View
                 style={[
                   styles.progressBarFill,
-                  { width: `${(currentMatchday / totalMatchdays) * 100}%`, backgroundColor: theme.accent }
+                  { width: `${(playedCount / totalMatchdays) * 100}%`, backgroundColor: theme.accent }
                 ]}
               />
             </View>
@@ -827,30 +864,33 @@ function LeagueSimulation() {
                       <View
                         key={i}
                         style={[
-                          styles.resultRow,
+                          styles.resultRowWrap,
                           isPlayerMatch && styles.resultRowPlayerHighlight,
                           resultColor && { backgroundColor: resultColor + '15' }
                         ]}
                       >
-                        <TeamLabel
-                          clubId={fixture.home.clubId}
-                          name={fixture.home.clubName}
-                          textStyle={[styles.resultClubNameText, isPlayerHome && { color: theme.accent, fontWeight: typography.bold }]}
-                          containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
-                          size={15}
-                        />
-                        <View style={[styles.scoreBadge, resultColor && { backgroundColor: resultColor + '33' }]}>
-                          <Text style={[styles.scoreText, resultColor && { color: resultColor }]}>
-                            {result.homeGoals} - {result.awayGoals}
-                          </Text>
+                        <View style={styles.resultRowInner}>
+                          <TeamLabel
+                            clubId={fixture.home.clubId}
+                            name={fixture.home.clubName}
+                            textStyle={[styles.resultClubNameText, isPlayerHome && { color: theme.accent, fontWeight: typography.bold }]}
+                            containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
+                            size={15}
+                          />
+                          <View style={[styles.scoreBadge, resultColor && { backgroundColor: resultColor + '33' }]}>
+                            <Text style={[styles.scoreText, resultColor && { color: resultColor }]}>
+                              {result.homeGoals} - {result.awayGoals}
+                            </Text>
+                          </View>
+                          <TeamLabel
+                            clubId={fixture.away.clubId}
+                            name={fixture.away.clubName}
+                            textStyle={[styles.resultClubNameText, isPlayerAway && { color: theme.accent, fontWeight: typography.bold }]}
+                            containerStyle={styles.resultTeamSide}
+                            size={15}
+                          />
                         </View>
-                        <TeamLabel
-                          clubId={fixture.away.clubId}
-                          name={fixture.away.clubName}
-                          textStyle={[styles.resultClubNameText, isPlayerAway && { color: theme.accent, fontWeight: typography.bold }]}
-                          containerStyle={styles.resultTeamSide}
-                          size={15}
-                        />
+                        <ScorerLine scorers={fixture.scorers} big={isPlayerMatch} />
                       </View>
                     )
                   })}
@@ -903,8 +943,18 @@ function CLSimulation() {
   const theme = MODE_THEMES.champions_league
   const [isStarting,   setIsStarting]   = useState(false)
   const [isFinishing,  setIsFinishing]  = useState(false)
+  const finishingRef = useRef(false)   // bulletproof re-entry guard (state lags a tap)
   // Records every league-phase result so the results screen can show matchdays.
   const leagueHistoryRef = useRef<CLLeagueMatch[]>([])
+  // Scorer pools, loaded once so we can attribute goalscorers live, matchday by
+  // matchday (same as the league sim does).
+  const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  useEffect(() => {
+    if (!clTeams || clTeams.length === 0 || draftedPlayers.length === 0) return
+    loadLeaguePools(clTeams, draftedPlayers, 2025)
+      .then(p => { poolByClubRef.current = p.poolByClub })
+      .catch(e => console.warn('[cl] pool load failed:', e))
+  }, [clTeams])
   const clPrevPosRef = useRef<number | null>(null)
   const [clPosDelta, setClPosDelta]     = useState<number | null>(null)
   const [positionChangeAnim]            = useState(new Animated.Value(0))
@@ -1022,12 +1072,13 @@ function CLSimulation() {
       upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome })
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers })
       leagueHistoryRef.current.push({
         matchday: currentMD,
         home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
         away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers,
       })
     })
 
@@ -1094,6 +1145,7 @@ function CLSimulation() {
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
           homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals),
         })
       })
     }
@@ -1104,12 +1156,29 @@ function CLSimulation() {
   }
 
   async function handleFinish() {
+    if (finishingRef.current) return
+    finishingRef.current = true
     setIsFinishing(true)
     koFinishedRef.current = false
     const sorted = sortByStats(simTeams) as CLTeam[]
     const result = simulateCLKnockoutsOnly(sorted)
 
-    // Collect all ties with pen shootouts to fetch kicker names
+    koStoredResultRef.current = {
+      leaguePhaseStandings: sorted,
+      ...result,
+      leagueMatchdays: leagueHistoryRef.current,
+    }
+
+    // Attribute goalscorers ONCE, BEFORE building the reveal ties (league
+    // matchdays already carry live scorers; this fills the knockout legs). The
+    // same match objects feed both the live reveal and the result screen.
+    try {
+      let pool = poolByClubRef.current
+      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, draftedPlayers, 2025)).poolByClub
+      attributeCLResultScorers(koStoredResultRef.current, pool)
+    } catch (e) { console.warn('[cl] scorer attribution failed:', e) }
+
+    // Fetch kicker names for any tie that went to penalties.
     const allMatches: CLKnockoutMatch[] = [
       ...result.playoffRound, ...result.r16, ...result.qf, ...result.sf,
       ...(result.final ? [result.final] : []),
@@ -1134,6 +1203,8 @@ function CLSimulation() {
         )
         penKicksA = expanded.kicksA
         penKicksB = expanded.kicksB
+        m.penKicksA = penKicksA   // persist the shootout for the result screen
+        m.penKicksB = penKicksB
       }
       return {
         teamA: m.teamA, teamB: m.teamB, winner: m.winner,
@@ -1142,6 +1213,7 @@ function CLSimulation() {
         extraTime: m.extraTime,
         aPens: m.aPens, bPens: m.bPens,
         penKicksA, penKicksB,
+        leg1Scorers: m.leg1Scorers, leg2Scorers: m.leg2Scorers,
       }
     }
 
@@ -1162,12 +1234,6 @@ function CLSimulation() {
         ? { round: 'final', label: 'UCL Final', autoDelay: 0, ties: [buildTie(result.final)] }
         : null,
     ].filter(Boolean) as KnockoutRound[]
-
-    koStoredResultRef.current = {
-      leaguePhaseStandings: sorted,
-      ...result,
-      leagueMatchdays: leagueHistoryRef.current,
-    }
 
     // If the player was eliminated in the league phase, there's no drama to
     // play through — jump straight to the results screen (which still shows the
@@ -1195,6 +1261,7 @@ function CLSimulation() {
   }
 
   const sorted = sortByStats(simTeams)
+  const playedCount = sorted.find(t => t.isPlayer)?.stats.played ?? 0
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
@@ -1337,11 +1404,11 @@ function CLSimulation() {
         <View style={styles.simContainer}>
           <View style={styles.progressCard}>
             <View style={styles.progressTextRow}>
-              <Text style={styles.matchdayLabel}>Matchday {currentMD} / {totalMatchdays}</Text>
+              <Text style={styles.matchdayLabel}>Matchday {playedCount} / {totalMatchdays}</Text>
               <Text style={styles.simStatusText}>{phase === 'completed' ? 'Phase Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
+              <View style={[styles.progressBarFill, { width: `${(playedCount / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
             </View>
             {phase !== 'completed' && (
               <View style={styles.controlsRow}>
@@ -1426,24 +1493,27 @@ function CLSimulation() {
                         : r.outcome === 'draw' ? colors.warning : '#DC2626'
                       : null
                     return (
-                      <View key={i} style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
-                        <TeamLabel
-                          clubId={r.home.clubId}
-                          name={r.home.clubName}
-                          textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
-                          containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
-                          size={15}
-                        />
-                        <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
-                          <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                      <View key={i}>
+                        <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
+                          <TeamLabel
+                            clubId={r.home.clubId}
+                            name={r.home.clubName}
+                            textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                            containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
+                            size={15}
+                          />
+                          <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
+                            <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                          </View>
+                          <TeamLabel
+                            clubId={r.away.clubId}
+                            name={r.away.clubName}
+                            textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                            containerStyle={styles.resultTeamSide}
+                            size={15}
+                          />
                         </View>
-                        <TeamLabel
-                          clubId={r.away.clubId}
-                          name={r.away.clubName}
-                          textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
-                          containerStyle={styles.resultTeamSide}
-                          size={15}
-                        />
+                        <ScorerLine scorers={r.scorers} big={isPM} />
                       </View>
                     )
                   })}
@@ -1487,6 +1557,7 @@ function WCSimulation() {
   const theme = MODE_THEMES.world_cup
   const [isStarting,    setIsStarting]    = useState(false)
   const [isFinishing,   setIsFinishing]   = useState(false)
+  const finishingRef = useRef(false)   // bulletproof re-entry guard (state lags a tap)
 
   // WC Knockout phase state
   const [wcKoRounds,       setWcKoRounds]       = useState<KnockoutRound[]>([])
@@ -1496,6 +1567,14 @@ function WCSimulation() {
   const wcKoFinishedRef = useRef(false)
   // Records every group-stage result so the results screen can show matchdays.
   const groupHistoryRef = useRef<WCGroupMatch[]>([])
+  // Scorer pools, loaded once so group-stage goalscorers show live.
+  const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  useEffect(() => {
+    if (!wcTeams || wcTeams.length === 0 || draftedPlayers.length === 0) return
+    loadLeaguePools(wcTeams, draftedPlayers, 2026)
+      .then(p => { poolByClubRef.current = p.poolByClub })
+      .catch(e => console.warn('[wc] pool load failed:', e))
+  }, [wcTeams])
 
   useEffect(() => {
     if (phase !== 'knockout_phase' || wcKoVisibleCount < 1) return
@@ -1584,12 +1663,13 @@ function WCSimulation() {
       upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome })
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers })
       groupHistoryRef.current.push({
         groupId: home.groupId, matchday: currentMD,
         home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
         away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers,
       })
     })
 
@@ -1619,6 +1699,7 @@ function WCSimulation() {
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
           homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals),
         })
       })
     }
@@ -1629,6 +1710,8 @@ function WCSimulation() {
   }
 
   async function handleFinish() {
+    if (finishingRef.current) return
+    finishingRef.current = true
     setIsFinishing(true)
     wcKoFinishedRef.current = false
 
@@ -1637,6 +1720,16 @@ function WCSimulation() {
       teams: g.teams.map(t => ({ ...t, stats: { ...t.stats } })),
     }))
     const result = simulateWCKnockoutsOnly(clonedGroups, simTeams)
+
+    wcKoStoredResultRef.current = { groups: clonedGroups, ...result, groupMatchdays: groupHistoryRef.current }
+
+    // Attribute goalscorers ONCE, BEFORE building the reveal ties (group
+    // matchdays already carry live scorers). Same match objects feed reveal + result.
+    try {
+      let pool = poolByClubRef.current
+      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, draftedPlayers, 2026)).poolByClub
+      attributeWCResultScorers(wcKoStoredResultRef.current, pool)
+    } catch (e) { console.warn('[wc] scorer attribution failed:', e) }
 
     // Collect teams involved in pen shootouts
     const penTeamIds = new Set<string>()
@@ -1662,6 +1755,8 @@ function WCSimulation() {
         )
         penKicksA = expanded.kicksA
         penKicksB = expanded.kicksB
+        m.penKicksHome = penKicksA   // persist the shootout for the result screen
+        m.penKicksAway = penKicksB
       }
       return {
         teamA: m.teamA, teamB: m.teamB, winner: m.winner,
@@ -1670,6 +1765,7 @@ function WCSimulation() {
         aPens: r.homePens ?? undefined,
         bPens: r.awayPens ?? undefined,
         penKicksA, penKicksB,
+        scorers: m.scorers,
       }
     }
 
@@ -1686,8 +1782,6 @@ function WCSimulation() {
       autoDelay: ROUND_DELAYS[r.round] ?? 3000,
       ties: r.matches.map(buildWCTie),
     }))
-
-    wcKoStoredResultRef.current = { groups: clonedGroups, ...result, groupMatchdays: groupHistoryRef.current }
 
     // If the player was knocked out in the group stage, there's no drama to
     // play through — jump straight to the results screen (which still shows the
@@ -1723,6 +1817,7 @@ function WCSimulation() {
         return gd !== 0 ? gd : b.stats.goalsFor - a.stats.goalsFor
       })
     : []
+  const playedCount = playerGroupSorted.find(t => t.isPlayer)?.stats.played ?? 0
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
@@ -1952,11 +2047,11 @@ function WCSimulation() {
         <View style={styles.simContainer}>
           <View style={styles.progressCard}>
             <View style={styles.progressTextRow}>
-              <Text style={styles.matchdayLabel}>Round {currentMD} / {totalMatchdays}</Text>
+              <Text style={styles.matchdayLabel}>Round {playedCount} / {totalMatchdays}</Text>
               <Text style={styles.simStatusText}>{phase === 'completed' ? 'Groups Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(currentMD / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
+              <View style={[styles.progressBarFill, { width: `${(playedCount / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
             </View>
             {phase !== 'completed' && (
               <View style={styles.controlsRow}>
@@ -2020,24 +2115,27 @@ function WCSimulation() {
                         : r.outcome === 'draw' ? colors.warning : '#DC2626'
                       : null
                     return (
-                      <View key={i} style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
-                        <TeamLabel
-                          clubId={r.home.clubId}
-                          name={r.home.clubName}
-                          textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
-                          containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
-                          size={15}
-                        />
-                        <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
-                          <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                      <View key={i}>
+                        <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
+                          <TeamLabel
+                            clubId={r.home.clubId}
+                            name={r.home.clubName}
+                            textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                            containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
+                            size={15}
+                          />
+                          <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
+                            <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                          </View>
+                          <TeamLabel
+                            clubId={r.away.clubId}
+                            name={r.away.clubName}
+                            textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
+                            containerStyle={styles.resultTeamSide}
+                            size={15}
+                          />
                         </View>
-                        <TeamLabel
-                          clubId={r.away.clubId}
-                          name={r.away.clubName}
-                          textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
-                          containerStyle={styles.resultTeamSide}
-                          size={15}
-                        />
+                        <ScorerLine scorers={r.scorers} big={isPM} />
                       </View>
                     )
                   })}
@@ -2219,17 +2317,32 @@ function KnockoutTieFull({ tie, penReveal, accent }: { tie: KnockoutTie; penReve
         />
       </View>
 
-      {/* Two-leg details (UCL) */}
+      {/* Two-leg details (UCL) with goalscorers */}
       {leg1 && leg2 && (
         <View style={styles.koLegRows}>
           <Text style={styles.koLegRow}>
             Leg 1: {teamA.clubName} {leg1.aGoals}–{leg1.bGoals} {teamB.clubName}
           </Text>
+          {(() => { const h = summariseScorers(tie.leg1Scorers?.home), a = summariseScorers(tie.leg1Scorers?.away)
+            return (h || a) ? <Text style={styles.koScorerLine}>⚽ {[h, a].filter(Boolean).join('  ·  ')}</Text> : null })()}
           <Text style={styles.koLegRow}>
             Leg 2: {teamB.clubName} {leg2.bGoals}–{leg2.aGoals} {teamA.clubName}
           </Text>
+          {(() => { const h = summariseScorers(tie.leg2Scorers?.home), a = summariseScorers(tie.leg2Scorers?.away)
+            return (h || a) ? <Text style={styles.koScorerLine}>⚽ {[h, a].filter(Boolean).join('  ·  ')}</Text> : null })()}
         </View>
       )}
+
+      {/* Single-match goalscorers (final / WC ties) */}
+      {!leg1 && (() => {
+        const s = tie.leg1Scorers ?? tie.scorers
+        const h = summariseScorers(s?.home), a = summariseScorers(s?.away)
+        return (h || a) ? (
+          <Text style={styles.koScorerLine}>
+            ⚽ {[h && `${teamA.clubName}: ${h}`, a && `${teamB.clubName}: ${a}`].filter(Boolean).join('  ·  ')}
+          </Text>
+        ) : null
+      })()}
 
       {/* Extra-time note (decided in ET, no shootout) */}
       {!hasPens && extraTime && (
@@ -2728,6 +2841,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  resultRowWrap: {
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  resultRowInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scorerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: 3,
+    paddingHorizontal: 2,
+  },
+  scorerHalf: {
+    flex: 1,
+    fontSize: 9,
+    color: colors.textMuted,
+  },
+  scorerBig: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
   resultRowPlayerHighlight: {
     backgroundColor: colors.accent + '09',
     borderRadius: radius.sm,
@@ -3051,6 +3190,12 @@ const styles = StyleSheet.create({
   koLegRow: {
     fontSize: typography.xs,
     color: colors.textSecondary,
+  },
+  koScorerLine: {
+    fontSize: 10,
+    color: colors.textMuted,
+    paddingLeft: spacing.sm,
+    marginBottom: 2,
   },
   koWinnerBanner: {
     fontSize: typography.xs,

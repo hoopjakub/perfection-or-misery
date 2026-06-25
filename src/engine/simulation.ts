@@ -84,6 +84,7 @@ export function simulateSeason(league: LeagueSeason): SeasonResult {
     unbeaten,
     perfectSeason,
     tier: assignTier(finalPosition, teams.length, unbeaten, perfectSeason),
+    matchdayHistory: [],
   }
 }
 

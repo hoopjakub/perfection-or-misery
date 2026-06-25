@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native'
+import { router } from 'expo-router'
 import { fetchLeaderboard, type LeaderboardEntry } from '@/db/queries/leaderboard'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
@@ -57,7 +58,16 @@ export default function LeaderboardScreen() {
       ) : (
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
           {leaderboard.map((entry, index) => (
-            <View key={entry.id} style={styles.entryCard}>
+            <Pressable
+              key={entry.id}
+              style={styles.entryCard}
+              onPress={() => router.push({
+                pathname: entry.mode === 'world_cup' ? '/game/wc-result'
+                        : entry.mode === 'champions_league' ? '/game/cl-result'
+                        : '/game/result',
+                params: { runId: entry.id },
+              })}
+            >
               <View style={styles.rankBadge}>
                 <Text style={styles.rankText}>#{index + 1}</Text>
               </View>
@@ -70,7 +80,7 @@ export default function LeaderboardScreen() {
                 <Text style={styles.entryScore}>{entry.score}</Text>
                 <Text style={styles.entryDate}>{formatDate(entry.created_at)}</Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       )}

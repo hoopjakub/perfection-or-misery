@@ -26,6 +26,7 @@ type GameStore = {
   wcTeams:        WCTeam[] | null
   clResult:       CLSeasonResult | null
   wcResult:       WCSeasonResult | null
+  quickSim:       boolean   // headless tester run — must never be saved to the DB
 
   startRun:       (mode: GameMode, formation: Formation, era?: string) => void
   addPlayer:      (player: DraftedPlayer) => void
@@ -62,6 +63,7 @@ const initialState = {
   wcTeams:         null,
   clResult:        null,
   wcResult:        null,
+  quickSim:        false,
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -91,6 +93,7 @@ export const useGameStore = create<GameStore>((set) => ({
     wcTeams:         null,
     clResult:        null,
     wcResult:        null,
+    quickSim:        false,
     // Keep mode, era, difficulty, selectedLeague, and accentColor
   })),
   setMode:        (mode, era) => set({ mode, era: era ?? null }),

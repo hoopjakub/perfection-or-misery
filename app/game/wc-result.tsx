@@ -4,6 +4,12 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveWCRun, fetchRunById } from '@/db/queries/runs'
+import { computeWCRunStats, summariseScorers } from '@/engine/run-stats'
+import { mergeCareerFromRun } from '@/db/queries/career'
+import { LineupPitch } from '@/components/LineupPitch'
+import { SquadSummary } from '@/components/SquadSummary'
+import { PenShootout } from '@/components/PenShootout'
+import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import { TeamLabel } from '@/components/TeamLabel'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
@@ -50,7 +56,7 @@ function sortGroupTeams(a: WCTeam, b: WCTeam): number {
 
 export default function WCResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers } = store
+  const { resetRun, formation, draftedPlayers, quickSim } = store
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
   const fromHistory = !!params.runId
@@ -58,6 +64,8 @@ export default function WCResultScreen() {
   const [dbRun, setDbRun] = useState<any>(null)
   const [loading, setLoading] = useState(fromHistory)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const [openKO, setOpenKO] = useState<WCKnockoutMatch | null>(null)
+  const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
 
   // Hero entrance — fade + rise the banner in once the result is on screen.
   const heroAnim = useRef(new Animated.Value(0)).current
@@ -81,6 +89,14 @@ export default function WCResultScreen() {
   // Full tournament: live from the store, or rehydrated from a saved run.
   const wcResult: WCSeasonResult | null =
     (dbRun?.wc_result as WCSeasonResult | undefined) ?? store.wcResult ?? null
+
+  // Squad stats (fresh runs only — needs the live drafted XI).
+  useEffect(() => {
+    if (fromHistory || !store.wcResult || draftedPlayers.length === 0) return
+    computeWCRunStats(store.wcResult, draftedPlayers)
+      .then(res => res && setRunStats(res))
+      .catch(e => console.warn('[wc-result] stats failed:', e))
+  }, [])
 
   if (loading) {
     return (
@@ -140,27 +156,53 @@ export default function WCResultScreen() {
 
   // Fire-and-forget save so navigation is instant (Supabase insert can be slow).
   // Never re-save a run that was loaded from history.
-  function persistRun() {
-    if (fromHistory) return
+  const savedRef = useRef(false)
+  const submittingRef = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Awaited (not fire-and-forget) so the run is in the DB before we navigate —
+  // otherwise Home re-fetches recent runs before the save lands.
+  async function persistRun() {
+    if (fromHistory || quickSim) return
+    if (savedRef.current) return       // never persist the same run twice
+    savedRef.current = true
     if (user && !isGuest && formation) {
-      saveWCRun({
-        userId: user.id,
-        formation,
-        teamOvr: playerTeam.ovr,
-        result: wcResult!,
-        squad: draftedPlayers,
-      }).catch(error => console.error('Failed to save WC run:', error))
+      try {
+        await saveWCRun({
+          userId: user.id,
+          formation,
+          teamOvr: playerTeam.ovr,
+          result: wcResult!,
+          squad: draftedPlayers,
+          stats: runStats?.stats,
+          awards: runStats?.awards,
+        })
+      } catch (error) { console.error('Failed to save WC run:', error) }
+    }
+    if (user && !isGuest && runStats) {
+      const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
+      await mergeCareerFromRun(user.id, {
+        competition: 'world_cup',
+        yourPlayers: runStats.stats.players.filter(p => p.isPlayerClub),
+        goalsFor: playerTeam.stats.goalsFor, goalsAgainst: playerTeam.stats.goalsAgainst,
+        potsWinnerId: pots?.isPlayerClub ? pots.playerId : undefined,
+        u21WinnerId:  u21?.isPlayerClub ? u21.playerId  : undefined,
+      }).catch(e => console.warn('[career] merge failed:', e))
     }
   }
 
-  function handlePlayAgain() {
-    persistRun()
+  async function handlePlayAgain() {
+    if (submittingRef.current) return
+    submittingRef.current = true; setSubmitting(true)
+    await persistRun()
     resetRun()
     router.replace('/game/mode-select')
   }
 
-  function handleReturnToHome() {
-    persistRun()
+  async function handleReturnToHome() {
+    if (submittingRef.current) return
+    submittingRef.current = true; setSubmitting(true)
+    await persistRun()
     resetRun()
     router.replace('/(tabs)')
   }
@@ -190,6 +232,19 @@ export default function WCResultScreen() {
           <StatBox label="Points" value={String(playerTeam.stats.points)} />
         </View>
       </View>
+
+      {/* Lineup + squad — live run or rehydrated from a saved one */}
+      {(() => {
+        const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        const form  = (fromHistory ? dbRun?.formation : formation) as any
+        const st    = runStats?.stats ?? dbRun?.stats ?? null
+        return (
+          <>
+            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} title="Your Lineup" />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={WC.accent} runId={params.runId} />}
+          </>
+        )
+      })()}
 
       {/* Player group standings */}
       {myGroupSorted.length > 0 && (
@@ -299,7 +354,8 @@ export default function WCResultScreen() {
             </View>
           )}
           <Text style={styles.phaseNote}>Scroll sideways · your matches are highlighted</Text>
-          <BracketView knockoutRounds={knockoutRounds} />
+          <Text style={styles.phaseNote}>Tap a tie to see the match detail</Text>
+          <BracketView knockoutRounds={knockoutRounds} onMatchPress={setOpenKO} />
         </View>
       )}
 
@@ -314,20 +370,34 @@ export default function WCResultScreen() {
 
       {/* Buttons */}
       {fromHistory ? (
-        <View style={styles.buttonRow}>
-          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
-            <Text style={styles.actionBtnText}>Back</Text>
-          </Pressable>
-        </View>
+        <>
+          {dbRun?.stats && (
+            <Pressable style={[styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
+              <Text style={styles.actionBtnText}>📊 View Stats</Text>
+            </Pressable>
+          )}
+          <View style={styles.buttonRow}>
+            <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+              <Text style={styles.actionBtnText}>Back</Text>
+            </Pressable>
+          </View>
+        </>
       ) : (
-        <View style={styles.buttonRow}>
-          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={handleReturnToHome}>
-            <Text style={styles.actionBtnText}>Return to Home</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
-            <Text style={styles.actionBtnText}>Play Again</Text>
-          </Pressable>
-        </View>
+        <>
+          {draftedPlayers.length > 0 && (
+            <Pressable style={[styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }]} onPress={() => router.push('/game/stats')}>
+              <Text style={styles.actionBtnText}>📊 View Stats</Text>
+            </Pressable>
+          )}
+          <View style={styles.buttonRow}>
+            <Pressable disabled={submitting} style={[styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }]} onPress={handleReturnToHome}>
+              <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
+            </Pressable>
+            <Pressable disabled={submitting} style={[styles.actionBtn, submitting && { opacity: 0.5 }]} onPress={handlePlayAgain}>
+              <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
+            </Pressable>
+          </View>
+        </>
       )}
 
       {/* Group detail modal */}
@@ -336,6 +406,7 @@ export default function WCResultScreen() {
         matches={openGroup ? groupMatchdays.filter(m => m.groupId === openGroup) : []}
         onClose={() => setOpenGroup(null)}
       />
+      <KOMatchModal match={openKO} onClose={() => setOpenKO(null)} />
     </ScrollView>
   )
 }
@@ -402,25 +473,32 @@ function GroupMatchdays({ matches }: { matches: WCGroupMatch[] }) {
       {matchdays.map(md => (
         <View key={md} style={styles.mdBlock}>
           <Text style={styles.mdLabel}>Matchday {md}</Text>
-          {matches.filter(m => m.matchday === md).map((m, i) => (
-            <View key={i} style={styles.mdRow}>
-              <TeamLabel
-                clubId={m.home.clubId}
-                name={m.home.clubName}
-                size={12}
-                containerStyle={[styles.mdTeam, styles.mdTeamRight]}
-                textStyle={[styles.mdTeamText, m.home.isPlayer && styles.mdTeamPlayer]}
-              />
-              <Text style={styles.mdScore}>{m.homeGoals} - {m.awayGoals}</Text>
-              <TeamLabel
-                clubId={m.away.clubId}
-                name={m.away.clubName}
-                size={12}
-                containerStyle={styles.mdTeam}
-                textStyle={[styles.mdTeamText, m.away.isPlayer && styles.mdTeamPlayer]}
-              />
-            </View>
-          ))}
+          {matches.filter(m => m.matchday === md).map((m, i) => {
+            const hs = summariseScorers(m.scorers?.home), as = summariseScorers(m.scorers?.away)
+            return (
+              <View key={i}>
+                <View style={styles.mdRow}>
+                  <TeamLabel
+                    clubId={m.home.clubId} name={m.home.clubName} size={12}
+                    containerStyle={[styles.mdTeam, styles.mdTeamRight]}
+                    textStyle={[styles.mdTeamText, m.home.isPlayer && styles.mdTeamPlayer]}
+                  />
+                  <Text style={styles.mdScore}>{m.homeGoals} - {m.awayGoals}</Text>
+                  <TeamLabel
+                    clubId={m.away.clubId} name={m.away.clubName} size={12}
+                    containerStyle={styles.mdTeam}
+                    textStyle={[styles.mdTeamText, m.away.isPlayer && styles.mdTeamPlayer]}
+                  />
+                </View>
+                {(hs || as) && (
+                  <View style={styles.mdScorers}>
+                    <Text style={[styles.mdScorerHalf, { textAlign: 'right' }]} numberOfLines={2}>{hs ? `⚽ ${hs}` : ''}</Text>
+                    <Text style={styles.mdScorerHalf} numberOfLines={2}>{as ? `${as} ⚽` : ''}</Text>
+                  </View>
+                )}
+              </View>
+            )
+          })}
         </View>
       ))}
     </View>
@@ -472,7 +550,7 @@ function GroupModal({ group, matches, onClose }: { group: WCGroup | null; matche
   )
 }
 
-function BracketView({ knockoutRounds }: { knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] }) {
+function BracketView({ knockoutRounds, onMatchPress }: { knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[]; onMatchPress: (m: WCKnockoutMatch) => void }) {
   const maxMatches = Math.max(...knockoutRounds.map(r => r.matches.length), 1)
   const colHeight = maxMatches * ROW_H
 
@@ -484,7 +562,7 @@ function BracketView({ knockoutRounds }: { knockoutRounds: { round: string; matc
             <Text style={styles.bracketColLabel}>{KO_ROUND_NAMES[round] ?? round.toUpperCase()}</Text>
             <View style={[styles.bracketColBody, { height: colHeight }]}>
               {matches.map((m, i) => (
-                <BracketMatch key={i} match={m} />
+                <BracketMatch key={i} match={m} onPress={() => onMatchPress(m)} />
               ))}
             </View>
           </View>
@@ -494,20 +572,54 @@ function BracketView({ knockoutRounds }: { knockoutRounds: { round: string; matc
   )
 }
 
-function BracketMatch({ match: m }: { match: WCKnockoutMatch }) {
+function BracketMatch({ match: m, onPress }: { match: WCKnockoutMatch; onPress: () => void }) {
   const isPM = m.teamA.isPlayer || m.teamB.isPlayer
   const aWon = m.winner.clubId === m.teamA.clubId
   const pens = m.result.homePens !== null ? `p${m.result.homePens}-${m.result.awayPens}` : null
   const suffix = pens ?? (m.result.extraTime ? 'AET' : null)
 
   return (
-    <View style={[styles.bracketCard, isPM && styles.bracketCardPlayer]}>
+    <Pressable style={[styles.bracketCard, isPM && styles.bracketCardPlayer]} onPress={onPress}>
       <BracketTeam team={m.teamA} won={aWon} goals={m.result.homeGoals} />
       <View style={styles.bracketDivider}>
         {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
       </View>
       <BracketTeam team={m.teamB} won={!aWon} goals={m.result.awayGoals} />
-    </View>
+    </Pressable>
+  )
+}
+
+// Tap-through detail for a WC knockout tie.
+function KOMatchModal({ match: m, onClose }: { match: WCKnockoutMatch | null; onClose: () => void }) {
+  const hs = summariseScorers(m?.scorers?.home)
+  const as = summariseScorers(m?.scorers?.away)
+  return (
+    <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalCard} onPress={() => {}}>
+          {m && (
+            <>
+              <Text style={styles.modalTitle}>{KO_ROUND_NAMES[m.round] ?? m.round.toUpperCase()}</Text>
+              <View style={styles.koModalScore}>
+                <TeamLabel clubId={m.teamA.clubId} name={m.teamA.clubName} size={16} containerStyle={{ flex: 1, justifyContent: 'flex-end' }} textStyle={styles.koModalTeam} />
+                <Text style={styles.koModalGoals}>{m.result.homeGoals} - {m.result.awayGoals}</Text>
+                <TeamLabel clubId={m.teamB.clubId} name={m.teamB.clubName} size={16} containerStyle={{ flex: 1 }} textStyle={styles.koModalTeam} />
+              </View>
+              {m.result.extraTime && <Text style={styles.koModalNote}>After extra time</Text>}
+              {m.result.homePens !== null && <Text style={styles.koModalPens}>Penalties: {m.result.homePens} – {m.result.awayPens} · {m.winner.clubName} advance</Text>}
+              {(hs || as) && (
+                <View style={styles.koModalScorers}>
+                  {hs ? <Text style={styles.koModalScorerLine}>⚽ {m.teamA.clubName}: {hs}</Text> : null}
+                  {as ? <Text style={styles.koModalScorerLine}>⚽ {m.teamB.clubName}: {as}</Text> : null}
+                </View>
+              )}
+              {m.penKicksHome && m.penKicksAway && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksHome} kicksB={m.penKicksAway} />}
+            </>
+          )}
+          <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
   )
 }
 
@@ -749,6 +861,15 @@ const styles = StyleSheet.create({
   mdTeamRight:  { justifyContent: 'flex-end' },
   mdTeamText:   { fontSize: 11, color: colors.textSecondary },
   mdTeamPlayer: { color: WC.accent, fontWeight: typography.bold },
+  mdScorers:    { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.xs, marginBottom: 4 },
+  mdScorerHalf: { flex: 1, fontSize: 9, color: colors.textMuted },
+  koModalScore: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.sm },
+  koModalTeam:  { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
+  koModalGoals: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
+  koModalNote:  { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
+  koModalPens:  { fontSize: typography.sm, color: WC.accent, fontWeight: typography.bold, textAlign: 'center', marginTop: 2 },
+  koModalScorers: { marginTop: spacing.sm, gap: 4, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
+  koModalScorerLine: { fontSize: typography.xs, color: colors.textSecondary },
   mdScore: {
     fontSize:   12,
     fontWeight: typography.black,

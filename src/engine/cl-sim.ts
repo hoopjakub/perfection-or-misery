@@ -1,6 +1,7 @@
 import type { SimTeam } from '@/types/simulation'
+import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
-import { simulateKnockout, simulateTwoLegs } from './knockout-match'
+import { simulateKnockout, simulateTwoLegs, type PenKick } from './knockout-match'
 
 export type CLPot = 1 | 2 | 3 | 4
 
@@ -20,6 +21,10 @@ export type CLKnockoutMatch = {
   extraTime: boolean
   aPens?:    number
   bPens?:    number
+  leg1Scorers?: MatchScorers   // attributed once, stored — leg1 (or the single final)
+  leg2Scorers?: MatchScorers   // leg2 (teamB at home)
+  penKicksA?: PenKick[]        // shootout sequence, stored for the result screen
+  penKicksB?: PenKick[]
 }
 
 // A single league-phase fixture result, recorded for the results screen.
@@ -29,6 +34,7 @@ export type CLLeagueMatch = {
   away:      { clubId: string; clubName: string; isPlayer: boolean }
   homeGoals: number
   awayGoals: number
+  scorers?:  MatchScorers
 }
 
 export type CLSeasonResult = {

@@ -4,8 +4,14 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
+import { computeCLRunStats, summariseScorers } from '@/engine/run-stats'
+import { mergeCareerFromRun } from '@/db/queries/career'
+import { LineupPitch } from '@/components/LineupPitch'
+import { SquadSummary } from '@/components/SquadSummary'
+import { PenShootout } from '@/components/PenShootout'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
+import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 
 const CL = MODE_THEMES.champions_league
 
@@ -35,7 +41,7 @@ const POT_COLORS: Record<number, string> = {
 
 export default function CLResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers } = store
+  const { resetRun, formation, draftedPlayers, quickSim } = store
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
   const fromHistory = !!params.runId
@@ -43,6 +49,8 @@ export default function CLResultScreen() {
   const [dbRun, setDbRun] = useState<any>(null)
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
+  const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
+  const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
 
   // Hero entrance — fade + rise the banner in once the result is on screen.
   const heroAnim = useRef(new Animated.Value(0)).current
@@ -64,6 +72,14 @@ export default function CLResultScreen() {
 
   const clResult: CLSeasonResult | null =
     (dbRun?.cl_result as CLSeasonResult | undefined) ?? store.clResult ?? null
+
+  // Squad stats (fresh runs only — needs the live drafted XI).
+  useEffect(() => {
+    if (fromHistory || !store.clResult || draftedPlayers.length === 0) return
+    computeCLRunStats(store.clResult, draftedPlayers)
+      .then(res => res && setRunStats(res))
+      .catch(e => console.warn('[cl-result] stats failed:', e))
+  }, [])
 
   if (loading) {
     return (
@@ -107,27 +123,53 @@ export default function CLResultScreen() {
     if (m.winner.isPlayer) koW++; else koL++
   })
 
-  function persistRun() {
-    if (fromHistory) return
+  const savedRef = useRef(false)
+  const submittingRef = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Awaited (not fire-and-forget) so the run is in the DB before we navigate —
+  // otherwise Home re-fetches recent runs before the save lands.
+  async function persistRun() {
+    if (fromHistory || quickSim) return
+    if (savedRef.current) return       // never persist the same run twice
+    savedRef.current = true
     if (user && !isGuest && formation) {
-      saveCLRun({
-        userId: user.id,
-        formation,
-        teamOvr: playerTeam.ovr,
-        result: clResult!,
-        squad: draftedPlayers,
-      }).catch(error => console.error('Failed to save CL run:', error))
+      try {
+        await saveCLRun({
+          userId: user.id,
+          formation,
+          teamOvr: playerTeam.ovr,
+          result: clResult!,
+          squad: draftedPlayers,
+          stats: runStats?.stats,
+          awards: runStats?.awards,
+        })
+      } catch (error) { console.error('Failed to save CL run:', error) }
+    }
+    if (user && !isGuest && runStats) {
+      const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
+      await mergeCareerFromRun(user.id, {
+        competition: 'champions_league',
+        yourPlayers: runStats.stats.players.filter(p => p.isPlayerClub),
+        goalsFor: playerTeam.stats.goalsFor, goalsAgainst: playerTeam.stats.goalsAgainst,
+        potsWinnerId: pots?.isPlayerClub ? pots.playerId : undefined,
+        u21WinnerId:  u21?.isPlayerClub ? u21.playerId  : undefined,
+      }).catch(e => console.warn('[career] merge failed:', e))
     }
   }
 
-  function handlePlayAgain() {
-    persistRun()
+  async function handlePlayAgain() {
+    if (submittingRef.current) return
+    submittingRef.current = true; setSubmitting(true)
+    await persistRun()
     resetRun()
     router.replace('/game/mode-select')
   }
 
-  function handleReturnToHome() {
-    persistRun()
+  async function handleReturnToHome() {
+    if (submittingRef.current) return
+    submittingRef.current = true; setSubmitting(true)
+    await persistRun()
     resetRun()
     router.replace('/(tabs)')
   }
@@ -163,6 +205,19 @@ export default function CLResultScreen() {
           <StatBox label="Goals" value={`${playerTeam.stats.goalsFor}-${playerTeam.stats.goalsAgainst}`} />
         </View>
       </View>
+
+      {/* Lineup + squad — live run or rehydrated from a saved one */}
+      {(() => {
+        const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        const form  = (fromHistory ? dbRun?.formation : formation) as any
+        const st    = runStats?.stats ?? dbRun?.stats ?? null
+        return (
+          <>
+            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} title="Your Lineup" />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={CL.accent} runId={params.runId} />}
+          </>
+        )
+      })()}
 
       {/* Full league phase standings — all 36, scrollable, tap a row for matchdays */}
       <View style={styles.card}>
@@ -217,9 +272,10 @@ export default function CLResultScreen() {
               { key: 'final',   label: 'Final',          sub: '',       matches: final ? [final] : [] },
             ].filter(r => r.matches.length > 0)}
             directIds={new Set(leaguePhaseStandings.slice(0, 8).map(t => t.clubId))}
+            onMatchPress={setOpenKO}
           />
           <Text style={styles.phaseNote}>
-            <Text style={{ color: colors.tiers.perfection }}>◆</Text> entered the Round of 16 directly (1st–8th) · all others came through the Playoff round
+            <Text style={{ color: colors.tiers.perfection }}>◆</Text> entered the Round of 16 directly (1st–8th) · all others came through the Playoff round · tap a tie for detail
           </Text>
         </View>
       )}
@@ -235,20 +291,34 @@ export default function CLResultScreen() {
 
       {/* Buttons */}
       {fromHistory ? (
-        <View style={styles.buttonRow}>
-          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
-            <Text style={styles.actionBtnText}>Back</Text>
-          </Pressable>
-        </View>
+        <>
+          {dbRun?.stats && (
+            <Pressable style={[styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
+              <Text style={styles.actionBtnText}>📊 View Stats</Text>
+            </Pressable>
+          )}
+          <View style={styles.buttonRow}>
+            <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+              <Text style={styles.actionBtnText}>Back</Text>
+            </Pressable>
+          </View>
+        </>
       ) : (
-        <View style={styles.buttonRow}>
-          <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={handleReturnToHome}>
-            <Text style={styles.actionBtnText}>Return to Home</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={handlePlayAgain}>
-            <Text style={styles.actionBtnText}>Play Again</Text>
-          </Pressable>
-        </View>
+        <>
+          {draftedPlayers.length > 0 && (
+            <Pressable style={[styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }]} onPress={() => router.push('/game/stats')}>
+              <Text style={styles.actionBtnText}>📊 View Stats</Text>
+            </Pressable>
+          )}
+          <View style={styles.buttonRow}>
+            <Pressable disabled={submitting} style={[styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }]} onPress={handleReturnToHome}>
+              <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
+            </Pressable>
+            <Pressable disabled={submitting} style={[styles.actionBtn, submitting && { opacity: 0.5 }]} onPress={handlePlayAgain}>
+              <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
+            </Pressable>
+          </View>
+        </>
       )}
 
       {/* Team matchday modal */}
@@ -257,6 +327,7 @@ export default function CLResultScreen() {
         matches={openTeam ? leagueMatchdays : []}
         onClose={() => setOpenTeam(null)}
       />
+      <KOTieModal match={openKO} onClose={() => setOpenKO(null)} />
     </ScrollView>
   )
 }
@@ -305,14 +376,23 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
         const gf = atHome ? m.homeGoals : m.awayGoals
         const ga = atHome ? m.awayGoals : m.homeGoals
         const rc = gf > ga ? colors.success : gf < ga ? '#DC2626' : colors.warning
+        const myS  = summariseScorers(atHome ? m.scorers?.home : m.scorers?.away)
+        const oppS = summariseScorers(atHome ? m.scorers?.away : m.scorers?.home)
         return (
-          <View key={i} style={styles.mdRow}>
-            <Text style={styles.mdNum}>MD{m.matchday}</Text>
-            <Text style={styles.mdVenue}>{atHome ? 'vs' : '@'}</Text>
-            <Text style={styles.mdOpp} numberOfLines={1}>{oppName}</Text>
-            <View style={[styles.mdScoreBadge, { backgroundColor: rc + '22' }]}>
-              <Text style={[styles.mdScoreText, { color: rc }]}>{gf}-{ga}</Text>
+          <View key={i}>
+            <View style={styles.mdRow}>
+              <Text style={styles.mdNum}>MD{m.matchday}</Text>
+              <Text style={styles.mdVenue}>{atHome ? 'vs' : '@'}</Text>
+              <Text style={styles.mdOpp} numberOfLines={1}>{oppName}</Text>
+              <View style={[styles.mdScoreBadge, { backgroundColor: rc + '22' }]}>
+                <Text style={[styles.mdScoreText, { color: rc }]}>{gf}-{ga}</Text>
+              </View>
             </View>
+            {(myS || oppS) && (
+              <Text style={styles.mdScorerLine} numberOfLines={2}>
+                {[myS && `⚽ ${myS}`, oppS && `· ${oppS}`].filter(Boolean).join('  ')}
+              </Text>
+            )}
           </View>
         )
       })}
@@ -347,7 +427,7 @@ function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubNam
 type BracketRound = { key: string; label: string; sub: string; matches: CLKnockoutMatch[]; showDirect?: boolean }
 const BRACKET_ROW_H = 72
 
-function BracketView({ rounds, directIds }: { rounds: BracketRound[]; directIds: Set<string> }) {
+function BracketView({ rounds, directIds, onMatchPress }: { rounds: BracketRound[]; directIds: Set<string>; onMatchPress: (m: CLKnockoutMatch) => void }) {
   const maxMatches = Math.max(...rounds.map(r => r.matches.length), 1)
   const colHeight = maxMatches * BRACKET_ROW_H
 
@@ -360,7 +440,7 @@ function BracketView({ rounds, directIds }: { rounds: BracketRound[]; directIds:
             <Text style={styles.bracketColSub}>{r.sub || ' '}</Text>
             <View style={[styles.bracketColBody, { height: colHeight }]}>
               {r.matches.map((m, i) => (
-                <BracketMatch key={i} match={m} directIds={directIds} showDirect={!!r.showDirect} />
+                <BracketMatch key={i} match={m} directIds={directIds} showDirect={!!r.showDirect} onPress={() => onMatchPress(m)} />
               ))}
             </View>
           </View>
@@ -370,12 +450,12 @@ function BracketView({ rounds, directIds }: { rounds: BracketRound[]; directIds:
   )
 }
 
-function BracketMatch({ match: m, directIds, showDirect }: { match: CLKnockoutMatch; directIds: Set<string>; showDirect: boolean }) {
+function BracketMatch({ match: m, directIds, showDirect, onPress }: { match: CLKnockoutMatch; directIds: Set<string>; showDirect: boolean; onPress: () => void }) {
   const isPM   = m.teamA.isPlayer || m.teamB.isPlayer
   const aWon   = m.winner.clubId === m.teamA.clubId
   const suffix = m.aPens !== undefined ? `pens ${m.aPens}-${m.bPens}` : m.extraTime ? 'AET' : null
   return (
-    <View style={[styles.bracketCard, isPM && styles.bracketCardPlayer]}>
+    <Pressable style={[styles.bracketCard, isPM && styles.bracketCardPlayer]} onPress={onPress}>
       <BracketTeam team={m.teamA} won={aWon} goals={m.aGoals} direct={showDirect && directIds.has(m.teamA.clubId)} />
       <View style={styles.bracketDivider}>
         {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
@@ -384,6 +464,51 @@ function BracketMatch({ match: m, directIds, showDirect }: { match: CLKnockoutMa
         )}
       </View>
       <BracketTeam team={m.teamB} won={!aWon} goals={m.bGoals} direct={showDirect && directIds.has(m.teamB.clubId)} />
+    </Pressable>
+  )
+}
+
+const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-Final', sf: 'Semi-Final', final: 'Final' }
+
+// Tap-through detail for a CL knockout tie (two legs, or the single final).
+function KOTieModal({ match: m, onClose }: { match: CLKnockoutMatch | null; onClose: () => void }) {
+  return (
+    <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalCard} onPress={() => {}}>
+          {m && (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>{CL_KO_NAMES[m.round] ?? m.round}</Text>
+              <Text style={styles.koTieAgg}>{m.teamA.clubName} {m.aGoals} – {m.bGoals} {m.teamB.clubName} {m.leg1 ? '(agg.)' : ''}</Text>
+              {m.extraTime && <Text style={styles.koModalNote}>Decided after extra time</Text>}
+              {m.aPens !== undefined && <Text style={styles.koModalPens}>Penalties: {m.aPens} – {m.bPens} · {m.winner.clubName} advance</Text>}
+              {m.penKicksA && m.penKicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksA} kicksB={m.penKicksB} />}
+
+              {m.leg1 ? (
+                <>
+                  <KOLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} />
+                  {m.leg2 && <KOLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} homeId={m.teamB.clubId} />}
+                </>
+              ) : (
+                <KOLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} />
+              )}
+            </ScrollView>
+          )}
+          <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
+
+function KOLeg({ label, home, away, hg, ag, scorers, homeId }: { label: string; home: string; away: string; hg: number; ag: number; scorers?: import('@/types/stats').MatchScorers; homeId: string }) {
+  const hs = summariseScorers(scorers?.home), as = summariseScorers(scorers?.away)
+  return (
+    <View style={styles.koLegBlock}>
+      <Text style={styles.koLegLabel}>{label}</Text>
+      <Text style={styles.koLegScore}>{home} {hg} – {ag} {away}</Text>
+      {hs ? <Text style={styles.koLegScorer}>⚽ {home}: {hs}</Text> : null}
+      {as ? <Text style={styles.koLegScorer}>⚽ {away}: {as}</Text> : null}
     </View>
   )
 }
@@ -562,6 +687,14 @@ const styles = StyleSheet.create({
   mdOpp:   { flex: 1, fontSize: 12, color: colors.textSecondary },
   mdScoreBadge: { borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2, minWidth: 40, alignItems: 'center' },
   mdScoreText:  { fontSize: 12, fontWeight: typography.black },
+  mdScorerLine: { fontSize: 9, color: colors.textMuted, paddingLeft: 34, paddingBottom: 4 },
+  koTieAgg:     { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary, textAlign: 'center', marginVertical: spacing.xs },
+  koModalNote:  { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
+  koModalPens:  { fontSize: typography.sm, color: CL.accent, fontWeight: typography.bold, textAlign: 'center', marginBottom: spacing.sm },
+  koLegBlock:   { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
+  koLegLabel:   { fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  koLegScore:   { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
+  koLegScorer:  { fontSize: typography.xs, color: colors.textSecondary },
 
   // knockout bracket
   bracketScroll: { marginHorizontal: -spacing.xs, marginTop: spacing.sm },

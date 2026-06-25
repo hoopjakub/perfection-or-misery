@@ -26,6 +26,8 @@ export type DraftedPlayer = {
   season: string
   slotIndex: number
   isIcon: boolean
+  birthYear?: number | null   // for U21 awards (stats system)
+  yearStart?: number          // edition start year (e.g. 2022 for 22/23)
 }
 
 export type LeagueSeason = {

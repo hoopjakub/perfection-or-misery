@@ -5,6 +5,27 @@ import type { DraftedPlayer, GameMode } from '@/types/game'
 import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { CLSeasonResult } from '@/engine/cl-sim'
 
+// Insert a run, tolerating optional columns that may not exist in Supabase yet
+// (highlights / matchday_history / wc_result / cl_result / future stats columns).
+// On a PostgREST "column not found" error we drop that column and retry, so the
+// core run always saves even before the optional columns are added to the table.
+async function insertRun(row: Record<string, unknown>): Promise<void> {
+  const payload: Record<string, unknown> = { ...row }
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const { error } = await supabase.from('runs').insert(payload as any)
+    if (!error) return
+    const missing = error.code === 'PGRST204'
+      ? error.message?.match(/Could not find the '([^']+)' column/)?.[1]
+      : undefined
+    if (missing && missing in payload) {
+      console.warn(`[saveRun] '${missing}' column missing in DB — dropping it and retrying`)
+      delete payload[missing]
+      continue
+    }
+    throw error
+  }
+}
+
 export async function saveRun(params: {
   userId: string
   mode: GameMode
@@ -16,6 +37,8 @@ export async function saveRun(params: {
   seasonResult: SeasonResult
   squad: DraftedPlayer[]
   matchdayHistory: unknown
+  stats?: unknown
+  awards?: unknown
 }) {
   const score = calculateScore({
     mode: params.mode,
@@ -26,7 +49,7 @@ export async function saveRun(params: {
     draws: params.seasonResult.draws,
   })
 
-  const { error } = await supabase.from('runs').insert({
+  await insertRun({
     user_id: params.userId,
     mode: params.mode,
     formation: params.formation,
@@ -44,17 +67,16 @@ export async function saveRun(params: {
     goals_against: params.seasonResult.goalsAgainst,
     score,
     squad: params.squad,
-    // @ts-ignore - matchday_history column needs to be added to DB
+    // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     matchday_history: params.matchdayHistory,
-    // @ts-ignore - highlights column (jsonb) needs to be added to DB
     highlights: {
       biggestWin: params.seasonResult.biggestWin,
       worstLoss:  params.seasonResult.worstLoss,
       upsets:     params.seasonResult.upsets,
     },
+    stats:  params.stats,
+    awards: params.awards,
   })
-
-  if (error) throw error
 }
 
 // World Cup runs don't have a league position, so map how far the player
@@ -75,6 +97,8 @@ export async function saveWCRun(params: {
   teamOvr: number
   result: WCSeasonResult
   squad: DraftedPlayer[]
+  stats?: unknown
+  awards?: unknown
 }) {
   const { result } = params
   const pt = result.playerTeam
@@ -90,7 +114,7 @@ export async function saveWCRun(params: {
     draws: pt.stats.drawn,
   })
 
-  const { error } = await supabase.from('runs').insert({
+  await insertRun({
     user_id: params.userId,
     mode: 'world_cup',
     formation: params.formation,
@@ -109,12 +133,12 @@ export async function saveWCRun(params: {
     goals_against: pt.stats.goalsAgainst,
     score,
     squad: params.squad,
-    // @ts-ignore - wc_result column (jsonb) needs to be added to DB.
-    // Stores the full tournament so the WC result page can be rebuilt from history.
+    // Full tournament so the WC result page can be rebuilt from history.
+    // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     wc_result: result,
+    stats:  params.stats,
+    awards: params.awards,
   })
-
-  if (error) throw error
 }
 
 // Champions League: no league position either, so map the round reached to a
@@ -135,6 +159,8 @@ export async function saveCLRun(params: {
   teamOvr: number
   result: CLSeasonResult
   squad: DraftedPlayer[]
+  stats?: unknown
+  awards?: unknown
 }) {
   const { result } = params
   const pt = result.playerTeam
@@ -150,7 +176,7 @@ export async function saveCLRun(params: {
     draws: pt.stats.drawn,
   })
 
-  const { error } = await supabase.from('runs').insert({
+  await insertRun({
     user_id: params.userId,
     mode: 'champions_league',
     formation: params.formation,
@@ -169,12 +195,12 @@ export async function saveCLRun(params: {
     goals_against: pt.stats.goalsAgainst,
     score,
     squad: params.squad,
-    // @ts-ignore - cl_result column (jsonb) needs to be added to DB.
-    // Stores the full tournament so the CL result page can be rebuilt from history.
+    // Full tournament so the CL result page can be rebuilt from history.
+    // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     cl_result: result,
+    stats:  params.stats,
+    awards: params.awards,
   })
-
-  if (error) throw error
 }
 
 export async function fetchRunById(runId: string) {

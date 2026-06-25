@@ -43,6 +43,12 @@ export default function ProfileScreen() {
         </Pressable>
       )}
 
+      {!isGuest && (
+        <Pressable style={styles.btn} onPress={() => router.push('/game/career')}>
+          <Text style={styles.btnText}>CAREER</Text>
+        </Pressable>
+      )}
+
       <Pressable style={styles.btn} onPress={handleHowToPlay}>
         <Text style={styles.btnText}>HOW TO PLAY</Text>
       </Pressable>

@@ -32,11 +32,20 @@
       "visible": "immersive"
     },
     "expo": {
-      "assets": ["assets/db/players_v4.db"],
+      "assets": [
+        "assets/db/players_v4.db"
+      ],
       "backgroundColor": "#0A0E1A",
       "android": {
         "backgroundColor": "#0A0E1A"
       }
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "eebf5b96-e62d-478e-89d9-955e71192983"
+      }
+    },
+    "owner": "yolotime4564"
   }
 }

@@ -4,6 +4,7 @@ export type PlayerRow = {
   id: string
   name: string
   nationality: string
+  birth_year: number | null
   primary_position: string
   secondary_positions: string
   ovr: number
@@ -24,7 +25,7 @@ export type PlayerRow = {
 export async function getPlayersForClubSeason(clubSeasonId: string): Promise<PlayerRow[]> {
   const db = await getDb()
   return db.getAllAsync<PlayerRow>(
-    `SELECT ps.*, p.name, p.nationality, p.primary_position, p.secondary_positions,
+    `SELECT ps.*, p.name, p.nationality, p.birth_year, p.primary_position, p.secondary_positions,
             c.name AS club_name, cs.year_start
      FROM player_seasons ps
      JOIN players p ON p.id = ps.player_id
