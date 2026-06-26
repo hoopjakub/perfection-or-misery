@@ -179,6 +179,19 @@ A spinning orthographic globe of real country outlines (SVG via `react-native-sv
 
 ---
 
-## 13. Next on the agenda (not yet built)
+## 13. Scrapers
 
-- **Scrapers** for all leagues, the Champions League, and other competitions — aiming for **fuller squads** (ideally the full transfer-market squad per club, not just a thin XI), and a **smarter Champions League scraper** that selects the *best* players via a different method than the current one.
+Transfermarkt scrapers live in `scripts/`, sharing `scripts/lib/transfermarkt.ts` (fetch/parse helpers + the rating model). Each writes a `scripts/seed/*.json` consumed by `npm run build-db`.
+
+**Player ratings (improved market-value model):** OVR starts from a market-value log curve, then two corrections fix MV's biases — an **age** term (strip the potential premium on ≤23s, recover the short-career discount on 30+s) and a **playing-time** term (minutes share within the squad, normalised to the most-used player). Real **appearances / minutes / goals / assists** are pulled from each club's season performance page (previously these were all 0).
+
+**Squad depth:** the full first-team squad (~24-26, the whole kader) instead of a thin top-15.
+
+**Curated data preserved:** when a seed already exists, each club's id / colours / short name / logo is kept (matched by normalised name); only players are refreshed. Newly promoted clubs get generated meta.
+
+Built & validated against live TM:
+- `scripts/scrape-league.ts` — top-5 leagues (`premier_league`, `la_liga`, `bundesliga`, `serie_a`, `ligue_1`). Run all, or one: `npx tsx scripts/scrape-league.ts la_liga` (`LIMIT=n` for testing).
+- `scripts/scrape-ucl.ts` — Champions League, reworked onto the shared lib (`_ucl` ids).
+- `scripts/scrape-wc.ts` — World Cup national teams (`_nt` ids). NT pages use a different row layout (no DOB — birth year derived from age) and the WC-2026 participants page 404s, so verein ids are resolved from the **FIFA world ranking** (`fetchNationIndex`) and matched to the existing 48 nations by normalised name + a small alias table (Cabo Verde→Cape Verde, DR Congo→Democratic Republic of the Congo, Côte d'Ivoire→Ivory Coast, Korea Republic→South Korea, United States→USA). Best ~26 by market value; no playing-time term (NT minutes are split across qualifiers/Nations League). A nation that can't be matched keeps its existing squad untouched and is reported. All 48 match today.
+
+Current season only (2025/26 · 2026 for the WC) for now; multi-season per-league back-catalogue (e.g. last 10 years) is a later pass.
