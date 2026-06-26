@@ -373,8 +373,14 @@ export async function fetchNationIndex(pages = 10): Promise<Map<string, { slug: 
 
 // Parse a competition/participants page → unique { slug, vereinId } clubs.
 export function parseParticipants(doc: HTMLElement): { slug: string; vereinId: string }[] {
+  // Scope to the FIRST `table.items` — the league's clubs table (final-table
+  // order). Anything else on the startseite (the "Subsequent competitions"
+  // relegation-playoff box, latest-transfers sidebar, related news) also links
+  // /verein/ pages and would otherwise leak 2.Bundesliga / Ligue 2 sides in,
+  // giving 19- or 21-team leagues.
+  const scope = doc.querySelector('table.items') ?? doc
   const seen = new Map<string, { slug: string; vereinId: string }>()
-  for (const a of doc.querySelectorAll('a')) {
+  for (const a of scope.querySelectorAll('a')) {
     const m = (a.getAttribute('href') || '').match(/^\/([^/]+)\/(?:startseite|kader|spielplan)\/verein\/(\d+)/)
     if (m && !seen.has(m[2])) seen.set(m[2], { slug: m[1], vereinId: m[2] })
   }
