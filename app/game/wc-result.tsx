@@ -66,6 +66,10 @@ export default function WCResultScreen() {
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [openKO, setOpenKO] = useState<WCKnockoutMatch | null>(null)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
+  // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
+  const savedRef = useRef(false)
+  const submittingRef = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Hero entrance — fade + rise the banner in once the result is on screen.
   const heroAnim = useRef(new Animated.Value(0)).current
@@ -153,12 +157,6 @@ export default function WCResultScreen() {
     koGA += playerIsA ? m.result.awayGoals : m.result.homeGoals
     if (m.winner.isPlayer) koW++; else koL++
   })
-
-  // Fire-and-forget save so navigation is instant (Supabase insert can be slow).
-  // Never re-save a run that was loaded from history.
-  const savedRef = useRef(false)
-  const submittingRef = useRef(false)
-  const [submitting, setSubmitting] = useState(false)
 
   // Awaited (not fire-and-forget) so the run is in the DB before we navigate —
   // otherwise Home re-fetches recent runs before the save lands.

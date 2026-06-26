@@ -199,6 +199,11 @@ export default function ResultScreen() {
   const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
+  // Re-entry guard for the save/exit buttons — a quick double-tap (or tapping
+  // both buttons) used to fire saveRun twice. Declared up here so it sits above
+  // the early returns and never violates the rules of hooks.
+  const submittingRef = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // A "fresh" run has the live squad + scorers in store (vs a history load).
   const isFreshRun = !!(simResult?.matchdayHistory?.length && draftedPlayers.length > 0 && placedLeague)
@@ -375,13 +380,6 @@ export default function ResultScreen() {
   // Default to final matchday if not selected
   const currentMatchday = selectedMatchday ?? matchdayHistory.length
   const currentSnapshot = matchdayHistory[currentMatchday - 1]
-
-  // Accumulate this run's drafted players into your lifetime career.
-  // Guards against the double-save bug: a quick double-tap (or tapping both
-  // buttons) used to fire saveRun twice because the handlers were async with no
-  // re-entry guard.
-  const submittingRef = useRef(false)
-  const [submitting, setSubmitting] = useState(false)
 
   function persistCareer() {
     if (!user || isGuest || quickSim || !runStats) return

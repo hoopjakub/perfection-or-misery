@@ -59,31 +59,44 @@ function weightedPick(
 }
 
 // ── Minutes ─────────────────────────────────────────────────────────────────
-// Distinct minutes within a match (≥1 apart), with occasional stoppage-time
-// drama. Extra-time matches extend into 91..120.
-function generateMinutes(count: number, extraTime: boolean): { minute: number; plus?: number }[] {
-  const max = extraTime ? 120 : 90
+// Pick `count` distinct minutes within [lo, hi] (a phase of the match).
+function sampleMinutes(count: number, lo: number, hi: number): number[] {
+  if (count <= 0) return []
   const slots: number[] = []
-  for (let m = 1; m <= max; m++) slots.push(m)
-  // Fisher–Yates partial shuffle to pick `count` distinct minutes
+  for (let m = lo; m <= hi; m++) slots.push(m)
   for (let i = slots.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[slots[i], slots[j]] = [slots[j], slots[i]]
   }
-  const picked = slots.slice(0, Math.min(count, slots.length)).sort((a, b) => a - b)
-  // A tie that needed extra time was level after 90' — so at least one goal
-  // (the decider) belongs in the 91..120 window. Otherwise a 1-0 AET match
-  // can absurdly show its only goal at the 5th minute.
-  if (extraTime && picked.length > 0 && !picked.some(m => m > 90)) {
-    picked[picked.length - 1] = 91 + Math.floor(Math.random() * 30)
-    picked.sort((a, b) => a - b)
-  }
-  return picked.map(m => {
-    // late goals occasionally land in stoppage time ("90+3", "120+2")
+  return slots.slice(0, Math.min(count, slots.length)).sort((a, b) => a - b)
+}
+
+// Turn raw minute numbers into events, with occasional stoppage-time drama.
+function toMinuteEvents(minutes: number[], extraTime: boolean): { minute: number; plus?: number }[] {
+  return minutes.map(m => {
     if (m >= 89 && m <= 90 && Math.random() < 0.45) return { minute: 90, plus: 1 + Math.floor(Math.random() * 5) }
-    if (m === max && extraTime && Math.random() < 0.35) return { minute: 120, plus: 1 + Math.floor(Math.random() * 4) }
+    if (m >= 119 && m <= 120 && extraTime && Math.random() < 0.35) return { minute: 120, plus: 1 + Math.floor(Math.random() * 4) }
     return { minute: m }
   })
+}
+
+// Build each side's goal minutes. For a tie that went to extra time the score
+// MUST have been level after 90' — so both sides score the same number of goals
+// in regulation (1..90) and only the surplus falls in extra time (91..120).
+// This kills the "USA 3-5 Mexico AET with all goals in the first half" nonsense.
+function buildSideMinutes(homeGoals: number, awayGoals: number, extraTime: boolean) {
+  if (!extraTime) {
+    return {
+      home: toMinuteEvents(sampleMinutes(homeGoals, 1, 90), false),
+      away: toMinuteEvents(sampleMinutes(awayGoals, 1, 90), false),
+    }
+  }
+  // Level-at-90 count: the matched goals both teams had at full time. Taking the
+  // minimum keeps extra-time goals to just the deciding margin (most realistic).
+  const level = Math.min(homeGoals, awayGoals)
+  const homeMins = [...sampleMinutes(level, 1, 90), ...sampleMinutes(homeGoals - level, 91, 120)].sort((a, b) => a - b)
+  const awayMins = [...sampleMinutes(level, 1, 90), ...sampleMinutes(awayGoals - level, 91, 120)].sort((a, b) => a - b)
+  return { home: toMinuteEvents(homeMins, true), away: toMinuteEvents(awayMins, true) }
 }
 
 export type AttributeOpts = { extraTime?: boolean }
@@ -99,39 +112,36 @@ export function attributeMatchScorers(
   const total = homeGoals + awayGoals
   if (total === 0) return { home: [], away: [] }
 
-  const minutes = generateMinutes(total, !!opts.extraTime)
-  // interleave which side each goal belongs to, then assign sorted minutes
-  const sides: ('h' | 'a')[] = [
-    ...Array(homeGoals).fill('h'), ...Array(awayGoals).fill('a'),
-  ] as ('h' | 'a')[]
-  for (let i = sides.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[sides[i], sides[j]] = [sides[j], sides[i]]
+  const mins = buildSideMinutes(homeGoals, awayGoals, !!opts.extraTime)
+
+  const buildSide = (pool: RosterPlayer[], minuteEvents: { minute: number; plus?: number }[]): GoalEvent[] => {
+    if (pool.length === 0) return []
+    const out: GoalEvent[] = []
+    for (const mm of minuteEvents) {
+      const scorer = weightedPick(pool, scoreWeight)
+      if (!scorer) continue
+      const ev: GoalEvent = {
+        clubId:     scorer.clubId,
+        scorerId:   scorer.playerId,
+        scorerName: scorer.name,
+        minute:     mm.minute,
+        plus:       mm.plus,
+      }
+      if (Math.random() < ASSIST_RATE) {
+        const assister = weightedPick(pool, assistWeight, scorer.playerId)
+        if (assister) { ev.assistId = assister.playerId; ev.assistName = assister.name }
+      }
+      out.push(ev)
+    }
+    return out
   }
 
-  const home: GoalEvent[] = []
-  const away: GoalEvent[] = []
-  sides.forEach((side, i) => {
-    const pool = side === 'h' ? homePool : awayPool
-    if (pool.length === 0) return
-    const scorer = weightedPick(pool, scoreWeight)
-    if (!scorer) return
-    const ev: GoalEvent = {
-      clubId:     scorer.clubId,
-      scorerId:   scorer.playerId,
-      scorerName: scorer.name,
-      minute:     minutes[i].minute,
-      plus:       minutes[i].plus,
-    }
-    if (Math.random() < ASSIST_RATE) {
-      const assister = weightedPick(pool, assistWeight, scorer.playerId)
-      if (assister) { ev.assistId = assister.playerId; ev.assistName = assister.name }
-    }
-    ;(side === 'h' ? home : away).push(ev)
-  })
   const byMinute = (a: GoalEvent, b: GoalEvent) =>
     (a.minute + (a.plus ?? 0) / 100) - (b.minute + (b.plus ?? 0) / 100)
-  return { home: home.sort(byMinute), away: away.sort(byMinute) }
+  return {
+    home: buildSide(homePool, mins.home).sort(byMinute),
+    away: buildSide(awayPool, mins.away).sort(byMinute),
+  }
 }
 
 // ── Aggregation ─────────────────────────────────────────────────────────────

@@ -51,6 +51,10 @@ export default function CLResultScreen() {
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
+  // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
+  const savedRef = useRef(false)
+  const submittingRef = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Hero entrance — fade + rise the banner in once the result is on screen.
   const heroAnim = useRef(new Animated.Value(0)).current
@@ -122,10 +126,6 @@ export default function CLResultScreen() {
     koGA += isA ? m.bGoals : m.aGoals
     if (m.winner.isPlayer) koW++; else koL++
   })
-
-  const savedRef = useRef(false)
-  const submittingRef = useRef(false)
-  const [submitting, setSubmitting] = useState(false)
 
   // Awaited (not fire-and-forget) so the run is in the DB before we navigate —
   // otherwise Home re-fetches recent runs before the save lands.
