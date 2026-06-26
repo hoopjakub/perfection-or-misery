@@ -23,7 +23,9 @@ export type CLKnockoutMatch = {
   bPens?:    number
   leg1Scorers?: MatchScorers   // attributed once, stored — leg1 (or the single final)
   leg2Scorers?: MatchScorers   // leg2 (teamB at home)
-  penKicksA?: PenKick[]        // shootout sequence, stored for the result screen
+  aPenKicks?: boolean[]        // raw make/miss sequence from the shootout sim
+  bPenKicks?: boolean[]
+  penKicksA?: PenKick[]        // names zipped on at reveal, stored for the result screen
   penKicksB?: PenKick[]
 }
 
@@ -202,6 +204,8 @@ function twoLegKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch 
     extraTime: result.extraTime,
     aPens:     result.homePens ?? undefined,
     bPens:     result.awayPens ?? undefined,
+    aPenKicks: result.homePenKicks,
+    bPenKicks: result.awayPenKicks,
   }
 }
 
@@ -216,6 +220,8 @@ function singleKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch 
     extraTime: result.extraTime,
     aPens:     result.homePens ?? undefined,
     bPens:     result.awayPens ?? undefined,
+    aPenKicks: result.homePenKicks,
+    bPenKicks: result.awayPenKicks,
   }
 }
 

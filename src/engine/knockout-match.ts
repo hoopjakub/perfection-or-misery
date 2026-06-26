@@ -10,6 +10,8 @@ export type KnockoutResult = {
   extraTime:   boolean
   homePens:    number | null
   awayPens:    number | null
+  homePenKicks?: boolean[]   // actual make/miss sequence (only the kicks taken)
+  awayPenKicks?: boolean[]
   winner:      'home' | 'away'
 }
 
@@ -21,6 +23,8 @@ export type TwoLegResult = {
   extraTime:   boolean
   homePens:    number | null  // teamA pens
   awayPens:    number | null  // teamB pens
+  homePenKicks?: boolean[]   // actual make/miss sequence (only the kicks taken)
+  awayPenKicks?: boolean[]
   winner:      'home' | 'away'  // 'home' = teamA wins
 }
 
@@ -60,14 +64,16 @@ export function simulateKnockout(
   }
 
   // penalties
-  const [hp, ap] = simulatePenalties(home, away)
+  const pens = simulateShootout(penRate(home), penRate(away))
   return {
     homeGoals: totalHome,
     awayGoals: totalAway,
     extraTime: true,
-    homePens:  hp,
-    awayPens:  ap,
-    winner:    hp > ap ? 'home' : 'away',
+    homePens:  pens.p1,
+    awayPens:  pens.p2,
+    homePenKicks: pens.kicks1,
+    awayPenKicks: pens.kicks2,
+    winner:    pens.p1 > pens.p2 ? 'home' : 'away',
   }
 }
 
@@ -117,95 +123,81 @@ export function simulateTwoLegs(
   }
 
   // penalties
-  const [pa, pb] = simulatePenalties(teamA, teamB)
+  const pens = simulateShootout(penRate(teamA), penRate(teamB))
   return {
     leg1:      { homeGoals: leg1.homeGoals, awayGoals: leg1.awayGoals },
     leg2:      { homeGoals: leg2.homeGoals + etB, awayGoals: leg2.awayGoals + etA },
     totalA:    finalA,
     totalB:    finalB,
     extraTime: true,
-    homePens:  pa,
-    awayPens:  pb,
-    winner:    pa > pb ? 'home' : 'away',
+    homePens:  pens.p1,
+    awayPens:  pens.p2,
+    homePenKicks: pens.kicks1,
+    awayPenKicks: pens.kicks2,
+    winner:    pens.p1 > pens.p2 ? 'home' : 'away',
   }
 }
 
-// Given known pen totals (aPens, bPens), generates a realistic-looking kick-by-kick sequence.
-// This is for UI display only — the outcome is already determined by the simulation.
+// Zip the stored make/miss sequence onto kicker names for the UI. The names
+// list cycles if a long sudden-death shootout runs past the takers we fetched.
 export function expandPenaltyKicks(
   namesA: string[],
   namesB: string[],
-  aPens: number,
-  bPens: number
+  kicksA: boolean[],
+  kicksB: boolean[]
 ): { kicksA: PenKick[]; kicksB: PenKick[] } {
-  const getNameA = (i: number) => namesA[i] ?? `Player ${i + 1}`
-  const getNameB = (i: number) => namesB[i] ?? `Player ${i + 1}`
-  const aWins = aPens > bPens
-
-  // Determine if sudden death occurred (winner scored more than 5)
-  const hasSuddenDeath = aPens > 5 || bPens > 5
-  const regA = hasSuddenDeath ? 5 : aPens
-  const regB = hasSuddenDeath ? 5 : bPens
-
-  const kicksA: PenKick[] = shuffleGoals(regA, 5).map((scored, i) => ({
-    playerName: getNameA(i), scored,
-  }))
-  const kicksB: PenKick[] = shuffleGoals(regB, 5).map((scored, i) => ({
-    playerName: getNameB(i), scored,
-  }))
-
-  if (hasSuddenDeath) {
-    // Both scored 5 in regulation, now sudden death. The margin in sudden death
-    // is always exactly 1: every round before the last has both teams scoring,
-    // and in the decisive round the winner scores while the loser misses.
-    const sdGoalsA = aPens - 5
-    const sdGoalsB = bPens - 5
-    const sdRounds = Math.max(sdGoalsA, sdGoalsB)
-
-    for (let i = 0; i < sdRounds; i++) {
-      const isDecisive = i === sdRounds - 1
-      kicksA.push({ playerName: getNameA(5 + i), scored: isDecisive ? aWins : true })
-      kicksB.push({ playerName: getNameB(5 + i), scored: isDecisive ? !aWins : true })
-    }
+  const name = (names: string[], i: number) =>
+    names.length > 0 ? names[i % names.length] : `Player ${i + 1}`
+  return {
+    kicksA: kicksA.map((scored, i) => ({ playerName: name(namesA, i), scored })),
+    kicksB: kicksB.map((scored, i) => ({ playerName: name(namesB, i), scored })),
   }
-
-  return { kicksA, kicksB }
 }
 
-function shuffleGoals(goals: number, total: number): boolean[] {
-  const arr = [...Array(goals).fill(true), ...Array(total - goals).fill(false)]
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
+// OVR nudges conversion slightly — better teams convert a touch more often.
+function penRate(t: SimTeam): number {
+  return Math.min(0.84, 0.74 + (t.ovr - 70) * 0.002)
 }
 
-function simulatePenalties(t1: SimTeam, t2: SimTeam): [number, number] {
-  // OVR nudges success rate slightly — better teams convert slightly more
-  const r1 = Math.min(0.84, 0.74 + (t1.ovr - 70) * 0.002)
-  const r2 = Math.min(0.84, 0.74 + (t2.ovr - 70) * 0.002)
+// In the best-of-five phase a tie is decided the instant one side's score is
+// already beyond what the other can still reach with its remaining kicks.
+function decidedInRegulation(p1: number, p2: number, k1: number, k2: number): boolean {
+  return p1 > p2 + (5 - k2) || p2 > p1 + (5 - k1)
+}
 
+// Simulate a shootout with real rules AND early termination: best-of-five,
+// alternating, stopping the moment it's mathematically settled — then sudden
+// death (both kick each round) until one scores and the other misses. Returns
+// only the kicks that were actually taken.
+export function simulateShootout(r1: number, r2: number): {
+  p1: number; p2: number; kicks1: boolean[]; kicks2: boolean[]
+} {
+  const kicks1: boolean[] = []
+  const kicks2: boolean[] = []
   let p1 = 0, p2 = 0
 
-  // 5 kicks each
-  for (let i = 0; i < 5; i++) {
-    if (Math.random() < r1) p1++
-    if (Math.random() < r2) p2++
+  // Best of five — re-check after every single kick.
+  for (let round = 0; round < 5; round++) {
+    const a = Math.random() < r1
+    kicks1.push(a); if (a) p1++
+    if (decidedInRegulation(p1, p2, kicks1.length, kicks2.length)) return { p1, p2, kicks1, kicks2 }
+    const b = Math.random() < r2
+    kicks2.push(b); if (b) p2++
+    if (decidedInRegulation(p1, p2, kicks1.length, kicks2.length)) return { p1, p2, kicks1, kicks2 }
   }
 
-  if (p1 !== p2) return [p1, p2]
-
-  // sudden death — up to 20 rounds
-  for (let i = 0; i < 20; i++) {
-    const k1 = Math.random() < r1
-    const k2 = Math.random() < r2
-    if (k1 && !k2) return [p1 + 1, p2]
-    if (!k1 && k2) return [p1, p2 + 1]
-    if (k1 && k2) { p1++; p2++ }
-    // both miss: continue
+  // Sudden death — both take a kick each round; settled when they differ.
+  for (let i = 0; i < 30; i++) {
+    const a = Math.random() < r1
+    kicks1.push(a); if (a) p1++
+    const b = Math.random() < r2
+    kicks2.push(b); if (b) p2++
+    if (p1 !== p2) return { p1, p2, kicks1, kicks2 }
   }
 
-  // edge case
-  return Math.random() < 0.5 ? [p1 + 1, p2] : [p1, p2 + 1]
+  // Pathological fallback (30 identical rounds) — one decisive round to settle it.
+  const aWins = Math.random() < 0.5
+  kicks1.push(aWins); kicks2.push(!aWins)
+  if (aWins) p1++; else p2++
+  return { p1, p2, kicks1, kicks2 }
 }

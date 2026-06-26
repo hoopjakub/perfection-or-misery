@@ -1199,7 +1199,7 @@ function CLSimulation() {
       if (m.aPens !== undefined && m.bPens !== undefined) {
         const expanded = expandPenaltyKicks(
           kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [],
-          m.aPens, m.bPens
+          m.aPenKicks ?? [], m.bPenKicks ?? []
         )
         penKicksA = expanded.kicksA
         penKicksB = expanded.kicksB
@@ -1751,7 +1751,7 @@ function WCSimulation() {
       if (r.homePens !== null && r.awayPens !== null) {
         const expanded = expandPenaltyKicks(
           kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [],
-          r.homePens, r.awayPens
+          r.homePenKicks ?? [], r.awayPenKicks ?? []
         )
         penKicksA = expanded.kicksA
         penKicksB = expanded.kicksB
