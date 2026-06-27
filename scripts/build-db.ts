@@ -142,8 +142,23 @@ for (const file of files) {
   }
 }
 
-// Bake version into the asset so the app knows when to re-copy
-db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', 8)`).run()
+// Auto-bump the app's DB_VERSION (single source of truth = src/db/setup.ts) so
+// every build triggers a re-copy on device without us editing it by hand.
+const setupPath = path.join(__dirname, '../src/db/setup.ts')
+let newVersion = 8
+try {
+  const setup = fs.readFileSync(setupPath, 'utf-8')
+  const m = setup.match(/const DB_VERSION = (\d+)/)
+  if (!m) throw new Error('DB_VERSION not found in setup.ts')
+  newVersion = parseInt(m[1], 10) + 1
+  fs.writeFileSync(setupPath, setup.replace(/const DB_VERSION = \d+/, `const DB_VERSION = ${newVersion}`))
+  console.log(`↑ bumped DB_VERSION ${m[1]} → ${newVersion} in src/db/setup.ts`)
+} catch (e: any) {
+  console.warn(`! could not auto-bump DB_VERSION (${e.message}); baking ${newVersion}`)
+}
 
-console.log(`✓ built ${DB_PATH} (v8)`)
+// Bake the same version into the asset's _meta for reference.
+db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', ?)`).run(newVersion)
+
+console.log(`✓ built ${DB_PATH} (v${newVersion})`)
 db.close()
