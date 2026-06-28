@@ -80,7 +80,7 @@ export default function CLResultScreen() {
   // Squad stats (fresh runs only — needs the live drafted XI).
   useEffect(() => {
     if (fromHistory || !store.clResult || draftedPlayers.length === 0) return
-    computeCLRunStats(store.clResult, draftedPlayers)
+    computeCLRunStats(store.clResult, draftedPlayers, store.clYear ?? 2025)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[cl-result] stats failed:', e))
   }, [])

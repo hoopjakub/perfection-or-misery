@@ -150,9 +150,47 @@ Each new competition = **scraper** (participants + squads, reusing the shared li
 
 ---
 
+## 6b. Club & competition facts on the placement screen (planned)
+
+When you're placed and shown the **chemistry breakdown + lineup** for the club you're replacing, add a **"Did you know?" facts card** *between* the chemistry breakdown and the enter CTA, showing a fact (or a few) about that club — and the enter button should be **renamed to the actual competition** (e.g. "Enter the Bundesliga" / "Enter the Champions League" / "Enter the World Cup" instead of a generic "Enter the league").
+
+### UX
+- Placement screen order: **chemistry breakdown → club facts card → CTA (named after the competition)**.
+- Facts: pull from the club's fact list (random one, or rotate 2-3). For competitions, show **competition-specific** facts where available, else fall back to the club's general facts.
+
+### Data — needs a much bigger facts set (the important part)
+`scripts/club_facts.json` currently only covers ~20 (originally top-flight) clubs, keyed by club id → `string[]`. To support this everywhere it must grow to:
+- **Per-club domestic facts** for **every club across every scraped league/season** (top-5 now, more later) — not just 20.
+- **Champions League-specific club facts** (UCL pedigree/history) — keyed for the `_ucl` club ids (e.g. "X has won the European Cup N times").
+- **World Cup nation facts** — keyed for the `_nt` nation ids (e.g. titles, best finishes, iconic moments).
+- **General nation facts** (for future international comps — EUROs/Copa nations beyond WC).
+
+### Structure (proposed)
+Keep one fact bank but key by the **id used in that competition** so the right facts surface:
+```jsonc
+{
+  "arsenal":      ["…domestic facts…"],          // league
+  "arsenal_ucl":  ["…UCL-specific facts…"],       // Champions League run
+  "brazil_nt":    ["…World Cup / national facts…"]
+}
+```
+Lookup: try the competition-scoped id first (`<club>_ucl` / `<nation>_nt`), then fall back to the base club id, then to a generic "no facts yet" state. Facts are **content** (manual curation and/or scraped/generated) — a sizeable ongoing task, scaled per competition.
+
+### Caveat
+`club_facts.json` is imported directly into the app bundle (`src/lib/clubFacts.ts`) — if it's ever empty/invalid the **whole app fails to compile** (Hermes "invalid expression"). Keep it valid JSON and never commit it empty.
+
+---
+
+## 6c. UCL placement — globe & "any club" (partly done)
+
+- **Any club — DONE.** UCL placement now picks **uniformly over all 36 clubs** (was the 3 weakest), so you can land on Real Madrid or a minnow — matching the WC "any nation" change.
+- **Globe for UCL — needs data.** The league/WC globe lights up a *country*, but UCL clubs have **no country stored** in the seed (`{club_id, club_name, historical_ovr, colours}` only). To land the globe on a club's country we'd need a **club → country/ISO mapping**, ideally captured by the UCL scraper (the Transfermarkt participants page lists each club's country) and stored on the club, then `isoForClub(clubId)` feeding `GlobeReveal`. Until then UCL keeps its club-name roulette.
+- **"Something more fun" options to consider:** globe that spins across Europe then zooms to the club's country + crest; or a crest-roulette with the club's brand colours; or a short "draw" animation themed like the UCL bracket. Lowest-effort high-value step is the scraper capturing club country, then reuse the existing globe.
+
 ## 7. Open decisions
 
 - Which leagues to actually ship in the bundled DB (all 10? + non-European?) vs. keep scrape-only.
+- How facts get authored at scale (manual vs scraped/generated) and how many per club.
 - Cup draw realism (true random vs lightly seeded).
 - Whether cups get full POTS/U21 awards or a lighter "cup highlights" stat block.
 - How far back to go per competition (UCL/EURO editions tie to format changes).

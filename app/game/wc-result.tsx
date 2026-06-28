@@ -14,6 +14,8 @@ import { TeamLabel } from '@/components/TeamLabel'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
 
+import { WCGroupModal, WCGroupMatchdays } from '@/components/WCGroupModal'
+
 const WC = MODE_THEMES.world_cup
 
 const ROUND_LABELS: Record<string, string> = {
@@ -22,6 +24,8 @@ const ROUND_LABELS: Record<string, string> = {
   r16:     'Round of 16 Exit',
   qf:      'Quarter-Final Exit',
   sf:      'Semi-Final Exit',
+  fourth:  "Semi 'No Medal' Finalist",
+  third:   '🥉 Third Place',
   final:   'Finalist',
   winner:  'WORLD CUP CHAMPION',
 }
@@ -32,6 +36,8 @@ const ROUND_COLORS: Record<string, string> = {
   r16:     '#F59E0B',
   qf:      '#F59E0B',
   sf:      '#A78BFA',
+  fourth:  '#9CA3AF',   // grey — so close, no medal
+  third:   '#CD7F32',   // bronze
   final:   '#34D399',
   winner:  '#F59E0B',
 }
@@ -41,6 +47,7 @@ const KO_ROUND_NAMES: Record<string, string> = {
   r16:   'Round of 16',
   qf:    'Quarter-Finals',
   sf:    'Semi-Finals',
+  third: '3rd-Place Playoff',
   final: 'Final',
 }
 
@@ -275,7 +282,7 @@ export default function WCResultScreen() {
           })}
           <Text style={styles.phaseNote}>Top 2 qualify · Best 8 third-place teams also qualify</Text>
           {groupMatchdays.length > 0 && (
-            <GroupMatchdays matches={groupMatchdays.filter(m => m.groupId === playerGroup)} />
+            <WCGroupMatchdays matches={groupMatchdays.filter(m => m.groupId === playerGroup)} />
           )}
         </View>
       )}
@@ -333,6 +340,8 @@ export default function WCResultScreen() {
                   containerStyle={styles.colName}
                   textStyle={[styles.tableColData, team.isPlayer && styles.playerText]}
                 />
+                {(() => { const gd = team.stats.goalsFor - team.stats.goalsAgainst
+                  return <Text style={[styles.tableColData, styles.colStat]}>{gd >= 0 ? `+${gd}` : gd}</Text> })()}
                 <Text style={[styles.tableColData, styles.colStat, styles.colPts, advances && { color: colors.success }]}>{team.stats.points}</Text>
               </View>
             )
@@ -398,8 +407,8 @@ export default function WCResultScreen() {
         </>
       )}
 
-      {/* Group detail modal */}
-      <GroupModal
+      {/* Group detail modal (shared with the live simulation) */}
+      <WCGroupModal
         group={openGroup ? sortedGroups.find(g => g.id === openGroup) ?? null : null}
         matches={openGroup ? groupMatchdays.filter(m => m.groupId === openGroup) : []}
         onClose={() => setOpenGroup(null)}
@@ -458,93 +467,6 @@ function WCHistorySummary({ run }: { run: any }) {
         </Pressable>
       </View>
     </ScrollView>
-  )
-}
-
-// Group fixtures grouped by matchday
-function GroupMatchdays({ matches }: { matches: WCGroupMatch[] }) {
-  if (matches.length === 0) return null
-  const matchdays = Array.from(new Set(matches.map(m => m.matchday))).sort((a, b) => a - b)
-
-  return (
-    <View style={styles.mdSection}>
-      {matchdays.map(md => (
-        <View key={md} style={styles.mdBlock}>
-          <Text style={styles.mdLabel}>Matchday {md}</Text>
-          {matches.filter(m => m.matchday === md).map((m, i) => {
-            const hs = summariseScorers(m.scorers?.home), as = summariseScorers(m.scorers?.away)
-            return (
-              <View key={i}>
-                <View style={styles.mdRow}>
-                  <TeamLabel
-                    clubId={m.home.clubId} name={m.home.clubName} size={12}
-                    containerStyle={[styles.mdTeam, styles.mdTeamRight]}
-                    textStyle={[styles.mdTeamText, m.home.isPlayer && styles.mdTeamPlayer]}
-                  />
-                  <Text style={styles.mdScore}>{m.homeGoals} - {m.awayGoals}</Text>
-                  <TeamLabel
-                    clubId={m.away.clubId} name={m.away.clubName} size={12}
-                    containerStyle={styles.mdTeam}
-                    textStyle={[styles.mdTeamText, m.away.isPlayer && styles.mdTeamPlayer]}
-                  />
-                </View>
-                {(hs || as) && (
-                  <View style={styles.mdScorers}>
-                    <Text style={[styles.mdScorerHalf, { textAlign: 'right' }]} numberOfLines={2}>{hs ? `⚽ ${hs}` : ''}</Text>
-                    <Text style={styles.mdScorerHalf} numberOfLines={2}>{as ? `${as} ⚽` : ''}</Text>
-                  </View>
-                )}
-              </View>
-            )
-          })}
-        </View>
-      ))}
-    </View>
-  )
-}
-
-function GroupModal({ group, matches, onClose }: { group: WCGroup | null; matches: WCGroupMatch[]; onClose: () => void }) {
-  return (
-    <Modal visible={group !== null} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
-          {group && (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Group {group.id}</Text>
-              <View style={styles.tableHeaderRow}>
-                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-                <Text style={[styles.tableCol, styles.colName]}>Team</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-                <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>Pts</Text>
-              </View>
-              {group.teams.map((team, idx) => {
-                const gd = team.stats.goalsFor - team.stats.goalsAgainst
-                const qualified = idx < 2
-                return (
-                  <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, qualified && styles.tableRowQ]}>
-                    <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{idx + 1}</Text>
-                    <TeamLabel
-                      clubId={team.clubId}
-                      name={team.clubName}
-                      containerStyle={styles.colName}
-                      textStyle={[styles.tableColData, team.isPlayer && styles.playerText]}
-                    />
-                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{team.stats.played}</Text>
-                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerText]}>{team.stats.points}</Text>
-                  </View>
-                )
-              })}
-              <GroupMatchdays matches={matches} />
-            </ScrollView>
-          )}
-          <Pressable style={styles.modalClose} onPress={onClose}>
-            <Text style={styles.modalCloseText}>Close</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
   )
 }
 

@@ -8,6 +8,7 @@
  * so the dominant *brand* colour wins over greys; the secondary is the most
  * frequent colour that's far enough from the primary.
  */
+// @ts-ignore — pngjs ships no types; only used in the build-time scraper
 import { PNG } from 'pngjs'
 import { UA } from './transfermarkt'
 

@@ -1,5 +1,6 @@
 import { GameMode, PositionSlot } from '@/types/game'
 import type { Difficulty } from '@/store/gameStore'
+import { positionPenalty } from './rating'
 
 export type ClubSeasonRow = {
   id: string
@@ -15,14 +16,10 @@ export type ClubSeasonRow = {
 
 export function isPlayerAvailable(
   primaryPos: string,
-  secondaryPositions: string[],
+  _secondaryPositions: string[],   // unused: fit is now derived from the primary
   openSlots: PositionSlot[]
 ): boolean {
-  const allPositions = [primaryPos, ...secondaryPositions]
-  return openSlots.some(slot =>
-    allPositions.includes(slot.primary) ||
-    slot.accepts.some(p => allPositions.includes(p))
-  )
+  return openSlots.some(slot => positionPenalty(primaryPos, slot.primary) !== null)
 }
 
 export function spinClubSeason(

@@ -130,23 +130,27 @@ export function simulateWorldCup(teams: WCTeam[]): WCSeasonResult {
 
   // --- KNOCKOUT ROUNDS (all single leg + ET/PKs) ---
   const knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] = []
-  const roundNames = ['r32', 'r16', 'qf', 'sf', 'final']
+  const roundNames = ['r32', 'r16', 'qf', 'sf']
   // The bracket is drawn ONCE here, then fixed: every later round pairs
   // consecutive winners, so the winners of two adjacent ties always meet in the
   // next round. (Re-drawing each round broke the visual bracket tree.)
   let current = [...r32Teams].sort(() => Math.random() - 0.5)
   let playerFinalRound = 'groups'
+  let sfLosers: WCTeam[] = []
 
   for (const round of roundNames) {
     const roundMatches: WCKnockoutMatch[] = []
     const winners: WCTeam[] = []
+    const losers: WCTeam[] = []
 
     for (let i = 0; i < current.length; i += 2) {
       const teamA = current[i]
       const teamB = current[i + 1]
       const result = simulateKnockout(teamA as any, teamB as any) as KnockoutResult
       const winner = result.winner === 'home' ? teamA : teamB
+      const loser  = winner.clubId === teamA.clubId ? teamB : teamA
       winners.push(winner)
+      losers.push(loser)
       roundMatches.push({ round, teamA, teamB, result, winner })
       if ((teamA.isPlayer || teamB.isPlayer) && !winner.isPlayer) {
         playerFinalRound = round
@@ -154,12 +158,32 @@ export function simulateWorldCup(teams: WCTeam[]): WCSeasonResult {
     }
 
     knockoutRounds.push({ round, matches: roundMatches })
+    if (round === 'sf') sfLosers = losers
     current = winners
-    if (current.length === 1) break
   }
 
-  const champion = current[0]
+  // --- THIRD-PLACE PLAYOFF (always simulated; revealed between SF and final) ---
+  // The two beaten semi-finalists meet for the bronze. Played whether or not the
+  // player is involved, and slotted before the final in the round list.
+  if (sfLosers.length === 2) {
+    const [tpA, tpB] = sfLosers
+    const tpResult = simulateKnockout(tpA as any, tpB as any) as KnockoutResult
+    const tpWinner = tpResult.winner === 'home' ? tpA : tpB
+    knockoutRounds.push({ round: 'third', matches: [{ round: 'third', teamA: tpA, teamB: tpB, result: tpResult, winner: tpWinner }] })
+    if (tpA.isPlayer || tpB.isPlayer) {
+      // 3rd place if you win it, otherwise 4th — the "so close, no medal" finish.
+      playerFinalRound = tpWinner.isPlayer ? 'third' : 'fourth'
+    }
+  }
+
+  // --- FINAL ---
+  const [f1, f2] = current
+  const finalResult = simulateKnockout(f1 as any, f2 as any) as KnockoutResult
+  const champion = finalResult.winner === 'home' ? f1 : f2
+  const runnerUp = champion.clubId === f1.clubId ? f2 : f1
+  knockoutRounds.push({ round: 'final', matches: [{ round: 'final', teamA: f1, teamB: f2, result: finalResult, winner: champion }] })
   if (champion.isPlayer) playerFinalRound = 'winner'
+  else if (runnerUp.isPlayer) playerFinalRound = 'final'
 
   return {
     groups,
@@ -221,22 +245,26 @@ export function simulateWCKnockoutsOnly(
   // We always simulate the full knockout bracket — even when the player is
   // eliminated in the group stage — so the results screen can show it play out.
   const knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] = []
-  const roundNames = ['r32', 'r16', 'qf', 'sf', 'final']
+  const roundNames = ['r32', 'r16', 'qf', 'sf']
   // Draw the bracket ONCE, then keep it fixed: each round pairs consecutive
   // winners so adjacent ties feed the same next-round match (a real tree).
   let current          = [...r32Teams].sort(() => Math.random() - 0.5)
   let playerFinalRound = 'groups'
+  let sfLosers: WCTeam[] = []
 
   for (const round of roundNames) {
     const roundMatches: WCKnockoutMatch[] = []
     const winners: WCTeam[] = []
+    const losers: WCTeam[] = []
 
     for (let i = 0; i < current.length; i += 2) {
       const teamA = current[i]
       const teamB = current[i + 1]
       const result = simulateKnockout(teamA as any, teamB as any) as KnockoutResult
       const winner = result.winner === 'home' ? teamA : teamB
+      const loser  = winner.clubId === teamA.clubId ? teamB : teamA
       winners.push(winner)
+      losers.push(loser)
       roundMatches.push({ round, teamA, teamB, result, winner })
       if ((teamA.isPlayer || teamB.isPlayer) && !winner.isPlayer) {
         playerFinalRound = round
@@ -244,12 +272,29 @@ export function simulateWCKnockoutsOnly(
     }
 
     knockoutRounds.push({ round, matches: roundMatches })
+    if (round === 'sf') sfLosers = losers
     current = winners
-    if (current.length === 1) break
   }
 
-  const champion = current[0]
+  // Third-place playoff (always simulated; revealed between SF and final).
+  if (sfLosers.length === 2) {
+    const [tpA, tpB] = sfLosers
+    const tpResult = simulateKnockout(tpA as any, tpB as any) as KnockoutResult
+    const tpWinner = tpResult.winner === 'home' ? tpA : tpB
+    knockoutRounds.push({ round: 'third', matches: [{ round: 'third', teamA: tpA, teamB: tpB, result: tpResult, winner: tpWinner }] })
+    if (tpA.isPlayer || tpB.isPlayer) {
+      playerFinalRound = tpWinner.isPlayer ? 'third' : 'fourth'
+    }
+  }
+
+  // Final.
+  const [f1, f2] = current
+  const finalResult = simulateKnockout(f1 as any, f2 as any) as KnockoutResult
+  const champion = finalResult.winner === 'home' ? f1 : f2
+  const runnerUp = champion.clubId === f1.clubId ? f2 : f1
+  knockoutRounds.push({ round: 'final', matches: [{ round: 'final', teamA: f1, teamB: f2, result: finalResult, winner: champion }] })
   if (champion.isPlayer) playerFinalRound = 'winner'
+  else if (runnerUp.isPlayer) playerFinalRound = 'final'
 
   return {
     r32Teams,

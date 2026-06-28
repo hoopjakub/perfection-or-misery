@@ -265,6 +265,18 @@ export function finalizePlayers(raw: RawPlayer[], season: number, idSuffix: stri
   })
 }
 
+// A club's season OVR for the seed. A plain squad average compresses everyone
+// toward the middle (30-man squads all carry fringe players ~70). Instead use
+// the best ~14 (the team's real strength) and amplify the spread around a
+// centre so dominant sides reach the high 80s/90 and weak sides drop toward 70.
+export function teamStrength(players: { ovr: number }[]): number {
+  if (players.length === 0) return 70
+  const top = [...players].sort((a, b) => b.ovr - a.ovr).slice(0, 14)
+  const avg = top.reduce((s, p) => s + p.ovr, 0) / top.length
+  const CENTER = 81, SPREAD = 1.55
+  return Math.round(Math.max(60, Math.min(94, CENTER + (avg - CENTER) * SPREAD)))
+}
+
 // ── Club squad fetch (kader + performance, merged) ────────────────────────────
 export async function fetchClubSquad(
   slug: string, vereinId: string, season: number, compCode: string,

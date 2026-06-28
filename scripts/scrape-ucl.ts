@@ -1,28 +1,28 @@
 /**
- * Champions League squad scraper (Transfermarkt → seed JSON).
+ * Champions League squad scraper (Transfermarkt → seed JSON), multi-season.
  *
- *   npx tsx scripts/scrape-ucl.ts
- *   LIMIT=2 npx tsx scripts/scrape-ucl.ts   # first 2 clubs (testing)
+ *   npx tsx scripts/scrape-ucl.ts            # 2024 + 2025 editions
+ *   SEASONS=2024,2025 npx tsx scripts/scrape-ucl.ts
+ *   LIMIT=2 npx tsx scripts/scrape-ucl.ts    # first 2 clubs/season (testing)
  *
- * Pulls the participants of the 2025-26 UEFA Champions League, then each club's
- * FULL first-team squad (~26) plus season performance (appearances / minutes /
- * goals / assists), with OVR from the improved market-value model
- * (see lib/transfermarkt.ts). IDs get a `_ucl` suffix so a CL "Arsenal" never
- * collides with the domestic "Arsenal".
- *
- * Existing club identity (colours / short name / logo) is preserved when the
- * seed already has the club; only the player list is refreshed.
+ * Pulls each edition's participants, then every club's FULL first-team squad
+ * (~26) + season performance, with OVR from the improved market-value model.
+ * Clubs are keyed by stable TM verein id and MERGED across editions (a club in
+ * both 2024 & 2025 gets two `seasons[]`), so the draft pool can drop you into a
+ * randomly-chosen edition. IDs get a `_ucl` suffix. Curated colours/short names
+ * preserved from the existing seed.
  */
 import fs from 'fs'
 import path from 'path'
 import {
-  BASE, fetchDoc, sleep, slugify, shortName, parseParticipants, fetchClubSquad, finalizePlayers,
+  BASE, fetchDoc, sleep, slugify, shortName, parseParticipants, fetchClubSquad, finalizePlayers, teamStrength,
 } from './lib/transfermarkt'
 
-const SEASON   = 2025
-const SEED_ID  = 'ucl_2025'
+const SEED_ID  = 'ucl_2025'   // kept stable (getClubSeasonsForMode matches 'ucl_%'); seasons live on club_seasons
 const OUT_FILE = path.join(__dirname, 'seed', 'champions_league.json')
-const PARTICIPANTS_URL = `${BASE}/uefa-champions-league/teilnehmer/pokalwettbewerb/CL/saison_id/${SEASON}`
+
+const seasons = (process.env.SEASONS ? process.env.SEASONS.split(',').map(s => parseInt(s, 10)) : [2025, 2024])
+  .sort((a, b) => b - a)   // newest first (matches curated seed for colours)
 
 const norm = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -41,53 +41,63 @@ function loadExisting(): Map<string, ExistingClub> {
   return out
 }
 
+type ClubAccum = { id: string; name: string; short_name: string; primary_color: string; secondary_color: string | null; logo: string | null; seasons: any[] }
+
 async function main() {
   const existing = loadExisting()
-  console.log('Fetching participants…')
-  const partDoc = await fetchDoc(PARTICIPANTS_URL)
-  let clubsMeta = parseParticipants(partDoc)
+  const byVerein = new Map<string, ClubAccum>()
   const limit = process.env.LIMIT ? parseInt(process.env.LIMIT, 10) : 0
-  if (limit > 0) clubsMeta = clubsMeta.slice(0, limit)
-  console.log(`Found ${clubsMeta.length} clubs.\n`)
+  console.log(`UEFA Champions League · editions ${seasons.join(', ')}`)
 
-  const clubs: any[] = []
-  for (let i = 0; i < clubsMeta.length; i++) {
-    const { slug, vereinId } = clubsMeta[i]
+  for (const season of seasons) {
+    let clubsMeta: { slug: string; vereinId: string }[]
     try {
-      const { name, players: raw } = await fetchClubSquad(slug, vereinId, SEASON, 'CL', { cap: 30 })
-      const cur = existing.get(norm(name))
-      const clubId = `${slugify(name)}_ucl`
-      const players = finalizePlayers(raw, SEASON, 'ucl')
-      const histOvr = Math.round(players.reduce((s, p) => s + p.ovr, 0) / players.length)
-      clubs.push({
-        id: clubId,
-        league_id: SEED_ID,
-        name,
-        short_name: cur?.short_name ?? shortName(name),
-        primary_color: cur?.primary_color ?? '#1E293B',
-        secondary_color: cur?.secondary_color ?? '#94A3B8',
-        logo: cur?.logo ?? null,
-        seasons: [{
-          id: `${clubId}_${SEASON}`, club_id: clubId,
-          year_start: SEASON, year_end: SEASON + 1,
-          historical_ovr: histOvr, league_position: i + 1,
-          players,
-        }],
-      })
-      console.log(`  ${name.padEnd(28)} ${players.length} players · ovr ${histOvr}`)
-    } catch (e: any) {
-      console.warn(`  ! ${slug}: ${e.message}`)
+      const partDoc = await fetchDoc(`${BASE}/uefa-champions-league/teilnehmer/pokalwettbewerb/CL/saison_id/${season}`)
+      clubsMeta = parseParticipants(partDoc)
+    } catch (e: any) { console.warn(`  ! ${season}: participants failed (${e.message})`); continue }
+    if (limit > 0) clubsMeta = clubsMeta.slice(0, limit)
+    console.log(`\n  ${season}/${(season + 1) % 100}: ${clubsMeta.length} clubs`)
+
+    for (let i = 0; i < clubsMeta.length; i++) {
+      const { slug, vereinId } = clubsMeta[i]
+      try {
+        const { name, players: raw } = await fetchClubSquad(slug, vereinId, season, 'CL', { cap: 30 })
+        let acc = byVerein.get(vereinId)
+        if (!acc) {
+          const cur = existing.get(norm(name))
+          const clubId = `${slugify(name)}_ucl`
+          acc = {
+            id: clubId, name,
+            short_name: cur?.short_name ?? shortName(name),
+            primary_color: cur?.primary_color ?? '#1E293B',
+            secondary_color: cur?.secondary_color ?? '#94A3B8',
+            logo: cur?.logo ?? null,
+            seasons: [],
+          }
+          byVerein.set(vereinId, acc)
+        }
+        const players = finalizePlayers(raw, season, 'ucl')
+        const histOvr = teamStrength(players)
+        acc.seasons.push({ id: `${acc.id}_${season}`, club_id: acc.id, year_start: season, year_end: season + 1, historical_ovr: histOvr, league_position: i + 1, players })
+        console.log(`    ${String(i + 1).padStart(2)}/${clubsMeta.length} ${name.padEnd(28)} ${players.length}p · ovr ${histOvr}`)
+      } catch (e: any) {
+        console.warn(`    ! ${slug} ${season}: ${e.message}`)
+      }
+      await sleep(1200)
     }
-    await sleep(1200)
   }
 
-  const out = {
-    league: { id: SEED_ID, name: 'UEFA Champions League', country: 'Europe', games_per_season: 8, tier: 1 },
-    clubs,
-  }
+  const clubs = [...byVerein.values()].map(a => ({
+    id: a.id, league_id: SEED_ID, name: a.name,
+    short_name: a.short_name, primary_color: a.primary_color, secondary_color: a.secondary_color, logo: a.logo,
+    seasons: a.seasons.sort((x, y) => x.year_start - y.year_start),
+  }))
+
+  const out = { league: { id: SEED_ID, name: 'UEFA Champions League', country: 'Europe', games_per_season: 8, tier: 1 }, clubs }
   fs.writeFileSync(OUT_FILE, JSON.stringify(out, null, 2))
-  const total = clubs.reduce((s, c) => s + c.seasons[0].players.length, 0)
-  console.log(`\n✓ wrote ${clubs.length} clubs / ${total} players → ${path.relative(process.cwd(), OUT_FILE)}`)
+  const clubSeasons = clubs.reduce((s, c) => s + c.seasons.length, 0)
+  const players = clubs.reduce((s, c) => s + c.seasons.reduce((t: number, se: any) => t + se.players.length, 0), 0)
+  console.log(`\n✓ ${clubs.length} clubs · ${clubSeasons} club-seasons · ${players} player-seasons → ${path.relative(process.cwd(), OUT_FILE)}`)
 }
 
 main().catch(e => { console.error(e); process.exit(1) })

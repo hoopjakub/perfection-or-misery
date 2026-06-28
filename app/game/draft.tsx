@@ -6,7 +6,7 @@ import {
 import { router } from 'expo-router'
 import { useGameStore, type Difficulty } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
-import { calcTeamOvr, calcChemistry, effectiveOvr, positionFitMultiplier } from '@/engine/rating'
+import { calcTeamOvr, calcChemistry, effectiveOvr, positionPenalty, derivedSecondaryPositions } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
@@ -59,7 +59,7 @@ export default function DraftScreen() {
     mode, formation, era, difficulty,
     selectedLeague,
     draftedPlayers, spunSeasonIds,
-    rerollsUsed, addPlayer, markSeasonSpun, useReroll,
+    rerollsUsed, addPlayer, movePlayer, markSeasonSpun, useReroll,
   } = useGameStore()
   const theme = useModeTheme()
 
@@ -74,6 +74,7 @@ export default function DraftScreen() {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerRow | null>(null)
   const [showSlotPicker, setShowSlotPicker] = useState(false)
   const [spunPosition,  setSpunPosition]  = useState<PositionSlot | null>(null)
+  const [movingPlayer,  setMovingPlayer]  = useState<DraftedPlayer | null>(null)
   const [positionSpinDisplay, setPositionSpinDisplay] = useState<string>('')
 
   // spin animation
@@ -152,6 +153,34 @@ export default function DraftScreen() {
     setPlayers([])
     fadeAnim.setValue(0)
     scaleAnim.setValue(0.8)
+  }
+
+  // Move a drafted player to a different slot. If the target is OPEN, the old
+  // slot frees up. If it's OCCUPIED, the two players SWAP (only offered when both
+  // can play each other's position — see the move modal).
+  function handleMovePlayer(target: PositionSlot) {
+    if (!movingPlayer) return
+    const oldIndex = movingPlayer.slotIndex
+    const occupant = target.filledBy
+    setSlots(prev => prev.map((s, i) => {
+      if (i === oldIndex)         return { ...s, filledBy: occupant ? { ...occupant, slotIndex: oldIndex } : null }
+      if (i === target.slotIndex) return { ...s, filledBy: { ...movingPlayer, slotIndex: target.slotIndex } }
+      return s
+    }))
+    movePlayer(movingPlayer.playerId, target.slotIndex)
+    if (occupant) movePlayer(occupant.playerId, oldIndex)
+    setMovingPlayer(null)
+  }
+
+  // Can this player relocate at all — to an open compatible slot, or a swap where
+  // both players can cover each other's position?
+  function canRelocate(p: DraftedPlayer): boolean {
+    return slots.some(s => {
+      if (s.slotIndex === p.slotIndex) return false
+      if (positionPenalty(p.primaryPosition, s.primary) === null) return false
+      if (s.filledBy) return positionPenalty(s.filledBy.primaryPosition, slots[p.slotIndex].primary) !== null
+      return true
+    })
   }
   function runSpinAnimation(finalSpin: ClubSeasonRow) {
     // rapid cycling through random clubs for slot machine effect
@@ -367,8 +396,8 @@ export default function DraftScreen() {
             </Text>
             <Text style={styles.modalSubtitle}>
               Primary: {selectedPlayer.primary_position}
-              {JSON.parse(selectedPlayer.secondary_positions ?? '[]').length > 0
-                ? ` · Also: ${JSON.parse(selectedPlayer.secondary_positions ?? '[]').join(', ')}`
+              {derivedSecondaryPositions(selectedPlayer.primary_position).length > 0
+                ? ` · Also: ${derivedSecondaryPositions(selectedPlayer.primary_position).join(', ')}`
                 : ''}
             </Text>
             {mode === 'cursed' && spunPosition && (
@@ -384,19 +413,12 @@ export default function DraftScreen() {
                   return null
                 }
 
-                // Use the exact same fit logic as effectiveOvr so the rating
-                // shown here matches the rating applied once the player is placed.
-                const fitPlayer = {
-                  primaryPosition: selectedPlayer.primary_position,
-                  secondaryPositions: JSON.parse(selectedPlayer.secondary_positions ?? '[]'),
-                } as any
-                const fitMult  = positionFitMultiplier(fitPlayer, slot)
-                const penaltyOvr = Math.round(selectedPlayer.ovr * fitMult)
-                const isNatural  = fitMult >= 1.0
-                const canFill    = fitMult >= 0.93  // primary, accepted, or secondary fit
-
-                // Hide slots this player genuinely cannot fill
-                if (!canFill) return null
+                // Same fit logic as effectiveOvr so the rating shown here matches
+                // the rating applied once the player is placed.
+                const pen = positionPenalty(selectedPlayer.primary_position, slot.primary)
+                if (pen === null) return null   // genuinely can't play here
+                const penaltyOvr = Math.max(40, selectedPlayer.ovr - pen)
+                const isNatural  = pen === 0
 
                 return (
                   <Pressable
@@ -429,10 +451,7 @@ export default function DraftScreen() {
                 )
               })}
               {/* fallback if no compatible slot exists */}
-              {openSlots.every(slot => {
-                const allPos = [selectedPlayer.primary_position, ...JSON.parse(selectedPlayer.secondary_positions ?? '[]')]
-                return !allPos.includes(slot.primary) && !slot.accepts.some(a => allPos.includes(a))
-              }) && (
+              {openSlots.every(slot => positionPenalty(selectedPlayer.primary_position, slot.primary) === null) && (
                 <Text style={styles.noSlotText}>No compatible slots open for this player.</Text>
               )}
             </View>
@@ -446,6 +465,61 @@ export default function DraftScreen() {
           </View>
         </View>
       )}
+
+      {/* move picker — relocate to an open slot, or swap with a compatible player */}
+      {movingPlayer && (() => {
+        const fromSlot = slots[movingPlayer.slotIndex]
+        // Eligible targets: other slots this player can fill, where if occupied the
+        // current occupant can also cover the moving player's slot (a valid swap).
+        const targets = slots.filter(s => {
+          if (s.slotIndex === movingPlayer.slotIndex) return false
+          if (positionPenalty(movingPlayer.primaryPosition, s.primary) === null) return false
+          if (s.filledBy) return positionPenalty(s.filledBy.primaryPosition, fromSlot.primary) !== null
+          return true
+        })
+        return (
+        <View style={styles.topModalOverlay}>
+          <View style={styles.topModalCard}>
+            <Text style={styles.modalTitle}>
+              Move {movingPlayer.name.split(' ').slice(-1)[0]} to…
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              {movingPlayer.primaryPosition}
+              {derivedSecondaryPositions(movingPlayer.primaryPosition).length > 0
+                ? ` · Also: ${derivedSecondaryPositions(movingPlayer.primaryPosition).join(', ')}`
+                : ''}
+            </Text>
+            <View style={styles.modalSlots}>
+              {targets.map(slot => {
+                const pen = positionPenalty(movingPlayer.primaryPosition, slot.primary)!
+                const ovrThere = Math.max(40, movingPlayer.ovr - pen)
+                const occ = slot.filledBy
+                return (
+                  <Pressable
+                    key={slot.slotIndex}
+                    style={[styles.slotOption, styles.slotOptionAvailable]}
+                    onPress={() => handleMovePlayer(slot)}
+                  >
+                    <View style={[styles.slotOptionBadge, { backgroundColor: (colors.positions as any)[slot.primary] + '33' }]}>
+                      <Text style={[styles.slotOptionBadgeText, { color: (colors.positions as any)[slot.primary] }]}>{slot.label}</Text>
+                    </View>
+                    {occ
+                      ? <Text style={styles.slotSwap}>⇄ {occ.name.split(' ').slice(-1)[0]}</Text>
+                      : (!ratingsHidden && <Text style={pen === 0 ? styles.slotNatural : styles.slotPenalty}>OVR {ovrThere}</Text>)}
+                  </Pressable>
+                )
+              })}
+              {targets.length === 0 && (
+                <Text style={styles.noSlotText}>No slots to move or swap this player into.</Text>
+              )}
+            </View>
+            <Pressable style={styles.modalCancel} onPress={() => setMovingPlayer(null)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+        )
+      })()}
 
       <ScrollView
         style={styles.scroll}
@@ -610,10 +684,10 @@ export default function DraftScreen() {
                     const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), openSlots)
                     if (aAvail && !bAvail) return -1
                     if (!aAvail && bAvail) return 1
-                    // In Chaos/Cursed modes, scramble to last-name order so OVR
-                    // can't be inferred from the list. Everything else (incl.
-                    // hard mode, CL and WC) stays ordered by OVR, highest first.
-                    if (mode === 'chaos' || mode === 'cursed') {
+                    // Whenever ratings are hidden (Chaos/Cursed or hard difficulty),
+                    // order by surname so OVR can't be inferred from list position.
+                    // Otherwise keep it ordered by OVR, highest first.
+                    if (ratingsHidden) {
                       const aLastName = a.name.split(' ').slice(-1)[0]
                       const bLastName = b.name.split(' ').slice(-1)[0]
                       return aLastName.localeCompare(bLastName)
@@ -684,6 +758,8 @@ export default function DraftScreen() {
               const player = slot.filledBy!
               const effectiveRating = effectiveOvr(player, slot)
               const isAffected = effectiveRating !== player.ovr
+              // Can this player relocate to any other open, compatible slot?
+              const canMove = canRelocate(player)
               return (
                 <View key={i} style={styles.draftedRow}>
                   <View style={[
@@ -706,6 +782,11 @@ export default function DraftScreen() {
                     ]}>
                       {effectiveRating}
                     </Text>
+                  )}
+                  {canMove && (
+                    <Pressable style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
+                      <Text style={[styles.moveBtnText, { color: theme.accent }]}>MOVE</Text>
+                    </Pressable>
                   )}
                 </View>
               )
@@ -1142,6 +1223,19 @@ const styles = StyleSheet.create({
     minWidth:   28,
     textAlign:  'right',
   },
+  moveBtn: {
+    marginLeft:        8,
+    paddingVertical:   3,
+    paddingHorizontal: 8,
+    borderRadius:      6,
+    borderWidth:       1,
+    borderColor:       colors.border,
+  },
+  moveBtnText: {
+    fontSize:   10,
+    fontWeight: typography.bold,
+    letterSpacing: 0.5,
+  },
   doneZone: {
     alignItems:      'center',
     backgroundColor: colors.bgCard,
@@ -1266,6 +1360,11 @@ slotNatural: {
 slotPenalty: {
   fontSize: typography.xs,
   color:    colors.warning,
+},
+slotSwap: {
+  fontSize: typography.xs,
+  color:    colors.accent,
+  fontWeight: typography.bold,
 },
 modalCancel: {
   alignItems:      'center',

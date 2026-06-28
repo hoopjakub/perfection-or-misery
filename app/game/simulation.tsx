@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import {
   View, Text, StyleSheet, Pressable,
-  ScrollView, Animated, ActivityIndicator,
+  ScrollView, Animated, ActivityIndicator, Modal,
 } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
@@ -13,6 +13,7 @@ import { assignTier } from '@/engine/tier'
 import { generateCLLeagueFixtures, simulateCLKnockoutsOnly } from '@/engine/cl-sim'
 import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/engine/cl-sim'
 import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
+import { WCGroupModal } from '@/components/WCGroupModal'
 import type { WCTeam, WCGroup, WCKnockoutMatch, WCSeasonResult, WCGroupMatch } from '@/engine/world-cup-sim'
 import { expandPenaltyKicks } from '@/engine/knockout-match'
 import type { PenKick } from '@/engine/knockout-match'
@@ -137,7 +138,12 @@ function LeagueSimulation() {
   const [isFinishingSimulation, setIsFinishingSimulation] = useState(false)
   const finishingRef = useRef(false)   // bulletproof re-entry guard (state lags a tap)
 
-  const totalMatchdays = placedLeague?.gamesPerSeason ?? 38
+  // Derive from the ACTUAL generated fixtures, not the league's games_per_season
+  // config — team counts vary by era (e.g. Ligue 1 was 20 teams → 38 MDs before
+  // 2023/24, 18 → 34 after). Using the config would cut a 20-team season short.
+  const totalMatchdays = allFixtures.length
+    ? Math.max(...allFixtures.map(f => f.matchday))
+    : (placedLeague?.gamesPerSeason ?? 38)
 
   // Upsets and Margins tracker for the final SeasonResult
   const upsetsRef = useRef<{ score: string; opponent: string; ovrGap: number }[]>([])
@@ -243,6 +249,7 @@ function LeagueSimulation() {
 
     // Simulate each fixture on this matchday
     mdFixtures.forEach(fixture => {
+      if (fixture.result !== null) return   // already simulated — never double-count
       const homeTeam = updatedTeams.find(t => t.clubId === fixture.home.clubId)!
       const awayTeam = updatedTeams.find(t => t.clubId === fixture.away.clubId)!
 
@@ -381,22 +388,24 @@ function LeagueSimulation() {
   }
 
   function skipAllMatchdays() {
+    if (phase === 'completed') return   // already finished — ignore extra taps
     setIsPlaying(false)
     let updatedTeams = [...simTeams]
-    
+
     for (let md = currentMatchday; md <= totalMatchdays; md++) {
-      const mdFixtures = allFixtures.filter(f => f.matchday === md)
-      
+      const mdFixtures = allFixtures.filter(f => f.matchday === md && f.result === null)
+
       // Skip if no fixtures for this matchday
       if (mdFixtures.length === 0) {
         // Don't add to matchday history if no fixtures
         continue
       }
-      
+
       const completedFixtures: Fixture[] = []
 
       // Simulate each fixture on this matchday
       mdFixtures.forEach(fixture => {
+        if (fixture.result !== null) return   // already simulated — never double-count
         const homeTeam = updatedTeams.find(t => t.clubId === fixture.home.clubId)!
         const awayTeam = updatedTeams.find(t => t.clubId === fixture.away.clubId)!
 
@@ -925,7 +934,8 @@ function LeagueSimulation() {
 // ── Champions League Simulation ──────────────────────────────────────────────
 
 function CLSimulation() {
-  const { draftedPlayers, formation, clTeams, setClResult } = useGameStore()
+  const { draftedPlayers, formation, clTeams, clYear, setClResult } = useGameStore()
+  const clPoolYear = clYear ?? 2025   // UCL edition you were placed in (for scorer rosters)
 
   const slots       = formation ? getSlotsForFormation(formation) : []
   const baseTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
@@ -951,7 +961,7 @@ function CLSimulation() {
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
   useEffect(() => {
     if (!clTeams || clTeams.length === 0 || draftedPlayers.length === 0) return
-    loadLeaguePools(clTeams, draftedPlayers, 2025)
+    loadLeaguePools(clTeams, draftedPlayers, clPoolYear)
       .then(p => { poolByClubRef.current = p.poolByClub })
       .catch(e => console.warn('[cl] pool load failed:', e))
   }, [clTeams])
@@ -1174,7 +1184,7 @@ function CLSimulation() {
     // same match objects feed both the live reveal and the result screen.
     try {
       let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, draftedPlayers, 2025)).poolByClub
+      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, draftedPlayers, clPoolYear)).poolByClub
       attributeCLResultScorers(koStoredResultRef.current, pool)
     } catch (e) { console.warn('[cl] scorer attribution failed:', e) }
 
@@ -1551,6 +1561,7 @@ function WCSimulation() {
   const [groups,        setGroups]        = useState<WCGroup[]>([])
   const [fixtures,      setFixtures]      = useState<{ matchday: number; home: WCTeam; away: WCTeam }[]>([])
   const [recentResults, setRecentResults] = useState<CompMatchResult[]>([])
+  const [openGroupSim,  setOpenGroupSim]  = useState<string | null>(null)
   const [isPlaying,     setIsPlaying]     = useState(false)
   // World Cup group stage always runs at "slow" — the pace is locked.
   const speed: Speed = 'slow'
@@ -1770,10 +1781,10 @@ function WCSimulation() {
     }
 
     const ROUND_DELAYS: Record<string, number> = {
-      r32: 1500, r16: 2500, qf: 4000, sf: 5000, final: 0,
+      r32: 1500, r16: 2500, qf: 4000, sf: 5000, third: 4500, final: 0,
     }
     const ROUND_LABELS: Record<string, string> = {
-      r32: 'Round of 32', r16: 'Round of 16', qf: 'Quarter-Finals', sf: 'Semi-Finals', final: 'World Cup Final',
+      r32: 'Round of 32', r16: 'Round of 16', qf: 'Quarter-Finals', sf: 'Semi-Finals', third: 'Third-Place Playoff', final: 'World Cup Final',
     }
 
     const wcRounds: KnockoutRound[] = result.knockoutRounds.map(r => ({
@@ -1974,8 +1985,8 @@ function WCSimulation() {
               {sortedGroups.map(group => {
                 const playerInGroup = group.teams.some(t => t.isPlayer)
                 return (
-                  <View key={group.id} style={[styles.groupCard, playerInGroup && styles.groupCardPlayer]}>
-                    <Text style={styles.groupCardTitle}>Group {group.id}</Text>
+                  <Pressable key={group.id} style={[styles.groupCard, playerInGroup && styles.groupCardPlayer]} onPress={() => setOpenGroupSim(group.id)}>
+                    <Text style={styles.groupCardTitle}>Group {group.id}  ›</Text>
                     {group.teams.map((team, idx) => {
                       const qualified = idx < 2
                       return (
@@ -1993,7 +2004,7 @@ function WCSimulation() {
                         </View>
                       )
                     })}
-                  </View>
+                  </Pressable>
                 )
               })}
             </View>
@@ -2014,6 +2025,8 @@ function WCSimulation() {
                         containerStyle={styles.groupTeamLabel}
                         size={14}
                       />
+                      {(() => { const gd = team.stats.goalsFor - team.stats.goalsAgainst
+                        return <Text style={styles.thirdPlaceGd}>{gd >= 0 ? `+${gd}` : gd}</Text> })()}
                       <Text style={[styles.thirdPlacePts, advances && { color: colors.success }]}>{team.stats.points} pts</Text>
                     </View>
                   )
@@ -2030,6 +2043,13 @@ function WCSimulation() {
                 ? <View style={styles.finishBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Simulating knockouts...</Text></View>
                 : <Text style={styles.finishBtnText}>CONTINUE TO KNOCKOUTS →</Text>}
             </Pressable>
+
+            {/* tap a group → standings + matches (same view as the result screen) */}
+            <WCGroupModal
+              group={openGroupSim ? (groups.find(g => g.id === openGroupSim) ?? null) : null}
+              matches={openGroupSim ? groupHistoryRef.current.filter(m => m.groupId === openGroupSim) : []}
+              onClose={() => setOpenGroupSim(null)}
+            />
           </ScrollView>
         )
       })() : phase === 'knockout_phase' ? (
@@ -3062,7 +3082,25 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     fontWeight: typography.bold,
     color: colors.textSecondary,
+    minWidth: 52,
+    textAlign: 'right',
   },
+  thirdPlaceGd: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    minWidth: 30,
+    textAlign: 'right',
+  },
+  groupModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing.lg },
+  groupModalCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, maxHeight: '80%' },
+  groupModalTitle: { fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary, marginBottom: spacing.md, textAlign: 'center' },
+  groupModalMd: { fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
+  groupModalRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  groupModalTeam: { flex: 1, fontSize: typography.sm, color: colors.textSecondary },
+  groupModalScore: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, minWidth: 44, textAlign: 'center' },
+  groupModalScorers: { fontSize: 9, color: colors.textMuted, textAlign: 'center', marginTop: 1 },
+  groupModalClose: { marginTop: spacing.md, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.bgElevated },
+  groupModalCloseText: { color: colors.textPrimary, fontWeight: typography.bold },
 
   // ── Knockout Phase ──────────────────────────────────────────────────────────
   koTitle: {

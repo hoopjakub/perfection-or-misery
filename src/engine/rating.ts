@@ -13,18 +13,71 @@ const POSITION_WEIGHTS: Record<Position, number> = {
   ST:  1.10,
 }
 
-export function positionFitMultiplier(
-  player: DraftedPlayer,
-  slot: PositionSlot
-): number {
-  if (player.primaryPosition === slot.primary) return 1.0
-  if (slot.accepts.includes(player.primaryPosition)) return 0.95
-  if (player.secondaryPositions.some(p => p === slot.primary)) return 0.93
-  return 0.82
+// ── Position fitness ─────────────────────────────────────────────────────────
+// Out-of-position penalties are FLAT and small: 0 within a natural family /
+// mirror side / adjacent role, and at most -2 OVR for a real stretch. Secondary
+// positions are DERIVED from the primary (most scraped players have none stored).
+
+// Normalise data-only positions onto the 10 game positions.
+const NORM: Record<string, Position> = {
+  LM: 'LW', RM: 'RW', CF: 'ST', LWB: 'LB', RWB: 'RB', SW: 'CB',
+}
+const norm = (p: string): Position => (NORM[p] ?? p) as Position
+
+// 0-penalty neighbours: same role, mirror side (LB↔RB, LW↔RW), or adjacent
+// central role (CDM↔CM↔CAM).
+const NATURAL: Record<Position, Position[]> = {
+  GK:  ['GK'],
+  CB:  ['CB'],
+  LB:  ['LB', 'RB'],
+  RB:  ['RB', 'LB'],
+  CDM: ['CDM', 'CM'],
+  CM:  ['CM', 'CDM', 'CAM'],
+  CAM: ['CAM', 'CM'],
+  LW:  ['LW', 'RW'],
+  RW:  ['RW', 'LW'],
+  ST:  ['ST'],
+}
+
+// -2-penalty stretches: playable but clearly out of position (e.g. CAM→RW).
+const STRETCH: Record<Position, Position[]> = {
+  GK:  [],
+  CB:  ['LB', 'RB', 'CDM'],
+  LB:  ['LW', 'CB', 'CM'],
+  RB:  ['RW', 'CB', 'CM'],
+  CDM: ['CB', 'CAM'],
+  CM:  ['ST', 'LW', 'RW', 'LB', 'RB'],
+  CAM: ['LW', 'RW', 'ST'],
+  LW:  ['CAM', 'ST', 'LB', 'CM'],
+  RW:  ['CAM', 'ST', 'RB', 'CM'],
+  ST:  ['CAM', 'LW', 'RW'],
+}
+
+const OUT_OF_POSITION_PENALTY = 2
+
+// OVR penalty for playing `playerPos` in a `slotPos` slot.
+// Returns null when the player simply can't play there (e.g. GK ↔ outfield).
+export function positionPenalty(playerPos: string, slotPos: string): number | null {
+  const p = norm(playerPos), s = norm(slotPos)
+  if (NATURAL[p]?.includes(s)) return 0
+  if (STRETCH[p]?.includes(s)) return OUT_OF_POSITION_PENALTY
+  return null
+}
+
+export function canPlaySlot(playerPos: string, slot: PositionSlot): boolean {
+  return positionPenalty(playerPos, slot.primary) !== null
+}
+
+// Positions a player can also fill at no penalty — derived from the primary.
+export function derivedSecondaryPositions(primaryPos: string): Position[] {
+  const p = norm(primaryPos)
+  return (NATURAL[p] ?? []).filter(x => x !== p)
 }
 
 export function effectiveOvr(player: DraftedPlayer, slot: PositionSlot): number {
-  return Math.round(player.ovr * positionFitMultiplier(player, slot))
+  const pen = positionPenalty(player.primaryPosition, slot.primary)
+  // Unplayable fits shouldn't occur in a valid lineup; fall back to a hard -6.
+  return Math.max(40, player.ovr - (pen ?? 6))
 }
 
 export function calcTeamOvr(

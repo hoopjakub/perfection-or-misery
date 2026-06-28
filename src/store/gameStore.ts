@@ -23,6 +23,7 @@ type GameStore = {
   accentColor:    string | null
   competitionData: null
   clTeams:        CLTeam[] | null
+  clYear:         number | null   // which UCL edition you were placed in
   wcTeams:        WCTeam[] | null
   clResult:       CLSeasonResult | null
   wcResult:       WCSeasonResult | null
@@ -30,6 +31,7 @@ type GameStore = {
 
   startRun:       (mode: GameMode, formation: Formation, era?: string) => void
   addPlayer:      (player: DraftedPlayer) => void
+  movePlayer:     (playerId: string, newSlotIndex: number) => void
   markSeasonSpun: (id: string) => void
   useReroll:      () => void
   resetRun:       () => void
@@ -40,7 +42,8 @@ type GameStore = {
   setSimResult:   (result: SeasonResult | null) => void
   setAccentColor: (color: string | null) => void
   setCompetitionData: (data: null) => void
-  setClTeams: (teams: CLTeam[]) => void 
+  setClTeams: (teams: CLTeam[]) => void
+  setClYear:  (year: number) => void
   setWcTeams: (teams: WCTeam[]) => void
   setClResult: (r: CLSeasonResult) => void
   setWcResult: (r: WCSeasonResult) => void
@@ -60,6 +63,7 @@ const initialState = {
   accentColor:     null,
   competitionData: null,
   clTeams:         null,
+  clYear:          null,
   wcTeams:         null,
   clResult:        null,
   wcResult:        null,
@@ -78,6 +82,9 @@ export const useGameStore = create<GameStore>((set) => ({
     accentColor: s.accentColor, // Preserve accent color
   })),
   addPlayer:      (player) => set(s => ({ draftedPlayers: [...s.draftedPlayers, player] })),
+  movePlayer:     (playerId, newSlotIndex) => set(s => ({
+    draftedPlayers: s.draftedPlayers.map(p => p.playerId === playerId ? { ...p, slotIndex: newSlotIndex } : p),
+  })),
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll:      () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),
   resetRun:       () => set(s => ({
@@ -90,6 +97,7 @@ export const useGameStore = create<GameStore>((set) => ({
     simResult:       null,
     competitionData: null,
     clTeams:         null,
+  clYear:          null,
     wcTeams:         null,
     clResult:        null,
     wcResult:        null,
@@ -104,6 +112,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setAccentColor: (accentColor) => set({ accentColor }),
   setCompetitionData: (competitionData) => set({ competitionData }),
   setClTeams:     (clTeams) => set({ clTeams }),
+  setClYear:      (clYear) => set({ clYear }),
   setWcTeams:     (wcTeams) => set({ wcTeams }),
   setClResult:    (clResult) => set({ clResult }),
   setWcResult:    (wcResult) => set({ wcResult }),

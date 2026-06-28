@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { bestTierOf } from '@/data/tiers'
 
 export type LeaderboardEntry = {
   id: string
@@ -105,35 +106,15 @@ export async function fetchUserStats(userId: string): Promise<UserStats> {
 
   if (scoreError && scoreError.code !== 'PGRST116') throw scoreError
 
-  // Calculate best tier by checking from perfection down
-  const TIER_HIERARCHY = [
-    'perfection',
-    'almost_perfection',
-    'champions',
-    'title_contender',
-    'champions_league',
-    'europa_glory',
-    'almost_matters',
-    'respectful_mediocrity',
-    'absolute_misery'
-  ]
-
+  // Best tier across ALL modes (league finishes, UCL exits, WC finishes incl.
+  // 3rd-place) via the unified tier ranking — not just league tiers.
   let bestTier: string | null = null
   if (bestRun) {
-    // If user has runs, find their best tier
     const { data: allTiers } = await supabase
       .from('runs')
       .select('tier')
       .eq('user_id', userId)
-
-    if (allTiers) {
-      for (const tier of TIER_HIERARCHY) {
-        if (allTiers.some((run: any) => run.tier === tier)) {
-          bestTier = tier
-          break
-        }
-      }
-    }
+    if (allTiers) bestTier = bestTierOf(allTiers.map((r: any) => r.tier))
   }
 
   return {

@@ -1,11 +1,9 @@
 module.exports = function (api) {
   api.cache(true)
+  // babel-preset-expo automatically adds react-native-worklets/plugin (reanimated 4)
+  // when the package is installed — do NOT add it again here or the worklet
+  // transform double-applies and Hermes fails with "invalid expression".
   return {
     presets: ['babel-preset-expo'],
-    // react-native-worklets (reanimated 4) MUST be the last plugin. Required so
-    // worklet code pulled in transitively (gesture-handler / screens / reanimated)
-    // is transformed — without it Hermes fails with "Compiling JS failed: invalid
-    // expression" at runtime.
-    plugins: ['react-native-worklets/plugin'],
   }
 }

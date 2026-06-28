@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { fetchUserStats, fetchRunHistory, type UserStats } from '@/db/queries/leaderboard'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { formatTier } from '@/data/tiers'
 
 export default function HomeScreen() {
   const { profile, isGuest, user } = useUserStore()
@@ -36,14 +37,6 @@ export default function HomeScreen() {
       return () => { active = false }
     }, [user, isGuest])
   )
-
-  function formatTier(tier: string | null | undefined): string {
-    if (!tier) return '—'
-    return tier
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
-  }
 
   function formatDate(dateString: string): string {
     const date = new Date(dateString)

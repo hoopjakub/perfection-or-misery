@@ -235,7 +235,7 @@ function LeaguePlacement() {
 // ── Champions League Placement ──────────────────────────────────────────────
 
 function CLPlacement() {
-  const { draftedPlayers, formation, setClTeams } = useGameStore()
+  const { draftedPlayers, formation, setClTeams, setClYear } = useGameStore()
   const theme = MODE_THEMES.champions_league
 
   const [phase,       setPhase]       = useState<Phase>('ready')
@@ -261,11 +261,13 @@ function CLPlacement() {
       const rows = await getClubSeasonsForMode('champions_league')
       if (rows.length === 0) { setLoading(false); return }
 
-      // Pick latest UCL edition. Hold the clubs back — which one you take over
-      // is revealed via a spin (like league mode), not auto-assigned.
-      const latestYear = Math.max(...rows.map(r => r.year_start))
-      const editionRows = rows.filter(r => r.year_start === latestYear)
-      setYearLabel(`${latestYear}/${String(latestYear + 1).slice(-2)}`)
+      // Pick a RANDOM UCL edition (both 2024 & 2025 are in the pool). Which club
+      // you take over within it is revealed via the spin.
+      const years = [...new Set(rows.map(r => r.year_start))]
+      const chosenYear = years[Math.floor(Math.random() * years.length)]
+      const editionRows = rows.filter(r => r.year_start === chosenYear)
+      setYearLabel(`${chosenYear}/${String(chosenYear + 1).slice(-2)}`)
+      setClYear(chosenYear)
       candidatesRef.current = [...editionRows].sort((a, b) => a.historical_ovr - b.historical_ovr)
       setTeamCount(editionRows.length)
       setLoading(false)
@@ -294,8 +296,8 @@ function CLPlacement() {
     if (sorted.length === 0) return
     setPhase('spinning')
 
-    // You take over one of the three weakest clubs (random, matches WC fairness).
-    const replaceIdx = Math.floor(Math.random() * Math.min(3, sorted.length))
+    // You can now take over ANY of the UCL clubs — Real Madrid or a minnow.
+    const replaceIdx = Math.floor(Math.random() * sorted.length)
     const finalName  = sorted[replaceIdx].club_name
 
     let ticks = 0

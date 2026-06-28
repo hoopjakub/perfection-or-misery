@@ -79,16 +79,21 @@ export async function saveRun(params: {
   })
 }
 
-// World Cup runs don't have a league position, so map how far the player
-// advanced to a pseudo-position (out of 48) and reuse the shared scoring.
+// Knockout competitions (WC / UCL) don't have a league position. Score them on a
+// ROUND-REACHED ladder (so progress is rewarded and scores sit alongside league
+// scores), and report a real FINISH position (1–4 podium, then by round).
+function knockoutScore(base: number, teamOvr: number, losses: number): number {
+  const ovrPenalty = Math.max(0, teamOvr - 80) * 10        // reward underdog squads
+  const unbeaten   = losses === 0 ? 200 : 0                // bonus for an unbeaten run
+  return Math.round(Math.max(0, base - ovrPenalty + unbeaten))
+}
+
+// World Cup — finish position (with the 3rd-place playoff the top 4 are exact).
 const WC_ROUND_TO_POSITION: Record<string, number> = {
-  groups: 40,
-  r32:    28,
-  r16:    14,
-  qf:     7,
-  sf:     4,
-  final:  2,
-  winner: 1,
+  winner: 1, final: 2, third: 3, fourth: 4, sf: 4, qf: 8, r16: 16, r32: 32, groups: 40,
+}
+const WC_ROUND_SCORE: Record<string, number> = {
+  groups: 150, r32: 350, r16: 550, qf: 800, fourth: 950, sf: 950, third: 1150, final: 1300, winner: 1650,
 }
 
 export async function saveWCRun(params: {
@@ -104,15 +109,7 @@ export async function saveWCRun(params: {
   const pt = result.playerTeam
   const finalPosition = WC_ROUND_TO_POSITION[result.playerFinalRound] ?? 48
   const teamsInLeague = 48
-
-  const score = calculateScore({
-    mode: 'world_cup',
-    finalPosition,
-    teamsInLeague,
-    teamOvr: params.teamOvr,
-    losses: pt.stats.lost,
-    draws: pt.stats.drawn,
-  })
+  const score = knockoutScore(WC_ROUND_SCORE[result.playerFinalRound] ?? 100, params.teamOvr, pt.stats.lost)
 
   await insertRun({
     user_id: params.userId,
@@ -141,8 +138,7 @@ export async function saveWCRun(params: {
   })
 }
 
-// Champions League: no league position either, so map the round reached to a
-// pseudo-position (out of 36) and reuse the shared scoring.
+// Champions League — finish position + round-reached score ladder.
 const CL_ROUND_TO_POSITION: Record<string, number> = {
   league_exit:  30,
   playoff_exit: 24,
@@ -151,6 +147,9 @@ const CL_ROUND_TO_POSITION: Record<string, number> = {
   sf_exit:      4,
   finalist:     2,
   winner:       1,
+}
+const CL_ROUND_SCORE: Record<string, number> = {
+  league_exit: 200, playoff_exit: 350, r16_exit: 550, qf_exit: 800, sf_exit: 1050, finalist: 1300, winner: 1650,
 }
 
 export async function saveCLRun(params: {
@@ -166,15 +165,7 @@ export async function saveCLRun(params: {
   const pt = result.playerTeam
   const finalPosition = CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 36
   const teamsInLeague = 36
-
-  const score = calculateScore({
-    mode: 'champions_league',
-    finalPosition,
-    teamsInLeague,
-    teamOvr: params.teamOvr,
-    losses: pt.stats.lost,
-    draws: pt.stats.drawn,
-  })
+  const score = knockoutScore(CL_ROUND_SCORE[result.playerFinalRound] ?? 100, params.teamOvr, pt.stats.lost)
 
   await insertRun({
     user_id: params.userId,

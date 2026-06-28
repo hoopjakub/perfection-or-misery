@@ -23,7 +23,7 @@
 import fs from 'fs'
 import path from 'path'
 import {
-  BASE, fetchDoc, sleep, slugify, shortName, parseParticipants, fetchClubSquad, finalizePlayers,
+  BASE, fetchDoc, sleep, slugify, shortName, parseParticipants, fetchClubSquad, finalizePlayers, teamStrength,
 } from './lib/transfermarkt'
 import { fetchCrestColors } from './lib/colors'
 
@@ -118,7 +118,7 @@ async function scrapeLeague(cfg: LeagueCfg, seasons: number[]) {
           byVerein.set(vereinId, acc)
         }
         const players = finalizePlayers(raw, season, '')
-        const histOvr = Math.round(players.reduce((s, p) => s + p.ovr, 0) / players.length)
+        const histOvr = teamStrength(players)
         acc.seasons.push({
           id: `${acc.id}_${season}`, club_id: acc.id,
           year_start: season, year_end: season + 1,

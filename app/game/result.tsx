@@ -450,6 +450,18 @@ export default function ResultScreen() {
           <Text style={[styles.tierTitle, { color: tierColor }]}>{meta.title}</Text>
           <Text style={styles.positionText}>Finished #{finalPosition} out of {teamsInLeague} teams</Text>
           <Text style={styles.tierDesc}>{meta.desc}</Text>
+          {(() => {
+            const lg = placedLeague?.leagueName ?? dbRunData?.league_name ?? dbRunData?.leagueName
+            const ys = placedLeague?.yearStart ?? dbRunData?.year_start ?? dbRunData?.yearStart
+            const season = ys ? `${ys}/${String(ys + 1).slice(-2)}` : null
+            const club = (playerTeam as any)?.clubName
+            if (!lg && !club) return null
+            return (
+              <Text style={styles.takeoverText}>
+                {[lg, season].filter(Boolean).join(' ')}{club ? `  ·  You took over ${club}` : ''}
+              </Text>
+            )
+          })()}
         </View>
 
         {/* Stats Grid */}
@@ -854,6 +866,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginTop: spacing.xs,
+  },
+  takeoverText: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    fontWeight: typography.bold,
   },
   sectionTitle: {
     fontSize: typography.md,
