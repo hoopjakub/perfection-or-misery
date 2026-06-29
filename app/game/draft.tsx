@@ -6,7 +6,7 @@ import {
 import { router } from 'expo-router'
 import { useGameStore, type Difficulty } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
-import { calcTeamOvr, calcChemistry, effectiveOvr, positionPenalty, derivedSecondaryPositions } from '@/engine/rating'
+import { calcTeamOvr, effectiveOvr, positionPenalty, derivedSecondaryPositions } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
@@ -91,10 +91,8 @@ export default function DraftScreen() {
   // Hide ratings in chaos/cursed modes and hard mode
   const ratingsHidden = mode === 'chaos' || mode === 'cursed' || difficulty === 'hard'
 
-  // Calculate chemistry-affected OVR for squad display
+  // Squad OVR for display — pure positional team rating (no chemistry)
   const baseTeamOvr = slots.length > 0 && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
-  const chem = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
-  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
 
   function getPlayerInitials(name: string): string {
     const parts = name.split(' ')
@@ -750,8 +748,7 @@ export default function DraftScreen() {
             {!ratingsHidden && (
               <View style={styles.teamOvrRow}>
                 <Text style={styles.teamOvrLabel}>Team OVR: </Text>
-                <Text style={[styles.teamOvrValue, { color: colors.warning }]}>{totalTeamOvr}</Text>
-                <Text style={styles.teamOvrBreakdown}>({baseTeamOvr} +{chem.bonusOvr})</Text>
+                <Text style={[styles.teamOvrValue, { color: colors.warning }]}>{baseTeamOvr}</Text>
               </View>
             )}
             {slots.filter(s => s.filledBy).map((slot, i) => {
@@ -1179,11 +1176,6 @@ const styles = StyleSheet.create({
   teamOvrValue: {
     fontSize: typography.md,
     fontWeight: typography.black,
-  },
-  teamOvrBreakdown: {
-    fontSize: typography.xs,
-    color: colors.textMuted,
-    marginLeft: spacing.xs,
   },
   draftedRow: {
     flexDirection:   'row',

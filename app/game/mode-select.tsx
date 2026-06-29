@@ -5,8 +5,11 @@ import { useGameStore, GameMode, type Difficulty } from '@/store/gameStore'
 import { getAvailableLeagues, type LeagueOption } from '@/db/queries/seasons'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
+type ModeCategory = 'normal' | 'special'
+
 type ModeConfig = {
   id: GameMode
+  category: ModeCategory
   title: string
   subtitle: string
   description: string
@@ -16,9 +19,16 @@ type ModeConfig = {
   image?: any // Image require statement
 }
 
+const CATEGORIES: { id: ModeCategory; label: string }[] = [
+  { id: 'normal',  label: 'Normal Modes' },
+  { id: 'special', label: 'Special Modes' },
+]
+
 const MODES: ModeConfig[] = [
+  // ── Normal modes: drafted XI placed into a domestic league season ──────────
   {
     id:            'all_time',
+    category:      'normal',
     title:         'All Time',
     subtitle:      'Any league, any era',
     description:   'The full pool. Any club, any season, any league. The main experience.',
@@ -28,6 +38,7 @@ const MODES: ModeConfig[] = [
   },
   {
     id:            'league',
+    category:      'normal',
     title:         'League Mode',
     subtitle:      'One league, all eras',
     description:   'Pick a league. Every spin comes from that league across all available seasons. Placement stays within it too.',
@@ -37,6 +48,7 @@ const MODES: ModeConfig[] = [
   },
   {
     id:            'era',
+    category:      'normal',
     title:         'Era Mode',
     subtitle:      'Pick a decade',
     description:   'Lock the draft to a specific decade. All clubs, all leagues — but only from your chosen era.',
@@ -45,7 +57,29 @@ const MODES: ModeConfig[] = [
     hasDifficulty: true,
   },
   {
+    id:            'chaos',
+    category:      'normal',
+    title:         'Chaos Mode',
+    subtitle:      'No mercy',
+    description:   'Ratings hidden. No rerolls. Placement weighting disabled — you could end up anywhere.',
+    emoji:         '💀',
+    accentColor:   '#FF3B30',
+    hasDifficulty: false,
+  },
+  {
+    id:            'cursed',
+    category:      'normal',
+    title:         'Cursed Mode',
+    subtitle:      'You asked for this',
+    description:   'Like Chaos but you also have no idea which position you\'re drafting for until after you pick.',
+    emoji:         '☠️',
+    accentColor:   '#A855F7',
+    hasDifficulty: false,
+  },
+  // ── Special modes: real competitions with their own formats ────────────────
+  {
     id:            'champions_league',
+    category:      'special',
     title:         'Champions League',
     subtitle:      'European elite',
     description:   'Only the best clubs from Europe\'s top competitions. Compete for the ultimate prize.',
@@ -56,6 +90,7 @@ const MODES: ModeConfig[] = [
   },
   {
     id:            'world_cup',
+    category:      'special',
     title:         'World Cup',
     subtitle:      'Global glory',
     description:   'National teams from around the world. Draft your squad and lead your country to victory.',
@@ -63,24 +98,6 @@ const MODES: ModeConfig[] = [
     accentColor:   '#F5C518',
     hasDifficulty: true,
     image:         require('../../assets/modes/world-cup.png'),
-  },
-  {
-    id:            'chaos',
-    title:         'Chaos Mode',
-    subtitle:      'No mercy',
-    description:   'Ratings hidden. No rerolls. Placement weighting disabled — you could end up anywhere.',
-    emoji:         '💀',
-    accentColor:   '#FF3B30',
-    hasDifficulty: false,
-  },
-  {
-    id:            'cursed',
-    title:         'Cursed Mode',
-    subtitle:      'You asked for this',
-    description:   'Like Chaos but you also have no idea which position you\'re drafting for until after you pick.',
-    emoji:         '☠️',
-    accentColor:   '#A855F7',
-    hasDifficulty: false,
   },
 ]
 
@@ -105,6 +122,7 @@ const DIFFICULTIES: { id: Difficulty; label: string; description: string }[] = [
 
 export default function ModeSelectScreen() {
   const { setMode, setDifficulty, setSelectedLeague, setAccentColor } = useGameStore()
+  const [selectedCategory, setSelectedCategory] = useState<ModeCategory>('normal')
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null)
   const [selectedEra, setSelectedEra] = useState<string | null>(null)
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
@@ -161,6 +179,7 @@ export default function ModeSelectScreen() {
     (!MODES.find(m => m.id === selectedMode)?.hasDifficulty || selectedDifficulty !== null)
 
   const currentMode = MODES.find(m => m.id === selectedMode)
+  const visibleModes = MODES.filter(m => m.category === selectedCategory)
 
   return (
     <View style={styles.container}>
@@ -173,12 +192,30 @@ export default function ModeSelectScreen() {
         <View style={{ width: 32 }} />
       </View>
 
+      {/* normal / special switcher */}
+      <View style={styles.segmentRow}>
+        {CATEGORIES.map(cat => {
+          const active = selectedCategory === cat.id
+          return (
+            <Pressable
+              key={cat.id}
+              style={[styles.segment, active && styles.segmentActive]}
+              onPress={() => setSelectedCategory(cat.id)}
+            >
+              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                {cat.label}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {MODES.map(mode => {
+        {visibleModes.map(mode => {
           const selected = selectedMode === mode.id
           return (
             <Pressable
@@ -358,6 +395,34 @@ const styles = StyleSheet.create({
     fontSize:   typography.xl,
     fontWeight: typography.black,
     color:      colors.textPrimary,
+  },
+  segmentRow: {
+    flexDirection:     'row',
+    backgroundColor:   colors.bgCard,
+    borderRadius:      radius.full,
+    borderWidth:       1,
+    borderColor:       colors.border,
+    padding:           4,
+    gap:               4,
+    marginHorizontal:  spacing.lg,
+    marginBottom:      spacing.md,
+  },
+  segment: {
+    flex:            1,
+    paddingVertical: spacing.sm,
+    borderRadius:    radius.full,
+    alignItems:      'center',
+  },
+  segmentActive: {
+    backgroundColor: colors.accent,
+  },
+  segmentText: {
+    fontSize:   typography.sm,
+    fontWeight: typography.bold,
+    color:      colors.textSecondary,
+  },
+  segmentTextActive: {
+    color: colors.textPrimary,
   },
   scroll: {
     flex: 1,

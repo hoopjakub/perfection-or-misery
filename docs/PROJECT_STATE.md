@@ -34,7 +34,7 @@ src/
     cl-sim.ts             Champions League (Swiss league phase + KO)
     world-cup-sim.ts      World Cup (48-team groups → R32… + 3rd-place playoff)
     knockout-match.ts     KO ties, extra time, simulateShootout (penalties w/ early stop)
-    rating.ts             effectiveOvr, positionPenalty (flat ±0/-2 fit), calcTeamOvr, calcChemistry
+    rating.ts             effectiveOvr, positionPenalty (flat ±0/-2 fit), calcTeamOvr (no chemistry)
     draft.ts              isPlayerAvailable, spinClubSeason, reroll/ratings-hidden rules
     stats.ts              scorer/assist/clean-sheet ATTRIBUTION + awards (POTS/U21)
     run-stats.ts          aggregate a finished run → CompetitionStats + awards; loadLeaguePools

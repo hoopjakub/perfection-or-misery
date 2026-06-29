@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
-import { calcTeamOvr, calcChemistry, effectiveOvr } from '@/engine/rating'
+import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { generateFixtures } from '@/engine/fixtures'
 import { simulateMatch } from '@/engine/match'
@@ -119,8 +119,7 @@ function LeagueSimulation() {
   // Calculate OVR & Chem safely at the top with defaults in case of empty store
   const slots = formation ? getSlotsForFormation(formation) : []
   const baseTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
-  const chem = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
-  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+  const totalTeamOvr = baseTeamOvr
   // Chaos = red, Cursed = violet, league/all-time/era = league accent.
   const theme = useModeTheme()
 
@@ -586,18 +585,8 @@ function LeagueSimulation() {
           {/* OVR Details */}
           <View style={styles.ovrOverview}>
             <View style={styles.ovrCol}>
-              <Text style={styles.ovrLabel}>Squad OVR</Text>
-              <Text style={styles.ovrValue}>{baseTeamOvr}</Text>
-            </View>
-            <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}>
-              <Text style={styles.ovrLabel}>Chem Bonus</Text>
-              <Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text>
-            </View>
-            <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}>
-              <Text style={styles.ovrLabel}>Total OVR</Text>
-              <Text style={[styles.ovrValue, { color: theme.accent }]}>{totalTeamOvr}</Text>
+              <Text style={styles.ovrLabel}>Team OVR</Text>
+              <Text style={[styles.ovrValue, { color: theme.accent }]}>{baseTeamOvr}</Text>
             </View>
           </View>
 
@@ -607,23 +596,6 @@ function LeagueSimulation() {
             <Text style={styles.replacementText}>
               Your squad replaces <Text style={[styles.replacementHighlight, { color: theme.accent }]}>{placedLeague.replacedTeamName}</Text> for this season. Good luck!
             </Text>
-          </View>
-
-          {/* Chem Links */}
-          <View style={styles.chemCard}>
-            <Text style={styles.sectionTitle}>Chemistry Breakdown</Text>
-            {chem.bonuses.length === 0 ? (
-              <Text style={styles.emptyChemText}>No active chemistry bonuses. Try linking players from the same club or country next time!</Text>
-            ) : (
-              <View style={styles.chemList}>
-                {chem.bonuses.map((bonus, idx) => (
-                  <View key={idx} style={styles.chemRow}>
-                    <Text style={styles.chemLabel}>{bonus.label}</Text>
-                    <Text style={styles.chemBonusText}>+{bonus.bonus.toFixed(1)}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
           </View>
 
           {/* Squad Pitch Layout */}
@@ -939,8 +911,7 @@ function CLSimulation() {
 
   const slots       = formation ? getSlotsForFormation(formation) : []
   const baseTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
-  const chem        = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
-  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+  const totalTeamOvr = baseTeamOvr
 
   const [phase,                  setPhase]                  = useState<SimPhase>('review')
   const [currentMD,              setCurrentMD]              = useState(1)
@@ -1287,11 +1258,7 @@ function CLSimulation() {
       {phase === 'review' ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           <View style={styles.ovrOverview}>
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Squad OVR</Text><Text style={styles.ovrValue}>{baseTeamOvr}</Text></View>
-            <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Chem Bonus</Text><Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text></View>
-            <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{totalTeamOvr}</Text></View>
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Team OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{baseTeamOvr}</Text></View>
           </View>
           <View style={styles.replacementCard}>
             <Text style={styles.replacementTitle}>UCL League Phase</Text>
@@ -1299,23 +1266,6 @@ function CLSimulation() {
               Your squad plays <Text style={[styles.replacementHighlight, { color: theme.accent }]}>8 games</Text> in a 36-team single league table.{'\n'}
               Top 8 → Round of 16 direct · 9th-24th → Playoff round · Bottom 12 eliminated.
             </Text>
-          </View>
-
-          {/* Chemistry Breakdown */}
-          <View style={styles.chemCard}>
-            <Text style={styles.sectionTitle}>Chemistry Breakdown</Text>
-            {chem.bonuses.length === 0 ? (
-              <Text style={styles.emptyChemText}>No active chemistry bonuses. Try linking players from the same club or country next time!</Text>
-            ) : (
-              <View style={styles.chemList}>
-                {chem.bonuses.map((bonus, idx) => (
-                  <View key={idx} style={styles.chemRow}>
-                    <Text style={styles.chemLabel}>{bonus.label}</Text>
-                    <Text style={styles.chemBonusText}>+{bonus.bonus.toFixed(1)}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
           </View>
 
           {/* Squad Pitch Layout */}
@@ -1552,8 +1502,7 @@ function WCSimulation() {
 
   const slots        = formation ? getSlotsForFormation(formation) : []
   const baseTeamOvr  = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
-  const chem         = draftedPlayers.length > 0 ? calcChemistry(draftedPlayers) : { bonusOvr: 0, bonuses: [] }
-  const totalTeamOvr = baseTeamOvr + chem.bonusOvr
+  const totalTeamOvr = baseTeamOvr
 
   const [phase,         setPhase]         = useState<SimPhase>('review')
   const [currentMD,     setCurrentMD]     = useState(1)
@@ -1844,11 +1793,7 @@ function WCSimulation() {
       {phase === 'review' ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           <View style={styles.ovrOverview}>
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Squad OVR</Text><Text style={styles.ovrValue}>{baseTeamOvr}</Text></View>
-            <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Chem Bonus</Text><Text style={[styles.ovrValue, { color: colors.success }]}>+{chem.bonusOvr}</Text></View>
-            <View style={styles.ovrDivider} />
-            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Total OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{totalTeamOvr}</Text></View>
+            <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Team OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{baseTeamOvr}</Text></View>
           </View>
           <View style={styles.replacementCard}>
             <Text style={styles.replacementTitle}>World Cup Group Stage</Text>
@@ -1856,23 +1801,6 @@ function WCSimulation() {
               Your squad plays <Text style={[styles.replacementHighlight, { color: theme.accent }]}>3 group stage games</Text> in a group of 4.{'\n'}
               Top 2 per group + 8 best 3rd-place teams qualify for the Round of 32.
             </Text>
-          </View>
-
-          {/* Chemistry Breakdown */}
-          <View style={styles.chemCard}>
-            <Text style={styles.sectionTitle}>Chemistry Breakdown</Text>
-            {chem.bonuses.length === 0 ? (
-              <Text style={styles.emptyChemText}>No active chemistry bonuses. Try linking players from the same club or country next time!</Text>
-            ) : (
-              <View style={styles.chemList}>
-                {chem.bonuses.map((bonus, idx) => (
-                  <View key={idx} style={styles.chemRow}>
-                    <Text style={styles.chemLabel}>{bonus.label}</Text>
-                    <Text style={styles.chemBonusText}>+{bonus.bonus.toFixed(1)}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
           </View>
 
           {/* Squad Pitch Layout */}
@@ -2514,11 +2442,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.black,
     color: colors.textPrimary,
   },
-  ovrDivider: {
-    width: 1,
-    height: '60%',
-    backgroundColor: colors.border,
-  },
   replacementCard: {
     backgroundColor: colors.bgCard,
     borderRadius: radius.md,
@@ -2546,39 +2469,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
-  },
-  chemCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-  emptyChemText: {
-    fontSize: typography.sm,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  chemList: {
-    gap: spacing.xs,
-  },
-  chemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  chemLabel: {
-    fontSize: typography.sm,
-    color: colors.textSecondary,
-  },
-  chemBonusText: {
-    fontSize: typography.sm,
-    fontWeight: typography.bold,
-    color: colors.success,
   },
   pitchContainer: {
     gap: spacing.xs,
