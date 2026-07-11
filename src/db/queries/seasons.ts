@@ -14,6 +14,7 @@ export type ClubSeasonRow = {
   league_name: string
   games_per_season: number
   primary_color: string
+  league_format?: string
 }
 
 export type LeagueOption = {
@@ -25,7 +26,7 @@ export async function getAllClubSeasons(): Promise<ClubSeasonRow[]> {
   const db = await getDb()
   return db.getAllAsync<ClubSeasonRow>(
     `SELECT cs.*, c.name AS club_name, c.short_name, c.primary_color,
-            l.id AS league_id, l.name AS league_name, l.games_per_season
+            l.id AS league_id, l.name AS league_name, l.games_per_season, l.format AS league_format
      FROM club_seasons cs
      JOIN clubs c ON c.id = cs.club_id
      JOIN leagues l ON l.id = c.league_id
@@ -82,7 +83,7 @@ export async function getAvailableLeagues(): Promise<LeagueOption[]> {
      FROM leagues l
      JOIN clubs c ON c.league_id = l.id
      JOIN club_seasons cs ON cs.club_id = c.id
-     WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%'
+     WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%'
      ORDER BY l.name ASC`
   )
 }
@@ -146,19 +147,33 @@ export async function getAllClubsData(): Promise<Record<string, { color: string;
   return clubDataMap
 }
 // Returns player names ordered by (attack + technical) DESC for a given club — used for pen kick order
-export async function getTopKickers(clubId: string, limit = 8): Promise<string[]> {
+// Penalty takers for a club: the best outfield kickers first, with the keeper
+// appended LAST — so a shootout rotates through all 11 starters (goalkeeper
+// included) before anyone steps up for a second kick.
+export async function getTopKickers(clubId: string, limit = 11): Promise<string[]> {
   const db = await getDb()
-  const rows = await db.getAllAsync<{ name: string }>(
+  const outfield = await db.getAllAsync<{ name: string }>(
     `SELECT p.name
      FROM player_seasons ps
      JOIN players p ON p.id = ps.player_id
      JOIN club_seasons cs ON cs.id = ps.club_season_id
-     WHERE cs.club_id = ?
+     WHERE cs.club_id = ? AND p.primary_position != 'GK'
      ORDER BY (COALESCE(ps.attack, 0) + COALESCE(ps.technical, 0)) DESC
      LIMIT ?`,
-    [clubId, limit]
+    [clubId, Math.max(1, limit - 1)]
   )
-  return rows.map(r => r.name)
+  const gk = await db.getFirstAsync<{ name: string }>(
+    `SELECT p.name
+     FROM player_seasons ps
+     JOIN players p ON p.id = ps.player_id
+     JOIN club_seasons cs ON cs.id = ps.club_season_id
+     WHERE cs.club_id = ? AND p.primary_position = 'GK'
+     ORDER BY ps.ovr DESC LIMIT 1`,
+    [clubId]
+  )
+  const names = outfield.map(r => r.name)
+  if (gk?.name) names.push(gk.name)   // keeper takes the 11th kick
+  return names
 }
 
 // mode-aware pool - CL/WC get their own competition pools,
@@ -174,10 +189,12 @@ export async function getClubSeasonsForMode(
     whereClause = `WHERE l.id LIKE 'ucl_%'`
   } else if (mode === 'world_cup') {
     whereClause = `WHERE l.id LIKE 'wc_%'`
+  } else if (mode === 'champions_league_custom') {
+    whereClause = `WHERE l.id LIKE 'cucl_%'`
   } else if (mode === 'league' && leagueId) {
-    whereClause = `WHERE l.id = '${leagueId}' AND l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%'`
+    whereClause = `WHERE l.id = '${leagueId}' AND l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%'`
   } else {
-    whereClause = `WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%'`
+    whereClause = `WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%'`
   }
 
   return db.getAllAsync<ClubSeasonRow>(

@@ -3,6 +3,8 @@ import type { DraftedPlayer, LeagueSeason, Formation, GameMode } from '@/types/g
 import type { SeasonResult } from '@/types/simulation'
 import type { CLTeam, CLSeasonResult } from '@/engine/cl-sim'
 import type { WCTeam, WCSeasonResult } from '@/engine/world-cup-sim'
+import type { QualifyingResult } from '@/engine/cl-qualifying'
+import type { SimLeagueTable } from '@/engine/cl-league-sim'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -27,6 +29,9 @@ type GameStore = {
   wcTeams:        WCTeam[] | null
   clResult:       CLSeasonResult | null
   wcResult:       WCSeasonResult | null
+  customUclQual:    QualifyingResult | null   // custom UCL: qualifying-ladder result
+  customUclLeagues: SimLeagueTable[] | null   // custom UCL: simulated domestic tables (for the league viewer)
+  customUclPlayerClubId: string | null        // custom UCL: which real club you took over
   quickSim:       boolean   // headless tester run — must never be saved to the DB
 
   startRun:       (mode: GameMode, formation: Formation, era?: string) => void
@@ -47,6 +52,9 @@ type GameStore = {
   setWcTeams: (teams: WCTeam[]) => void
   setClResult: (r: CLSeasonResult) => void
   setWcResult: (r: WCSeasonResult) => void
+  setCustomUclQual:    (q: QualifyingResult | null) => void
+  setCustomUclLeagues: (t: SimLeagueTable[] | null) => void
+  setCustomUclPlayerClubId: (id: string | null) => void
 }
 
 const initialState = {
@@ -67,6 +75,9 @@ const initialState = {
   wcTeams:         null,
   clResult:        null,
   wcResult:        null,
+  customUclQual:    null,
+  customUclLeagues: null,
+  customUclPlayerClubId: null,
   quickSim:        false,
 }
 
@@ -101,6 +112,9 @@ export const useGameStore = create<GameStore>((set) => ({
     wcTeams:         null,
     clResult:        null,
     wcResult:        null,
+    customUclQual:    null,
+    customUclLeagues: null,
+    customUclPlayerClubId: null,
     quickSim:        false,
     // Keep mode, era, difficulty, selectedLeague, and accentColor
   })),
@@ -116,6 +130,9 @@ export const useGameStore = create<GameStore>((set) => ({
   setWcTeams:     (wcTeams) => set({ wcTeams }),
   setClResult:    (clResult) => set({ clResult }),
   setWcResult:    (wcResult) => set({ wcResult }),
+  setCustomUclQual:    (customUclQual) => set({ customUclQual }),
+  setCustomUclLeagues: (customUclLeagues) => set({ customUclLeagues }),
+  setCustomUclPlayerClubId: (customUclPlayerClubId) => set({ customUclPlayerClubId }),
 }))
 
 // add to src/types/game.ts

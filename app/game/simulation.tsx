@@ -22,6 +22,9 @@ import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/the
 import { useModeTheme } from '@/hooks/useModeTheme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
 import { TeamLabel } from '@/components/TeamLabel'
+import { LineupPitch } from '@/components/LineupPitch'
+import { LiveMatch, type LivePeriod } from '@/components/LiveMatch'
+import { BracketPreview } from '@/components/BracketPreview'
 import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers } from '@/engine/run-stats'
 import type { RosterPlayer, MatchScorers } from '@/types/stats'
 
@@ -37,6 +40,7 @@ type KnockoutTie = {
   bGoals: number
   leg1?: { aGoals: number; bGoals: number }
   leg2?: { aGoals: number; bGoals: number }
+  leg2ExtraTime?: { aGoals: number; bGoals: number }
   extraTime: boolean
   aPens?: number
   bPens?: number
@@ -44,6 +48,7 @@ type KnockoutTie = {
   penKicksB?: PenKick[]
   leg1Scorers?: MatchScorers   // CL two-leg
   leg2Scorers?: MatchScorers
+  leg2ExtraTimeScorers?: MatchScorers
   scorers?: MatchScorers       // WC single match
 }
 type KnockoutRound = {
@@ -66,14 +71,6 @@ type CompMatchResult = {
   awayGoals: number
   outcome: 'home' | 'away' | 'draw'
   scorers?: MatchScorers
-}
-
-// Left-to-right ordering for the pitch view: L* on the left, R* on the right,
-// central positions in between. Keeps the on-screen lineup mirror-correct.
-function pitchRowOrder(label: string): number {
-  if (label.startsWith('L')) return -1
-  if (label.startsWith('R')) return 1
-  return 0
 }
 
 function sortByStats(teams: SimTeam[]): SimTeam[] {
@@ -130,6 +127,7 @@ function LeagueSimulation() {
   const [recentResults, setRecentResults] = useState<Fixture[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>('normal')
+  const [viewMD, setViewMD] = useState<number | null>(null)   // matchday-results lookback (null = live)
   const prevPlayerPosRef = useRef<number | null>(null)
   const [playerPosDelta, setPlayerPosDelta] = useState<number | null>(null)
   const [positionChangeAnim] = useState(new Animated.Value(0))
@@ -329,7 +327,8 @@ function LeagueSimulation() {
     })
 
     setSimTeams(updatedTeams)
-    setRecentResults(completedFixtures)
+    // Your match first, then the rest.
+    setRecentResults([...completedFixtures].sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer)))
 
     // Save matchday snapshot for history with deep copy of team stats
     const standingsSnapshot = sortTeams([...updatedTeams]).map(team => ({
@@ -564,6 +563,18 @@ function LeagueSimulation() {
       ?? matchdayHistoryRef.current[matchdayHistoryRef.current.length - 1].standings
     : sortedStandings
 
+  // Matchday-results lookback: scrub ‹ › through every matchday already played,
+  // or jump back to LIVE. Drives the results card below (standings stay live).
+  const mdHistory = matchdayHistoryRef.current
+  const mdTotal   = mdHistory.length
+  const mdViewing = viewMD == null ? mdTotal : Math.min(Math.max(viewMD, 1), mdTotal)
+  const mdAtLive  = viewMD == null || mdViewing >= mdTotal
+  const shownResults: Fixture[] = mdTotal === 0
+    ? recentResults
+    : [...(mdHistory[mdViewing - 1]?.fixtures ?? [])].sort(
+        (a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer)
+      )
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       {/* Header */}
@@ -598,90 +609,14 @@ function LeagueSimulation() {
             </Text>
           </View>
 
-          {/* Squad Pitch Layout */}
+          {/* Squad Pitch Layout — real per-formation shape, not a generic bucket */}
           <View style={styles.pitchContainer}>
             <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
-            <View style={styles.pitch}>
-              {/* Attackers */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.ST }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-
-              {/* Midfielders */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CM }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-
-              {/* Defenders */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CB }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-
-              {/* Goalkeeper */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'GK').map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.GK }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-            </View>
+            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} />
           </View>
 
           {/* Action button */}
-          <Pressable 
+          <Pressable
             style={[styles.actionBtn, { backgroundColor: theme.accent }, isStartingSimulation && styles.actionBtnDisabled]}
             onPress={startSimulation}
             disabled={isStartingSimulation}
@@ -812,16 +747,36 @@ function LeagueSimulation() {
               </ScrollView>
             </View>
 
-            {/* Live Match ticker (Recent Results) */}
+            {/* Live Match ticker (Recent Results) — with matchday lookback */}
             <View style={styles.resultsCard}>
-              <Text style={styles.cardHeaderTitle}>Matchday Results</Text>
-              {recentResults.length === 0 ? (
+              <View style={styles.mdCardHead}>
+                <Text style={[styles.cardHeaderTitle, { flexShrink: 1 }]} numberOfLines={1}>
+                  {mdTotal > 0 ? `Matchday ${mdViewing}` : 'Matchday Results'}
+                </Text>
+                {mdTotal > 1 && (
+                  <View style={styles.mdScrub}>
+                    <Pressable style={styles.mdScrubBtn} disabled={mdViewing <= 1} onPress={() => setViewMD(Math.max(1, mdViewing - 1))}>
+                      <Text style={[styles.mdScrubText, mdViewing <= 1 && { opacity: 0.3 }]}>‹</Text>
+                    </Pressable>
+                    <Text style={styles.mdScrubCount}>{mdViewing}/{mdTotal}</Text>
+                    <Pressable style={styles.mdScrubBtn} disabled={mdAtLive} onPress={() => setViewMD(Math.min(mdTotal, mdViewing + 1))}>
+                      <Text style={[styles.mdScrubText, mdAtLive && { opacity: 0.3 }]}>›</Text>
+                    </Pressable>
+                    {!mdAtLive && (
+                      <Pressable style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setViewMD(null)}>
+                        <Text style={[styles.mdLiveText, { color: theme.accent }]}>LIVE</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </View>
+              {shownResults.length === 0 ? (
                 <View style={styles.emptyResultsBox}>
                   <Text style={styles.emptyResultsText}>Waiting for kickoff...</Text>
                 </View>
               ) : (
                 <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
-                  {recentResults.map((fixture, i) => {
+                  {shownResults.map((fixture, i) => {
                     const result = fixture.result!
                     const isPlayerHome = fixture.home.isPlayer
                     const isPlayerAway = fixture.away.isPlayer
@@ -918,6 +873,7 @@ function CLSimulation() {
   const [simTeams,               setSimTeams]               = useState<CLTeam[]>([])
   const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
   const [recentResults,          setRecentResults]          = useState<CompMatchResult[]>([])
+  const [clViewMD,               setClViewMD]               = useState<number | null>(null)  // MD-results lookback
   const [isPlaying,              setIsPlaying]              = useState(false)
   // League phase always runs at "slow" — the pace is locked (matches WC).
   const speed: Speed = 'slow'
@@ -957,39 +913,24 @@ function CLSimulation() {
   const [koRounds, setKoRounds]             = useState<KnockoutRound[]>([])
   const [koVisibleCount, setKoVisibleCount] = useState(0)
   const [koPenReveal, setKoPenReveal]       = useState(0)
+  const [koLiveDone, setKoLiveDone]         = useState<Record<string, boolean>>({})
   const koStoredResultRef = useRef<CLSeasonResult | null>(null)
   const koFinishedRef = useRef(false)
 
-  // Auto-advance knockout rounds
+  // Auto-advance knockout rounds — but WAIT for the player's live match to play
+  // out fully. If the player has a tie in the current round, we only advance once
+  // its LiveMatch calls onLiveDone; other rounds advance on a short timer.
   useEffect(() => {
     if (phase !== 'knockout_phase' || koVisibleCount < 1) return
     const currentRound = koRounds[koVisibleCount - 1]
     if (!currentRound) return
-
     const playerTie = currentRound.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
-    const totalPenKicks = playerTie?.penKicksA
-      ? playerTie.penKicksA.length + (playerTie.penKicksB?.length ?? 0)
-      : 0
-
-    if (totalPenKicks > 0 && koPenReveal < totalPenKicks) {
-      // Pen animation in progress — tick one kick at a time
-      const kickDelay = currentRound.round === 'final' ? 1200
-        : currentRound.round === 'sf' ? 1000
-        : currentRound.round === 'qf' ? 800 : 600
-      const t = setTimeout(() => setKoPenReveal(p => p + 1), kickDelay)
-      return () => clearTimeout(t)
-    }
-
-    // Pens done (or none) — auto-advance to next round
+    if (playerTie && !koLiveDone[currentRound.round]) return   // hold until the live match finishes
     if (koVisibleCount < koRounds.length) {
-      const t = setTimeout(() => {
-        setKoVisibleCount(p => p + 1)
-        setKoPenReveal(0)
-      }, currentRound.autoDelay)
+      const t = setTimeout(() => setKoVisibleCount(p => p + 1), playerTie ? 1600 : (currentRound.autoDelay ?? 3000))
       return () => clearTimeout(t)
     }
-    // All rounds visible — nothing to do, user taps "VIEW FINAL RESULTS"
-  }, [phase, koVisibleCount, koPenReveal, koRounds])
+  }, [phase, koVisibleCount, koRounds, koLiveDone])
 
   const totalMatchdays = 8
 
@@ -1101,7 +1042,7 @@ function CLSimulation() {
     }
 
     setSimTeams(teams)
-    setRecentResults(results)
+    setRecentResults([...results].sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer)))
 
     if (currentMD === totalMatchdays) { setIsPlaying(false); setPhase('completed') }
     else { setCurrentMD(prev => prev + 1) }
@@ -1190,11 +1131,11 @@ function CLSimulation() {
       return {
         teamA: m.teamA, teamB: m.teamB, winner: m.winner,
         aGoals: m.aGoals, bGoals: m.bGoals,
-        leg1: m.leg1, leg2: m.leg2,
+        leg1: m.leg1, leg2: m.leg2, leg2ExtraTime: m.leg2ExtraTime,
         extraTime: m.extraTime,
         aPens: m.aPens, bPens: m.bPens,
         penKicksA, penKicksB,
-        leg1Scorers: m.leg1Scorers, leg2Scorers: m.leg2Scorers,
+        leg1Scorers: m.leg1Scorers, leg2Scorers: m.leg2Scorers, leg2ExtraTimeScorers: m.leg2ExtraTimeScorers,
       }
     }
 
@@ -1228,7 +1169,7 @@ function CLSimulation() {
     }
 
     setKoRounds(rounds)
-    setKoVisibleCount(1)
+    setKoVisibleCount(0)   // 0 = bracket preview first
     setKoPenReveal(0)
     setIsFinishing(false)
     setPhase('knockout_phase')
@@ -1243,6 +1184,16 @@ function CLSimulation() {
 
   const sorted = sortByStats(simTeams)
   const playedCount = sorted.find(t => t.isPlayer)?.stats.played ?? 0
+
+  // Matchday-results lookback across the league phase (all 18 games / matchday).
+  const clAppliedMDs = [...new Set(leagueHistoryRef.current.map(m => m.matchday))].sort((a, b) => a - b)
+  const clLatestMD   = clAppliedMDs[clAppliedMDs.length - 1] ?? 0
+  const clViewing    = clViewMD == null ? clLatestMD : clViewMD
+  const clViewIdx    = clAppliedMDs.indexOf(clViewing)
+  const clAtLive     = clViewMD == null || clViewing >= clLatestMD
+  const clShown      = leagueHistoryRef.current
+    .filter(m => m.matchday === clViewing)
+    .sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
@@ -1268,75 +1219,10 @@ function CLSimulation() {
             </Text>
           </View>
 
-          {/* Squad Pitch Layout */}
+          {/* Squad Pitch Layout — real per-formation shape */}
           <View style={styles.pitchContainer}>
             <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
-            <View style={styles.pitch}>
-              {/* Attackers */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.ST }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Midfielders */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CM }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Defenders */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CB }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Goalkeeper */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'GK').map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.GK }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>{player ? player.name.split(' ').slice(-1)[0] : 'Empty'}</Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-            </View>
+            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} />
           </View>
 
           <Pressable
@@ -1350,16 +1236,24 @@ function CLSimulation() {
           </Pressable>
         </ScrollView>
       ) : phase === 'knockout_phase' ? (
-        <KnockoutPhaseView
-          rounds={koRounds}
-          visibleCount={koVisibleCount}
-          penReveal={koPenReveal}
-          competitionLabel="UEFA Champions League"
-          accent={theme.accent}
-          bgTint={theme.bgTint}
-          onFinish={finishKnockoutPhase}
-          onSkipToRound={(idx) => { setKoVisibleCount(idx + 1); setKoPenReveal(Infinity) }}
-        />
+        koVisibleCount === 0 && koRounds.length > 0 ? (
+          <View style={{ flex: 1, backgroundColor: theme.bgTint }}>
+            <BracketPreview {...bracketPreviewProps(koRounds)} accent={theme.accent} onStart={() => setKoVisibleCount(1)} />
+          </View>
+        ) : (
+          <KnockoutPhaseView
+            rounds={koRounds}
+            visibleCount={koVisibleCount}
+            penReveal={koPenReveal}
+            competitionLabel="UEFA Champions League"
+            accent={theme.accent}
+            bgTint={theme.bgTint}
+            onFinish={finishKnockoutPhase}
+            onSkipToRound={(idx) => { setKoVisibleCount(idx + 1); setKoPenReveal(Infinity) }}
+            onLiveDone={(k) => setKoLiveDone(d => ({ ...d, [k]: true }))}
+            liveDone={koLiveDone}
+          />
+        )
       ) : (
         <View style={styles.simContainer}>
           <View style={styles.progressCard}>
@@ -1441,16 +1335,36 @@ function CLSimulation() {
             </View>
 
             <View style={styles.resultsCard}>
-              <Text style={styles.cardHeaderTitle}>MD Results</Text>
-              {recentResults.length === 0 ? (
+              <View style={styles.mdCardHead}>
+                <Text style={[styles.cardHeaderTitle, { flexShrink: 1 }]} numberOfLines={1}>
+                  {clAppliedMDs.length > 0 ? `MD ${clViewing} Results` : 'MD Results'}
+                </Text>
+                {clAppliedMDs.length > 1 && (
+                  <View style={styles.mdScrub}>
+                    <Pressable style={styles.mdScrubBtn} disabled={clViewIdx <= 0} onPress={() => setClViewMD(clAppliedMDs[Math.max(0, clViewIdx - 1)])}>
+                      <Text style={[styles.mdScrubText, clViewIdx <= 0 && { opacity: 0.3 }]}>‹</Text>
+                    </Pressable>
+                    <Text style={styles.mdScrubCount}>{clViewIdx + 1}/{clAppliedMDs.length}</Text>
+                    <Pressable style={styles.mdScrubBtn} disabled={clAtLive} onPress={() => setClViewMD(clAppliedMDs[Math.min(clAppliedMDs.length - 1, clViewIdx + 1)])}>
+                      <Text style={[styles.mdScrubText, clAtLive && { opacity: 0.3 }]}>›</Text>
+                    </Pressable>
+                    {!clAtLive && (
+                      <Pressable style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setClViewMD(null)}>
+                        <Text style={[styles.mdLiveText, { color: theme.accent }]}>LIVE</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </View>
+              {clShown.length === 0 ? (
                 <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for kickoff...</Text></View>
               ) : (
                 <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
-                  {recentResults.map((r, i) => {
+                  {clShown.map((r, i) => {
                     const isPM = r.home.isPlayer || r.away.isPlayer
                     const rc = isPM
-                      ? (r.home.isPlayer && r.outcome === 'home') || (r.away.isPlayer && r.outcome === 'away') ? colors.success
-                        : r.outcome === 'draw' ? colors.warning : '#DC2626'
+                      ? (r.home.isPlayer && r.homeGoals > r.awayGoals) || (r.away.isPlayer && r.awayGoals > r.homeGoals) ? colors.success
+                        : r.homeGoals === r.awayGoals ? colors.warning : '#DC2626'
                       : null
                     return (
                       <View key={i}>
@@ -1512,6 +1426,13 @@ function WCSimulation() {
   const [recentResults, setRecentResults] = useState<CompMatchResult[]>([])
   const [openGroupSim,  setOpenGroupSim]  = useState<string | null>(null)
   const [isPlaying,     setIsPlaying]     = useState(false)
+  // Your group match plays out on a live clock each matchday before the board
+  // updates. playedMD = last matchday simulated; pending holds the computed
+  // result until the clock finishes (so the standings don't spoil the score).
+  const [livePlayerMatch, setLivePlayerMatch] = useState<{ result: CompMatchResult; md: number } | null>(null)
+  const [playedMD,        setPlayedMD]        = useState(0)
+  const [wcViewMD,        setWcViewMD]        = useState<number | null>(null)  // other-matches lookback (null = latest)
+  const pendingMDRef = useRef<{ teams: WCTeam[]; results: CompMatchResult[]; md: number } | null>(null)
   // World Cup group stage always runs at "slow" — the pace is locked.
   const speed: Speed = 'slow'
   const theme = MODE_THEMES.world_cup
@@ -1523,6 +1444,7 @@ function WCSimulation() {
   const [wcKoRounds,       setWcKoRounds]       = useState<KnockoutRound[]>([])
   const [wcKoVisibleCount, setWcKoVisibleCount] = useState(0)
   const [wcKoPenReveal,    setWcKoPenReveal]    = useState(0)
+  const [wcKoLiveDone,     setWcKoLiveDone]     = useState<Record<string, boolean>>({})
   const wcKoStoredResultRef = useRef<WCSeasonResult | null>(null)
   const wcKoFinishedRef = useRef(false)
   // Records every group-stage result so the results screen can show matchdays.
@@ -1540,28 +1462,13 @@ function WCSimulation() {
     if (phase !== 'knockout_phase' || wcKoVisibleCount < 1) return
     const currentRound = wcKoRounds[wcKoVisibleCount - 1]
     if (!currentRound) return
-
     const playerTie = currentRound.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
-    const totalPenKicks = playerTie?.penKicksA
-      ? playerTie.penKicksA.length + (playerTie.penKicksB?.length ?? 0)
-      : 0
-
-    if (totalPenKicks > 0 && wcKoPenReveal < totalPenKicks) {
-      const kickDelay = currentRound.round === 'final' ? 1200
-        : currentRound.round === 'sf' ? 1000
-        : currentRound.round === 'qf' ? 800 : 600
-      const t = setTimeout(() => setWcKoPenReveal(p => p + 1), kickDelay)
-      return () => clearTimeout(t)
-    }
-
+    if (playerTie && !wcKoLiveDone[currentRound.round]) return   // hold until the live match finishes
     if (wcKoVisibleCount < wcKoRounds.length) {
-      const t = setTimeout(() => {
-        setWcKoVisibleCount(p => p + 1)
-        setWcKoPenReveal(0)
-      }, currentRound.autoDelay)
+      const t = setTimeout(() => setWcKoVisibleCount(p => p + 1), playerTie ? 1600 : (currentRound.autoDelay ?? 3000))
       return () => clearTimeout(t)
     }
-  }, [phase, wcKoVisibleCount, wcKoPenReveal, wcKoRounds])
+  }, [phase, wcKoVisibleCount, wcKoRounds, wcKoLiveDone])
 
   const totalMatchdays = 3
 
@@ -1579,11 +1486,24 @@ function WCSimulation() {
     setFixtures(generateWCGroupFixtures(assignedGroups))
   }, [wcTeams, totalTeamOvr])
 
+  // Play the current matchday (once), then hold for the live clock.
   useEffect(() => {
     if (phase !== 'simulating' || !isPlaying) return
-    const timer = setTimeout(simulateNextMD, SPEED_MS[speed])
+    if (playedMD >= currentMD || currentMD > totalMatchdays) return
+    const timer = setTimeout(() => playMatchday(currentMD), SPEED_MS[speed])
     return () => clearTimeout(timer)
-  }, [phase, isPlaying, currentMD, simTeams, fixtures, speed])
+  }, [phase, isPlaying, currentMD, playedMD, simTeams, fixtures, speed])
+
+  // Advance to the next matchday once this one's live clock has finished.
+  useEffect(() => {
+    if (phase !== 'simulating' || !isPlaying) return
+    if (playedMD !== currentMD || livePlayerMatch || pendingMDRef.current) return
+    const timer = setTimeout(() => {
+      if (currentMD >= totalMatchdays) { setIsPlaying(false); setPhase('group_review') }
+      else setCurrentMD(m => m + 1)
+    }, 900)
+    return () => clearTimeout(timer)
+  }, [phase, isPlaying, currentMD, playedMD, livePlayerMatch])
 
   if (!wcTeams || !formation || draftedPlayers.length === 0) {
     return (
@@ -1597,11 +1517,13 @@ function WCSimulation() {
     )
   }
 
-  function simulateNextMD() {
-    if (currentMD > totalMatchdays) { handleFinish(); return }
-
-    const mdFixtures = fixtures.filter(f => f.matchday === currentMD)
-    const teams      = [...simTeams]
+  // Simulate a matchday into a PENDING buffer — nothing is shown yet. If the
+  // player has a match, we surface it as a live clock and apply once it ends;
+  // otherwise we apply immediately.
+  function playMatchday(md: number) {
+    const mdFixtures = fixtures.filter(f => f.matchday === md)
+    // Clone stats so the visible standings stay on the pre-matchday state until apply.
+    const teams = simTeams.map(t => ({ ...t, stats: { ...t.stats } }))
     const results: CompMatchResult[] = []
 
     mdFixtures.forEach(({ home: h, away: a }) => {
@@ -1625,25 +1547,53 @@ function WCSimulation() {
 
       const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
       results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers })
-      groupHistoryRef.current.push({
-        groupId: home.groupId, matchday: currentMD,
-        home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
-        away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers,
-      })
     })
 
-    setSimTeams(teams)
-    setRecentResults(results)
+    const sorted = [...results].sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
+    pendingMDRef.current = { teams, results: sorted, md }
+    setPlayedMD(md)
 
-    if (currentMD === totalMatchdays) { setIsPlaying(false); setPhase('group_review') }
-    else { setCurrentMD(prev => prev + 1) }
+    const playerResult = results.find(r => r.home.isPlayer || r.away.isPlayer)
+    if (playerResult) setLivePlayerMatch({ result: playerResult, md })
+    else applyMatchday()   // no player match this round — reveal immediately
+  }
+
+  // Keep the `groups` state (which the standings, group review, and knockout
+  // seeding all read) pointing at the SAME team objects as simTeams — otherwise
+  // stat updates on the new team array never reach the grouped views.
+  function syncGroupsTo(teams: WCTeam[]) {
+    const byId = new Map(teams.map(t => [t.clubId, t]))
+    setGroups(prev => prev.map(g => ({ id: g.id, teams: g.teams.map(t => byId.get(t.clubId) ?? t) })))
+  }
+
+  // Commit the pending matchday: record history, update standings + board.
+  function applyMatchday() {
+    const pend = pendingMDRef.current
+    if (!pend) return
+    pend.results.forEach(r => {
+      groupHistoryRef.current.push({
+        groupId: (r.home as WCTeam).groupId, matchday: pend.md,
+        home: { clubId: r.home.clubId, clubName: r.home.clubName, isPlayer: r.home.isPlayer },
+        away: { clubId: r.away.clubId, clubName: r.away.clubName, isPlayer: r.away.isPlayer },
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers: r.scorers,
+      })
+    })
+    setSimTeams(pend.teams)
+    syncGroupsTo(pend.teams)
+    setRecentResults(pend.results)
+    setLivePlayerMatch(null)
+    pendingMDRef.current = null
   }
 
   function skipAll() {
     setIsPlaying(false)
-    let teams = [...simTeams]
-    for (let md = currentMD; md <= totalMatchdays; md++) {
+    setLivePlayerMatch(null)
+    pendingMDRef.current = null
+    // Resume from the next UNPLAYED matchday (simTeams is the source of truth for
+    // what's been applied), so a mid-clock skip never double-counts.
+    const startMd = (simTeams.find(t => t.isPlayer)?.stats.played ?? currentMD - 1) + 1
+    let teams = simTeams.map(t => ({ ...t, stats: { ...t.stats } }))
+    for (let md = startMd; md <= totalMatchdays; md++) {
       fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
         const home = teams.find(t => t.clubId === h.clubId)!
         const away = teams.find(t => t.clubId === a.clubId)!
@@ -1664,6 +1614,8 @@ function WCSimulation() {
       })
     }
     setSimTeams(teams)
+    syncGroupsTo(teams)
+    setPlayedMD(totalMatchdays)
     setCurrentMD(totalMatchdays)
     setRecentResults([])
     setPhase('group_review')
@@ -1755,7 +1707,7 @@ function WCSimulation() {
     }
 
     setWcKoRounds(wcRounds)
-    setWcKoVisibleCount(1)
+    setWcKoVisibleCount(0)   // 0 = bracket preview first
     setWcKoPenReveal(0)
     setIsFinishing(false)
     setPhase('knockout_phase')
@@ -1778,6 +1730,17 @@ function WCSimulation() {
       })
     : []
   const playedCount = playerGroupSorted.find(t => t.isPlayer)?.stats.played ?? 0
+
+  // Other-matches lookback: every matchday already applied (all groups), newest
+  // last. Drives the "Other Matches" card so you can scrub back through rounds.
+  const wcAppliedMDs = [...new Set(groupHistoryRef.current.map(m => m.matchday))].sort((a, b) => a - b)
+  const wcLatestMD   = wcAppliedMDs[wcAppliedMDs.length - 1] ?? 0
+  const wcViewing    = wcViewMD == null ? wcLatestMD : wcViewMD
+  const wcViewIdx    = wcAppliedMDs.indexOf(wcViewing)
+  const wcAtLive     = wcViewMD == null || wcViewing >= wcLatestMD
+  const wcShown      = groupHistoryRef.current
+    .filter(m => m.matchday === wcViewing)
+    .sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
@@ -1803,84 +1766,34 @@ function WCSimulation() {
             </Text>
           </View>
 
-          {/* Squad Pitch Layout */}
+          {/* Squad Pitch Layout — real per-formation shape */}
           <View style={styles.pitchContainer}>
             <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
-            <View style={styles.pitch}>
-              {/* Attackers */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LW' || s.label === 'ST' || s.label === 'RW').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
+            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} />
+          </View>
+
+          {/* Group draw preview — your group + every other group, before a ball is kicked */}
+          {groups.length > 0 && (
+            <View style={styles.pitchContainer}>
+              <Text style={styles.sectionTitle}>The Group Draw</Text>
+              <Text style={styles.groupReviewSub}>Your group is highlighted — top 2 + 8 best 3rd-placed reach the Round of 32.</Text>
+              <View style={styles.groupsGrid}>
+                {groups.map(group => {
+                  const isYours = group.teams.some(t => t.isPlayer)
                   return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.ST }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Midfielders */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LM' || s.label === 'CM' || s.label === 'CAM' || s.label === 'CDM' || s.label === 'RM').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CM }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Defenders */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'LB' || s.label === 'CB' || s.label === 'RB').sort((a, b) => pitchRowOrder(a.label) - pitchRowOrder(b.label)).map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.CB }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Goalkeeper */}
-              <View style={styles.pitchRow}>
-                {slots.filter(s => s.label === 'GK').map((slot, i) => {
-                  const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-                  const playerOvr = player ? effectiveOvr(player, slot) : 0
-                  return (
-                    <View key={i} style={styles.pitchPlayer}>
-                      <View style={[styles.posIndicator, { backgroundColor: colors.positions.GK }]}>
-                        <Text style={styles.posText}>{slot.label}</Text>
-                      </View>
-                      <Text style={styles.playerNameText} numberOfLines={1}>
-                        {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-                      </Text>
-                      <Text style={styles.playerOvrText}>{player ? playerOvr : '--'}</Text>
+                    <View key={group.id} style={[styles.groupCard, isYours && styles.groupCardPlayer]}>
+                      <Text style={styles.groupCardTitle}>Group {group.id}{isYours ? '  · YOU' : ''}</Text>
+                      {group.teams.map(team => (
+                        <View key={team.clubId} style={[styles.groupTeamRow, team.isPlayer && styles.groupTeamRowSelf]}>
+                          <TeamLabel clubId={team.clubId} name={team.clubName} textStyle={[styles.groupTeamName, team.isPlayer && styles.groupTeamNameSelf]} containerStyle={styles.groupTeamLabel} size={13} gap={4} />
+                        </View>
+                      ))}
                     </View>
                   )
                 })}
               </View>
             </View>
-          </View>
+          )}
 
           <Pressable
             style={[styles.actionBtn, { backgroundColor: theme.accent }, isStarting && styles.actionBtnDisabled]}
@@ -1909,6 +1822,38 @@ function WCSimulation() {
             <Text style={styles.groupReviewTitle}>Group Stage Complete</Text>
             <Text style={styles.groupReviewSub}>All {groups.length} groups · Top 2 + 8 best 3rd qualify</Text>
 
+            {/* Your group — front and centre, full detail */}
+            {(() => {
+              const yourGroup = sortedGroups.find(g => g.teams.some(t => t.isPlayer))
+              if (!yourGroup) return null
+              return (
+                <View style={styles.heroGroupCard}>
+                  <Text style={[styles.heroGroupTitle, { color: theme.accent }]}>YOUR GROUP · {yourGroup.id}</Text>
+                  <View style={styles.heroGroupHead}>
+                    <Text style={[styles.heroGroupHeadTxt, { flex: 1, paddingLeft: 24 }]}>Team</Text>
+                    <Text style={styles.heroGroupHeadTxt}>P</Text>
+                    <Text style={styles.heroGroupHeadTxt}>GD</Text>
+                    <Text style={styles.heroGroupHeadTxt}>Pts</Text>
+                  </View>
+                  {yourGroup.teams.map((team, idx) => {
+                    const gd = team.stats.goalsFor - team.stats.goalsAgainst
+                    return (
+                      <View key={team.clubId} style={[styles.heroGroupRow, team.isPlayer && styles.groupTeamRowSelf]}>
+                        <View style={[styles.heroQdot, { backgroundColor: idx < 2 ? colors.success : idx === 2 ? colors.warning : colors.danger }]} />
+                        <Text style={styles.heroRank}>{idx + 1}</Text>
+                        <TeamLabel clubId={team.clubId} name={team.clubName} textStyle={[styles.heroName, team.isPlayer && styles.groupTeamNameSelf]} containerStyle={{ flex: 1 }} size={14} gap={4} />
+                        <Text style={styles.heroStat}>{team.stats.played}</Text>
+                        <Text style={styles.heroStat}>{gd > 0 ? `+${gd}` : gd}</Text>
+                        <Text style={[styles.heroStat, styles.heroPts]}>{team.stats.points}</Text>
+                      </View>
+                    )
+                  })}
+                  <Text style={styles.heroNote}><Text style={{ color: colors.success }}>■</Text> Top 2 through  ·  <Text style={{ color: colors.warning }}>■</Text> 3rd may sneak in</Text>
+                </View>
+              )
+            })()}
+
+            <Text style={styles.groupReviewSub}>All Groups · tap any to see its matches</Text>
             <View style={styles.groupsGrid}>
               {sortedGroups.map(group => {
                 const playerInGroup = group.teams.some(t => t.isPlayer)
@@ -1981,128 +1926,175 @@ function WCSimulation() {
           </ScrollView>
         )
       })() : phase === 'knockout_phase' ? (
-        <KnockoutPhaseView
-          rounds={wcKoRounds}
-          visibleCount={wcKoVisibleCount}
-          penReveal={wcKoPenReveal}
-          competitionLabel="FIFA World Cup"
-          accent={theme.accent}
-          bgTint={theme.bgTint}
-          onFinish={finishWCKnockoutPhase}
-          onSkipToRound={(idx) => { setWcKoVisibleCount(idx + 1); setWcKoPenReveal(Infinity) }}
-        />
+        wcKoVisibleCount === 0 && wcKoRounds.length > 0 ? (
+          <View style={{ flex: 1, backgroundColor: theme.bgTint }}>
+            <BracketPreview {...bracketPreviewProps(wcKoRounds)} accent={theme.accent} onStart={() => setWcKoVisibleCount(1)} />
+          </View>
+        ) : (
+          <KnockoutPhaseView
+            rounds={wcKoRounds}
+            visibleCount={wcKoVisibleCount}
+            penReveal={wcKoPenReveal}
+            competitionLabel="FIFA World Cup"
+            accent={theme.accent}
+            bgTint={theme.bgTint}
+            onFinish={finishWCKnockoutPhase}
+            onSkipToRound={(idx) => { setWcKoVisibleCount(idx + 1); setWcKoPenReveal(Infinity) }}
+            onLiveDone={(k) => setWcKoLiveDone(d => ({ ...d, [k]: true }))}
+            liveDone={wcKoLiveDone}
+          />
+        )
       ) : (
-        <View style={styles.simContainer}>
+        // Vertical stack: live match on top, then your group, then the rest of
+        // the round's matches (with lookback). No pause — it plays straight through.
+        <ScrollView style={styles.scroll} contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 120 }}>
           <View style={styles.progressCard}>
             <View style={styles.progressTextRow}>
-              <Text style={styles.matchdayLabel}>Round {playedCount} / {totalMatchdays}</Text>
-              <Text style={styles.simStatusText}>{phase === 'completed' ? 'Groups Complete' : isPlaying ? 'Simulating...' : 'Paused'}</Text>
+              <Text style={styles.matchdayLabel}>Round {livePlayerMatch ? livePlayerMatch.md : playedCount} / {totalMatchdays}</Text>
+              <Text style={styles.simStatusText}>{livePlayerMatch ? 'Live' : `${playedCount}/${totalMatchdays} played`}</Text>
             </View>
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { width: `${(playedCount / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
             </View>
-            {phase !== 'completed' && (
-              <View style={styles.controlsRow}>
-                <Pressable style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(!isPlaying)}>
-                  <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
-                </Pressable>
-                <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
-                  <Text style={styles.controlBtnText}>⏩ Skip All</Text>
-                </Pressable>
-                <View style={styles.speedLockBadge}>
-                  <Text style={styles.speedLockText}>🐢 SLOW</Text>
-                </View>
+            <View style={styles.controlsRow}>
+              <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
+                <Text style={styles.controlBtnText}>⏩ Skip to Results</Text>
+              </Pressable>
+              <View style={styles.speedLockBadge}>
+                <Text style={styles.speedLockText}>🐢 SLOW</Text>
               </View>
-            )}
+            </View>
           </View>
 
-          <View style={styles.simSplitGrid}>
-            <View style={styles.tableCard}>
-              <Text style={styles.cardHeaderTitle}>
-                {playerGroup ? `Group ${playerGroup.id}` : 'Your Group'}
-              </Text>
-              <View style={styles.tableHeaderRow}>
-                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-                <Text style={[styles.tableCol, styles.colName]}>Team</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-                <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
-              </View>
-              {playerGroupSorted.map((team, idx) => {
-                const gd = team.stats.goalsFor - team.stats.goalsAgainst
-                const pText = team.isPlayer ? { color: theme.accent, fontWeight: typography.bold } : null
-                const rowHi = team.isPlayer ? { borderColor: theme.accent, backgroundColor: theme.accent + '11' } : null
-                return (
-                  <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, rowHi]}>
-                    <Text style={[styles.tableColData, styles.colPos as any, pText]}>{idx + 1}</Text>
-                    <TeamLabel
-                      clubId={team.clubId}
-                      name={team.clubName}
-                      textStyle={[styles.tableColData, pText]}
-                      containerStyle={styles.colName}
-                      size={16}
-                    />
-                    <Text style={[styles.tableColData, styles.colStat, pText]}>{team.stats.played}</Text>
-                    <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{team.stats.points}</Text>
-                  </View>
-                )
-              })}
+          {/* 1 · your match, live */}
+          {livePlayerMatch ? (
+            <LiveMatch
+              key={`wc-md-${livePlayerMatch.md}`}
+              teamA={livePlayerMatch.result.home}
+              teamB={livePlayerMatch.result.away}
+              periods={[{
+                label: `Group ${playerGroup?.id ?? ''} · Matchday ${livePlayerMatch.md}`,
+                homeId: livePlayerMatch.result.home.clubId,
+                awayId: livePlayerMatch.result.away.clubId,
+                fromMin: 0, toMin: 90, scorers: livePlayerMatch.result.scorers,
+              }]}
+              accent={theme.accent}
+              onDone={applyMatchday}
+            />
+          ) : (
+            <View style={styles.progressCard}>
+              <Text style={[styles.emptyResultsText, { textAlign: 'center' }]}>Next match kicking off…</Text>
             </View>
+          )}
 
-            <View style={styles.resultsCard}>
-              <Text style={styles.cardHeaderTitle}>Round Results</Text>
-              {recentResults.length === 0 ? (
-                <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for kickoff...</Text></View>
-              ) : (
-                <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
-                  {recentResults.map((r, i) => {
-                    const isPM = r.home.isPlayer || r.away.isPlayer
-                    const rc = isPM
-                      ? (r.home.isPlayer && r.outcome === 'home') || (r.away.isPlayer && r.outcome === 'away') ? colors.success
-                        : r.outcome === 'draw' ? colors.warning : '#DC2626'
-                      : null
-                    return (
-                      <View key={i}>
-                        <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
-                          <TeamLabel
-                            clubId={r.home.clubId}
-                            name={r.home.clubName}
-                            textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
-                            containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]}
-                            size={15}
-                          />
-                          <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
-                            <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
-                          </View>
-                          <TeamLabel
-                            clubId={r.away.clubId}
-                            name={r.away.clubName}
-                            textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]}
-                            containerStyle={styles.resultTeamSide}
-                            size={15}
-                          />
-                        </View>
-                        <ScorerLine scorers={r.scorers} big={isPM} />
-                      </View>
-                    )
-                  })}
-                </ScrollView>
+          {/* 2 · your group standings */}
+          <View style={styles.tableCard}>
+            <Text style={styles.cardHeaderTitle}>{playerGroup ? `Group ${playerGroup.id}` : 'Your Group'}</Text>
+            <View style={styles.tableHeaderRow}>
+              <Text style={[styles.tableCol, styles.colPos]}>#</Text>
+              <Text style={[styles.tableCol, styles.colName]}>Team</Text>
+              <Text style={[styles.tableCol, styles.colStat]}>P</Text>
+              <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
+              <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
+            </View>
+            {playerGroupSorted.map((team, idx) => {
+              const gd = team.stats.goalsFor - team.stats.goalsAgainst
+              const pText = team.isPlayer ? { color: theme.accent, fontWeight: typography.bold } : null
+              const rowHi = team.isPlayer ? { borderColor: theme.accent, backgroundColor: theme.accent + '11' } : null
+              return (
+                <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, rowHi]}>
+                  <Text style={[styles.tableColData, styles.colPos as any, pText]}>{idx + 1}</Text>
+                  <TeamLabel clubId={team.clubId} name={team.clubName} textStyle={[styles.tableColData, pText]} containerStyle={styles.colName} size={16} />
+                  <Text style={[styles.tableColData, styles.colStat, pText]}>{team.stats.played}</Text>
+                  <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
+                  <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{team.stats.points}</Text>
+                </View>
+              )
+            })}
+          </View>
+
+          {/* 3 · the round's other matches, with lookback */}
+          <View style={styles.resultsCard}>
+            <View style={styles.mdCardHead}>
+              <Text style={[styles.cardHeaderTitle, { flexShrink: 1 }]} numberOfLines={1}>
+                {wcAppliedMDs.length > 0 ? `Matchday ${wcViewing} · All Matches` : 'Other Matches'}
+              </Text>
+              {wcAppliedMDs.length > 1 && (
+                <View style={styles.mdScrub}>
+                  <Pressable style={styles.mdScrubBtn} disabled={wcViewIdx <= 0} onPress={() => setWcViewMD(wcAppliedMDs[Math.max(0, wcViewIdx - 1)])}>
+                    <Text style={[styles.mdScrubText, wcViewIdx <= 0 && { opacity: 0.3 }]}>‹</Text>
+                  </Pressable>
+                  <Text style={styles.mdScrubCount}>{wcViewIdx + 1}/{wcAppliedMDs.length}</Text>
+                  <Pressable style={styles.mdScrubBtn} disabled={wcAtLive} onPress={() => setWcViewMD(wcAppliedMDs[Math.min(wcAppliedMDs.length - 1, wcViewIdx + 1)])}>
+                    <Text style={[styles.mdScrubText, wcAtLive && { opacity: 0.3 }]}>›</Text>
+                  </Pressable>
+                  {!wcAtLive && (
+                    <Pressable style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setWcViewMD(null)}>
+                      <Text style={[styles.mdLiveText, { color: theme.accent }]}>LATEST</Text>
+                    </Pressable>
+                  )}
+                </View>
               )}
             </View>
+            {wcShown.length === 0 ? (
+              <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for the first results…</Text></View>
+            ) : (
+              wcShown.map((r, i) => {
+                const isPM = r.home.isPlayer || r.away.isPlayer
+                const rc = isPM
+                  ? (r.home.isPlayer && r.homeGoals > r.awayGoals) || (r.away.isPlayer && r.awayGoals > r.homeGoals) ? colors.success
+                    : r.homeGoals === r.awayGoals ? colors.warning : '#DC2626'
+                  : null
+                return (
+                  <View key={i}>
+                    <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
+                      <TeamLabel clubId={r.home.clubId} name={r.home.clubName} textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]} containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]} size={15} />
+                      <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
+                        <Text style={[styles.scoreText, rc && { color: rc }]}>{r.homeGoals} - {r.awayGoals}</Text>
+                      </View>
+                      <TeamLabel clubId={r.away.clubId} name={r.away.clubName} textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]} containerStyle={styles.resultTeamSide} size={15} />
+                    </View>
+                    <ScorerLine scorers={r.scorers} big={isPM} />
+                  </View>
+                )
+              })
+            )}
           </View>
-
-          {phase === 'completed' && (
-            <Pressable style={[styles.finishBtn, { backgroundColor: theme.accent }, isFinishing && styles.finishBtnDisabled]} onPress={handleFinish} disabled={isFinishing}>
-              {isFinishing
-                ? <View style={styles.finishBtnContent}><ActivityIndicator color={colors.textPrimary} size="small" /><Text style={[styles.finishBtnText, styles.finishBtnTextLoading]}>Simulating knockouts...</Text></View>
-                : <Text style={styles.finishBtnText}>VIEW WORLD CUP RESULTS →</Text>}
-            </Pressable>
-          )}
-        </View>
+        </ScrollView>
       )}
     </View>
   )
+}
+
+// Convert a KnockoutTie (WC single match OR CL two-legged) into LiveMatch periods.
+function liveePeriodsFromTie(tie: KnockoutTie, label: string): LivePeriod[] {
+  if (tie.leg1) {
+    // Two-legged CL tie.
+    const periods: LivePeriod[] = [
+      { label: 'Leg 1', homeId: tie.teamA.clubId, awayId: tie.teamB.clubId, fromMin: 0, toMin: 90, scorers: tie.leg1Scorers },
+    ]
+    if (tie.leg2) periods.push({ label: 'Leg 2', homeId: tie.teamB.clubId, awayId: tie.teamA.clubId, fromMin: 0, toMin: 90, scorers: tie.leg2Scorers })
+    if (tie.leg2ExtraTime && (tie.leg2ExtraTime.aGoals > 0 || tie.leg2ExtraTime.bGoals > 0))
+      periods.push({ label: 'Extra Time', homeId: tie.teamB.clubId, awayId: tie.teamA.clubId, fromMin: 90, toMin: 120, scorers: tie.leg2ExtraTimeScorers })
+    return periods
+  }
+  // Single match (WC / final).
+  return [{ label, homeId: tie.teamA.clubId, awayId: tie.teamB.clubId, fromMin: 0, toMin: tie.extraTime ? 120 : 90, scorers: tie.leg1Scorers ?? tie.scorers }]
+}
+
+// Build the pre-knockout bracket-preview props from a rounds array (the player's
+// first knockout round + the road ahead).
+function bracketPreviewProps(rounds: KnockoutRound[]) {
+  const startIdx = Math.max(0, rounds.findIndex(r => r.ties.some(t => t.teamA.isPlayer || t.teamB.isPlayer)))
+  const first = rounds[startIdx]
+  return {
+    firstLabel: first?.label ?? 'Round',
+    firstTies: (first?.ties ?? []).map(t => ({ teamA: t.teamA, teamB: t.teamB })),
+    // Real tie counts per upcoming round (already simulated, just not shown yet)
+    // — NOT halved from the previous round, since e.g. a playoff round feeds a
+    // SAME-size Round of 16 once direct qualifiers join the playoff winners.
+    road: rounds.slice(startIdx + 1).map(r => ({ label: r.label, count: r.ties.length })),
+  }
 }
 
 // ── Knockout Phase View ────────────────────────────────────────────────────────
@@ -2116,9 +2108,11 @@ type KnockoutPhaseViewProps = {
   bgTint: string      // mode-tinted backdrop
   onFinish: () => void
   onSkipToRound: (idx: number) => void  // reserved for future skip UI
+  onLiveDone?: (roundKey: string) => void  // fired when the player's live match finishes
+  liveDone?: Record<string, boolean>       // which rounds' live matches have finished
 }
 
-function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, accent, bgTint, onFinish }: KnockoutPhaseViewProps) {
+function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, accent, bgTint, onFinish, onLiveDone, liveDone = {} }: KnockoutPhaseViewProps) {
   const allVisible = visibleCount >= rounds.length
   const currentRound = rounds[visibleCount - 1]
 
@@ -2132,30 +2126,45 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
           const isPast = roundIdx < visibleCount - 1
           const isCurrent = roundIdx === visibleCount - 1
           const playerTie = round.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
-          const totalPenKicks = playerTie?.penKicksA
-            ? playerTie.penKicksA.length + (playerTie.penKicksB?.length ?? 0)
-            : 0
           const currentPenReveal = isCurrent ? penReveal : Infinity
+          // On the live round, hold back the other ties until YOUR match is done.
+          const revealOthers = !isCurrent || !playerTie || !!liveDone[round.round]
+          const otherTies = round.ties.filter(t => !t.teamA.isPlayer && !t.teamB.isPlayer)
 
           return (
             <View key={round.round} style={[styles.koRoundCard, isPast && styles.koRoundCardPast]}>
               <Text style={styles.koRoundLabel}>{round.label}</Text>
 
-              {/* Non-player ties: compact grid */}
-              <View style={styles.koTiesGrid}>
-                {round.ties.filter(t => !t.teamA.isPlayer && !t.teamB.isPlayer).map((tie, i) => (
-                  <KnockoutTieCompact key={i} tie={tie} />
-                ))}
-              </View>
-
-              {/* Player's tie: full display */}
-              {playerTie && (
+              {/* Player's tie FIRST: plays out minute-by-minute while it's the live
+                  round; once it's a past round, show the settled full display. */}
+              {playerTie && isCurrent && (
+                <LiveMatch
+                  key={round.round}
+                  teamA={playerTie.teamA} teamB={playerTie.teamB}
+                  periods={liveePeriodsFromTie(playerTie, round.label)}
+                  pens={playerTie.aPens !== undefined ? { a: playerTie.aPens, b: playerTie.bPens ?? 0, kicksA: playerTie.penKicksA, kicksB: playerTie.penKicksB } : null}
+                  aggregate={!!playerTie.leg1}
+                  accent={accent}
+                  onDone={() => onLiveDone?.(round.round)}
+                />
+              )}
+              {playerTie && !isCurrent && (
                 <KnockoutTieFull
                   tie={playerTie}
                   penReveal={currentPenReveal}
                   isFinal={round.round === 'final'}
                   accent={accent}
                 />
+              )}
+
+              {/* The rest of the round — revealed only after your match settles. */}
+              {revealOthers && otherTies.length > 0 && (
+                <>
+                  {playerTie && <Text style={styles.koOtherTiesLabel}>Elsewhere in the {round.label}</Text>}
+                  <View style={styles.koTiesGrid}>
+                    {otherTies.map((tie, i) => <KnockoutTieCompact key={i} tie={tie} />)}
+                  </View>
+                </>
               )}
             </View>
           )
@@ -2278,6 +2287,15 @@ function KnockoutTieFull({ tie, penReveal, accent }: { tie: KnockoutTie; penReve
           </Text>
           {(() => { const h = summariseScorers(tie.leg2Scorers?.home), a = summariseScorers(tie.leg2Scorers?.away)
             return (h || a) ? <Text style={styles.koScorerLine}>⚽ {[h, a].filter(Boolean).join('  ·  ')}</Text> : null })()}
+          {tie.leg2ExtraTime && (tie.leg2ExtraTime.aGoals > 0 || tie.leg2ExtraTime.bGoals > 0) && (
+            <>
+              <Text style={styles.koLegRow}>
+                Extra Time: {teamB.clubName} {tie.leg2ExtraTime.bGoals}–{tie.leg2ExtraTime.aGoals} {teamA.clubName}
+              </Text>
+              {(() => { const h = summariseScorers(tie.leg2ExtraTimeScorers?.home), a = summariseScorers(tie.leg2ExtraTimeScorers?.away)
+                return (h || a) ? <Text style={styles.koScorerLine}>⚽ {[h, a].filter(Boolean).join('  ·  ')}</Text> : null })()}
+            </>
+          )}
         </View>
       )}
 
@@ -2659,6 +2677,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
+  mdCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.xs },
+  mdScrub: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  mdScrubBtn: { paddingHorizontal: 6, paddingVertical: 1 },
+  mdScrubText: { fontSize: 18, fontWeight: typography.black, color: colors.textPrimary },
+  mdScrubCount: { fontSize: typography.xs, color: colors.textMuted, minWidth: 34, textAlign: 'center' },
+  mdLiveBtn: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 1, marginLeft: 2 },
+  mdLiveText: { fontSize: 9, fontWeight: typography.black, letterSpacing: 1 },
   tableHeaderRow: {
     flexDirection: 'row',
     paddingBottom: spacing.xs,
@@ -2857,6 +2882,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.lg,
   },
+  heroGroupCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.borderLight, padding: spacing.md, marginBottom: spacing.lg, gap: 2 },
+  heroGroupTitle: { fontSize: typography.sm, fontWeight: typography.black, letterSpacing: 1, marginBottom: spacing.xs },
+  heroGroupHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
+  heroGroupHeadTxt: { width: 30, fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, textAlign: 'center' },
+  heroGroupRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border, borderRadius: radius.sm },
+  heroQdot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  heroRank: { width: 12, fontSize: 12, color: colors.textMuted, fontWeight: typography.bold },
+  heroName: { flex: 1, fontSize: 14, color: colors.textPrimary },
+  heroStat: { width: 30, fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
+  heroPts: { fontWeight: typography.black, color: colors.textPrimary },
+  heroNote: { fontSize: 9, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs },
   groupsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -3024,6 +3060,15 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  koOtherTiesLabel: {
+    fontSize: typography.xs,
+    fontWeight: typography.bold,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
   koTiesGrid: {
     gap: 4,

@@ -7,9 +7,9 @@ import { colors, spacing, typography, radius, shadows } from '@/theme'
 import type { CareerStats, CareerPlayerLine } from '@/types/stats'
 
 type Tab = 'goals' | 'assists' | 'cleanSheets' | 'matchesPlayed'
-type Comp = 'all' | 'league' | 'champions_league' | 'world_cup'
+type Comp = 'all' | 'league' | 'champions_league' | 'champions_league_custom' | 'world_cup'
 
-const COMP_LABEL: Record<string, string> = { league: 'LGE', champions_league: 'UCL', world_cup: 'WC' }
+const COMP_LABEL: Record<string, string> = { league: 'LGE', champions_league: 'UCL', champions_league_custom: 'UCL✦', world_cup: 'WC' }
 const TAB_LABEL: Record<Tab, string> = { goals: 'Goals', assists: 'Assists', cleanSheets: 'Clean Sheets', matchesPlayed: 'Apps' }
 
 export default function CareerScreen() {
@@ -60,7 +60,7 @@ export default function CareerScreen() {
 
         {/* Competition filter */}
         <View style={styles.chips}>
-          {(['all', 'league', 'champions_league', 'world_cup'] as Comp[]).map(c => (
+          {(['all', 'league', 'champions_league', 'champions_league_custom', 'world_cup'] as Comp[]).map(c => (
             <Pressable key={c} onPress={() => setComp(c)} style={[styles.chip, comp === c && styles.chipActive]}>
               <Text style={[styles.chipText, comp === c && styles.chipTextActive]}>{c === 'all' ? 'All' : COMP_LABEL[c]}</Text>
             </Pressable>

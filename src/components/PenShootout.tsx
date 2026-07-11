@@ -4,11 +4,17 @@ import { colors, spacing, typography } from '@/theme'
 import type { PenKick } from '@/engine/knockout-match'
 
 // Renders a stored penalty shootout (kicker name + ✅/❌) for the result screens.
-export function PenShootout({ teamA, teamB, kicksA, kicksB }: {
+export function PenShootout({ teamA, teamB, kicksA, kicksB, reveal }: {
   teamA: string; teamB: string; kicksA: PenKick[]; kicksB: PenKick[]
+  reveal?: number   // limit how many individual kicks are shown (live reveal); omit for all
 }) {
-  const rows = Math.max(kicksA.length, kicksB.length)
-  if (rows === 0) return null
+  // Kicks alternate A1, B1, A2, B2… so after `reveal` kicks show ceil/floor.
+  const showA = reveal == null ? kicksA.length : Math.min(kicksA.length, Math.ceil(reveal / 2))
+  const showB = reveal == null ? kicksB.length : Math.min(kicksB.length, Math.floor(reveal / 2))
+  const shownA = kicksA.slice(0, showA)
+  const shownB = kicksB.slice(0, showB)
+  const rows = Math.max(shownA.length, shownB.length)
+  if (Math.max(kicksA.length, kicksB.length) === 0) return null
   return (
     <View style={styles.box}>
       <Text style={styles.title}>Penalty Shootout</Text>
@@ -20,11 +26,11 @@ export function PenShootout({ teamA, teamB, kicksA, kicksB }: {
       {Array.from({ length: rows }, (_, i) => (
         <View key={i} style={styles.row}>
           <Text style={[styles.name, { textAlign: 'right' }]} numberOfLines={1}>
-            {kicksA[i] ? `${kicksA[i].playerName} ${kicksA[i].scored ? '✅' : '❌'}` : ''}
+            {shownA[i] ? `${shownA[i].playerName} ${shownA[i].scored ? '✅' : '❌'}` : ''}
           </Text>
           <Text style={styles.num}>{i + 1}</Text>
           <Text style={styles.name} numberOfLines={1}>
-            {kicksB[i] ? `${kicksB[i].scored ? '✅' : '❌'} ${kicksB[i].playerName}` : ''}
+            {shownB[i] ? `${shownB[i].scored ? '✅' : '❌'} ${shownB[i].playerName}` : ''}
           </Text>
         </View>
       ))}

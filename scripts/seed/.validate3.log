@@ -1,0 +1,24 @@
+Custom UCL scrape · season 2025/26 · 4 leagues
+
+=== #39 Super Liga (MO1N) · 2025/26 ===
+  1 clubs
+     1/1 FC Sheriff Tiraspol        30p · ovr 64
+
+=== #41 Betri deildin (FARO) · 2025/26 ===
+  1 clubs
+     1/1 KÍ Klaksvík                28p · ovr 62
+
+=== #42 Prva Liga (MAZ1) · 2025/26 ===
+  1 clubs
+     1/1 Shkendija Tetovo           29p · ovr 66
+
+=== #43 Premier League (MAL1) · 2025/26 ===
+  1 clubs
+     1/1 Floriana FC                30p · ovr 63
+
+✓ 4 clubs · 117 player-seasons → scripts\seed\CustomUcl.json
+  league coverage:
+    ✓ moldova_sl         1 clubs
+    ✓ faroe_pd           1 clubs
+    ✓ nmacedonia_pl      1 clubs
+    ✓ malta_pl           1 clubs

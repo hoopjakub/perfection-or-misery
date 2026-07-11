@@ -1,0 +1,6 @@
+
+first finish the result page
+
+then for the simulation draft from how the normal simulation UI looks not the new one you have created, use the ones used in league, it looks good and I want consitency, in the result page, abbility to view any matches, also on not even going to playoffs from league so finishing in a spot not giving a UCL spot, you will not see the league phase matches. update the full UCL bracket, make sure for the stats that the knockouts runs are also included in it, not just the league phase and later on knockouts meaning making the team viewer in stats similar to how the player stats look (aka scrolling) two times you are shown in which league you land, look at that as well, also audit the whole simulations from start look for any inconsistencies and fix them. Upgrade the question mark content so its more league specific and better and more user and human like explanation of the rules and such. As well as in the result screen in the stats adn the bottom a small button to view every rule.
+
+thanks a lot. look also in the documentation. Thanks a lot.

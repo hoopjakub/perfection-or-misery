@@ -5,13 +5,14 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore, type Difficulty } from '@/store/gameStore'
-import { getSlotsForFormation } from '@/engine/formations'
+import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
 import { calcTeamOvr, effectiveOvr, positionPenalty, derivedSecondaryPositions } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
 import { getRandomFact } from '@/lib/clubFacts'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { flagForCountry } from '@/data/geo-iso'
 import { useModeTheme } from '@/hooks/useModeTheme'
 import type { PositionSlot, DraftedPlayer } from '@/types/game'
 import type { PlayerRow } from '@/db/queries/players'
@@ -19,40 +20,6 @@ import type { ClubSeasonRow } from '@/engine/draft'
 
 
 type DraftPhase = 'idle' | 'spinning_position' | 'spinning' | 'picking' | 'done'
-
-const FORMATION_SHAPES: Record<string, string[][]> = {
-  '4-3-3': [
-    ['LW', 'ST', 'RW'],
-    ['CM', 'CM', 'CM'],
-    ['LB', 'CB', 'CB', 'RB'],
-    ['GK'],
-  ],
-  '4-4-2': [
-    ['ST', 'ST'],
-    ['LM', 'CM', 'CM', 'RM'],
-    ['LB', 'CB', 'CB', 'RB'],
-    ['GK'],
-  ],
-  '4-2-3-1': [
-    ['ST'],
-    ['LW', 'CAM', 'RW'],
-    ['CDM', 'CDM'],
-    ['LB', 'CB', 'CB', 'RB'],
-    ['GK'],
-  ],
-  '3-5-2': [
-    ['ST', 'ST'],
-    ['LB', 'CM', 'CDM', 'CM', 'RB'],
-    ['CB', 'CB', 'CB'],
-    ['GK'],
-  ],
-  '5-3-2': [
-    ['ST', 'ST'],
-    ['CM', 'CDM', 'CM'],
-    ['LB', 'CB', 'CB', 'CB', 'RB'],
-    ['GK'],
-  ]
-}
 
 export default function DraftScreen() {
   const {
@@ -75,6 +42,7 @@ export default function DraftScreen() {
   const [showSlotPicker, setShowSlotPicker] = useState(false)
   const [spunPosition,  setSpunPosition]  = useState<PositionSlot | null>(null)
   const [movingPlayer,  setMovingPlayer]  = useState<DraftedPlayer | null>(null)
+  const [sortBy,        setSortBy]        = useState<'ovr' | 'position' | 'name'>('ovr')
   const [positionSpinDisplay, setPositionSpinDisplay] = useState<string>('')
 
   // spin animation
@@ -526,7 +494,7 @@ export default function DraftScreen() {
       >
         {/* formation pitch view – group by position line */}
         {(() => {
-          const shape = FORMATION_SHAPES[formation || '4-3-3'] || [['ST'], ['CM'], ['CB'], ['GK']]
+          const shape = getFormationRows(formation || '4-3-3')
           const remainingSlots = [...slots]
           const lines = shape.map(row => {
             return row.map(label => {
@@ -576,11 +544,14 @@ export default function DraftScreen() {
             )}
             {phase === 'spinning' && spinDisplay ? (
               <View style={styles.spinCard}>
+                {mode === 'world_cup' && flagForCountry(spinDisplay.club_name)
+                  ? <Text style={{ fontSize: 44, lineHeight: 54, textAlign: 'center' }}>{flagForCountry(spinDisplay.club_name)}</Text> : null}
                 <Text style={styles.spinClubName}>{spinDisplay.club_name}</Text>
-                <Text style={styles.spinSeason}>
-                  {spinDisplay.year_start}/{String(spinDisplay.year_start + 1).slice(-2)}
-                </Text>
-                <Text style={styles.spinOvr}>OVR {spinDisplay.historical_ovr}</Text>
+                {mode !== 'world_cup' && (
+                  <Text style={styles.spinSeason}>
+                    {spinDisplay.year_start}/{String(spinDisplay.year_start + 1).slice(-2)}
+                  </Text>
+                )}
               </View>
             ) : phase !== 'spinning_position' && (
               <View style={styles.spinPlaceholder}>
@@ -612,6 +583,42 @@ export default function DraftScreen() {
           </View>
         )}
 
+        {/* your squad — shown ABOVE the picker so you always see who you've drafted */}
+        {filledSlots.length > 0 && (
+          <View style={styles.draftedSection}>
+            <Text style={styles.draftedTitle}>Your Squad</Text>
+            {!ratingsHidden && (
+              <View style={styles.teamOvrRow}>
+                <Text style={styles.teamOvrLabel}>Team OVR: </Text>
+                <Text style={[styles.teamOvrValue, { color: colors.warning }]}>{baseTeamOvr}</Text>
+              </View>
+            )}
+            {slots.filter(s => s.filledBy).map((slot, i) => {
+              const player = slot.filledBy!
+              const effectiveRating = effectiveOvr(player, slot)
+              const isAffected = effectiveRating !== player.ovr
+              const canMove = canRelocate(player)
+              return (
+                <View key={i} style={styles.draftedRow}>
+                  <View style={[styles.draftedPosBadge, { backgroundColor: (colors.positions as any)[slot.primary] + '22' }]}>
+                    <Text style={[styles.draftedPosText, { color: (colors.positions as any)[slot.primary] }]}>{slot.label}</Text>
+                  </View>
+                  <Text style={styles.draftedName}>{player.name}</Text>
+                  <Text style={styles.draftedClub}>{player.clubName}</Text>
+                  {!ratingsHidden && (
+                    <Text style={[styles.draftedOvr, isAffected && { color: colors.warning }]}>{effectiveRating}</Text>
+                  )}
+                  {canMove && (
+                    <Pressable style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
+                      <Text style={[styles.moveBtnText, { color: theme.accent }]}>MOVE</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )
+            })}
+          </View>
+        )}
+
         {/* picking phase — club revealed + player cards */}
         {phase === 'picking' && currentSpin && (
           <Animated.View style={[
@@ -620,16 +627,16 @@ export default function DraftScreen() {
           ]}>
             {/* club header */}
             <View style={styles.clubHeader}>
-              <View style={[
-                styles.clubColorBar,
-                { backgroundColor: currentSpin.primary_color ?? colors.accent }
-              ]} />
+              {mode === 'world_cup' && flagForCountry(currentSpin.club_name)
+                ? <Text style={{ fontSize: 26, lineHeight: 34, paddingLeft: spacing.md, paddingVertical: spacing.md }}>{flagForCountry(currentSpin.club_name)}</Text>
+                : <View style={[styles.clubColorBar, { backgroundColor: currentSpin.primary_color ?? colors.accent }]} />}
               <View style={styles.clubHeaderInfo}>
                 <Text style={styles.clubName}>{currentSpin.club_name}</Text>
-                <Text style={styles.clubSeason}>
-                  {currentSpin.year_start}/{String(currentSpin.year_start + 1).slice(-2)}
-                  {'  ·  '}OVR {currentSpin.historical_ovr}
-                </Text>
+                {mode !== 'world_cup' && (
+                  <Text style={styles.clubSeason}>
+                    {currentSpin.year_start}/{String(currentSpin.year_start + 1).slice(-2)}
+                  </Text>
+                )}
               </View>
               {rerollsLeft > 0 && (
                 <Pressable style={styles.rerollBtn} onPress={handleReroll}>
@@ -649,6 +656,16 @@ export default function DraftScreen() {
             <Text style={styles.pickingLabel}>
               Pick a player{mode === 'cursed' && spunPosition ? ` (${spunPosition.label})` : ''}
             </Text>
+
+            {/* sort controls — OVR only when ratings are visible */}
+            <View style={styles.sortRow}>
+              <Text style={styles.sortRowLabel}>Sort:</Text>
+              {(['ovr', 'position', 'name'] as const).filter(o => o !== 'ovr' || !ratingsHidden).map(o => (
+                <Pressable key={o} style={[styles.sortChip, sortBy === o && { borderColor: theme.accent, backgroundColor: theme.accent + '22' }]} onPress={() => setSortBy(o)}>
+                  <Text style={[styles.sortChipText, sortBy === o && { color: theme.accent }]}>{o === 'ovr' ? 'OVR' : o === 'position' ? 'Position' : 'A–Z'}</Text>
+                </Pressable>
+              ))}
+            </View>
 
             {/* skip if no compatible players at all */}
             {players.length > 0 && players.every(p =>
@@ -682,13 +699,15 @@ export default function DraftScreen() {
                     const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), openSlots)
                     if (aAvail && !bAvail) return -1
                     if (!aAvail && bAvail) return 1
-                    // Whenever ratings are hidden (Chaos/Cursed or hard difficulty),
-                    // order by surname so OVR can't be inferred from list position.
-                    // Otherwise keep it ordered by OVR, highest first.
-                    if (ratingsHidden) {
-                      const aLastName = a.name.split(' ').slice(-1)[0]
-                      const bLastName = b.name.split(' ').slice(-1)[0]
-                      return aLastName.localeCompare(bLastName)
+                    // Ratings hidden (Chaos/Cursed/hard) → always order by surname
+                    // so OVR can't be inferred from list position.
+                    const byName = () => a.name.split(' ').slice(-1)[0].localeCompare(b.name.split(' ').slice(-1)[0])
+                    if (ratingsHidden) return byName()
+                    if (sortBy === 'name') return byName()
+                    if (sortBy === 'position') {
+                      const order = ['GK','CB','LB','RB','CDM','CM','CAM','LM','RM','LW','RW','CF','ST']
+                      const d = order.indexOf(a.primary_position) - order.indexOf(b.primary_position)
+                      return d !== 0 ? d : b.ovr - a.ovr
                     }
                     return b.ovr - a.ovr
                   })
@@ -739,56 +758,6 @@ export default function DraftScreen() {
                 })}
             </View>
           </Animated.View>
-        )}
-
-        {/* drafted players */}
-        {filledSlots.length > 0 && (
-          <View style={styles.draftedSection}>
-            <Text style={styles.draftedTitle}>Your Squad</Text>
-            {!ratingsHidden && (
-              <View style={styles.teamOvrRow}>
-                <Text style={styles.teamOvrLabel}>Team OVR: </Text>
-                <Text style={[styles.teamOvrValue, { color: colors.warning }]}>{baseTeamOvr}</Text>
-              </View>
-            )}
-            {slots.filter(s => s.filledBy).map((slot, i) => {
-              const player = slot.filledBy!
-              const effectiveRating = effectiveOvr(player, slot)
-              const isAffected = effectiveRating !== player.ovr
-              // Can this player relocate to any other open, compatible slot?
-              const canMove = canRelocate(player)
-              return (
-                <View key={i} style={styles.draftedRow}>
-                  <View style={[
-                    styles.draftedPosBadge,
-                    { backgroundColor: (colors.positions as any)[slot.primary] + '22' }
-                  ]}>
-                    <Text style={[
-                      styles.draftedPosText,
-                      { color: (colors.positions as any)[slot.primary] }
-                    ]}>
-                      {slot.label}
-                    </Text>
-                  </View>
-                  <Text style={styles.draftedName}>{player.name}</Text>
-                  <Text style={styles.draftedClub}>{player.clubName}</Text>
-                  {!ratingsHidden && (
-                    <Text style={[
-                      styles.draftedOvr,
-                      isAffected && { color: colors.warning }
-                    ]}>
-                      {effectiveRating}
-                    </Text>
-                  )}
-                  {canMove && (
-                    <Pressable style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
-                      <Text style={[styles.moveBtnText, { color: theme.accent }]}>MOVE</Text>
-                    </Pressable>
-                  )}
-                </View>
-              )
-            })}
-          </View>
         )}
 
         {/* done state */}
@@ -1150,6 +1119,21 @@ const styles = StyleSheet.create({
     fontWeight: typography.black,
     color:      colors.textPrimary,
   },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  sortRowLabel: { fontSize: typography.xs, color: colors.textMuted, marginRight: 2 },
+  sortChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
+  sortChipText: { fontSize: typography.xs, fontWeight: typography.bold, color: colors.textSecondary },
   draftedSection: {
     gap: spacing.sm,
   },

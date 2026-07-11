@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useModeTheme } from '@/hooks/useModeTheme'
 import { computeLeagueRunStats, computeCLRunStats, computeWCRunStats } from '@/engine/run-stats'
+import { RulesModal } from '@/components/InfoBubble'
 import { fetchRunById } from '@/db/queries/runs'
 import { TeamLabel } from '@/components/TeamLabel'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
@@ -13,7 +14,7 @@ type Tab = 'scorers' | 'assists' | 'clean'
 const YOUR_TINT = 'rgba(255,255,255,0.06)'   // light white tint for your players
 
 export default function StatsScreen() {
-  const { simResult, draftedPlayers, placedLeague, mode, clResult, wcResult } = useGameStore()
+  const { simResult, draftedPlayers, placedLeague, mode, clResult, wcResult, customUclQual } = useGameStore()
   const theme = useModeTheme()
   const params = useLocalSearchParams<{ runId?: string }>()
 
@@ -22,6 +23,7 @@ export default function StatsScreen() {
   const [awards, setAwards]   = useState<SeasonAwards | null>(null)
   const [tab, setTab]         = useState<Tab>('scorers')
   const [query, setQuery]     = useState('')
+  const [rulesOpen, setRulesOpen] = useState(false)
 
   useEffect(() => {
     async function go() {
@@ -34,7 +36,8 @@ export default function StatsScreen() {
         }
         // Fresh run — compute from the live result in store.
         let res = null
-        if (mode === 'champions_league' && clResult)      res = await computeCLRunStats(clResult, draftedPlayers)
+        if (mode === 'champions_league_custom' && clResult) res = await computeCLRunStats(clResult, draftedPlayers, 2025, customUclQual?.ties)
+        else if (mode === 'champions_league' && clResult)   res = await computeCLRunStats(clResult, draftedPlayers)
         else if (mode === 'world_cup' && wcResult)         res = await computeWCRunStats(wcResult, draftedPlayers)
         else if (simResult && placedLeague)                res = await computeLeagueRunStats(simResult, draftedPlayers, placedLeague)
         if (res) { setStats(res.stats); setAwards(res.awards) }
@@ -164,12 +167,16 @@ export default function StatsScreen() {
             <Text style={[styles.teamCol, styles.teamName]}>Club</Text>
             <Text style={styles.teamCol}>For</Text><Text style={styles.teamCol}>Ag</Text><Text style={styles.teamCol}>CS</Text>
           </View>
-          {[...teams].sort((a, b) => b.goalsFor - a.goalsFor).map(t => (
-            <View key={t.clubId} style={styles.row}>
-              <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={styles.name} containerStyle={styles.teamName} size={15} />
-              <Text style={styles.teamCol}>{t.goalsFor}</Text><Text style={styles.teamCol}>{t.goalsAgainst}</Text><Text style={styles.teamCol}>{t.cleanSheets}</Text>
-            </View>
-          ))}
+          {/* Scrolls like the player leaderboards — the custom UCL fields 90+ clubs. */}
+          <ScrollView style={styles.listScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+            {[...teams].sort((a, b) => b.goalsFor - a.goalsFor).map(t => (
+              <View key={t.clubId} style={styles.row}>
+                <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={styles.name} containerStyle={styles.teamName} size={15} />
+                <Text style={styles.teamCol}>{t.goalsFor}</Text><Text style={styles.teamCol}>{t.goalsAgainst}</Text><Text style={styles.teamCol}>{t.cleanSheets}</Text>
+              </View>
+            ))}
+          </ScrollView>
+          <Text style={styles.listCount}>{teams.length} clubs</Text>
         </View>
 
         {/* Your players */}
@@ -189,7 +196,15 @@ export default function StatsScreen() {
             </View>
           ))}
         </View>
+
+        {/* Full rulebook (custom UCL runs) */}
+        {mode === 'champions_league_custom' && (
+          <Pressable style={styles.rulesBtn} onPress={() => setRulesOpen(true)}>
+            <Text style={styles.rulesBtnText}>📖 How this competition works — all rules</Text>
+          </Pressable>
+        )}
       </ScrollView>
+      <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} accent={theme.accent} />
     </View>
   )
 }
@@ -286,4 +301,6 @@ const styles = StyleSheet.create({
   yourHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
   yc: { width: 30, textAlign: 'center', fontSize: typography.sm, color: colors.textSecondary },
   posTag: { fontSize: 10, color: colors.textMuted },
+  rulesBtn: { alignSelf: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgElevated },
+  rulesBtnText: { fontSize: typography.xs, color: colors.textSecondary, fontWeight: typography.bold },
 })

@@ -84,7 +84,15 @@ function toMinuteEvents(minutes: number[], extraTime: boolean): { minute: number
 // MUST have been level after 90' — so both sides score the same number of goals
 // in regulation (1..90) and only the surplus falls in extra time (91..120).
 // This kills the "USA 3-5 Mexico AET with all goals in the first half" nonsense.
-function buildSideMinutes(homeGoals: number, awayGoals: number, extraTime: boolean) {
+function buildSideMinutes(homeGoals: number, awayGoals: number, extraTime: boolean, etOnly = false) {
+  // ET-only phase (e.g. the extra-time period of a two-legged tie's second leg):
+  // every goal here happened in 91..120 by definition.
+  if (etOnly) {
+    return {
+      home: toMinuteEvents(sampleMinutes(homeGoals, 91, 120), true),
+      away: toMinuteEvents(sampleMinutes(awayGoals, 91, 120), true),
+    }
+  }
   if (!extraTime) {
     return {
       home: toMinuteEvents(sampleMinutes(homeGoals, 1, 90), false),
@@ -99,7 +107,7 @@ function buildSideMinutes(homeGoals: number, awayGoals: number, extraTime: boole
   return { home: toMinuteEvents(homeMins, true), away: toMinuteEvents(awayMins, true) }
 }
 
-export type AttributeOpts = { extraTime?: boolean }
+export type AttributeOpts = { extraTime?: boolean; etOnly?: boolean }
 
 // Attribute goal events to a match given each side's scorer pool + the scoreline.
 export function attributeMatchScorers(
@@ -112,7 +120,7 @@ export function attributeMatchScorers(
   const total = homeGoals + awayGoals
   if (total === 0) return { home: [], away: [] }
 
-  const mins = buildSideMinutes(homeGoals, awayGoals, !!opts.extraTime)
+  const mins = buildSideMinutes(homeGoals, awayGoals, !!opts.extraTime, !!opts.etOnly)
 
   const buildSide = (pool: RosterPlayer[], minuteEvents: { minute: number; plus?: number }[]): GoalEvent[] => {
     if (pool.length === 0) return []

@@ -1,6 +1,11 @@
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
+import { UCL_LEAGUES } from './lib/ucl-leagues'
+
+// League format comes from the LIVE registry (not the baked seed), so a format
+// tweak just needs a rebuild — no re-scrape. Keyed by cucl seedId.
+const FORMAT_BY_SEED = new Map(UCL_LEAGUES.map(l => [l.seedId, l.format]))
 
 const DB_PATH  = path.join(__dirname, '../assets/db/players_v5.db')
 const SEED_DIR = path.join(__dirname, 'seed')
@@ -13,7 +18,8 @@ const db = new Database(DB_PATH)
 db.exec(`
   CREATE TABLE leagues (
     id TEXT PRIMARY KEY, name TEXT NOT NULL,
-    country TEXT NOT NULL, games_per_season INTEGER NOT NULL, tier INTEGER NOT NULL DEFAULT 1
+    country TEXT NOT NULL, games_per_season INTEGER NOT NULL, tier INTEGER NOT NULL DEFAULT 1,
+    format TEXT NOT NULL DEFAULT 'double_round_robin'
   );
   CREATE TABLE clubs (
     id TEXT PRIMARY KEY, league_id TEXT NOT NULL REFERENCES leagues(id),
@@ -57,7 +63,7 @@ db.exec(`
 `)
 
 const insertLeague = db.prepare(
-  `INSERT OR IGNORE INTO leagues (id, name, country, games_per_season, tier) VALUES (?, ?, ?, ?, ?)`
+  `INSERT OR IGNORE INTO leagues (id, name, country, games_per_season, tier, format) VALUES (?, ?, ?, ?, ?, ?)`
 )
 const insertClub = db.prepare(
   `INSERT OR IGNORE INTO clubs (id, league_id, name, short_name, primary_color, secondary_color, logo) VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -74,18 +80,60 @@ const insertPlayerSeason = db.prepare(
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 )
 
+// The custom UCL seed is a COMBINED file (many domestic leagues, one season) with
+// a different shape: { competition, holders, leagues[], clubs[] } where each club
+// carries its domestic league_id + assoc_rank + league_position. Each domestic
+// league becomes a `cucl_<seedId>` leagues row (assoc_rank stored in `tier`), so
+// the app's access-list builder can group by association + finish. `cucl_%` is
+// excluded from the normal draft pools (see db/queries/seasons.ts).
+function ingestCustomUcl(data: any) {
+  for (const lg of data.leagues) {
+    const format = FORMAT_BY_SEED.get(lg.seedId) ?? lg.format ?? 'double_round_robin'
+    insertLeague.run(`cucl_${lg.seedId}`, lg.name, lg.country, lg.games, lg.assocRank, format)
+  }
+  for (const club of data.clubs) {
+    insertClub.run(
+      club.id, `cucl_${club.league_id}`, club.name, club.short_name,
+      club.primary_color, club.secondary_color ?? null, club.logo ?? null,
+    )
+    const csId = `${club.id}_${club.year_start}`
+    insertClubSeason.run(csId, club.id, club.year_start, club.year_end, club.historical_ovr, club.league_position ?? null)
+    for (const player of club.players) {
+      const secPos = Array.isArray(player.secondary_positions)
+        ? JSON.stringify(player.secondary_positions)
+        : (player.secondary_positions ?? '[]')
+      insertPlayer.run(player.id, player.name, player.nationality, player.birth_year ?? null, player.primary_position, secPos)
+      insertPlayerSeason.run(
+        `${player.id}_${club.year_start}`, player.id, csId, player.ovr,
+        player.attack ?? null, player.defense ?? null, player.physical ?? null,
+        player.pace ?? null, player.technical ?? null,
+        player.goals ?? 0, player.assists ?? 0, player.appearances ?? 0, player.is_icon ?? 0,
+      )
+    }
+  }
+  const clubSeasons = data.clubs.length
+  const players = data.clubs.reduce((s: number, c: any) => s + c.players.length, 0)
+  console.log(`  custom UCL: ${data.leagues.length} leagues · ${clubSeasons} clubs · ${players} player-seasons`)
+}
+
 const files = fs.readdirSync(SEED_DIR).filter(f => f.endsWith('.json'))
 
 for (const file of files) {
   console.log(`processing ${file}...`)
   const data = JSON.parse(fs.readFileSync(path.join(SEED_DIR, file), 'utf-8'))
 
+  if (data.competition?.id === 'custom_ucl' || file === 'CustomUcl.json') {
+    ingestCustomUcl(data)
+    continue
+  }
+
   insertLeague.run(
     data.league.id,
     data.league.name,
     data.league.country,
     data.league.games_per_season,
-    data.league.tier
+    data.league.tier,
+    data.league.format ?? 'double_round_robin'
   )
 
   for (const club of data.clubs) {

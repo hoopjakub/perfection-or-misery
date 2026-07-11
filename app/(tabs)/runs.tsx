@@ -59,7 +59,7 @@ export default function RunsScreen() {
       case 'losses':
         return sorted.sort((a, b) => a.losses - b.losses)
       case 'tier':
-        const tierOrder = ['perfection', 'almost_perfection', 'champions', 'title_contender', 'champions_league', 'europa_glory', 'almost_matters', 'respectful_mediocrity', 'absolute_misery']
+        const tierOrder = ['perfection', 'almost_perfection', 'champions', 'title_contender', 'champions_league', 'europa_glory', 'almost_matters', 'respectful_mediocrity', 'absolute_misery', 'winner', 'finalist', 'sf_exit', 'qf_exit', 'r16_exit', 'playoff_exit', 'league_exit', 'quali_playoff_exit', 'q3_exit', 'q2_exit', 'q1_exit']
         return sorted.sort((a, b) => tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier))
       default:
         return sorted
@@ -143,6 +143,7 @@ export default function RunsScreen() {
               style={styles.runCard}
               onPress={() => router.push({
                 pathname: run.mode === 'world_cup' ? '/game/wc-result'
+                        : run.mode === 'champions_league_custom' ? '/game/custom-ucl-result'
                         : run.mode === 'champions_league' ? '/game/cl-result'
                         : '/game/result',
                 params: { runId: run.id },

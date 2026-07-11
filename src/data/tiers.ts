@@ -25,11 +25,17 @@ export const TIER_RANK: Record<string, number> = {
   r16:                    52,   // WC round of 16
   r16_exit:               51,   // UCL round of 16
   respectful_mediocrity:  46,
-  playoff_exit:           42,   // UCL playoff round
+  playoff_exit:           42,   // UCL playoff round (post-league-phase knockout)
   r32:                    40,   // WC round of 32
   league_exit:            36,   // UCL league phase
   groups:                 32,   // WC group stage
   absolute_misery:        20,
+  // Custom UCL — qualifying-ladder exits (below league_exit; earlier == lower rank).
+  quali_playoff_exit:     18,   // eliminated in the qualifying play-off round
+  q3_exit:                16,   // eliminated in the 3rd qualifying round
+  q2_exit:                14,   // eliminated in the 2nd qualifying round
+  q1_exit:                12,   // eliminated in the 1st qualifying round
+  not_qualified:          10,   // domestic finish earned no UCL spot at all
 }
 
 // Display labels for the home page / teasers.
@@ -58,6 +64,11 @@ export const TIER_LABEL: Record<string, string> = {
   playoff_exit:          'Playoff Round',
   league_exit:           'League Phase',
   groups:                'Group Stage',
+  quali_playoff_exit:    'Qualifying Play-off',
+  q3_exit:               '3rd Qualifying Round',
+  q2_exit:               '2nd Qualifying Round',
+  q1_exit:               '1st Qualifying Round',
+  not_qualified:         'Did Not Qualify',
 }
 
 // The highest-ranked tier among a set of run tiers (null if none recognised).

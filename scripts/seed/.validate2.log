@@ -1,0 +1,106 @@
+Custom UCL scrape · season 2025/26 · 21 leagues
+
+=== #34 Premijer Liga (BOS1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 FK Sarajevo                30p · ovr 67
+
+=== #35 Superliga (KO1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 FC Drita                   30p · ovr 66
+
+=== #36 Premier League (KAS1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Kairat Almaty              26p · ovr 67
+
+=== #37 Veikkausliiga (FI1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 HJK Helsinki               27p · ovr 64
+
+=== #38 Virsliga (LET1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Riga FC                    29p · ovr 67
+
+=== #39 Super Liga (MO1) (slug unverified) · 2025/26 ===
+  ! 0 clubs parsed — SKIPPING (likely wrong slug).
+
+=== #41 Betri deildin (FAR1) (slug unverified) · 2025/26 ===
+  ! 0 clubs parsed — SKIPPING (likely wrong slug).
+
+=== #42 Prva Liga (MZ1) (slug unverified) · 2025/26 ===
+  ! 0 clubs parsed — SKIPPING (likely wrong slug).
+
+=== #43 Premier League (MLT1) (slug unverified) · 2025/26 ===
+  ! 0 clubs parsed — SKIPPING (likely wrong slug).
+
+=== #44 Kategoria Superiore (ALB1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 FC Dinamo City             30p · ovr 65
+
+=== #45 Vysshaya Liga (WER1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 ML Vitebsk                 25p · ovr 68
+
+=== #46 A Lyga (LI1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 FK Kauno Zalgiris          23p · ovr 67
+
+=== #47 National League (GI1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Lincoln Red Imps FC        30p · ovr 60
+
+=== #48 Prva Liga (MNE1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Buducnost Podgorica        30p · ovr 63
+
+=== #49 Premiership (NIR1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Glentoran FC               30p · ovr 62
+
+=== #50 National Division (LUX1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 FC Progrès Niederkorn      26p · ovr 60
+
+=== #51 Primera Divisió (AND1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Inter Club d'Escaldes      30p · ovr 64
+
+=== #52 Erovnuli Liga (GE1N) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Iberia 1999 Tbilisi        24p · ovr 63
+
+=== #53 Meistriliiga (EST1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Kalju FC                   27p · ovr 60
+
+=== #54 Cymru Premier (WAL1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 The New Saints             30p · ovr 60
+
+=== #55 Campionato (SMR1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Tre Fiori FC               30p · ovr 62
+
+✓ 17 clubs · 477 player-seasons → scripts\seed\CustomUcl.json
+  league coverage:
+    ✓ bosnia_pl          1 clubs
+    ✓ kosovo_sl          1 clubs
+    ✓ kazakhstan_pl      1 clubs
+    ✓ finland_vl         1 clubs
+    ✓ latvia_vl          1 clubs
+    ✗ moldova_sl         0 clubs
+    ✗ faroe_pd           0 clubs
+    ✗ nmacedonia_pl      0 clubs
+    ✗ malta_pl           0 clubs
+    ✓ albania_ks         1 clubs
+    ✓ belarus_vl         1 clubs
+    ✓ lithuania_al       1 clubs
+    ✓ gibraltar_nl       1 clubs
+    ✓ montenegro_pl      1 clubs
+    ✓ nireland_pr        1 clubs
+    ✓ luxembourg_nd      1 clubs
+    ✓ andorra_pd         1 clubs
+    ✓ georgia_el         1 clubs
+    ✓ estonia_ml         1 clubs
+    ✓ wales_cp           1 clubs
+    ✓ sanmarino_cs       1 clubs
+  ⚠ verify tmSlug for: moldova_sl, faroe_pd, nmacedonia_pl, malta_pl

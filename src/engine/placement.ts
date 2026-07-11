@@ -47,6 +47,7 @@ export function buildLeagueSeason(
     leagueName:       raw.leagueName,
     yearStart:        raw.yearStart,
     gamesPerSeason:   raw.gamesPerSeason,
+    format:           raw.format ?? 'double_round_robin',
     replacedTeamName: weakest.club_name,
     teams: raw.teams.map(t => ({
       clubId:   t.club_id,

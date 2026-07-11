@@ -63,6 +63,7 @@ export default function LeaderboardScreen() {
               style={styles.entryCard}
               onPress={() => router.push({
                 pathname: entry.mode === 'world_cup' ? '/game/wc-result'
+                        : entry.mode === 'champions_league_custom' ? '/game/custom-ucl-result'
                         : entry.mode === 'champions_league' ? '/game/cl-result'
                         : '/game/result',
                 params: { runId: entry.id },

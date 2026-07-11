@@ -12,7 +12,7 @@ import { simulateMatch } from './match'
 import { updateForm } from './simulation'
 import { assignTier } from './tier'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from './placement'
-import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, type LeaguePools } from './run-stats'
+import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, attributeQualTieScorers, type LeaguePools } from './run-stats'
 import { getClubSeasonsForMode, getAllClubSeasons } from '@/db/queries/seasons'
 import { getPlayersForClubSeason, type PlayerRow } from '@/db/queries/players'
 import {
@@ -24,6 +24,9 @@ import {
   type WCTeam, type WCGroup, type WCSeasonResult, type WCGroupMatch,
 } from './world-cup-sim'
 import type { MatchResult } from '@/types/simulation'
+import { buildCustomUclSeason } from '@/db/queries/custom-ucl'
+import { simulateCustomUclQualifying, type QualifyingResult } from './cl-qualifying'
+import type { SimLeagueTable } from './cl-league-sim'
 
 // Mutates both teams' stats + form from a match result (shared by CL/WC quick-sim).
 function applyMatchResult(home: { stats: any; form: number }, away: { stats: any; form: number }, r: MatchResult) {
@@ -121,7 +124,7 @@ async function eligibleLeagues(teamOvr: number): Promise<LeagueSeasonWithTeams[]
   const rows = await getAllClubSeasons()
   const map = new Map<string, LeagueSeasonWithTeams>()
   for (const cs of rows) {
-    if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_')) continue
+    if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_') || cs.league_id.startsWith('cucl_')) continue
     const key = `${cs.league_id}_${cs.year_start}`
     if (!map.has(key)) {
       map.set(key, {
@@ -271,6 +274,72 @@ export async function quickSimCL(): Promise<QuickCLRun> {
   const pools = await loadLeaguePools(teams, draftedPlayers, latest)
   attributeCLResultScorers(clResult, pools.poolByClub)
   return { formation, draftedPlayers, clTeams: teams, clResult }
+}
+
+// ── Custom Champions League quick-sim (tester) ──────────────────────────────
+// Runs the REAL custom-path chain from scraped domestic tables: access list →
+// qualifying ladder → league phase → knockouts, and reuses the CL result screen.
+// Logs an access/qualifying summary to the console for verification.
+export type QuickCustomUclRun = QuickCLRun & { qual: QualifyingResult; tables: SimLeagueTable[] }
+
+export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
+  const formation = pick(FORMATIONS)
+  const draftedPlayers = await autoDraftXI(formation)
+  const teamOvr = calcTeamOvr(draftedPlayers, getSlotsForFormation(formation))
+
+  const { access, tables } = await buildCustomUclSeason()
+  if (access.leaguePhaseDirect.length === 0) throw new Error('No custom UCL data — run build-db after the scrape.')
+
+  const qual = simulateCustomUclQualifying(access)
+  const field = qual.leaguePhaseField
+  console.log('[custom-ucl] access:', {
+    direct: access.leaguePhaseDirect.length,
+    qualifyingEntrants: access.qualifying.length,
+    missingSlots: access.missing.length,
+    qualifiers: qual.qualifiers.length,
+    ties: qual.ties.length,
+    leaguePhaseSize: field.length,
+  })
+
+  if (field.length < 8) throw new Error(`Only ${field.length} clubs in the league phase — add more leagues.`)
+
+  // Take over a random league-phase club with the drafted XI's OVR.
+  const replaceIdx = Math.floor(Math.random() * field.length)
+  const clubs = field.map((t, i) => ({
+    clubId: t.clubId, clubName: t.clubName,
+    ovr: i === replaceIdx ? teamOvr : t.ovr, isPlayer: i === replaceIdx,
+  }))
+  const teams = buildCLTeams(clubs)
+
+  const fixtures = generateCLLeagueFixtures(teams)
+  const leagueMatchdays: CLLeagueMatch[] = []
+  const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
+  for (let md = 1; md <= maxMd; md++) {
+    for (const fx of fixtures.filter(f => f.matchday === md)) {
+      const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
+      const r = simulateMatch(home, away)
+      applyMatchResult(home, away, r)
+      leagueMatchdays.push({ matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
+    }
+  }
+  const sorted = sortCompTeams(teams)
+  const ko = simulateCLKnockoutsOnly(sorted)
+  const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays }
+  const pools = await loadLeaguePools(teams, draftedPlayers, 2025)   // cucl season = 2025/26
+  attributeCLResultScorers(clResult, pools.poolByClub)
+  // Qualifying ties get stored scorers too (they count toward stats/awards).
+  try {
+    const tieClubs = new Map<string, { clubId: string; clubName: string; isPlayer: boolean }>()
+    for (const t of qual.ties) {
+      tieClubs.set(t.teamA.clubId, { clubId: t.teamA.clubId, clubName: t.teamA.clubName, isPlayer: false })
+      if (t.teamB) tieClubs.set(t.teamB.clubId, { clubId: t.teamB.clubId, clubName: t.teamB.clubName, isPlayer: false })
+    }
+    if (tieClubs.size > 0) {
+      const qp = await loadLeaguePools([...tieClubs.values()], draftedPlayers, 2025)
+      attributeQualTieScorers(qual.ties, qp.poolByClub)
+    }
+  } catch { /* tester-only nicety */ }
+  return { formation, draftedPlayers, clTeams: teams, clResult, qual, tables }
 }
 
 // ── World Cup quick-sim ─────────────────────────────────────────────────────

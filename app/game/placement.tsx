@@ -14,14 +14,19 @@ import { buildWCTeams } from '@/engine/world-cup-sim'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
 import { GlobeReveal } from '@/components/GlobeReveal'
-import { isoForLeague, isoForNationId } from '@/data/geo-iso'
+import { InfoBubble } from '@/components/InfoBubble'
+import { isoForLeague, isoForNationId, isoForCountryName, flagForCountry, countryForClClub } from '@/data/geo-iso'
+import { getCustomUclAssociations } from '@/db/queries/custom-ucl'
+import type { AssociationEntry } from '@/engine/cl-access'
+import { PositionStakes } from '@/components/CustomUclViewers'
 import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 
 // Top-level router — delegates to the right placement component per mode
 export default function PlacementScreen() {
   const { mode } = useGameStore()
-  if (mode === 'champions_league') return <CLPlacement />
-  if (mode === 'world_cup')        return <WCPlacement />
+  if (mode === 'champions_league')        return <CLPlacement />
+  if (mode === 'champions_league_custom') return <CustomCLPlacement />
+  if (mode === 'world_cup')               return <WCPlacement />
   return <LeaguePlacement />
 }
 
@@ -61,12 +66,13 @@ function LeaguePlacement() {
       const rows = await getAllClubSeasons()
       const seasonMap = new Map<string, LeagueSeasonWithTeams>()
       for (const cs of rows) {
-        if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_')) continue
+        if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_') || cs.league_id.startsWith('cucl_')) continue
         const key = `${cs.league_id}_${cs.year_start}`
         if (!seasonMap.has(key)) {
           seasonMap.set(key, {
             leagueId: cs.league_id, leagueName: cs.league_name,
-            yearStart: cs.year_start, gamesPerSeason: cs.games_per_season, teams: [],
+            yearStart: cs.year_start, gamesPerSeason: cs.games_per_season,
+            format: cs.league_format, teams: [],
           })
         }
         seasonMap.get(key)!.teams.push({
@@ -238,15 +244,14 @@ function CLPlacement() {
   const { draftedPlayers, formation, setClTeams, setClYear } = useGameStore()
   const theme = MODE_THEMES.champions_league
 
-  const [phase,       setPhase]       = useState<Phase>('ready')
   const [teamOvr,     setTeamOvr]     = useState(0)
   const [pot,         setPot]         = useState<1 | 2 | 3 | 4>(4)
   const [teamCount,   setTeamCount]   = useState(0)
   const [yearLabel,   setYearLabel]   = useState('')
   const [chosenName,  setChosenName]  = useState('')
-  const [spinDisplay, setSpinDisplay] = useState('')
+  const [chosenCountry, setChosenCountry] = useState<string | undefined>(undefined)
+  const [revealed,    setRevealed]    = useState(false)
   const [loading,     setLoading]     = useState(true)
-  const candidatesRef = useRef<{ club_id: string; club_name: string; historical_ovr: number }[]>([])
 
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.9)).current
@@ -261,66 +266,37 @@ function CLPlacement() {
       const rows = await getClubSeasonsForMode('champions_league')
       if (rows.length === 0) { setLoading(false); return }
 
-      // Pick a RANDOM UCL edition (both 2024 & 2025 are in the pool). Which club
-      // you take over within it is revealed via the spin.
+      // Pick a RANDOM UCL edition (both 2024 & 2025 are in the pool), then a
+      // random club within it — revealed by spinning the globe to its country.
       const years = [...new Set(rows.map(r => r.year_start))]
       const chosenYear = years[Math.floor(Math.random() * years.length)]
       const editionRows = rows.filter(r => r.year_start === chosenYear)
+      if (editionRows.length < 8) { setTeamCount(editionRows.length); setLoading(false); return }
       setYearLabel(`${chosenYear}/${String(chosenYear + 1).slice(-2)}`)
       setClYear(chosenYear)
-      candidatesRef.current = [...editionRows].sort((a, b) => a.historical_ovr - b.historical_ovr)
-      setTeamCount(editionRows.length)
+
+      const sorted = [...editionRows].sort((a, b) => a.historical_ovr - b.historical_ovr)
+      const replaceIdx = Math.floor(Math.random() * sorted.length)
+      const clubs = sorted.map((r, idx) => ({
+        clubId: r.club_id, clubName: r.club_name, ovr: r.historical_ovr, isPlayer: idx === replaceIdx,
+      }))
+      clubs[replaceIdx].ovr = ovr
+      const teams = buildCLTeams(clubs)
+      setClTeams(teams)
+      setPot(teams.find(t => t.isPlayer)!.pot)
+      setTeamCount(teams.length)
+      setChosenName(sorted[replaceIdx].club_name)
+      setChosenCountry(countryForClClub(sorted[replaceIdx].club_name))
       setLoading(false)
     }
     init()
   }, [])
 
-  // Build the UCL field with the player in the chosen club's slot, then store it.
-  function buildAndStore(replaceIdx: number) {
-    const sorted = candidatesRef.current
-    const clubs = sorted.map((r, idx) => ({
-      clubId:   r.club_id,
-      clubName: r.club_name,
-      ovr:      r.historical_ovr,
-      isPlayer: idx === replaceIdx,
-    }))
-    clubs[replaceIdx].ovr = teamOvr
-    const teams = buildCLTeams(clubs)
-    setClTeams(teams)
-    setPot(teams.find(t => t.isPlayer)!.pot)
-    setTeamCount(teams.length)
-  }
-
-  function handleSpin() {
-    const sorted = candidatesRef.current
-    if (sorted.length === 0) return
-    setPhase('spinning')
-
-    // You can now take over ANY of the UCL clubs — Real Madrid or a minnow.
-    const replaceIdx = Math.floor(Math.random() * sorted.length)
-    const finalName  = sorted[replaceIdx].club_name
-
-    let ticks = 0
-    const totalTicks = 24
-    function tick() {
-      const rnd = sorted[Math.floor(Math.random() * sorted.length)]
-      setSpinDisplay(rnd.club_name)
-      ticks++
-      const delay = ticks < totalTicks * 0.6 ? 80 : ticks < totalTicks * 0.8 ? 160 : 280
-      if (ticks < totalTicks) {
-        setTimeout(tick, delay)
-      } else {
-        setSpinDisplay(finalName)
-        setChosenName(finalName)
-        buildAndStore(replaceIdx)
-        Animated.parallel([
-          Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
-          Animated.spring(scaleAnim, { toValue: 1, friction: 5,   useNativeDriver: true }),
-        ]).start(() => setPhase('revealed'))
-      }
-    }
-    fadeAnim.setValue(0); scaleAnim.setValue(0.9)
-    tick()
+  function handleGlobeLock() {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 5,   useNativeDriver: true }),
+    ]).start(() => setRevealed(true))
   }
 
   function handleEnter() {
@@ -358,52 +334,158 @@ function CLPlacement() {
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.accent }]}>UCL Draw</Text>
-        <View style={[styles.ovrPill, { backgroundColor: theme.accent + '33', borderColor: theme.accent }]}>
-          <Text style={[styles.ovrPillText, { color: theme.accent }]}>OVR {teamOvr}</Text>
-        </View>
       </View>
 
       <View style={styles.body}>
-        <View style={styles.spinZone}>
-          {phase === 'ready' && (
-            <>
-              <Text style={styles.spinReadyEmoji}>🏆</Text>
-              <Text style={styles.spinReadyTitle}>Which club will you take over?</Text>
-              <Text style={styles.spinReadySubtitle}>{teamCount} clubs in the {yearLabel} Champions League</Text>
-            </>
-          )}
-          {phase === 'spinning' && (
-            <>
-              <Text style={styles.spinningDisplay}>{spinDisplay}</Text>
-              <ActivityIndicator color={theme.accent} style={{ marginTop: spacing.sm }} />
-            </>
-          )}
-          {phase === 'revealed' && (
-            <Animated.View style={[styles.revealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-              <Text style={[styles.compRevealBadge, { color: theme.accent }]}>UEFA CHAMPIONS LEAGUE · {yearLabel}</Text>
-              <Text style={styles.revealLabel}>You take over</Text>
-              <Text style={styles.revealLeague}>{chosenName}</Text>
-              <View style={[styles.potBadge, { backgroundColor: potColors[pot] + '22', borderColor: potColors[pot], marginTop: spacing.sm }]}>
-                <Text style={[styles.potBadgeText, { color: potColors[pot] }]}>POT {pot}</Text>
-              </View>
-              <Text style={styles.compRevealSubtitle}>
-                Seeded into Pot {pot} for the league-phase draw among {teamCount} clubs · 8 games · Top 8 → R16 direct.
-              </Text>
-            </Animated.View>
-          )}
+        <View style={{ alignItems: 'center' }}>
+          <GlobeReveal targetId={isoForCountryName(chosenCountry)} targetName={chosenCountry} accent={theme.accent} onLock={handleGlobeLock} />
+          {!revealed && <Text style={styles.spinningDisplay}>Spinning the globe…</Text>}
         </View>
 
-        {phase === 'ready' && (
-          <Pressable style={[styles.spinBtn, { backgroundColor: theme.accent }]} onPress={handleSpin}>
-            <Text style={styles.spinBtnText}>SPIN UCL DRAW</Text>
-          </Pressable>
+        {revealed && (
+          <Animated.View style={[styles.revealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+            <Text style={[styles.compRevealBadge, { color: theme.accent }]}>
+              {flagForCountry(chosenCountry) ? `${flagForCountry(chosenCountry)}  ` : ''}UEFA CHAMPIONS LEAGUE · {yearLabel}
+            </Text>
+            <Text style={styles.revealLabel}>You take over</Text>
+            <Text style={styles.revealLeague}>{chosenName}</Text>
+            <View style={[styles.potBadge, { backgroundColor: potColors[pot] + '22', borderColor: potColors[pot], marginTop: spacing.sm }]}>
+              <Text style={[styles.potBadgeText, { color: potColors[pot] }]}>POT {pot}</Text>
+            </View>
+            <Text style={styles.compRevealSubtitle}>
+              Seeded into Pot {pot} for the league-phase draw among {teamCount} clubs · 8 games · Top 8 → R16 direct.
+            </Text>
+          </Animated.View>
         )}
-        {phase === 'revealed' && (
+
+        {revealed && (
           <Pressable style={styles.continueBtn} onPress={handleEnter}>
             <Text style={styles.continueBtnText}>ENTER THE UCL →</Text>
           </Pressable>
         )}
       </View>
+    </View>
+  )
+}
+
+// ── Custom Champions League Placement ────────────────────────────────────────
+// You land in a real domestic LEAGUE first (globe reveals the country, you take
+// over a random club). NOTHING is simulated yet — you'll play your own league
+// season next, and where you finish decides your Champions League entry (or
+// whether you get one at all). The reveal shows exactly what each finishing
+// position in that league is worth.
+
+type ChosenClub = {
+  clubId: string; clubName: string
+  leagueRank: number; leagueName: string; country?: string
+}
+
+function CustomCLPlacement() {
+  const { draftedPlayers, formation, setClYear, setCustomUclPlayerClubId } = useGameStore()
+  const theme = MODE_THEMES.champions_league
+
+  const [loading, setLoading] = useState(true)
+  const [teamOvr, setTeamOvr] = useState(0)
+  const [chosen, setChosen] = useState<ChosenClub | null>(null)
+  const [leagueSize, setLeagueSize] = useState(0)
+  const [revealed, setRevealed] = useState(false)
+
+  const fadeAnim  = useRef(new Animated.Value(0)).current
+  const scaleAnim = useRef(new Animated.Value(0.9)).current
+
+  useEffect(() => {
+    async function init() {
+      if (!formation || draftedPlayers.length === 0) { setLoading(false); return }
+      const slots = getSlotsForFormation(formation)
+      setTeamOvr(calcTeamOvr(draftedPlayers, slots))
+
+      const associations: AssociationEntry[] = await getCustomUclAssociations()
+      const all = associations.flatMap(a => a.clubs.map(c => ({ assoc: a, club: c })))
+      if (all.length === 0) { setLoading(false); return }
+
+      // Uniform over every club in every UEFA league — you might land on a
+      // Premier League giant or a San Marino minnow.
+      const pick = all[Math.floor(Math.random() * all.length)]
+      setChosen({
+        clubId: pick.club.clubId, clubName: pick.club.clubName,
+        leagueRank: pick.assoc.rank, leagueName: pick.assoc.name, country: pick.assoc.country,
+      })
+      setLeagueSize(pick.assoc.clubs.length)
+      setLoading(false)
+    }
+    init()
+  }, [])
+
+  function handleGlobeLock() {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 5,   useNativeDriver: true }),
+    ]).start(() => setRevealed(true))
+  }
+
+  function handleEnter() {
+    if (!chosen) return
+    setClYear(2025)
+    setCustomUclPlayerClubId(chosen.clubId)
+    router.push('/game/custom-ucl-simulation')
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={theme.accent} size="large" />
+        <Text style={styles.loadingText}>Drawing your league…</Text>
+      </View>
+    )
+  }
+
+  if (!formation || draftedPlayers.length === 0 || !chosen) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Text style={styles.loadingText}>No custom UCL data found. Run the database seeder first.</Text>
+        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
+          <Text style={{ color: theme.accent, fontWeight: '700' }}>← Back</Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: theme.accent }]}>Road to the Champions League</Text>
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg }}>
+        <View style={{ alignItems: 'center' }}>
+          <GlobeReveal targetId={isoForCountryName(chosen.country)} accent={theme.accent} onLock={handleGlobeLock} />
+          {!revealed && <Text style={styles.spinningDisplay}>Spinning the globe…</Text>}
+        </View>
+
+        <Animated.View style={[styles.compRevealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }], borderColor: theme.accent }]}>
+          <Text style={[styles.compRevealBadge, { color: theme.accent }]}>
+            {flagForCountry(chosen.country) ? `${flagForCountry(chosen.country)}  ` : ''}{(chosen.country ?? '').toUpperCase()}{chosen.country ? ' · ' : ''}{chosen.leagueName.toUpperCase()} · RANK #{chosen.leagueRank}
+          </Text>
+          <Text style={styles.compRevealYear}>{chosen.clubName}</Text>
+          <Text style={styles.compRevealSubtitle}>
+            You take over <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{chosen.clubName}</Text> in {chosen.country ? `${chosen.country}'s` : 'the'} {chosen.leagueName} ({leagueSize} clubs). First you play your DOMESTIC season — where you finish decides your Champions League entry. Finish too low and there's no Europe at all.
+          </Text>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: spacing.xs }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: typography.xs, fontWeight: typography.bold, color: colors.textPrimary, textTransform: 'uppercase', letterSpacing: 1 }}>What each finish earns</Text>
+              <InfoBubble topic="entry_point" accent={theme.accent} size={15} />
+            </View>
+            <PositionStakes rank={chosen.leagueRank} />
+          </View>
+        </Animated.View>
+
+        {revealed && (
+          <Pressable style={styles.continueBtn} onPress={handleEnter}>
+            <Text style={styles.continueBtnText}>START YOUR SEASON →</Text>
+          </Pressable>
+        )}
+      </ScrollView>
     </View>
   )
 }
@@ -500,9 +582,6 @@ function WCPlacement() {
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.accent }]}>World Cup Draw</Text>
-        <View style={[styles.ovrPill, { backgroundColor: theme.accent + '33', borderColor: theme.accent }]}>
-          <Text style={[styles.ovrPillText, { color: theme.accent }]}>OVR {teamOvr}</Text>
-        </View>
       </View>
 
       <View style={styles.body}>
@@ -512,8 +591,9 @@ function WCPlacement() {
         </View>
 
         <Animated.View style={[styles.compRevealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }], borderColor: theme.accent }]}>
-          <Text style={[styles.compRevealBadge, { color: theme.accent }]}>FIFA WORLD CUP</Text>
-          <Text style={styles.compRevealYear}>{yearLabel}</Text>
+          <Text style={[styles.compRevealBadge, { color: theme.accent }]}>FIFA WORLD CUP · {yearLabel}</Text>
+          {flagForCountry(replacedName) ? <Text style={{ fontSize: 52, lineHeight: 64, textAlign: 'center' }}>{flagForCountry(replacedName)}</Text> : null}
+          <Text style={styles.compRevealYear}>{replacedName}</Text>
 
           <Text style={styles.compRevealSubtitle}>
             Your squad takes the place of <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{replacedName}</Text> at the World Cup {yearLabel}, among {teamCount} national teams. Groups will be drawn at the start of simulation.

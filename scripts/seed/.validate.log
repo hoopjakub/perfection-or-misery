@@ -1,0 +1,69 @@
+Custom UCL scrape · season 2025/26 · 13 leagues
+
+=== #20 Bundesliga (A1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Red Bull Salzburg          30p · ovr 77
+
+=== #21 Premier Liha (UKR1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Shakhtar Donetsk           30p · ovr 80
+
+=== #22 SuperLiga (RO1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 CFR Cluj                   30p · ovr 71
+
+=== #23 HNL (KR1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 GNK Dinamo Zagreb          30p · ovr 76
+
+=== #24 PrvaLiga (SL1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 NK Celje                   30p · ovr 68
+
+=== #25 Ligat haAl (ISR1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Maccabi Tel Aviv           30p · ovr 73
+
+=== #26 Premyer Liqa (AZ1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Qarabağ FK                 30p · ovr 73
+
+=== #27 Nike Liga (SLO1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Slovan Bratislava          30p · ovr 74
+
+=== #28 Parva Liga (BU1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Ludogorets Razgrad         30p · ovr 74
+
+=== #30 Super Liga (SER1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Red Star Belgrade          30p · ovr 79
+
+=== #31 Besta deild (IS1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Víkingur Reykjavík         25p · ovr 65
+
+=== #32 Premier Division (IR1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 Shamrock Rovers            30p · ovr 64
+
+=== #33 Premier League (ARM1) (slug unverified) · 2025/26 ===
+  1 clubs
+     1/1 FC Noah Yerevan            30p · ovr 68
+
+✓ 13 clubs · 385 player-seasons → scripts\seed\CustomUcl.json
+  league coverage:
+    ✓ austria_bl         1 clubs
+    ✓ ukraine_upl        1 clubs
+    ✓ romania_l1         1 clubs
+    ✓ croatia_hnl        1 clubs
+    ✓ slovenia_pl        1 clubs
+    ✓ israel_pl          1 clubs
+    ✓ azerbaijan_pl      1 clubs
+    ✓ slovakia_l1        1 clubs
+    ✓ bulgaria_pl        1 clubs
+    ✓ serbia_sl          1 clubs
+    ✓ iceland_pl         1 clubs
+    ✓ ireland_pd         1 clubs
+    ✓ armenia_pl         1 clubs

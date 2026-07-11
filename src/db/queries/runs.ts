@@ -194,6 +194,64 @@ export async function saveCLRun(params: {
   })
 }
 
+// Custom Champions League path — qualifying exits score lower than the same
+// round reached via the classic (finals-only) mode, since the journey started
+// much earlier; still on the same ladder so runs compare sensibly.
+const CUSTOM_CL_ROUND_TO_POSITION: Record<string, number> = {
+  not_qualified: 99, q1_exit: 90, q2_exit: 70, q3_exit: 55, quali_playoff_exit: 40,
+  ...CL_ROUND_TO_POSITION,
+}
+const CUSTOM_CL_ROUND_SCORE: Record<string, number> = {
+  not_qualified: 20, q1_exit: 50, q2_exit: 90, q3_exit: 130, quali_playoff_exit: 170,
+  ...CL_ROUND_SCORE,
+}
+
+export async function saveCustomUclRun(params: {
+  userId: string
+  formation: string
+  teamOvr: number
+  result: CLSeasonResult
+  squad: DraftedPlayer[]
+  stats?: unknown
+  awards?: unknown
+  qual?: unknown          // QualifyingResult — stored so history can rebuild the ladder
+  leagueTables?: unknown  // SimLeagueTable[] — stored so history can rebuild the league viewer
+}) {
+  const { result } = params
+  const pt = result.playerTeam
+  const finalPosition = CUSTOM_CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 90
+  const teamsInLeague = 36
+  const score = knockoutScore(CUSTOM_CL_ROUND_SCORE[result.playerFinalRound] ?? 30, params.teamOvr, pt.stats.lost)
+
+  await insertRun({
+    user_id: params.userId,
+    mode: 'champions_league_custom',
+    formation: params.formation,
+    team_ovr: params.teamOvr,
+    league_id: 'cucl_2025',
+    league_name: 'Champions League (Custom Path)',
+    year_start: 2025,
+    final_position: finalPosition,
+    teams_in_league: teamsInLeague,
+    tier: result.playerFinalRound,
+    wins: pt.stats.won,
+    draws: pt.stats.drawn,
+    losses: pt.stats.lost,
+    goals_for: pt.stats.goalsFor,
+    goals_against: pt.stats.goalsAgainst,
+    score,
+    squad: params.squad,
+    // Full tournament + qualifying ladder + domestic tables so the result page
+    // can be rebuilt IDENTICALLY from history. The qualifying ladder and the 53
+    // simulated league tables are nested INSIDE cl_result (a jsonb column that
+    // exists) rather than separate columns — so nothing is dropped even without
+    // a Supabase migration. The result page reads them back from here.
+    cl_result: { ...result, _customUclQual: params.qual, _customUclTables: params.leagueTables },
+    stats:  params.stats,
+    awards: params.awards,
+  })
+}
+
 export async function fetchRunById(runId: string) {
   const { data, error } = await supabase
     .from('runs')

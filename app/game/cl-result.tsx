@@ -9,6 +9,9 @@ import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
 import { PenShootout } from '@/components/PenShootout'
+import { getTopKickers } from '@/db/queries/seasons'
+import { expandPenaltyKicks, type PenKick } from '@/engine/knockout-match'
+import { InfoBubble, TitleWithInfo, RulesModal } from '@/components/InfoBubble'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
@@ -50,6 +53,7 @@ export default function CLResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
+  const [rulesOpen, setRulesOpen] = useState(false)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
   const savedRef = useRef(false)
@@ -221,7 +225,7 @@ export default function CLResultScreen() {
 
       {/* Full league phase standings — all 36, scrollable, tap a row for matchdays */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>League Phase Standings</Text>
+        <TitleWithInfo title="League Phase Standings" topic="league_phase_zones" style={styles.sectionTitle} />
         <Text style={styles.phaseNote}>Tap any club to see its matchday results</Text>
         <View style={styles.tableHeaderRow}>
           <Text style={[styles.tableCol, styles.colPos]}>#</Text>
@@ -253,7 +257,7 @@ export default function CLResultScreen() {
       {/* Knockout bracket + player's KO stat row */}
       {(playoffRound.length > 0 || r16.length > 0) && (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Knockout Rounds</Text>
+          <TitleWithInfo title="Knockout Rounds" topic="knockout_bracket" style={styles.sectionTitle} />
           {playerKoTies.length > 0 && (
             <View style={styles.statsRow}>
               <StatBox label="KO Ties" value={String(playerKoTies.length)} />
@@ -321,6 +325,11 @@ export default function CLResultScreen() {
         </>
       )}
 
+      {/* How the Champions League works */}
+      <Pressable style={styles.rulesLink} onPress={() => setRulesOpen(true)}>
+        <Text style={[styles.rulesLinkText, { color: CL.accent }]}>📖  How the Champions League works</Text>
+      </Pressable>
+
       {/* Team matchday modal */}
       <TeamModal
         team={openTeam}
@@ -328,6 +337,7 @@ export default function CLResultScreen() {
         onClose={() => setOpenTeam(null)}
       />
       <KOTieModal match={openKO} onClose={() => setOpenKO(null)} />
+      <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} accent={CL.accent} />
     </ScrollView>
   )
 }
@@ -472,6 +482,24 @@ const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of
 
 // Tap-through detail for a CL knockout tie (two legs, or the single final).
 function KOTieModal({ match: m, onClose }: { match: CLKnockoutMatch | null; onClose: () => void }) {
+  // Named penalty takers are only pre-built for the tie the reveal animated.
+  // Expand lazily here so EVERY shootout (history runs, other ties) shows takers.
+  const [lazyKicks, setLazyKicks] = useState<{ a: PenKick[]; b: PenKick[] } | null>(null)
+  useEffect(() => {
+    setLazyKicks(null)
+    if (!m || m.penKicksA || !m.aPenKicks || !m.bPenKicks) return
+    let active = true
+    Promise.all([getTopKickers(m.teamA.clubId), getTopKickers(m.teamB.clubId)])
+      .then(([namesA, namesB]) => {
+        if (!active) return
+        const expanded = expandPenaltyKicks(namesA, namesB, m.aPenKicks!, m.bPenKicks!)
+        setLazyKicks({ a: expanded.kicksA, b: expanded.kicksB })
+      })
+      .catch(() => { /* fall back to no list */ })
+    return () => { active = false }
+  }, [m])
+  const kicksA = m?.penKicksA ?? lazyKicks?.a
+  const kicksB = m?.penKicksB ?? lazyKicks?.b
   return (
     <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -482,12 +510,13 @@ function KOTieModal({ match: m, onClose }: { match: CLKnockoutMatch | null; onCl
               <Text style={styles.koTieAgg}>{m.teamA.clubName} {m.aGoals} – {m.bGoals} {m.teamB.clubName} {m.leg1 ? '(agg.)' : ''}</Text>
               {m.extraTime && <Text style={styles.koModalNote}>Decided after extra time</Text>}
               {m.aPens !== undefined && <Text style={styles.koModalPens}>Penalties: {m.aPens} – {m.bPens} · {m.winner.clubName} advance</Text>}
-              {m.penKicksA && m.penKicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksA} kicksB={m.penKicksB} />}
+              {kicksA && kicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={kicksA} kicksB={kicksB} />}
 
               {m.leg1 ? (
                 <>
                   <KOLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} />
                   {m.leg2 && <KOLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} homeId={m.teamB.clubId} />}
+                  {m.leg2ExtraTime && (m.leg2ExtraTime.aGoals > 0 || m.leg2ExtraTime.bGoals > 0) && <KOLeg label="Extra Time (leg 2)" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2ExtraTime.bGoals} ag={m.leg2ExtraTime.aGoals} scorers={m.leg2ExtraTimeScorers} homeId={m.teamB.clubId} />}
                 </>
               ) : (
                 <KOLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} />
@@ -636,6 +665,8 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
 
   sectionTitle: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
+  rulesLink: { alignItems: 'center', paddingVertical: spacing.md },
+  rulesLinkText: { fontSize: typography.sm, fontWeight: typography.bold },
 
   tableHeaderRow: {
     flexDirection:     'row',

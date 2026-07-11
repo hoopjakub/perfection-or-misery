@@ -20,9 +20,13 @@ export function makeProjection(cLon: number, cLat: number, R: number, cx: number
 // Build an SVG path for a feature, emitting only front-hemisphere runs (split at
 // the limb). Back points break the run, so no wrong chords cross the disc; an SVG
 // clip circle keeps everything inside the globe.
-function ringPath(ring: number[][], proj: Projector): string {
+//
+// `step` skips points (1 = every point, 4 = every 4th) — a coarser silhouette is
+// far cheaper to compute (fewer trig calls) and near-indistinguishable at small
+// decorative sizes. Full detail (step=1) is what the one-shot reveal spin uses.
+function ringPath(ring: number[][], proj: Projector, step = 1): string {
   let d = '', open = false
-  for (let i = 0; i < ring.length; i++) {
+  for (let i = 0; i < ring.length; i += step) {
     const p = proj(ring[i][0], ring[i][1])
     if (p.front) { d += (open ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); open = true }
     else open = false
@@ -30,12 +34,12 @@ function ringPath(ring: number[][], proj: Projector): string {
   return d
 }
 
-export function featurePath(feature: any, proj: Projector): string {
+export function featurePath(feature: any, proj: Projector, step = 1): string {
   const g = feature.geometry
   if (!g) return ''
   const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []
   let d = ''
-  for (const poly of polys) for (const ring of poly) d += ringPath(ring, proj)
+  for (const poly of polys) for (const ring of poly) d += ringPath(ring, proj, step)
   return d
 }
 
@@ -54,8 +58,10 @@ export function featureCentroid(feature: any): [number, number] {
   return [Math.atan2(Z / n, X / n) / DEG, Math.asin(Math.max(-1, Math.min(1, Y / n))) / DEG]
 }
 
-// Faint graticule (meridians + parallels) as a single path.
-export function graticulePath(proj: Projector): string {
+// Faint graticule (meridians + parallels) as a single path. `spacing` controls
+// how many lines are drawn, `pointStep` how many points make up each line —
+// coarsen both for a cheap decorative version (see SpinningGlobe).
+export function graticulePath(proj: Projector, spacing = 30, pointStep = 4): string {
   let d = ''
   const seg = (pts: number[][]) => {
     let open = false
@@ -65,14 +71,14 @@ export function graticulePath(proj: Projector): string {
       else open = false
     }
   }
-  for (let lon = -180; lon <= 180; lon += 30) {
+  for (let lon = -180; lon <= 180; lon += spacing) {
     const pts: number[][] = []
-    for (let lat = -80; lat <= 80; lat += 4) pts.push([lon, lat])
+    for (let lat = -80; lat <= 80; lat += pointStep) pts.push([lon, lat])
     seg(pts)
   }
-  for (let lat = -60; lat <= 60; lat += 30) {
+  for (let lat = -60; lat <= 60; lat += spacing) {
     const pts: number[][] = []
-    for (let lon = -180; lon <= 180; lon += 4) pts.push([lon, lat])
+    for (let lon = -180; lon <= 180; lon += pointStep) pts.push([lon, lat])
     seg(pts)
   }
   return d

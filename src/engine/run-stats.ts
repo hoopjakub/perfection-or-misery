@@ -12,6 +12,7 @@ import type { SeasonResult } from '@/types/simulation'
 import type { LeagueSeason } from '@/types/game'
 import type { CLSeasonResult } from '@/engine/cl-sim'
 import type { WCSeasonResult } from '@/engine/world-cup-sim'
+import type { QualTie } from '@/engine/cl-qualifying'
 
 export type LeaguePools = {
   poolByClub:   Map<string, RosterPlayer[]>
@@ -24,12 +25,15 @@ export async function loadLeaguePools(
   drafted: DraftedPlayer[],
   yearStart: number,
 ): Promise<LeaguePools> {
-  const playerClub = teams.find(t => t.isPlayer)!
+  // The player may not be in this field (custom UCL: eliminated in qualifying /
+  // never qualified) — fall back to real scraped rosters for every club.
+  const playerClub = teams.find(t => t.isPlayer)
   const rosters    = await getRostersForClubs(teams.map(t => t.clubId), yearStart)
-  const playerPool = draftedToPool(drafted, playerClub.clubId, playerClub.clubName, yearStart)
   const poolByClub = new Map(rosters)
-  poolByClub.set(playerClub.clubId, playerPool)
-  return { poolByClub, playerClubId: playerClub.clubId }
+  if (playerClub) {
+    poolByClub.set(playerClub.clubId, draftedToPool(drafted, playerClub.clubId, playerClub.clubName, yearStart))
+  }
+  return { poolByClub, playerClubId: playerClub?.clubId ?? '' }
 }
 
 // "Haaland 23', 67', Foden 81'" — groups a side's goals by scorer, with minutes.
@@ -48,12 +52,19 @@ export function summariseScorers(events?: GoalEvent[]): string {
 export function attributeFixtureScorers(
   poolByClub: Map<string, RosterPlayer[]>,
   homeClubId: string, awayClubId: string,
-  homeGoals: number, awayGoals: number, extraTime = false,
+  homeGoals: number, awayGoals: number, extraTime = false, etOnly = false,
 ): MatchScorers {
   return attributeMatchScorers(
     poolByClub.get(homeClubId) ?? [], poolByClub.get(awayClubId) ?? [],
-    homeGoals, awayGoals, { extraTime },
+    homeGoals, awayGoals, { extraTime, etOnly },
   )
+}
+
+// Merge two scorer sets that share the same home/away orientation (e.g. a second
+// leg's regulation scorers + its extra-time scorers) into one for stats totals.
+function mergeScorers(a?: MatchScorers, b?: MatchScorers): MatchScorers | undefined {
+  if (!a && !b) return undefined
+  return { home: [...(a?.home ?? []), ...(b?.home ?? [])], away: [...(a?.away ?? []), ...(b?.away ?? [])] }
 }
 
 export type RunMatch = {
@@ -150,9 +161,26 @@ export function attributeCLResultScorers(result: CLSeasonResult, poolByClub: Map
     if (!m.scorers) m.scorers = attributeFixtureScorers(poolByClub, m.home.clubId, m.away.clubId, m.homeGoals, m.awayGoals)
   for (const k of [...result.playoffRound, ...result.r16, ...result.qf, ...result.sf]) {
     if (k.leg1 && !k.leg1Scorers) k.leg1Scorers = attributeFixtureScorers(poolByClub, k.teamA.clubId, k.teamB.clubId, k.leg1.aGoals, k.leg1.bGoals)
-    if (k.leg2 && !k.leg2Scorers) k.leg2Scorers = attributeFixtureScorers(poolByClub, k.teamB.clubId, k.teamA.clubId, k.leg2.bGoals, k.leg2.aGoals, k.extraTime)
+    // Leg 2 REGULATION only — always 1..90 (never pass extraTime here, or a 90'
+    // goal gets stamped 112'). Extra-time goals are attributed separately below.
+    if (k.leg2 && !k.leg2Scorers) k.leg2Scorers = attributeFixtureScorers(poolByClub, k.teamB.clubId, k.teamA.clubId, k.leg2.bGoals, k.leg2.aGoals)
+    if (k.leg2ExtraTime && !k.leg2ExtraTimeScorers && (k.leg2ExtraTime.aGoals > 0 || k.leg2ExtraTime.bGoals > 0))
+      k.leg2ExtraTimeScorers = attributeFixtureScorers(poolByClub, k.teamB.clubId, k.teamA.clubId, k.leg2ExtraTime.bGoals, k.leg2ExtraTime.aGoals, false, true)
   }
   if (result.final && !result.final.leg1Scorers) result.final.leg1Scorers = attributeFixtureScorers(poolByClub, result.final.teamA.clubId, result.final.teamB.clubId, result.final.aGoals, result.final.bGoals, result.final.extraTime)
+}
+
+// Attribute + STORE scorers on every qualifying tie (custom UCL path) — same
+// attribute-once rule, so the tie detail modal, stats and awards all agree.
+export function attributeQualTieScorers(ties: QualTie[], poolByClub: Map<string, RosterPlayer[]>) {
+  for (const t of ties) {
+    if (!t.teamB || !t.legs) continue
+    const l = t.legs
+    if (!t.leg1Scorers) t.leg1Scorers = attributeFixtureScorers(poolByClub, t.teamA.clubId, t.teamB.clubId, l.leg1.homeGoals, l.leg1.awayGoals)
+    if (!t.leg2Scorers) t.leg2Scorers = attributeFixtureScorers(poolByClub, t.teamB.clubId, t.teamA.clubId, l.leg2.homeGoals, l.leg2.awayGoals)
+    if (l.leg2ExtraTime && !t.leg2ExtraTimeScorers && (l.leg2ExtraTime.homeGoals > 0 || l.leg2ExtraTime.awayGoals > 0))
+      t.leg2ExtraTimeScorers = attributeFixtureScorers(poolByClub, t.teamB.clubId, t.teamA.clubId, l.leg2ExtraTime.homeGoals, l.leg2ExtraTime.awayGoals, false, true)
+  }
 }
 
 export function attributeWCResultScorers(result: WCSeasonResult, poolByClub: Map<string, RosterPlayer[]>) {
@@ -163,22 +191,39 @@ export function attributeWCResultScorers(result: WCSeasonResult, poolByClub: Map
 }
 
 // ── Champions League ────────────────────────────────────────────────────────
+// `qualTies` (custom path): the qualifying-round ties count toward stats/awards
+// too — the whole competition, not just the league phase + knockouts.
 export async function computeCLRunStats(
-  result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025,
+  result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[],
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards } | null> {
   const standings = result.leaguePhaseStandings
   if (!standings?.length) return null
   const playerClubId = result.playerTeam.clubId
-  const rosters    = await getRostersForClubs(standings.map(t => t.clubId), yearStart)
+  const clubIds = new Set(standings.map(t => t.clubId))
+  for (const t of qualTies ?? []) { clubIds.add(t.teamA.clubId); if (t.teamB) clubIds.add(t.teamB.clubId) }
+  const rosters    = await getRostersForClubs([...clubIds], yearStart)
   const playerPool = draftedToPool(draftedPlayers, playerClubId, result.playerTeam.clubName, yearStart)
 
   const matches: RunMatch[] = []
+  // Qualifying ties (both legs + ET, same folding as the knockout legs below).
+  for (const t of qualTies ?? []) {
+    if (!t.teamB || !t.legs) continue
+    const l = t.legs
+    matches.push({ homeClubId: t.teamA.clubId, awayClubId: t.teamB.clubId, homeClubName: t.teamA.clubName, awayClubName: t.teamB.clubName, homeGoals: l.leg1.homeGoals, awayGoals: l.leg1.awayGoals, scorers: t.leg1Scorers })
+    const etH = l.leg2ExtraTime?.homeGoals ?? 0, etA = l.leg2ExtraTime?.awayGoals ?? 0
+    matches.push({ homeClubId: t.teamB.clubId, awayClubId: t.teamA.clubId, homeClubName: t.teamB.clubName, awayClubName: t.teamA.clubName, homeGoals: l.leg2.homeGoals + etH, awayGoals: l.leg2.awayGoals + etA, scorers: mergeScorers(t.leg2Scorers, t.leg2ExtraTimeScorers) })
+  }
   for (const m of result.leagueMatchdays ?? [])
     matches.push({ homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName, homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers: m.scorers })
   // two-legged ties → two matches (shootout pens are excluded — leg scores are 90'/ET only)
   for (const k of [...result.playoffRound, ...result.r16, ...result.qf, ...result.sf]) {
     if (k.leg1) matches.push({ homeClubId: k.teamA.clubId, awayClubId: k.teamB.clubId, homeClubName: k.teamA.clubName, awayClubName: k.teamB.clubName, homeGoals: k.leg1.aGoals, awayGoals: k.leg1.bGoals, scorers: k.leg1Scorers })
-    if (k.leg2) matches.push({ homeClubId: k.teamB.clubId, awayClubId: k.teamA.clubId, homeClubName: k.teamB.clubName, awayClubName: k.teamA.clubName, homeGoals: k.leg2.bGoals, awayGoals: k.leg2.aGoals, extraTime: k.extraTime, scorers: k.leg2Scorers })
+    // Leg 2 = regulation + extra time folded together (one match, so clean sheets
+    // and match counts stay right), with both scorer sets merged for totals.
+    if (k.leg2) {
+      const etB = k.leg2ExtraTime?.bGoals ?? 0, etA = k.leg2ExtraTime?.aGoals ?? 0
+      matches.push({ homeClubId: k.teamB.clubId, awayClubId: k.teamA.clubId, homeClubName: k.teamB.clubName, awayClubName: k.teamA.clubName, homeGoals: k.leg2.bGoals + etB, awayGoals: k.leg2.aGoals + etA, scorers: mergeScorers(k.leg2Scorers, k.leg2ExtraTimeScorers) })
+    }
   }
   if (result.final)
     matches.push({ homeClubId: result.final.teamA.clubId, awayClubId: result.final.teamB.clubId, homeClubName: result.final.teamA.clubName, awayClubName: result.final.teamB.clubName, homeGoals: result.final.aGoals, awayGoals: result.final.bGoals, extraTime: result.final.extraTime, scorers: result.final.leg1Scorers })

@@ -1,60 +1,64 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { getSlotsForFormation } from '@/engine/formations'
+import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
 import { effectiveOvr } from '@/engine/rating'
 import { colors, spacing, typography, radius } from '@/theme'
-import type { DraftedPlayer, Formation } from '@/types/game'
-
-// Left-to-right ordering so the lineup reads mirror-correct (L* left, R* right).
-function rowOrder(label: string): number {
-  if (label.startsWith('L')) return -1
-  if (label.startsWith('R')) return 1
-  return 0
-}
-
-const ATTACK = ['LW', 'ST', 'RW']
-const MID    = ['LM', 'CM', 'CAM', 'CDM', 'RM']
-const DEF    = ['LB', 'CB', 'RB', 'LWB', 'RWB']
+import type { DraftedPlayer, Formation, PositionSlot } from '@/types/game'
 
 // The squad pitch with each slot's effective OVR — reused from the pre-sim
-// review screen so the result page shows the same lineup overview.
+// review screen so the result page shows the same lineup overview. Rows come
+// from the formation's real row layout (getFormationRows), so a 4-2-3-1's
+// double pivot + AM band, a 3-4-3's wing-backs, etc. actually look distinct
+// from each other instead of every formation collapsing into the same
+// generic attack/mid/defense/GK bucketing.
 export function LineupPitch({ formation, draftedPlayers, title }: {
   formation: Formation
   draftedPlayers: DraftedPlayer[]
   title?: string
 }) {
   const slots = getSlotsForFormation(formation)
-  const rowOf = (labels: string[]) => slots.filter(s => labels.includes(s.label)).sort((a, b) => rowOrder(a.label) - rowOrder(b.label))
+  const rows = getFormationRows(formation)
 
-  const renderRow = (labels: string[]) => (
-    <View style={styles.pitchRow}>
-      {rowOf(labels).map((slot, i) => {
-        const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-        const ovr = player ? effectiveOvr(player, slot) : 0
-        const color = (colors.positions as any)[slot.label] ?? (colors.positions as any)[slot.primary] ?? colors.accent
-        return (
-          <View key={i} style={styles.pitchPlayer}>
-            <View style={[styles.posIndicator, { backgroundColor: color }]}>
-              <Text style={styles.posText}>{slot.label}</Text>
+  const renderRow = (labels: string[], key: number) => {
+    // Consume slots by label as we go so duplicate labels (e.g. three 'CM's)
+    // each get their own distinct slot rather than all matching the first.
+    const remaining = [...slots]
+    const rowSlots = labels
+      .map(label => {
+        const idx = remaining.findIndex(s => s.label === label)
+        if (idx === -1) return null
+        const [slot] = remaining.splice(idx, 1)
+        return slot
+      })
+      .filter((s): s is PositionSlot => s !== null)
+
+    return (
+      <View key={key} style={styles.pitchRow}>
+        {rowSlots.map((slot, i) => {
+          const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
+          const ovr = player ? effectiveOvr(player, slot) : 0
+          const color = (colors.positions as any)[slot.primary] ?? colors.accent
+          return (
+            <View key={i} style={styles.pitchPlayer}>
+              <View style={[styles.posIndicator, { backgroundColor: color }]}>
+                <Text style={styles.posText}>{slot.label}</Text>
+              </View>
+              <Text style={styles.playerNameText} numberOfLines={1}>
+                {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
+              </Text>
+              <Text style={styles.playerOvrText}>{player ? ovr : '--'}</Text>
             </View>
-            <Text style={styles.playerNameText} numberOfLines={1}>
-              {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-            </Text>
-            <Text style={styles.playerOvrText}>{player ? ovr : '--'}</Text>
-          </View>
-        )
-      })}
-    </View>
-  )
+          )
+        })}
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
       {title && <Text style={styles.title}>{title}</Text>}
       <View style={styles.pitch}>
-        {renderRow(ATTACK)}
-        {renderRow(MID)}
-        {renderRow(DEF)}
-        {renderRow(['GK'])}
+        {rows.map((row, i) => renderRow(row, i))}
       </View>
     </View>
   )

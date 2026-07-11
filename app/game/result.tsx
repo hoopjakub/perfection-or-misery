@@ -454,7 +454,12 @@ export default function ResultScreen() {
             const lg = placedLeague?.leagueName ?? dbRunData?.league_name ?? dbRunData?.leagueName
             const ys = placedLeague?.yearStart ?? dbRunData?.year_start ?? dbRunData?.yearStart
             const season = ys ? `${ys}/${String(ys + 1).slice(-2)}` : null
-            const club = (playerTeam as any)?.clubName
+            // The club you REPLACED — the player team itself is renamed "Your XI"
+            // in the table, so its clubName is useless here.
+            const rawClub = (playerTeam as any)?.clubName
+            const club = placedLeague?.replacedTeamName
+              ?? dbRunData?.replaced_team_name
+              ?? (rawClub && rawClub !== 'Your XI' ? rawClub : null)
             if (!lg && !club) return null
             return (
               <Text style={styles.takeoverText}>

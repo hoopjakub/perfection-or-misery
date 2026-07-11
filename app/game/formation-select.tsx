@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore, Formation } from '@/store/gameStore'
-import { getSlotsForFormation } from '@/engine/formations'
+import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
 
@@ -12,65 +12,66 @@ type FormationConfig = {
   id: Formation
   label: string
   description: string
-  shape: string[][]  // visual grid rows
 }
 
+// Shape (visual grid rows) comes from getFormationRows — same source of truth
+// the draft screen and pitch views use, so the diagram here always matches
+// what you'll actually see once you're drafting.
 const FORMATIONS: FormationConfig[] = [
   {
     id:          '4-3-3',
     label:       '4-3-3',
     description: 'Classic attacking setup. Three forwards give you width and a goal threat. Works best with technical midfielders.',
-    shape: [
-      ['LW', 'ST', 'RW'],
-      ['CM', 'CM', 'CM'],
-      ['LB', 'CB', 'CB', 'RB'],
-      ['GK'],
-    ],
   },
   {
     id:          '4-4-2',
     label:       '4-4-2',
     description: 'The English classic. Two strikers up top, a solid midfield bank of four. Balanced and reliable.',
-    shape: [
-      ['ST', 'ST'],
-      ['LM', 'CM', 'CM', 'RM'],
-      ['LB', 'CB', 'CB', 'RB'],
-      ['GK'],
-    ],
   },
   {
     id:          '4-2-3-1',
     label:       '4-2-3-1',
     description: 'Two defensive mids protect the back four while a number 10 links play. The most tactically flexible.',
-    shape: [
-      ['ST'],
-      ['LW', 'CAM', 'RW'],
-      ['CDM', 'CDM'],
-      ['LB', 'CB', 'CB', 'RB'],
-      ['GK'],
-    ],
   },
   {
     id:          '3-5-2',
     label:       '3-5-2',
     description: 'Three at the back with wing-backs providing width. Requires versatile players but can dominate midfield.',
-    shape: [
-      ['ST', 'ST'],
-      ['CM', 'CDM', 'CM'],
-      ['LB', 'CB', 'CB', 'CB', 'RB'],
-      ['GK'],
-    ],
   },
   {
     id:          '5-3-2',
     label:       '5-3-2',
     description: 'Defensively solid with five at the back. Wing-backs push forward in attack. Built to grind results.',
-    shape: [
-      ['ST', 'ST'],
-      ['CM', 'CDM', 'CM'],
-      ['LB', 'CB', 'CB', 'CB', 'RB'],
-      ['GK'],
-    ],
+  },
+  {
+    id:          '3-4-3',
+    label:       '3-4-3',
+    description: 'Three centre-backs and attacking wing-backs feed a front three. High-risk, high-reward — exposed on the counter.',
+  },
+  {
+    id:          '4-1-4-1',
+    label:       '4-1-4-1',
+    description: 'A lone striker and a banked four in midfield, shielded by a single holding mid. Compact and hard to break down.',
+  },
+  {
+    id:          '4-3-1-2',
+    label:       '4-3-1-2',
+    description: 'Two strikers fed by a playmaker in the hole, with a flat three behind. Narrow and direct through the middle.',
+  },
+  {
+    id:          '4-1-2-1-2',
+    label:       '4-1-2-1-2',
+    description: 'The narrow diamond. A holding mid, two box-to-box runners, and a number 10 all stacked centrally behind two strikers.',
+  },
+  {
+    id:          '5-4-1',
+    label:       '5-4-1',
+    description: 'Five at the back, a flat four ahead, one striker up top. Maximum defensive solidity — built to sit deep and hit on the break.',
+  },
+  {
+    id:          '3-4-2-1',
+    label:       '3-4-2-1',
+    description: 'Back three, wing-back width, and two roaming 10s behind a lone striker. Fluid and creative in the final third.',
   },
 ]
 
@@ -172,7 +173,7 @@ export default function FormationSelectScreen() {
                 onPress={() => setSelected(f.id)}
               >
                 <FormationVisual
-                  shape={f.shape}
+                  shape={getFormationRows(f.id)}
                   accentColor={isSelected ? theme.accent : colors.bgElevated}
                 />
                 <Text style={[

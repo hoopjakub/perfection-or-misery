@@ -16,13 +16,15 @@ export type CLKnockoutMatch = {
   winner:    CLTeam
   aGoals:    number   // aggregate goals for teamA
   bGoals:    number   // aggregate goals for teamB
-  leg1?:     { aGoals: number; bGoals: number }  // two-leg ties only (teamA at home)
-  leg2?:     { aGoals: number; bGoals: number }  // two-leg ties only (teamB at home)
+  leg1?:     { aGoals: number; bGoals: number }  // two-leg ties only (teamA at home), 90'
+  leg2?:     { aGoals: number; bGoals: number }  // two-leg ties only (teamB at home), 90'
+  leg2ExtraTime?: { aGoals: number; bGoals: number }  // ET-only goals at leg 2 (present iff ET was played)
   extraTime: boolean
   aPens?:    number
   bPens?:    number
   leg1Scorers?: MatchScorers   // attributed once, stored — leg1 (or the single final)
-  leg2Scorers?: MatchScorers   // leg2 (teamB at home)
+  leg2Scorers?: MatchScorers   // leg2 regulation (teamB at home), minutes 1-90
+  leg2ExtraTimeScorers?: MatchScorers  // leg2 extra time (teamB at home), minutes 91-120
   aPenKicks?: boolean[]        // raw make/miss sequence from the shootout sim
   bPenKicks?: boolean[]
   penKicksA?: PenKick[]        // names zipped on at reveal, stored for the result screen
@@ -48,7 +50,12 @@ export type CLSeasonResult = {
   final:                CLKnockoutMatch | null
   winner:               CLTeam
   playerTeam:           CLTeam
-  playerFinalRound:     'league_exit' | 'playoff_exit' | 'r16_exit' | 'qf_exit' | 'sf_exit' | 'finalist' | 'winner'
+  // Custom-path-only outcomes: 'not_qualified' (domestic finish earned no UCL
+  // spot at all) and the qualifying-stage exits (q1/q2/q3/quali_playoff_exit) —
+  // all EARLIER than `playoff_exit` (the post-league-phase knockout play-off).
+  playerFinalRound:     'not_qualified'
+                       | 'q1_exit' | 'q2_exit' | 'q3_exit' | 'quali_playoff_exit'
+                       | 'league_exit' | 'playoff_exit' | 'r16_exit' | 'qf_exit' | 'sf_exit' | 'finalist' | 'winner'
   playerPot:            CLPot
   leagueMatchdays?:     CLLeagueMatch[]   // populated by the simulation component
 }
@@ -111,8 +118,12 @@ export function generateCLLeagueFixtures(
 export function simulateCLKnockoutsOnly(
   sortedLeagueStandings: CLTeam[]
 ): Omit<CLSeasonResult, 'leaguePhaseStandings'> {
-  const playerTeam = sortedLeagueStandings.find(t => t.isPlayer)!
-  const playerPos  = sortedLeagueStandings.findIndex(t => t.isPlayer) + 1
+  // The player may not be in this field at all (custom path: eliminated in
+  // qualifying, or never qualified domestically) — the bracket still plays out
+  // in full; the caller overrides playerTeam/playerFinalRound afterwards.
+  const playerTeam = sortedLeagueStandings.find(t => t.isPlayer) ?? sortedLeagueStandings[0]
+  const hasPlayer  = sortedLeagueStandings.some(t => t.isPlayer)
+  const playerPos  = hasPlayer ? sortedLeagueStandings.findIndex(t => t.isPlayer) + 1 : 99
 
   // Direct R16 qualifiers: positions 1-8 · Playoff spots: positions 9-24
   const r16Direct   = sortedLeagueStandings.slice(0, 8)
@@ -123,7 +134,9 @@ export function simulateCLKnockoutsOnly(
   const playoffRound: CLKnockoutMatch[] = []
   const playoffWinners: CLTeam[] = []
   for (let i = 0; i < shuffledPlayoff.length; i += 2) {
-    const m = twoLegKO('playoff', shuffledPlayoff[i], shuffledPlayoff[i + 1])
+    const a = shuffledPlayoff[i], b = shuffledPlayoff[i + 1]
+    if (!b) { playoffWinners.push(a); continue }   // odd pool (partial field) → bye
+    const m = twoLegKO('playoff', a, b)
     playoffRound.push(m); playoffWinners.push(m.winner)
   }
 
@@ -135,9 +148,13 @@ export function simulateCLKnockoutsOnly(
   const r16: CLKnockoutMatch[] = []
   const r16Winners: CLTeam[] = []
   for (let i = 0; i < playoffWinners.length; i++) {
-    const m = twoLegKO('r16', directDraw[i], playoffWinners[i])
+    const a = directDraw[i]
+    if (!a) { r16Winners.push(playoffWinners[i]); continue }   // fewer direct than PO winners → bye
+    const m = twoLegKO('r16', a, playoffWinners[i])
     r16.push(m); r16Winners.push(m.winner)
   }
+  // Direct qualifiers not drawn against a play-off winner (partial fields only) get a bye to the QF.
+  for (let i = playoffWinners.length; i < directDraw.length; i++) r16Winners.push(directDraw[i])
 
   // From here the bracket is FIXED — each round pairs consecutive winners, so
   // the winners of two adjacent ties always meet in the next round (a real tree
@@ -198,9 +215,13 @@ function twoLegKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch 
     round, teamA, teamB, winner,
     aGoals:    result.totalA,
     bGoals:    result.totalB,
-    // leg1: teamA at home. leg2: teamB at home (teamA is away).
+    // leg1: teamA at home. leg2: teamB at home (teamA is away). Both 90' only —
+    // ET (if played) is kept separate so each leg reads as its own match.
     leg1:      { aGoals: result.leg1.homeGoals, bGoals: result.leg1.awayGoals },
     leg2:      { aGoals: result.leg2.awayGoals, bGoals: result.leg2.homeGoals },
+    leg2ExtraTime: result.leg2ExtraTime
+      ? { aGoals: result.leg2ExtraTime.awayGoals, bGoals: result.leg2ExtraTime.homeGoals }
+      : undefined,
     extraTime: result.extraTime,
     aPens:     result.homePens ?? undefined,
     bPens:     result.awayPens ?? undefined,

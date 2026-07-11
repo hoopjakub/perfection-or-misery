@@ -1,10 +1,12 @@
-export type GameMode = 'league' | 'all_time' | 'era' | 'chaos' | 'cursed' | 'champions_league' | 'world_cup'
+export type GameMode = 'league' | 'all_time' | 'era' | 'chaos' | 'cursed' | 'champions_league' | 'champions_league_custom' | 'world_cup'
 
 export type Position =
   'GK' | 'CB' | 'LB' | 'RB' | 'CDM' |
   'CM' | 'CAM' | 'LW' | 'RW' | 'ST'
 
-export type Formation = '4-3-3' | '4-4-2' | '4-2-3-1' | '3-5-2' | '5-3-2'
+export type Formation =
+  '4-3-3' | '4-4-2' | '4-2-3-1' | '3-5-2' | '5-3-2' |
+  '3-4-3' | '4-1-4-1' | '4-3-1-2' | '4-1-2-1-2' | '5-4-1' | '3-4-2-1'
 
 export type PositionSlot = {
   slotIndex: number
@@ -37,6 +39,11 @@ export type LeagueSeason = {
   gamesPerSeason: number
   teams: LeagueTeam[]
   replacedTeamName: string
+  // Which competition format the league runs. Only 'double_round_robin' is
+  // reachable in normal League mode today; split/halving formats (Belgium,
+  // Scotland) come from the custom-UCL dataset and are wired but not yet
+  // selectable here. See LeagueFormat in @/engine/cl-league-sim.
+  format?: string
 }
 
 export type LeagueTeam = {
@@ -51,6 +58,7 @@ export type LeagueSeasonWithTeams = {
   leagueName: string
   yearStart: number
   gamesPerSeason: number
+  format?: string
   teams: {
     club_id: string
     club_name: string

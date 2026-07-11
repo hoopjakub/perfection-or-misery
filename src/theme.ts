@@ -104,6 +104,8 @@ export const MODE_THEMES: Record<string, ModeTheme> = {
     banner:    '#1E0A2E',
   },
 }
+// The custom UCL path shares the classic UCL identity.
+MODE_THEMES.champions_league_custom = MODE_THEMES.champions_league
 
 // Resolve the active palette: mode-specific theme, else the league accent (or
 // the default blue) wrapped in a neutral ModeTheme so callers are uniform.

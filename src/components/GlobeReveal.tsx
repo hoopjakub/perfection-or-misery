@@ -10,6 +10,15 @@ const FEATURES: any[] = world.features
 
 export type GlobePhase = 'spinning' | 'locked'
 
+// A purely decorative animation that runs forever needs to be MUCH cheaper per
+// frame than the one-shot reveal spin: ~12fps (imperceptible for a slow
+// rotation), a coarse point step per country (1/6 the trig calls), a sparser
+// graticule, and — the biggest win — every filler country merged into ONE
+// <Path> instead of ~180 separate SVG elements (the highlighted country stays
+// its own element, in full detail, since it's the one thing worth being crisp).
+const SPIN_FILLER_STEP = 6
+const SPIN_FRAME_MS = 80   // ~12fps
+
 // A spinning orthographic globe that eases to a stop with `target` facing front
 // and glowing in `accent`. Calls onLock() once it settles. Text is the caller's job.
 export function GlobeReveal({ targetId, targetName, accent, size = 220, spinMs = 2600, onLock }: {
@@ -129,3 +138,83 @@ export function GlobeReveal({ targetId, targetName, accent, size = 220, spinMs =
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center' },
 })
+
+// A perpetually-rotating globe with one country permanently glowing — no spin-
+// then-lock sequence, just a decorative background piece. Built for the About
+// Me page (Slovakia, id 703) but works for any ISO numeric id.
+export function SpinningGlobe({
+  targetId = 703, accent, size = 160, degPerSec = 10,
+}: {
+  targetId?: number
+  accent: string
+  size?: number
+  degPerSec?: number
+}) {
+  const R = size * 0.43
+  const C = size / 2
+  const rafRef = useRef<number | null>(null)
+  const lonRef = useRef(0)
+  const [, force] = useState(0)
+
+  const target = useMemo(() => FEATURES.find(f => Number(f.id) === targetId) ?? null, [targetId])
+  const tiltLat = useMemo(() => {
+    if (!target) return 15
+    const [, lat] = featureCentroid(target)
+    return Math.max(-35, Math.min(45, lat))
+  }, [target])
+
+  useEffect(() => {
+    let last = Date.now(), lastDraw = 0
+    const tick = () => {
+      const now = Date.now()
+      const dt = (now - last) / 1000
+      last = now
+      lonRef.current += degPerSec * dt
+      if (now - lastDraw > SPIN_FRAME_MS) { force(x => x + 1); lastDraw = now }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [degPerSec])
+
+  const proj = makeProjection(lonRef.current, tiltLat, R, C, C)
+  const gratD = graticulePath(proj, 45, 10)
+  const fillerD = (() => {
+    let d = ''
+    for (const f of FEATURES) {
+      if (f === target) continue
+      d += featurePath(f, proj, SPIN_FILLER_STEP)
+    }
+    return d
+  })()
+  const targetD = target ? featurePath(target, proj) : ''
+  const clipId = 'spinGlobeClip'
+  // Slow breathing glow on the highlighted country, purely decorative.
+  const glow = 0.75 + 0.25 * Math.sin(Date.now() / 700)
+
+  return (
+    <View style={[styles.wrap, { width: size, height: size }]}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id="spinOcean" cx="38%" cy="32%" r="75%">
+            <Stop offset="0%" stopColor={colors.bgElevated} />
+            <Stop offset="100%" stopColor={colors.bg} />
+          </RadialGradient>
+          <ClipPath id={clipId}>
+            <Circle cx={C} cy={C} r={R} />
+          </ClipPath>
+        </Defs>
+
+        <Circle cx={C} cy={C} r={R} fill="url(#spinOcean)" stroke={accent} strokeWidth={1.25} strokeOpacity={0.5} />
+
+        <G clipPath={`url(#${clipId})`}>
+          <Path d={gratD} fill="none" stroke={colors.border} strokeWidth={0.5} strokeOpacity={0.5} />
+          {fillerD && <Path d={fillerD} fill={colors.bgCard} fillOpacity={0.9} stroke={colors.border} strokeWidth={0.4} />}
+          {targetD && <Path d={targetD} fill={accent} fillOpacity={glow} stroke={accent} strokeWidth={1.25} />}
+        </G>
+
+        <Circle cx={C} cy={C} r={R + 6} fill="none" stroke={accent} strokeWidth={1} strokeOpacity={0.35} strokeDasharray="4 8" />
+      </Svg>
+    </View>
+  )
+}

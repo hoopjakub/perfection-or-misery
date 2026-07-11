@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
-import { quickSimLeague, quickSimCL, quickSimWC } from '@/engine/quick-sim'
+import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl } from '@/engine/quick-sim'
+import { SpinningGlobe } from '@/components/GlobeReveal'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 export default function AboutScreen() {
@@ -16,13 +17,17 @@ export default function AboutScreen() {
     if (n >= 8) setShowTester(true)
   }
 
-  async function runQuickSim(family: 'league' | 'champions_league' | 'world_cup') {
+  async function runQuickSim(family: 'league' | 'champions_league' | 'custom_ucl' | 'world_cup') {
     setBusy(true)
     try {
       if (family === 'league') {
         const run = await quickSimLeague()
         useGameStore.setState({ mode: 'all_time', difficulty: 'medium', formation: run.formation, draftedPlayers: run.draftedPlayers, placedLeague: run.placedLeague, simResult: run.simResult, accentColor: null, quickSim: true })
         router.push('/game/result')
+      } else if (family === 'custom_ucl') {
+        const run = await quickSimCustomUcl()
+        useGameStore.setState({ mode: 'champions_league', difficulty: 'medium', formation: run.formation, draftedPlayers: run.draftedPlayers, clTeams: run.clTeams, clResult: run.clResult, customUclQual: run.qual, customUclLeagues: run.tables, accentColor: null, quickSim: true })
+        router.push('/game/custom-ucl-result')
       } else if (family === 'champions_league') {
         const run = await quickSimCL()
         useGameStore.setState({ mode: 'champions_league', difficulty: 'medium', formation: run.formation, draftedPlayers: run.draftedPlayers, clTeams: run.clTeams, clResult: run.clResult, accentColor: null, quickSim: true })
@@ -51,28 +56,55 @@ export default function AboutScreen() {
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Hero — the globe is always spinning, Slovakia always lit up */}
+        <View style={styles.hero}>
+          <SpinningGlobe accent={colors.accent} size={180} />
+          <Text style={styles.heroName}>Made in Slovakia 🇸🇰</Text>
+          <Text style={styles.heroTagline}>Solo dev · high school student · football obsessive</Text>
+        </View>
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Perfection or Misery</Text>
+          <Text style={styles.sectionTitle}>Who's behind this</Text>
           <Text style={styles.content}>
-            A football management game where you draft a squad and see how they perform in a season. Can you achieve perfection, or will you suffer misery?
+            I'm a high school student, born and raised in Slovakia. Perfection or Misery is a solo
+            project I build in whatever spare time school leaves me — every mode, every screen, every
+            line of the simulation engine.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Features</Text>
+          <Text style={styles.sectionTitle}>Why this exists</Text>
           <Text style={styles.content}>
-            • Multiple game modes (All Time, League, Era, Chaos, Cursed){'\n'}
-            • Difficulty levels (Easy, Medium, Hard){'\n'}
-            • Real club and player data{'\n'}
-            • Season simulation with match-by-match results{'\n'}
-            • Leaderboard and run history tracking
+            I was heavily inspired by{' '}
+            <Text style={styles.link} onPress={() => Linking.openURL('https://38-0.app/')}>38-0.app ↗</Text>
+            {' '}— I loved the core idea, but kept noticing things I wanted to do differently. So I
+            decided to build my own take on it: deeper simulation, real competitions, and a lot more
+            drama along the way. This app is that spin.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Credits</Text>
+          <Text style={styles.sectionTitle}>Under the hood</Text>
           <Text style={styles.content}>
-            Built with React Native, Expo, and Supabase.
+            • React Native + Expo Router, state managed with Zustand{'\n'}
+            • Real club and player data across 50+ leagues, scraped and bundled into a local SQLite
+            database — the whole game runs offline, no server needed to play{'\n'}
+            • Every match is decided by a custom simulation engine — team OVR, form, and controlled
+            randomness, goal by goal{'\n'}
+            • Champions League and World Cup knockouts run through a full two-legged / extra-time /
+            penalty-shootout engine, with named takers pulled from your actual squad{'\n'}
+            • The country-reveal globe — draft spins, league placement, and the one spinning above —
+            is a from-scratch orthographic map projection in SVG. No map library, just spherical
+            trigonometry{'\n'}
+            • Live matches tick on a real clock, and the knockout bracket is a pinch-to-zoom tree you
+            pan around like a map
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Built with</Text>
+          <Text style={styles.content}>
+            React Native, Expo, Zustand, SQLite, and Supabase.
           </Text>
         </View>
 
@@ -103,6 +135,9 @@ export default function AboutScreen() {
                 <Pressable style={styles.testerBtn} onPress={() => runQuickSim('champions_league')}>
                   <Text style={styles.testerBtnText}>UCL</Text>
                 </Pressable>
+                <Pressable style={styles.testerBtn} onPress={() => runQuickSim('custom_ucl')}>
+                  <Text style={styles.testerBtnText}>UCL✦</Text>
+                </Pressable>
                 <Pressable style={styles.testerBtn} onPress={() => runQuickSim('world_cup')}>
                   <Text style={styles.testerBtnText}>WC</Text>
                 </Pressable>
@@ -116,6 +151,10 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
+  hero: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.xs },
+  heroName: { fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary, marginTop: spacing.sm },
+  heroTagline: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
+  link: { color: colors.accent, fontWeight: typography.bold },
   testerCard: { borderWidth: 1, borderColor: colors.accent, borderRadius: radius.md, padding: spacing.md },
   testerBusy: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   testerBtns: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },

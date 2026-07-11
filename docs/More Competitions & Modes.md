@@ -1081,3 +1081,236 @@ The player's nation routes them into **their confederation's** qualifying. Each 
   finals add **3 group + up to 5 KO (incl. 3rd-place) = up to 8**. A CONMEBOL run is the longest
   single-table grind; most others are shorter. Expect a campaign-overview/pacing screen (§8.2) to
   matter most here.
+
+---
+
+## 16. Custom Champions League path — IMPLEMENTATION (in progress)
+
+> **This is the first journey being built for real** (decided to jump straight to UCL). The
+> full custom path: **real domestic league tables → access list (§12) → qualifying ladder →
+> Swiss league phase → knockout**, with the last UCL & UEL winners **static** for now (no
+> Europa League sim yet). Data strategy: **scrape ALL UCL-feeding leagues, one season each
+> (the most recent, 2025/26)** into dedicated seed files.
+
+### 16.1 — Requirements (from the build decision)
+
+1. **Dedicated data files** for the custom UCL field (built from the leagues, not the old
+   `champions_league.json` finals-only seed).
+2. **All UCL-feeding leagues scraped — one season each (latest)**; the whole field is
+   domestically derived.
+3. **Per-league format rules** — each league carries its own `format` (Belgium two-phase
+   playoff, Scotland split, etc. — §2b), not a blind double round-robin.
+4. **Each KO leg is its own match object** — two-legged ties = two individually-inspectable
+   matches (own scorers/scoreline/view), not one collapsed tie. (Also the right foundation
+   before the all-two-legged qualifying ladder.)
+5. **League-viewer UI** — browse any domestic league's final table even if your drafted team
+   isn't in it (like `WCGroupModal`, but for leagues).
+6. Core: **access list → qualifying sim → league phase → knockouts**; holders static.
+
+### 16.2 — Build sequence (living checklist)
+
+- [x] **M1 Foundation (pure):** `src/data/uefa-coefficients.ts` (all-55 ranking + allocation +
+  access rules as data) + `src/engine/cl-access.ts` (`buildCLAccessList` league finishes →
+  tagged 81-team field; `ensureHolders`). Deterministic. ✅
+- [x] **M2 Per-leg KO + extra-time rewrite:** `knockout-match.ts` — each leg its own regulation
+  match, `simulateExtraTime` (strength-aware, ET only at leg 2 when aggregate level after
+  90+90 → then pens), shared with single-leg finals. `cl-sim.ts` stores `leg2ExtraTime`. ✅
+- [x] **M4a League data (combined seed):** `scripts/lib/ucl-leagues.ts` (registry, ranks 1–19,
+  per-league `format`, all TM slugs verified) + `scripts/scrape-custom-ucl.ts` → single
+  **`scripts/seed/CustomUcl.json`** (each club tagged league_id + assoc_rank + league_position).
+  Holders PSG/Aston Villa static. ✅ *(full 53-league scrape running — will land ~40 min)*
+- [x] **M4b DB ingestion + wiring:** `build-db.ts` `ingestCustomUcl` (one `cucl_<league>` row
+  per association, assoc_rank in `tier`); `cucl_%` excluded from normal pools; `db/queries/
+  custom-ucl.ts` (`buildCustomUclAccessList`/`buildCustomUclSeason` → real field + holders). ✅
+- [x] **M3 Qualifying-ladder sim:** `src/engine/cl-qualifying.ts` — Q1/Q2/Q3/play-off, Champions
+  & League paths, two-legged (new ET-corrected engine), variable field sizes (byes) → 7 slots
+  → merges with 29 direct → 36 → existing `cl-sim.ts` league phase + KO. ✅
+- [x] **Leagues are SIMULATED, not static** (`src/engine/cl-league-sim.ts`): each domestic league
+  is played out fresh every run (double round-robin from the scraped squads) and the UCL berths
+  come from *those* standings — so the field differs each playthrough. `buildCustomUclSeason()`
+  returns the access list + the simulated tables (surfaced in the league viewer). ✅
+- [x] **All 55 UEFA associations scraped** (one season each) — every nation except Russia
+  (suspended) & Liechtenstein (no league). Registry `scripts/lib/ucl-leagues.ts`. ✅
+- [ ] **M4c Format branching:** the league sim currently runs a plain double round-robin for
+  every league; branch on `format` (Belgium two-phase points-halving playoff, Scotland top-6/
+  bottom-6 split) for exact standings. Approximation is fine for berth order today.
+- [x] **M5 State + screens — the full playable mode:** ✅
+  - `champions_league_custom` `GameMode` + mode-select **Special Mode** entry ("Champions
+    League" — the old finals-only mode renamed "Champions League Classic" alongside it).
+  - **Placement** (`CustomCLPlacement` in `placement.tsx`): simulates every league, picks a
+    real random entrant (direct OR anywhere in the qualifying ladder), **globe reveal by the
+    entrant's real country** (the per-league scrape gives every custom-UCL club a country,
+    solving the old "UCL has no country data" gap — docs §6c), shows entry round.
+  - **Dedicated flow** (`app/game/custom-ucl-simulation.tsx`): leagues reveal → qualifying
+    ladder reveal (round by round, skippable) → qualified/eliminated branch → league-phase
+    review → **live matchday-by-matchday simulation** (speed control) → knockout-round reveal
+    (pens via `PenShootout`) → result. If eliminated in qualifying, the rest of the 36-club
+    tournament is still simulated and fully browsable on the result screen.
+  - **Result screen** (`custom-ucl-result.tsx`): full persistence (`saveCustomUclRun`, own
+    tier/score ladder incl. qualifying exits `q1_exit`…`quali_playoff_exit`), history rehydration,
+    career merge, stats — **plus** the qualifying ladder and a **domestic-league viewer** (browse
+    every simulated table, even leagues you're not in).
+  - Routing wired through `runs.tsx`/`leaderboard.tsx`/`stats.tsx`/`career.tsx`.
+  - Shared UI extracted: `src/components/QualifyingLadder.tsx`, `src/data/cl-qual-labels.ts`.
+- [x] **`?` explainers (§11) — built & wired:** reusable `src/components/InfoBubble.tsx`
+  (`<InfoBubble topic="…" />` + `TitleWithInfo`) with content in `src/data/explainers.ts`
+  (qualifying paths, two-legged ties, extra time, pots, League Phase & its zones, knockout
+  bracket, why leagues are simulated, holders, + league-format notes). Wired into the
+  placement reveal, every simulation phase header, and the result-page section titles / tie
+  modal. League-format `ℹ️` notes also show in the domestic-league viewer (§17.2).
+- [x] **M4c format branching (§17):** all 53 leagues simulated in their real format
+  (`belgium_playoff` halve-and-playoff, `scotland_split`, `split_championship`, standard),
+  stored on `leagues.format`, reusable engine `simulateLeagueTable(clubs, format)`.
+
+**Custom Champions League path is now feature-complete** (M1–M5 + formats + explainers). The
+only remaining items are the deliberately-deferred §16.4 ones (Europa League sim, holder
+redistribution exactness) and wiring the format engine into the *animated* normal-League-mode
+sim (not needed until those leagues ship in normal mode).
+
+### 16.2b — v2 restructure: play YOUR league first (as-built)
+
+The flow was rebuilt so nothing is pre-simulated at placement — the journey is earned:
+
+1. **Placement** (`CustomCLPlacement`): globe → you land on a random club in a random UEFA
+   league (uniform over all ~719 clubs). Reveal shows the **position stakes** for that league
+   (what every finish earns, from `berthForPosition`/`PositionStakes`). Only stores
+   `customUclPlayerClubId`; NO league sims yet.
+2. **Your domestic season** (`custom-ucl-simulation.tsx`): live matchday-by-matchday sim of
+   YOUR league in its real `format` — league-mode-style UI (column-header table, zone/berth
+   badges, matchday-results strip, speed chips, skip). Split/playoff phases pause with a
+   banner and play live (`regularSeasonMatchdays`/`splitStage`/`lockedFinalTable`).
+3. **Your finish decides your entry** (or `not_qualified` — a real run outcome, new tier
+   rank 10 "Did Not Qualify"; holders — PSG/Villa — still get in via `ensureHolders`).
+4. **The rest of Europe resolves** (headless, revealed slowly, every league tappable), then
+   the qualifying ladder (ties tappable → leg-by-leg detail), League Phase, knockouts.
+5. **Out early?** The tournament still plays out in full without you
+   (`buildNoPlayerResult` — now records all league-phase matchdays so every match stays
+   browsable) — `simulateCLKnockoutsOnly`/`loadLeaguePools` are null-safe for a
+   player-less field.
+
+**Also in this pass:** qualifying ties now count toward **stats & awards**
+(`computeCLRunStats(..., qualTies)`, scorers attributed once via
+`attributeQualTieScorers` and stored on the ties); the stats Team viewer scrolls like the
+player lists; the result page shows the domestic finish (and domestic record when you never
+reached the league phase), reuses the shared badge-annotated `LeagueTableModal` +
+`KoTieDetailModal` (qualifying ladder tappable there too); explainer copy rewritten
+human-first and a **full rulebook** (`RulesModal`, `RULES_ORDER`) opens from
+"How this competition works" buttons on the result + stats screens.
+
+**Polish pass (v2.1):**
+- **Live sims mirror league mode:** the domestic season + UCL League Phase use the normal
+  league-sim layout — progress card (matchday, bar, ⏸/⏩ Skip All/speed), Live Standings +
+  Matchday Results side by side, with **scorers on every result** (domestic pools loaded for
+  display-only attribution; UCL matches reuse their stored scorers).
+- **Split-format league phases browsable:** `simulateLeagueTableDetailed` keeps the
+  at-the-split snapshot (`SimLeagueTable.regularStandings`, incl. the player's live season);
+  `LeagueTableView` gets Regular Season / Final tabs.
+- **Penalty takers everywhere:** `KoTieDetailModal` lazily expands the raw make/miss
+  sequences into named kicks (`getTopKickers` + `expandPenaltyKicks`), so qualifying ties,
+  no-player runs and history all show the shootout.
+- **Flags** (`geo-iso.ts COUNTRY_FLAG`) on the placement reveal, league browser and the
+  result page's Domestic Leagues card (now a capped nested scroll).
+- Qualifying-round headers explain the round (ties count, what winners get, losers out);
+  byes are labelled ("advances without playing — odd number of entrants") + a `bye`
+  explainer; the post-league-phase play-off is named **KO Play-off (9th–24th)** with its own
+  `knockout_playoff` explainer.
+- League-mode fix: the season summary now names the club you **replaced**
+  (`placedLeague.replacedTeamName`), not "Your XI".
+- ⚠ **Supabase migration needed** for full history rebuilds of custom runs:
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS custom_ucl_qual jsonb;`
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS custom_ucl_tables jsonb;`
+  (until then `insertRun` auto-drops them — the run still saves, but history loses the
+  qualifying ladder + domestic tables).
+
+### 16.3 — What already exists & is reused
+
+- **League phase + full knockout bracket:** `src/engine/cl-sim.ts` (`buildCLTeams` pots, Swiss
+  8-MD draw, two-legged bracket, `playerFinalRound`). Improve, don't rewrite.
+- **Two-legged ties / ET / shootouts:** `knockout-match.ts` (`simulateTwoLegs`,
+  `simulateKnockout`, `simulateShootout`).
+- **Data:** `league_position` is already stored per `club_seasons` (final-table order) but
+  **not yet selected** by `getLeagueSeasonWithTeams` — M1/M3 wiring adds a query that returns it.
+- **Group-viewer pattern:** `WCGroupModal` / `WCGroupMatchdays` is the template for the M5
+  league-viewer.
+
+### 16.4 — Deferred (documented, not v1)
+
+- Europa League sim to *derive* the UEL→UCL berth (holders stay static — §9.6).
+- Title-holder **redistribution** (§12.4) exactness (needs per-club coefficient; proxy with
+  `historical_ovr` when we do it).
+- Champions-path long-tail associations we don't scrape (field robust to missing associations
+  via byes).
+
+---
+
+## 17. Domestic-league FORMATS (M4c — built)
+
+Every custom-UCL domestic league is simulated fresh each run in its **real format**
+(`src/engine/cl-league-sim.ts` `simulateLeagueTable(clubs, format)` — a **reusable**,
+headless, format-aware simulator; normal League mode can adopt it wholesale when those
+leagues ship there). The `format` is stored on the DB **`leagues.format`** column
+(sourced at build time from the live registry `scripts/lib/ucl-leagues.ts`, so a format
+tweak just needs a rebuild — no re-scrape).
+
+### 17.1 — The four formats (engine)
+
+`FORMAT_SPECS` in `cl-league-sim.ts`. A "split" always **locks** — the championship
+group finishes above the rest regardless of raw points.
+
+| `format` | Regular season | Split? | Points halved? | Championship round | Relegation round |
+|---|---|---|---|---|---|
+| `double_round_robin` | 2× round-robin | — | — | — | — |
+| `belgium_playoff` | 2× RR | top 6 | **yes** (÷2, round up) | 2× RR among the 6 | — |
+| `scotland_split` | **3× RR** | top 6 / bottom 6 | no | 1× RR among each half | 1× RR (bottom 6) |
+| `split_championship` | 2× RR | top 6 | no | 1× RR among the 6 | 1× RR (rest) |
+
+Fixtures are proper circle-method matchdays (form evolves realistically), and the split
+sub-groups carry their regular-season stats into the play-off (Belgium halves first).
+
+### 17.2 — Per-league format (all 53) + `?` explainer text
+
+The **explainer** column is the text for the in-app `?` info-bubble on that league's
+table (surfaced now as the viewer's `ℹ️` note via `src/data/league-formats.ts`
+`FORMAT_EXPLAINER`; the four canonical strings live there — this table records which
+league uses which, plus league-specific caveats).
+
+**Standard League (`double_round_robin`)** — *"Every club plays every other twice (home
+and away). One table — highest points wins."*
+> Ranks 1–6 (Eng/Ita/Esp/Ger/Fra/Por are all standard), 8 Netherlands, 9 Turkey, 11
+> Poland, 14 Norway, 16 Switzerland, 17 Sweden, 18 Hungary, 23 Croatia, 24 Slovenia,
+> 26 Azerbaijan, 31 Iceland, 32 Rep. Ireland, 33 Armenia, 34 Bosnia, 35 Kosovo, 38
+> Latvia, 39 Moldova, 41 Faroe Islands, 42 North Macedonia, 44 Albania, 45 Belarus,
+> 46 Lithuania, 47 Gibraltar, 48 Montenegro, 50 Luxembourg, 51 Andorra, 52 Georgia,
+> 53 Estonia, 55 San Marino.
+
+**Championship Play-off (`belgium_playoff`)** — *"After a full home-and-away season, the
+TOP 6 have their points HALVED (rounded up) and play a fresh mini-league against each
+other. Everyone bunches back up — the title is decided in this play-off."*
+> **7 Belgium** (Jupiler Pro League — the canonical one) and **20 Austria** (Bundesliga:
+> 12 teams, 22-game regular season, points halved, top-6 championship group — structurally
+> identical, so modelled with the same format).
+
+**Top-6 / Bottom-6 Split (`scotland_split`)** — *"Clubs play three times each (33 games),
+then the league SPLITS into a top-6 and bottom-6. Each half plays 5 more games — but you
+can't cross the line, so 7th can never finish above 6th no matter the points."*
+> **19 Scotland** (Premiership).
+
+**Championship Round (`split_championship`)** — *"A regular season, then the league splits:
+the top clubs play a Championship round for the title and European places, while the rest
+play a separate round. The championship group always finishes above the rest."*
+> 10 Czechia, 12 Greece, 13 Denmark, 15 Cyprus, 21 Ukraine, 22 Romania, 25 Israel, 27
+> Slovakia, 28 Bulgaria, 30 Serbia, 36 Kazakhstan, 37 Finland, 43 Malta, 49 Northern
+> Ireland, 54 Wales.
+
+### 17.3 — Caveats / future refinements
+
+- **`split_championship` is a generic approximation** — real specifics vary (championship
+  size, whether points halve, number of play-off games, extra "European play-off" mini-brackets
+  for 2nd–6th). For berth *order* the top-6 championship round is faithful enough; refine
+  per-league only if a specific league feels wrong.
+- Championship size auto-caps at `min(6, floor(teams/2))`, so small leagues (10–12 clubs)
+  still split sensibly.
+- These formats are **structural** (who finishes where); they don't yet feed the *live,
+  animated* normal-League-mode sim (that still does a plain double round-robin) — the engine
+  is ready for it, but wiring the mid-season split into the animated matchday loop is a
+  separate task. Not needed today since normal mode only ships double-RR leagues.

@@ -5,13 +5,21 @@ const HOME_ADVANTAGE = 3.5
 const FORM_WEIGHT    = 4.0
 const UPSET_THRESHOLD = 8
 
+// OVR sensitivity: the SMALLER this divisor, the more each single OVR point
+// matters — so a 92 genuinely beats a 91 more often, and 72 edges 71. Was 10
+// (too flat, every game a coin-flip); 6.5 makes quality bite while still leaving
+// real room for upsets.
+const OVR_DELTA_DIVISOR = 6.5
+const MAX_WIN_PROB = 0.90   // was 0.85 — let clear favourites actually dominate
+
 export function simulateMatch(home: SimTeam, away: SimTeam): MatchResult {
   const homeEff = home.ovr + HOME_ADVANTAGE + home.form * FORM_WEIGHT
   const awayEff = away.ovr + away.form * FORM_WEIGHT
 
-  const delta = (homeEff - awayEff) / 10
-  const homeWinProb = sigmoid(delta) * 0.85
-  const drawProb    = clamp(0.26 - Math.abs(delta) * 0.018, 0.05, 0.26)
+  const delta = (homeEff - awayEff) / OVR_DELTA_DIVISOR
+  const homeWinProb = sigmoid(delta) * MAX_WIN_PROB
+  // Tighter matches (small delta) draw more; lopsided ones almost never do.
+  const drawProb    = clamp(0.27 - Math.abs(delta) * 0.05, 0.04, 0.27)
   const awayWinProb = 1 - homeWinProb - drawProb
 
   const roll = Math.random()
@@ -35,15 +43,17 @@ function generateScore(
   awayEff: number
 ): { homeGoals: number; awayGoals: number } {
   const ovrGap   = Math.abs(homeEff - awayEff)
-  const baseGoals = 1.2 + ovrGap / 40
+  const baseGoals = 1.2 + ovrGap / 34   // bigger gaps → more lopsided scorelines
 
   if (outcome === 'draw') {
     const g = Math.max(0, poissonSample(baseGoals * 0.7))
     return { homeGoals: g, awayGoals: g }
   }
 
-  const winnerGoals = Math.max(1, poissonSample(baseGoals * 1.35))
-  const loserGoals  = Math.max(0, poissonSample(baseGoals * 0.55))
+  // The bigger the quality gap, the more the winner runs up the score.
+  const winnerLambda = baseGoals * (1.35 + ovrGap / 90)
+  const winnerGoals = Math.max(1, poissonSample(winnerLambda))
+  const loserGoals  = Math.max(0, poissonSample(baseGoals * 0.5))
   const safe = Math.max(winnerGoals, loserGoals + 1)
 
   return outcome === 'home'
