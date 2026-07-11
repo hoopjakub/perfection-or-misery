@@ -9,6 +9,7 @@ export type RosterPlayer = {
   primaryPosition: string        // 'GK','CB','ST',…
   attack:          number        // weighting input; falls back to ovr when 0/undefined
   ovr:             number
+  isBench?:        boolean       // substitute — limited minutes, reduced scoring/assist odds
   birthYear:       number | null // for U21 awards
   yearStart:       number        // edition start year (e.g. 2022 for 22/23) → age + identity
   seasonLabel:     string        // e.g. "22/23" (display + career identity)
@@ -21,8 +22,10 @@ export type GoalEvent = {
   clubId:      string
   scorerId:    string
   scorerName:  string
+  scorerIsBench?: boolean        // came off the bench — drives the orange SUB tag
   assistId?:   string
   assistName?: string
+  assistIsBench?: boolean
   minute:      number            // 1..90 (regulation) or 91..120 (extra time)
   plus?:       number            // stoppage-time add-on: minute 90 + plus 3 → "90+3'"
 }
@@ -43,6 +46,7 @@ export type PlayerStatLine = {
   cleanSheets:   number
   matchesPlayed?: number
   isPlayerClub?: boolean         // true if this is one of YOUR drafted players
+  isBench?:      boolean         // a substitute, not part of the starting XI
 }
 
 export type TeamGoalRecord = {

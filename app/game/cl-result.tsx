@@ -4,17 +4,16 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
-import { computeCLRunStats, summariseScorers } from '@/engine/run-stats'
+import { computeCLRunStats, summariseScorers, attachCLShootoutNames, koTieLegRecord } from '@/engine/run-stats'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
 import { PenShootout } from '@/components/PenShootout'
-import { getTopKickers } from '@/db/queries/seasons'
-import { expandPenaltyKicks, type PenKick } from '@/engine/knockout-match'
 import { InfoBubble, TitleWithInfo, RulesModal } from '@/components/InfoBubble'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
+import type { DraftedPlayer } from '@/types/game'
 
 const CL = MODE_THEMES.champions_league
 
@@ -44,7 +43,8 @@ const POT_COLORS: Record<number, string> = {
 
 export default function CLResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, quickSim } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
   const fromHistory = !!params.runId
@@ -84,7 +84,7 @@ export default function CLResultScreen() {
   // Squad stats (fresh runs only — needs the live drafted XI).
   useEffect(() => {
     if (fromHistory || !store.clResult || draftedPlayers.length === 0) return
-    computeCLRunStats(store.clResult, draftedPlayers, store.clYear ?? 2025)
+    computeCLRunStats(store.clResult, fullSquad, store.clYear ?? 2025, undefined, store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[cl-result] stats failed:', e))
   }, [])
@@ -120,15 +120,17 @@ export default function CLResultScreen() {
   const playerPos   = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
   const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
 
-  // Player's knockout run summary (aggregate goals across two-leg ties)
+  // Player's knockout run summary — record is LEG-by-leg (you can win one leg
+  // and lose the other), not just who won the tie overall.
   const playerKoTies = [...playoffRound, ...r16, ...qf, ...sf, ...(final ? [final] : [])]
     .filter(m => m.teamA.isPlayer || m.teamB.isPlayer)
-  let koW = 0, koL = 0, koGF = 0, koGA = 0
+  let koW = 0, koD = 0, koL = 0, koGF = 0, koGA = 0
   playerKoTies.forEach(m => {
     const isA = m.teamA.isPlayer
     koGF += isA ? m.aGoals : m.bGoals
     koGA += isA ? m.bGoals : m.aGoals
-    if (m.winner.isPlayer) koW++; else koL++
+    const { w, d, l } = koTieLegRecord(m, isA)
+    koW += w; koD += d; koL += l
   })
 
   // Awaited (not fire-and-forget) so the run is in the DB before we navigate —
@@ -144,7 +146,7 @@ export default function CLResultScreen() {
           formation,
           teamOvr: playerTeam.ovr,
           result: clResult!,
-          squad: draftedPlayers,
+          squad: fullSquad,
           stats: runStats?.stats,
           awards: runStats?.awards,
         })
@@ -213,11 +215,12 @@ export default function CLResultScreen() {
       {/* Lineup + squad — live run or rehydrated from a saved one */}
       {(() => {
         const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
         const st    = runStats?.stats ?? dbRun?.stats ?? null
         return (
           <>
-            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} title="Your Lineup" />}
+            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
             {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={CL.accent} runId={params.runId} />}
           </>
         )
@@ -261,7 +264,7 @@ export default function CLResultScreen() {
           {playerKoTies.length > 0 && (
             <View style={styles.statsRow}>
               <StatBox label="KO Ties" value={String(playerKoTies.length)} />
-              <StatBox label="Record" value={`${koW}W ${koL}L`} />
+              <StatBox label="Record" value={koD > 0 ? `${koW}W ${koD}D ${koL}L` : `${koW}W ${koL}L`} />
               <StatBox label="Goals" value={`${koGF}-${koGA}`} />
             </View>
           )}
@@ -336,7 +339,11 @@ export default function CLResultScreen() {
         matches={openTeam ? leagueMatchdays : []}
         onClose={() => setOpenTeam(null)}
       />
-      <KOTieModal match={openKO} onClose={() => setOpenKO(null)} />
+      <KOTieModal
+        match={openKO} onClose={() => setOpenKO(null)}
+        playerClubId={playerTeam.clubId}
+        draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
+      />
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} accent={CL.accent} />
     </ScrollView>
   )
@@ -481,25 +488,23 @@ function BracketMatch({ match: m, directIds, showDirect, onPress }: { match: CLK
 const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-Final', sf: 'Semi-Final', final: 'Final' }
 
 // Tap-through detail for a CL knockout tie (two legs, or the single final).
-function KOTieModal({ match: m, onClose }: { match: CLKnockoutMatch | null; onClose: () => void }) {
+function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers }: {
+  match: CLKnockoutMatch | null; onClose: () => void
+  playerClubId?: string; draftedPlayers?: DraftedPlayer[]
+}) {
   // Named penalty takers are only pre-built for the tie the reveal animated.
-  // Expand lazily here so EVERY shootout (history runs, other ties) shows takers.
-  const [lazyKicks, setLazyKicks] = useState<{ a: PenKick[]; b: PenKick[] } | null>(null)
+  // Expand lazily here (same shared helper the live sim uses) so EVERY
+  // shootout — history runs, other ties — shows real takers. Your own club's
+  // takers come from YOUR drafted squad, not the DB's historical roster.
+  const [, forceTick] = useState(0)
   useEffect(() => {
-    setLazyKicks(null)
     if (!m || m.penKicksA || !m.aPenKicks || !m.bPenKicks) return
     let active = true
-    Promise.all([getTopKickers(m.teamA.clubId), getTopKickers(m.teamB.clubId)])
-      .then(([namesA, namesB]) => {
-        if (!active) return
-        const expanded = expandPenaltyKicks(namesA, namesB, m.aPenKicks!, m.bPenKicks!)
-        setLazyKicks({ a: expanded.kicksA, b: expanded.kicksB })
-      })
-      .catch(() => { /* fall back to no list */ })
+    attachCLShootoutNames([m], playerClubId, draftedPlayers).then(() => { if (active) forceTick(x => x + 1) }).catch(() => { /* fall back to no list */ })
     return () => { active = false }
   }, [m])
-  const kicksA = m?.penKicksA ?? lazyKicks?.a
-  const kicksB = m?.penKicksB ?? lazyKicks?.b
+  const kicksA = m?.penKicksA
+  const kicksB = m?.penKicksB
   return (
     <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>

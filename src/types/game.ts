@@ -24,6 +24,8 @@ export type DraftedPlayer = {
   primaryPosition: Position
   secondaryPositions: Position[]
   ovr: number
+  attack?: number             // real attacking attribute (not OVR) — drives goal/assist odds
+  isBench?: boolean           // a substitute, not part of the starting XI
   clubName: string
   season: string
   slotIndex: number

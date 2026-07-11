@@ -15,17 +15,20 @@ import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/e
 import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
 import { WCGroupModal } from '@/components/WCGroupModal'
 import type { WCTeam, WCGroup, WCKnockoutMatch, WCSeasonResult, WCGroupMatch } from '@/engine/world-cup-sim'
-import { expandPenaltyKicks } from '@/engine/knockout-match'
 import type { PenKick } from '@/engine/knockout-match'
-import { getTopKickers } from '@/db/queries/seasons'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
 import { TeamLabel } from '@/components/TeamLabel'
 import { LineupPitch } from '@/components/LineupPitch'
+import { FixtureList } from '@/components/FixtureList'
+import ReAnimated, { FadeInDown } from 'react-native-reanimated'
 import { LiveMatch, type LivePeriod } from '@/components/LiveMatch'
 import { BracketPreview } from '@/components/BracketPreview'
-import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers } from '@/engine/run-stats'
+import {
+  loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers,
+  attachCLShootoutNames, attachWCShootoutNames,
+} from '@/engine/run-stats'
 import type { RosterPlayer, MatchScorers } from '@/types/stats'
 
 type SimPhase = 'review' | 'simulating' | 'completed' | 'group_review' | 'knockout_phase'
@@ -107,11 +110,16 @@ export default function SimulationScreen() {
 function LeagueSimulation() {
   const {
     draftedPlayers,
+    benchPlayers,
+    useSubstitutes,
     formation,
     placedLeague,
     setSimResult,
     difficulty
   } = useGameStore()
+  // Subs join the scorer/assist pool (reduced odds — see stats.ts BENCH_FACTOR)
+  // but never the starting XI used for OVR/pitch/slot logic.
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
 
   // Calculate OVR & Chem safely at the top with defaults in case of empty store
   const slots = formation ? getSlotsForFormation(formation) : []
@@ -196,7 +204,7 @@ function LeagueSimulation() {
     setAllFixtures(fixtures)
 
     // Load goalscorer pools in the background (ready well before kickoff).
-    loadLeaguePools(placedLeague.teams, draftedPlayers, placedLeague.yearStart)
+    loadLeaguePools(placedLeague.teams, fullSquad, placedLeague.yearStart, useSubstitutes)
       .then(p => { poolByClubRef.current = p.poolByClub })
       .catch(e => console.warn('[stats] roster load failed:', e))
   }, [placedLeague, totalTeamOvr])
@@ -577,18 +585,15 @@ function LeagueSimulation() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
-      {/* Header */}
+      {/* Header — no back button: once you've confirmed your squad and entered
+          placement/simulation, the run is locked in (no rerolling by backing out). */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{placedLeague.leagueName}</Text>
           <Text style={styles.headerSub}>
             Season {placedLeague.yearStart}/{String(placedLeague.yearStart + 1).slice(-2)}
           </Text>
         </View>
-        <View style={{ width: 32 }} />
       </View>
 
       {phase === 'review' ? (
@@ -612,7 +617,7 @@ function LeagueSimulation() {
           {/* Squad Pitch Layout — real per-formation shape, not a generic bucket */}
           <View style={styles.pitchContainer}>
             <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
-            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} />
+            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} benchPlayers={benchPlayers} />
           </View>
 
           {/* Action button */}
@@ -861,7 +866,8 @@ function LeagueSimulation() {
 // ── Champions League Simulation ──────────────────────────────────────────────
 
 function CLSimulation() {
-  const { draftedPlayers, formation, clTeams, clYear, setClResult } = useGameStore()
+  const { draftedPlayers, benchPlayers, useSubstitutes, formation, clTeams, clYear, setClResult } = useGameStore()
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
   const clPoolYear = clYear ?? 2025   // UCL edition you were placed in (for scorer rosters)
 
   const slots       = formation ? getSlotsForFormation(formation) : []
@@ -888,7 +894,7 @@ function CLSimulation() {
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
   useEffect(() => {
     if (!clTeams || clTeams.length === 0 || draftedPlayers.length === 0) return
-    loadLeaguePools(clTeams, draftedPlayers, clPoolYear)
+    loadLeaguePools(clTeams, fullSquad, clPoolYear, useSubstitutes)
       .then(p => { poolByClubRef.current = p.poolByClub })
       .catch(e => console.warn('[cl] pool load failed:', e))
   }, [clTeams])
@@ -1096,45 +1102,26 @@ function CLSimulation() {
     // same match objects feed both the live reveal and the result screen.
     try {
       let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, draftedPlayers, clPoolYear)).poolByClub
+      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, fullSquad, clPoolYear, useSubstitutes)).poolByClub
       attributeCLResultScorers(koStoredResultRef.current, pool)
     } catch (e) { console.warn('[cl] scorer attribution failed:', e) }
 
-    // Fetch kicker names for any tie that went to penalties.
+    // Fetch + attach named shootout kickers — ONE shared implementation used
+    // by every mode (see attachCLShootoutNames in run-stats.ts).
     const allMatches: CLKnockoutMatch[] = [
       ...result.playoffRound, ...result.r16, ...result.qf, ...result.sf,
       ...(result.final ? [result.final] : []),
     ]
-    const penTeamIds = new Set<string>()
-    allMatches.filter(m => m.aPens !== undefined).forEach(m => {
-      penTeamIds.add(m.teamA.clubId)
-      penTeamIds.add(m.teamB.clubId)
-    })
-    const kickerMap: Record<string, string[]> = {}
-    await Promise.all(Array.from(penTeamIds).map(async id => {
-      kickerMap[id] = await getTopKickers(id)
-    }))
+    await attachCLShootoutNames(allMatches, simTeams.find(t => t.isPlayer)?.clubId, fullSquad)
 
     function buildTie(m: CLKnockoutMatch): KnockoutTie {
-      let penKicksA: PenKick[] | undefined
-      let penKicksB: PenKick[] | undefined
-      if (m.aPens !== undefined && m.bPens !== undefined) {
-        const expanded = expandPenaltyKicks(
-          kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [],
-          m.aPenKicks ?? [], m.bPenKicks ?? []
-        )
-        penKicksA = expanded.kicksA
-        penKicksB = expanded.kicksB
-        m.penKicksA = penKicksA   // persist the shootout for the result screen
-        m.penKicksB = penKicksB
-      }
       return {
         teamA: m.teamA, teamB: m.teamB, winner: m.winner,
         aGoals: m.aGoals, bGoals: m.bGoals,
         leg1: m.leg1, leg2: m.leg2, leg2ExtraTime: m.leg2ExtraTime,
         extraTime: m.extraTime,
         aPens: m.aPens, bPens: m.bPens,
-        penKicksA, penKicksB,
+        penKicksA: m.penKicksA, penKicksB: m.penKicksB,
         leg1Scorers: m.leg1Scorers, leg2Scorers: m.leg2Scorers, leg2ExtraTimeScorers: m.leg2ExtraTimeScorers,
       }
     }
@@ -1198,12 +1185,10 @@ function CLSimulation() {
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: theme.accent }]}>UEFA Champions League</Text>
           <Text style={styles.headerSub}>League Phase · 8 matchdays</Text>
         </View>
-        <View style={{ width: 32 }} />
       </View>
 
       {phase === 'review' ? (
@@ -1219,10 +1204,22 @@ function CLSimulation() {
             </Text>
           </View>
 
+          {/* Who you actually play, and from which pot, before a ball is kicked */}
+          <FixtureList
+            accent={theme.accent}
+            items={fixtures
+              .filter(f => f.home.isPlayer || f.away.isPlayer)
+              .map(f => {
+                const isHome = f.home.isPlayer
+                const opp = isHome ? f.away : f.home
+                return { matchday: f.matchday, clubId: opp.clubId, clubName: opp.clubName, pot: opp.pot, isHome }
+              })}
+          />
+
           {/* Squad Pitch Layout — real per-formation shape */}
           <View style={styles.pitchContainer}>
             <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
-            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} />
+            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} benchPlayers={benchPlayers} />
           </View>
 
           <Pressable
@@ -1412,7 +1409,8 @@ function CLSimulation() {
 // ── World Cup Simulation ─────────────────────────────────────────────────────
 
 function WCSimulation() {
-  const { draftedPlayers, formation, wcTeams, setWcResult } = useGameStore()
+  const { draftedPlayers, benchPlayers, useSubstitutes, formation, wcTeams, setWcResult } = useGameStore()
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
 
   const slots        = formation ? getSlotsForFormation(formation) : []
   const baseTeamOvr  = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
@@ -1453,7 +1451,7 @@ function WCSimulation() {
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
   useEffect(() => {
     if (!wcTeams || wcTeams.length === 0 || draftedPlayers.length === 0) return
-    loadLeaguePools(wcTeams, draftedPlayers, 2026)
+    loadLeaguePools(wcTeams, fullSquad, 2026, useSubstitutes)
       .then(p => { poolByClubRef.current = p.poolByClub })
       .catch(e => console.warn('[wc] pool load failed:', e))
   }, [wcTeams])
@@ -1639,44 +1637,24 @@ function WCSimulation() {
     // matchdays already carry live scorers). Same match objects feed reveal + result.
     try {
       let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, draftedPlayers, 2026)).poolByClub
+      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, fullSquad, 2026, useSubstitutes)).poolByClub
       attributeWCResultScorers(wcKoStoredResultRef.current, pool)
     } catch (e) { console.warn('[wc] scorer attribution failed:', e) }
 
-    // Collect teams involved in pen shootouts
-    const penTeamIds = new Set<string>()
-    result.knockoutRounds.forEach(r => {
-      r.matches.filter(m => m.result.homePens !== null).forEach(m => {
-        penTeamIds.add(m.teamA.clubId)
-        penTeamIds.add(m.teamB.clubId)
-      })
-    })
-    const kickerMap: Record<string, string[]> = {}
-    await Promise.all(Array.from(penTeamIds).map(async id => {
-      kickerMap[id] = await getTopKickers(id)
-    }))
+    // Fetch + attach named shootout kickers — ONE shared implementation used
+    // by every mode (see attachWCShootoutNames in run-stats.ts).
+    const allWCMatches = result.knockoutRounds.flatMap(r => r.matches)
+    await attachWCShootoutNames(allWCMatches, simTeams.find(t => t.isPlayer)?.clubId, fullSquad)
 
     function buildWCTie(m: WCKnockoutMatch): KnockoutTie {
       const { result: r } = m
-      let penKicksA: PenKick[] | undefined
-      let penKicksB: PenKick[] | undefined
-      if (r.homePens !== null && r.awayPens !== null) {
-        const expanded = expandPenaltyKicks(
-          kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [],
-          r.homePenKicks ?? [], r.awayPenKicks ?? []
-        )
-        penKicksA = expanded.kicksA
-        penKicksB = expanded.kicksB
-        m.penKicksHome = penKicksA   // persist the shootout for the result screen
-        m.penKicksAway = penKicksB
-      }
       return {
         teamA: m.teamA, teamB: m.teamB, winner: m.winner,
         aGoals: r.homeGoals, bGoals: r.awayGoals,
         extraTime: r.extraTime,
         aPens: r.homePens ?? undefined,
         bPens: r.awayPens ?? undefined,
-        penKicksA, penKicksB,
+        penKicksA: m.penKicksA, penKicksB: m.penKicksB,
         scorers: m.scorers,
       }
     }
@@ -1745,12 +1723,10 @@ function WCSimulation() {
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: theme.accent }]}>FIFA World Cup</Text>
           <Text style={styles.headerSub}>Group Stage{playerGroup ? ` · Group ${playerGroup.id}` : ''}</Text>
         </View>
-        <View style={{ width: 32 }} />
       </View>
 
       {phase === 'review' ? (
@@ -1769,7 +1745,7 @@ function WCSimulation() {
           {/* Squad Pitch Layout — real per-formation shape */}
           <View style={styles.pitchContainer}>
             <Text style={styles.sectionTitle}>Your Lineup ({formation})</Text>
-            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} />
+            <LineupPitch formation={formation!} draftedPlayers={draftedPlayers} benchPlayers={benchPlayers} />
           </View>
 
           {/* Group draw preview — your group + every other group, before a ball is kicked */}
@@ -1778,17 +1754,19 @@ function WCSimulation() {
               <Text style={styles.sectionTitle}>The Group Draw</Text>
               <Text style={styles.groupReviewSub}>Your group is highlighted — top 2 + 8 best 3rd-placed reach the Round of 32.</Text>
               <View style={styles.groupsGrid}>
-                {groups.map(group => {
+                {/* Staggered reveal — groups drop in one at a time like a live
+                    draw (order unchanged), your own group popping in first. */}
+                {groups.map((group, i) => {
                   const isYours = group.teams.some(t => t.isPlayer)
                   return (
-                    <View key={group.id} style={[styles.groupCard, isYours && styles.groupCardPlayer]}>
+                    <ReAnimated.View key={group.id} entering={FadeInDown.delay(isYours ? 0 : 150 + i * 90).springify().damping(14)} style={[styles.groupCard, isYours && styles.groupCardPlayer]}>
                       <Text style={styles.groupCardTitle}>Group {group.id}{isYours ? '  · YOU' : ''}</Text>
                       {group.teams.map(team => (
                         <View key={team.clubId} style={[styles.groupTeamRow, team.isPlayer && styles.groupTeamRowSelf]}>
                           <TeamLabel clubId={team.clubId} name={team.clubName} textStyle={[styles.groupTeamName, team.isPlayer && styles.groupTeamNameSelf]} containerStyle={styles.groupTeamLabel} size={13} gap={4} />
                         </View>
                       ))}
-                    </View>
+                    </ReAnimated.View>
                   )
                 })}
               </View>
@@ -2397,22 +2375,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: 56,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-  back: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backText: {
-    color: colors.textPrimary,
-    fontSize: typography.xl,
   },
   headerCenter: {
     alignItems: 'center',

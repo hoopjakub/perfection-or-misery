@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCustomUclRun, fetchRunById } from '@/db/queries/runs'
-import { computeCLRunStats, summariseScorers } from '@/engine/run-stats'
+import { computeCLRunStats, summariseScorers, koTieLegRecord } from '@/engine/run-stats'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
@@ -18,6 +18,7 @@ import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/the
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
+import type { DraftedPlayer } from '@/types/game'
 
 const CL = MODE_THEMES.champions_league
 
@@ -39,7 +40,8 @@ const POT_COLORS: Record<number, string> = { 1: '#F59E0B', 2: '#A78BFA', 3: '#34
 
 export default function CustomUclResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, quickSim } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
   const fromHistory = !!params.runId
@@ -85,7 +87,7 @@ export default function CustomUclResultScreen() {
   useEffect(() => {
     if (fromHistory || !store.clResult || draftedPlayers.length === 0) return
     // Qualifying ties count toward stats/awards too — the WHOLE competition.
-    computeCLRunStats(store.clResult, draftedPlayers, clYear ?? 2025, store.customUclQual?.ties)
+    computeCLRunStats(store.clResult, fullSquad, clYear ?? 2025, store.customUclQual?.ties, store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[custom-ucl-result] stats failed:', e))
   }, [])
@@ -141,13 +143,16 @@ export default function CustomUclResultScreen() {
     ? `Domestic season: ${domPos}${ordinal(domPos)} in the ${playerLeague.name} · ${domRow.won}W ${domRow.drawn}D ${domRow.lost}L`
     : null
 
+  // Record is LEG-by-leg (you can win one leg and lose the other), not just
+  // who won the tie overall — same rule as classic UCL's result screen.
   const playerKoTies = [...playoffRound, ...r16, ...qf, ...sf, ...(final ? [final] : [])]
     .filter(m => m.teamA.isPlayer || m.teamB.isPlayer)
-  let koW = 0, koL = 0, koGF = 0, koGA = 0
+  let koW = 0, koD = 0, koL = 0, koGF = 0, koGA = 0
   playerKoTies.forEach(m => {
     const isA = m.teamA.isPlayer
     koGF += isA ? m.aGoals : m.bGoals; koGA += isA ? m.bGoals : m.aGoals
-    if (m.winner.isPlayer) koW++; else koL++
+    const { w, d, l } = koTieLegRecord(m, isA)
+    koW += w; koD += d; koL += l
   })
 
   const qualTies = customUclQual?.ties ?? []
@@ -165,7 +170,7 @@ export default function CustomUclResultScreen() {
           formation,
           teamOvr: playerTeam.ovr,
           result: clResult!,
-          squad: draftedPlayers,
+          squad: fullSquad,
           stats: runStats?.stats,
           awards: runStats?.awards,
           qual: customUclQual,
@@ -248,11 +253,12 @@ export default function CustomUclResultScreen() {
       {/* Lineup + squad — live run or rehydrated from a saved one */}
       {(() => {
         const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
         const st    = runStats?.stats ?? dbRun?.stats ?? null
         return (
           <>
-            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} title="Your Lineup" />}
+            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
             {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={CL.accent} runId={params.runId} />}
           </>
         )
@@ -306,7 +312,7 @@ export default function CustomUclResultScreen() {
           {playerKoTies.length > 0 && (
             <View style={styles.statsRow}>
               <StatBox label="KO Ties" value={String(playerKoTies.length)} />
-              <StatBox label="Record" value={`${koW}W ${koL}L`} />
+              <StatBox label="Record" value={koD > 0 ? `${koW}W ${koD}D ${koL}L` : `${koW}W ${koL}L`} />
               <StatBox label="Goals" value={`${koGF}-${koGA}`} />
             </View>
           )}
@@ -398,7 +404,11 @@ export default function CustomUclResultScreen() {
       )}
 
       <TeamModal team={openTeam} matches={openTeam ? leagueMatchdays : []} onClose={() => setOpenTeam(null)} />
-      <KoTieDetailModal match={openKO} roundLabel={openKO ? (CL_KO_NAMES[openKO.round] ?? QUAL_ROUND_LABEL[openKO.round]) : undefined} onClose={() => setOpenKO(null)} />
+      <KoTieDetailModal
+        match={openKO} roundLabel={openKO ? (CL_KO_NAMES[openKO.round] ?? QUAL_ROUND_LABEL[openKO.round]) : undefined} onClose={() => setOpenKO(null)}
+        playerClubId={playerTeam.clubId}
+        draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
+      />
       <LeagueTableModal table={openLeague} playerClubId={playerTeam.clubId} onClose={() => setOpenLeague(null)} />
       <LeaguesBrowserModal visible={browserOpen} tables={associations} playerClubId={playerTeam.clubId} onClose={() => setBrowserOpen(false)} />
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} />

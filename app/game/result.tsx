@@ -192,7 +192,8 @@ const TIER_META: Record<Tier, { title: string; desc: string; emoji: string }> = 
 
 export default function ResultScreen() {
   const store = useGameStore()
-  const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers, quickSim } = store
+  const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers, benchPlayers, quickSim } = store
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const theme = useModeTheme()
   const params = useLocalSearchParams<{ runId: string }>()
@@ -213,7 +214,7 @@ export default function ResultScreen() {
 
   useEffect(() => {
     if (!isFreshRun) return
-    computeLeagueRunStats(simResult!, draftedPlayers, placedLeague!)
+    computeLeagueRunStats(simResult!, fullSquad, placedLeague!, store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[result] stats compute failed:', e))
       .finally(() => setPreloading(false))
@@ -407,7 +408,7 @@ export default function ResultScreen() {
           leagueName: placedLeague.leagueName,
           yearStart: placedLeague.yearStart,
           seasonResult: simResult,
-          squad: draftedPlayers,
+          squad: fullSquad,
           matchdayHistory: simResult.matchdayHistory,
           stats: runStats?.stats,
           awards: runStats?.awards,
@@ -500,11 +501,12 @@ export default function ResultScreen() {
         {/* Lineup + squad — from the live run, or rehydrated from a saved one */}
         {(() => {
           const squad = (isFreshRun ? draftedPlayers : dbRunData?.squad ?? []) as any[]
+          const bench = (isFreshRun ? benchPlayers : (dbRunData?.squad ?? []).filter((p: any) => p.isBench)) as any[]
           const form  = (isFreshRun ? formation : dbRunData?.formation) as any
           const st    = runStats?.stats ?? dbRunData?.stats ?? null
           return (
             <>
-              {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} title="Your Lineup" />}
+              {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
               {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={theme.accent} runId={params.runId} />}
             </>
           )

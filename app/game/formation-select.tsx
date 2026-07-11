@@ -123,7 +123,7 @@ const visualStyles = StyleSheet.create({
 })
 
 export default function FormationSelectScreen() {
-  const { mode, era, startRun } = useGameStore()
+  const { mode, era, startRun, useSubstitutes, setUseSubstitutes } = useGameStore()
   const theme = useModeTheme()
   const [selected, setSelected] = useState<Formation>('4-3-3')
 
@@ -217,6 +217,25 @@ export default function FormationSelectScreen() {
             ))}
           </View>
         </View>
+
+        {/* Substitutes toggle — off disables benches for EVERYONE this run,
+            you and every AI-controlled club alike (see run-stats.ts). */}
+        <Pressable
+          style={[styles.infoCard, styles.subsCard]}
+          onPress={() => setUseSubstitutes(!useSubstitutes)}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.infoTitle}>Substitutes</Text>
+            <Text style={styles.infoDescription}>
+              {useSubstitutes
+                ? "On — you'll draft a bench after your XI, and every club (including AI opponents) can bring subs off the bench."
+                : 'Off — starting XI only, for you and every other club. No bench, no subs, all season.'}
+            </Text>
+          </View>
+          <View style={[styles.subsSwitch, useSubstitutes && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
+            <View style={[styles.subsKnob, useSubstitutes && styles.subsKnobOn]} />
+          </View>
+        </Pressable>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -308,6 +327,10 @@ const styles = StyleSheet.create({
     padding:         spacing.lg,
     gap:             spacing.md,
   },
+  subsCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
+  subsSwitch: { width: 46, height: 26, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgElevated, padding: 2, justifyContent: 'center' },
+  subsKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.textMuted },
+  subsKnobOn: { backgroundColor: colors.textPrimary, alignSelf: 'flex-end' },
   infoTitle: {
     fontSize:   typography.xl,
     fontWeight: typography.black,

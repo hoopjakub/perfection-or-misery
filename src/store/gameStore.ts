@@ -18,6 +18,8 @@ type GameStore = {
   selectedLeague: string | null
   formation:      Formation | null
   draftedPlayers: DraftedPlayer[]
+  useSubstitutes: boolean          // if off, NOBODY (you or the AI) uses a bench this run
+  benchPlayers:   DraftedPlayer[]  // your subs, drafted separately from the starting XI
   rerollsUsed:    number
   spunSeasonIds:  string[]
   placedLeague:   LeagueSeason | null
@@ -36,7 +38,14 @@ type GameStore = {
 
   startRun:       (mode: GameMode, formation: Formation, era?: string) => void
   addPlayer:      (player: DraftedPlayer) => void
+  addBenchPlayer: (player: DraftedPlayer) => void
+  setUseSubstitutes: (on: boolean) => void
   movePlayer:     (playerId: string, newSlotIndex: number) => void
+  // Swap a bench player into a starting-XI slot. If that slot is occupied, the
+  // displaced starter goes to the bench in the sub's old spot; if it was empty
+  // (shouldn't normally happen once the XI is full, but safe either way) the
+  // sub just fills it and the bench shrinks by one.
+  swapBenchAndStarter: (benchPlayerId: string, starterSlotIndex: number) => void
   markSeasonSpun: (id: string) => void
   useReroll:      () => void
   resetRun:       () => void
@@ -64,6 +73,8 @@ const initialState = {
   selectedLeague:  null,
   formation:       null,
   draftedPlayers:  [],
+  useSubstitutes:  true,
+  benchPlayers:    [],
   rerollsUsed:     0,
   spunSeasonIds:   [],
   placedLeague:    null,
@@ -83,25 +94,45 @@ const initialState = {
 
 export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
-  startRun:       (mode, formation, era) => set(s => ({ 
-    ...initialState, 
-    mode, 
-    formation, 
+  startRun:       (mode, formation, era) => set(s => ({
+    ...initialState,
+    mode,
+    formation,
     era: era ?? null,
     difficulty: s.difficulty, // Preserve difficulty when starting a new run
     selectedLeague: s.selectedLeague, // Preserve selected league
     accentColor: s.accentColor, // Preserve accent color
+    useSubstitutes: s.useSubstitutes, // Preserve the substitutes toggle
   })),
   addPlayer:      (player) => set(s => ({ draftedPlayers: [...s.draftedPlayers, player] })),
+  addBenchPlayer: (player) => set(s => ({ benchPlayers: [...s.benchPlayers, player] })),
+  setUseSubstitutes: (useSubstitutes) => set({ useSubstitutes }),
   movePlayer:     (playerId, newSlotIndex) => set(s => ({
     draftedPlayers: s.draftedPlayers.map(p => p.playerId === playerId ? { ...p, slotIndex: newSlotIndex } : p),
   })),
+  swapBenchAndStarter: (benchPlayerId, starterSlotIndex) => set(s => {
+    const sub = s.benchPlayers.find(p => p.playerId === benchPlayerId)
+    if (!sub) return s
+    const starter = s.draftedPlayers.find(p => p.slotIndex === starterSlotIndex)
+    const promoted: DraftedPlayer = { ...sub, isBench: false, slotIndex: starterSlotIndex }
+    const benchWithoutSub = s.benchPlayers.filter(p => p.playerId !== benchPlayerId)
+    return {
+      draftedPlayers: [
+        ...s.draftedPlayers.filter(p => p.slotIndex !== starterSlotIndex),
+        promoted,
+      ],
+      benchPlayers: starter
+        ? [...benchWithoutSub, { ...starter, isBench: true, slotIndex: sub.slotIndex }]
+        : benchWithoutSub,
+    }
+  }),
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll:      () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),
   resetRun:       () => set(s => ({
     ...s,
     formation:       null,
     draftedPlayers:  [],
+    benchPlayers:    [],
     rerollsUsed:     0,
     spunSeasonIds:   [],
     placedLeague:    null,

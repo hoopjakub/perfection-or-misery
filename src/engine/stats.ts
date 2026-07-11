@@ -23,15 +23,40 @@ export const ASSIST_WEIGHT: Record<string, number> = {
 export const ASSIST_RATE = 0.8     // 80% of goals get an assist
 export const CARRY_WEIGHT = 0.5    // award carry modifier (lower finish → bigger boost)
 
-function scoreWeight(p: RosterPlayer): number {
+// Attack multiplier — a power curve centred on "replacement level" (60), not
+// a flat +1%/point. The old linear (1 + attack/100) only spanned ~1.4x across
+// the entire realistic range (40-95), which let a high-OVR defensive mid
+// (attack borrowed from OVR) sit shoulder to shoulder with an elite striker.
+// This spans roughly 0.3x (poor attacking attribute) to 3x+ (Mbappé/Messi
+// tier), so a real attacking-attribute gap actually shows up in who scores.
+const ATTACK_BASELINE = 60
+const ATTACK_CURVE = 2.5
+function attackMultiplier(atk: number): number {
+  return Math.pow(Math.max(1, atk) / ATTACK_BASELINE, ATTACK_CURVE)
+}
+
+// A substitute only sees a fraction of the match — roughly the back third,
+// on average across a season — so their per-goal odds are cut accordingly
+// rather than competing on equal footing with a player who started every game.
+const BENCH_FACTOR = 0.35
+// Subs come on well into the second half — a goal (or assist) attributed to
+// one before this minute would mean they scored before they were even on the
+// pitch. Applies to every club's bench, not just yours.
+const SUB_MIN_MINUTE = 60
+
+function scoreWeight(p: RosterPlayer, minute: number): number {
+  if (p.isBench && minute < SUB_MIN_MINUTE) return 0
   const base = SCORE_WEIGHT[p.primaryPosition] ?? 0.3
   const atk  = p.attack || p.ovr || 60
-  return base * (1 + atk / 100)
+  const w    = base * attackMultiplier(atk)
+  return p.isBench ? w * BENCH_FACTOR : w
 }
-function assistWeight(p: RosterPlayer): number {
+function assistWeight(p: RosterPlayer, minute: number): number {
+  if (p.isBench && minute < SUB_MIN_MINUTE) return 0
   const base = ASSIST_WEIGHT[p.primaryPosition] ?? 0.4
   const atk  = p.attack || p.ovr || 60
-  return base * (1 + atk / 100)
+  const w    = base * attackMultiplier(atk)
+  return p.isBench ? w * BENCH_FACTOR : w
 }
 
 function weightedPick(
@@ -126,18 +151,19 @@ export function attributeMatchScorers(
     if (pool.length === 0) return []
     const out: GoalEvent[] = []
     for (const mm of minuteEvents) {
-      const scorer = weightedPick(pool, scoreWeight)
+      const scorer = weightedPick(pool, p => scoreWeight(p, mm.minute))
       if (!scorer) continue
       const ev: GoalEvent = {
         clubId:     scorer.clubId,
         scorerId:   scorer.playerId,
         scorerName: scorer.name,
+        scorerIsBench: scorer.isBench,
         minute:     mm.minute,
         plus:       mm.plus,
       }
       if (Math.random() < ASSIST_RATE) {
-        const assister = weightedPick(pool, assistWeight, scorer.playerId)
-        if (assister) { ev.assistId = assister.playerId; ev.assistName = assister.name }
+        const assister = weightedPick(pool, p => assistWeight(p, mm.minute), scorer.playerId)
+        if (assister) { ev.assistId = assister.playerId; ev.assistName = assister.name; ev.assistIsBench = assister.isBench }
       }
       out.push(ev)
     }
@@ -181,6 +207,7 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
       clubId: p.clubId, clubName: p.clubName, position: p.primaryPosition,
       goals: 0, assists: 0, cleanSheets: 0,
       isPlayerClub: ctx.playerClubId ? p.clubId === ctx.playerClubId : false,
+      isBench: p.isBench,
     }
   }
   function lineFor(playerId: string): PlayerStatLine | null {

@@ -56,7 +56,9 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
         return (
           <View key={p.playerId} style={styles.row}>
             <Text style={styles.pos}>{slotLabel(p.playerId) ?? p.position}</Text>
-            <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
+            <Text style={styles.name} numberOfLines={1}>
+              {p.name}{p.isBench && <Text style={styles.subTag}> SUB</Text>}
+            </Text>
             {view === 'stats' ? (
               <>
                 <Text style={styles.line}>{p.goals}G {p.assists}A {p.cleanSheets}CS</Text>
@@ -88,5 +90,6 @@ const styles = StyleSheet.create({
   name: { flex: 1, fontSize: typography.sm, color: colors.textPrimary },
   line: { fontSize: typography.xs, color: colors.textSecondary },
   notable: { fontSize: 10, fontWeight: typography.bold },
+  subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
   more: { fontSize: typography.sm, fontWeight: typography.bold, textAlign: 'center' },
 })

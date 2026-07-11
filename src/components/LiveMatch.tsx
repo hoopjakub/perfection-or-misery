@@ -29,12 +29,12 @@ export type LivePens = { a: number; b: number; kicksA?: PenKick[]; kicksB?: PenK
 // regardless of which of teamA/teamB is currently hosting. sideIsA is kept
 // separately ONLY for the cross-leg aggregate tally, which must track a fixed
 // team identity rather than a home/away side that flips between legs.
-type Goal = { min: number; plus?: number; isHome: boolean; sideIsA: boolean; scorer: string }
+type Goal = { min: number; plus?: number; isHome: boolean; sideIsA: boolean; scorer: string; isBench?: boolean }
 
 function goalsForPeriod(p: LivePeriod, teamAId: string): Goal[] {
   const out: Goal[] = []
   const add = (evs: MatchScorers['home'] | undefined, isHome: boolean, sideIsA: boolean) => {
-    for (const e of evs ?? []) out.push({ min: e.minute, plus: e.plus, isHome, sideIsA, scorer: lastName(e.scorerName) })
+    for (const e of evs ?? []) out.push({ min: e.minute, plus: e.plus, isHome, sideIsA, scorer: lastName(e.scorerName), isBench: e.scorerIsBench })
   }
   add(p.scorers?.home, true, p.homeId === teamAId)
   add(p.scorers?.away, false, p.awayId === teamAId)
@@ -65,7 +65,7 @@ export function LiveMatch({
   const [aggB, setAggB] = useState(0)
   const [legHome, setLegHome] = useState(0) // current period's HOME-side score
   const [legAway, setLegAway] = useState(0) // current period's AWAY-side score
-  const [feed, setFeed] = useState<{ text: string; isHome: boolean }[]>([])
+  const [feed, setFeed] = useState<{ text: string; isHome: boolean; isBench?: boolean }[]>([])
   const [showPens, setShowPens] = useState(false)
   const [penTick, setPenTick] = useState(0)     // number of shootout kicks revealed so far
   const doneRef = useRef(false)
@@ -116,7 +116,7 @@ export function LiveMatch({
         if (g.isHome) setLegHome(v => v + 1); else setLegAway(v => v + 1)
         if (g.sideIsA) setAggA(v => v + 1); else setAggB(v => v + 1)
         const mm = `${g.min}${g.plus ? `+${g.plus}` : ''}'`
-        setFeed(f => [{ text: `⚽ ${g.scorer} ${mm}`, isHome: g.isHome }, ...f].slice(0, 6))
+        setFeed(f => [{ text: `⚽ ${g.scorer} ${mm}`, isHome: g.isHome, isBench: g.isBench }, ...f].slice(0, 6))
       }
       setClock(next)
     }, msPerMin)
@@ -200,7 +200,9 @@ export function LiveMatch({
       {feed.length > 0 && (
         <View style={styles.feed}>
           {feed.map((f, i) => (
-            <Text key={i} style={[styles.feedLine, { textAlign: f.isHome ? 'left' : 'right' }]} numberOfLines={1}>{f.text}</Text>
+            <Text key={i} style={[styles.feedLine, { textAlign: f.isHome ? 'left' : 'right' }]} numberOfLines={1}>
+              {f.text}{f.isBench && <Text style={styles.subTag}> SUB</Text>}
+            </Text>
           ))}
         </View>
       )}
@@ -231,6 +233,7 @@ const styles = StyleSheet.create({
   priorLegScorer: { flex: 1, fontSize: 10, color: colors.textMuted, opacity: 0.85 },
   feed: { gap: 2, minHeight: 20 },
   feedLine: { fontSize: typography.xs, color: colors.textSecondary },
+  subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
   penTitle: { fontSize: typography.sm, fontWeight: typography.black, textAlign: 'center', marginBottom: 4 },
 })
 

@@ -27,8 +27,98 @@ export default function DraftScreen() {
     selectedLeague,
     draftedPlayers, spunSeasonIds,
     rerollsUsed, addPlayer, movePlayer, markSeasonSpun, useReroll,
+    useSubstitutes, benchPlayers, addBenchPlayer, swapBenchAndStarter,
   } = useGameStore()
   const theme = useModeTheme()
+
+  // Bench draft — a separate, simpler mini-flow that runs after the main XI
+  // is complete (see the 'done' phase below). Deliberately NOT wired into the
+  // slot-machine phase state above: subs don't fill a formation slot, so they
+  // don't need any of that machinery, and keeping it separate means this can
+  // never destabilize the (already complex) starting-XI draft.
+  const BENCH_SIZE = 5
+  const [benchPhase, setBenchPhase] = useState<'idle' | 'spinning' | 'picking'>('idle')
+  const [benchSpinDisplay, setBenchSpinDisplay] = useState<ClubSeasonRow | null>(null)
+  const [benchSpin, setBenchSpin] = useState<ClubSeasonRow | null>(null)
+  const [benchSquad, setBenchSquad] = useState<PlayerRow[]>([])
+  const [benchFact, setBenchFact] = useState<string | null>(null)
+  const benchNeeded = useSubstitutes ? Math.max(0, BENCH_SIZE - benchPlayers.length) : 0
+
+  // Same slot-machine tick + fade/scale reveal as the main draft's runSpinAnimation
+  // — its own Animated.Values so it can never step on the starting-XI spin.
+  const benchFadeAnim  = useRef(new Animated.Value(0)).current
+  const benchScaleAnim = useRef(new Animated.Value(0.8)).current
+
+  function runBenchSpinAnimation(finalSpin: ClubSeasonRow) {
+    let ticks = 0
+    const totalTicks = 20
+    function tick() {
+      const randomIdx = Math.floor(Math.random() * pool.length)
+      setBenchSpinDisplay(pool[randomIdx])
+      ticks++
+      const delay = ticks < totalTicks * 0.6 ? 60 : ticks < totalTicks * 0.8 ? 120 : 220
+      if (ticks < totalTicks) {
+        setTimeout(tick, delay)
+      } else {
+        setBenchSpinDisplay(finalSpin)
+        setBenchSpin(finalSpin)
+        Animated.parallel([
+          Animated.timing(benchFadeAnim,  { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(benchScaleAnim, { toValue: 1, friction: 6, useNativeDriver: true }),
+        ]).start(async () => {
+          const clubPlayers = await getPlayersForClubSeason(finalSpin.id)
+          setBenchSquad(clubPlayers)
+          setBenchFact(getRandomFact(finalSpin.id ?? finalSpin.id))
+          setBenchPhase('picking')
+        })
+      }
+    }
+    benchFadeAnim.setValue(0)
+    benchScaleAnim.setValue(0.8)
+    tick()
+  }
+
+  function handleBenchSpin() {
+    if (pool.length === 0 || benchPhase !== 'idle') return
+    setBenchPhase('spinning')
+    setBenchSquad([])
+    setBenchFact(null)
+    try {
+      const eraYear = era ? parseInt(era.replace('s+', '').replace('s', '')) : undefined
+      const spun = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', eraYear)
+      markSeasonSpun(spun.id)
+      runBenchSpinAnimation(spun)
+    } catch {
+      setBenchPhase('idle')
+    }
+  }
+
+  function handleBenchPick(p: PlayerRow) {
+    if (!benchSpin) return
+    addBenchPlayer({
+      playerId: p.id, playerSeasonId: `${p.id}_${benchSpin.year_start}`, name: p.name,
+      nationality: p.nationality, primaryPosition: p.primary_position as any,
+      secondaryPositions: (() => { try { return JSON.parse(p.secondary_positions ?? '[]') } catch { return [] } })(),
+      ovr: p.ovr, attack: p.attack, isBench: true,
+      clubName: benchSpin.club_name, season: `${benchSpin.year_start}/${String(benchSpin.year_start + 1).slice(-2)}`,
+      slotIndex: 11 + benchPlayers.length, isIcon: p.is_icon === 1,
+      birthYear: p.birth_year ?? null, yearStart: benchSpin.year_start,
+    })
+    setBenchPhase('idle'); setBenchSpin(null); setBenchSpinDisplay(null); setBenchSquad([]); setBenchFact(null)
+  }
+
+  // Can this bench player relocate into the starting XI at all?
+  function canBenchRelocate(p: DraftedPlayer): boolean {
+    return slots.some(s => positionPenalty(p.primaryPosition, s.primary) !== null)
+  }
+
+  function handleBenchSwap(sub: DraftedPlayer, starterSlotIndex: number) {
+    setSlots(prev => prev.map((s, i) =>
+      i === starterSlotIndex ? { ...s, filledBy: { ...sub, isBench: false, slotIndex: starterSlotIndex } } : s
+    ))
+    swapBenchAndStarter(sub.playerId, starterSlotIndex)
+    setMovingPlayer(null)
+  }
 
   const [slots,         setSlots]         = useState<PositionSlot[]>([])
   const [pool,          setPool]          = useState<ClubSeasonRow[]>([])
@@ -99,6 +189,7 @@ export default function DraftScreen() {
       primaryPosition:    selectedPlayer.primary_position as any,
       secondaryPositions: JSON.parse(selectedPlayer.secondary_positions ?? '[]'),
       ovr:                selectedPlayer.ovr,
+      attack:             selectedPlayer.attack,
       clubName:           currentSpin.club_name,
       season:             `${currentSpin.year_start}/${String(currentSpin.year_start + 1).slice(-2)}`,
       slotIndex:          slot.slotIndex,
@@ -141,12 +232,15 @@ export default function DraftScreen() {
   // Can this player relocate at all — to an open compatible slot, or a swap where
   // both players can cover each other's position?
   function canRelocate(p: DraftedPlayer): boolean {
-    return slots.some(s => {
+    const slotSwap = slots.some(s => {
       if (s.slotIndex === p.slotIndex) return false
       if (positionPenalty(p.primaryPosition, s.primary) === null) return false
       if (s.filledBy) return positionPenalty(s.filledBy.primaryPosition, slots[p.slotIndex].primary) !== null
       return true
     })
+    if (slotSwap) return true
+    // Or: bring on a compatible sub in this player's place.
+    return benchPlayers.some(b => positionPenalty(b.primaryPosition, slots[p.slotIndex].primary) !== null)
   }
   function runSpinAnimation(finalSpin: ClubSeasonRow) {
     // rapid cycling through random clubs for slot machine effect
@@ -432,22 +526,33 @@ export default function DraftScreen() {
         </View>
       )}
 
-      {/* move picker — relocate to an open slot, or swap with a compatible player */}
+      {/* move picker — relocate to an open slot, swap with a compatible starter,
+          or bring on / send off a substitute */}
       {movingPlayer && (() => {
-        const fromSlot = slots[movingPlayer.slotIndex]
-        // Eligible targets: other slots this player can fill, where if occupied the
-        // current occupant can also cover the moving player's slot (a valid swap).
-        const targets = slots.filter(s => {
-          if (s.slotIndex === movingPlayer.slotIndex) return false
-          if (positionPenalty(movingPlayer.primaryPosition, s.primary) === null) return false
-          if (s.filledBy) return positionPenalty(s.filledBy.primaryPosition, fromSlot.primary) !== null
-          return true
-        })
+        const isBenchMove = !!movingPlayer.isBench
+        const fromSlot = isBenchMove ? null : slots[movingPlayer.slotIndex]
+
+        // A bench player moving IN: any XI slot it can play (always displaces
+        // whoever's there — no reciprocal check needed since they head to the bench).
+        const slotTargets = isBenchMove
+          ? slots.filter(s => positionPenalty(movingPlayer.primaryPosition, s.primary) !== null)
+          : slots.filter(s => {
+              if (s.slotIndex === movingPlayer.slotIndex) return false
+              if (positionPenalty(movingPlayer.primaryPosition, s.primary) === null) return false
+              if (s.filledBy) return positionPenalty(s.filledBy.primaryPosition, fromSlot!.primary) !== null
+              return true
+            })
+
+        // A starter moving OUT: which subs could come on in their place.
+        const benchTargets = isBenchMove ? [] : benchPlayers.filter(b =>
+          positionPenalty(b.primaryPosition, fromSlot!.primary) !== null
+        )
+
         return (
         <View style={styles.topModalOverlay}>
           <View style={styles.topModalCard}>
             <Text style={styles.modalTitle}>
-              Move {movingPlayer.name.split(' ').slice(-1)[0]} to…
+              {isBenchMove ? `Bring on ${movingPlayer.name.split(' ').slice(-1)[0]} at…` : `Move ${movingPlayer.name.split(' ').slice(-1)[0]} to…`}
             </Text>
             <Text style={styles.modalSubtitle}>
               {movingPlayer.primaryPosition}
@@ -456,7 +561,7 @@ export default function DraftScreen() {
                 : ''}
             </Text>
             <View style={styles.modalSlots}>
-              {targets.map(slot => {
+              {slotTargets.map(slot => {
                 const pen = positionPenalty(movingPlayer.primaryPosition, slot.primary)!
                 const ovrThere = Math.max(40, movingPlayer.ovr - pen)
                 const occ = slot.filledBy
@@ -464,7 +569,7 @@ export default function DraftScreen() {
                   <Pressable
                     key={slot.slotIndex}
                     style={[styles.slotOption, styles.slotOptionAvailable]}
-                    onPress={() => handleMovePlayer(slot)}
+                    onPress={() => isBenchMove ? handleBenchSwap(movingPlayer, slot.slotIndex) : handleMovePlayer(slot)}
                   >
                     <View style={[styles.slotOptionBadge, { backgroundColor: (colors.positions as any)[slot.primary] + '33' }]}>
                       <Text style={[styles.slotOptionBadgeText, { color: (colors.positions as any)[slot.primary] }]}>{slot.label}</Text>
@@ -475,10 +580,31 @@ export default function DraftScreen() {
                   </Pressable>
                 )
               })}
-              {targets.length === 0 && (
+              {slotTargets.length === 0 && (
                 <Text style={styles.noSlotText}>No slots to move or swap this player into.</Text>
               )}
             </View>
+
+            {!isBenchMove && benchTargets.length > 0 && (
+              <>
+                <Text style={[styles.modalSubtitle, { marginTop: spacing.md }]}>Or bring on from the bench</Text>
+                <View style={styles.modalSlots}>
+                  {benchTargets.map(sub => (
+                    <Pressable
+                      key={sub.playerId}
+                      style={[styles.slotOption, styles.slotOptionAvailable]}
+                      onPress={() => handleBenchSwap(sub, movingPlayer.slotIndex)}
+                    >
+                      <View style={[styles.slotOptionBadge, { backgroundColor: colors.warning + '33' }]}>
+                        <Text style={[styles.slotOptionBadgeText, { color: colors.warning }]}>SUB</Text>
+                      </View>
+                      <Text style={styles.slotSwap} numberOfLines={1}>{sub.name.split(' ').slice(-1)[0]}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+
             <Pressable style={styles.modalCancel} onPress={() => setMovingPlayer(null)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
             </Pressable>
@@ -616,6 +742,31 @@ export default function DraftScreen() {
                 </View>
               )
             })}
+
+            {/* your bench — drafted subs, separate from the XI above */}
+            {benchPlayers.length > 0 && (
+              <>
+                <Text style={styles.benchSectionTitle}>Bench</Text>
+                {benchPlayers.map((player, i) => {
+                  const canMove = canBenchRelocate(player)
+                  return (
+                    <View key={i} style={[styles.draftedRow, styles.benchRow]}>
+                      <View style={[styles.draftedPosBadge, { backgroundColor: (colors.positions as any)[player.primaryPosition] + '22' }]}>
+                        <Text style={[styles.draftedPosText, { color: (colors.positions as any)[player.primaryPosition] }]}>{player.primaryPosition}</Text>
+                      </View>
+                      <Text style={styles.draftedName}>{player.name}</Text>
+                      <Text style={styles.draftedClub}>{player.clubName}</Text>
+                      {!ratingsHidden && <Text style={styles.draftedOvr}>{player.ovr}</Text>}
+                      {canMove && (
+                        <Pressable style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
+                          <Text style={[styles.moveBtnText, { color: theme.accent }]}>MOVE</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )
+                })}
+              </>
+            )}
           </View>
         )}
 
@@ -761,7 +912,101 @@ export default function DraftScreen() {
         )}
 
         {/* done state */}
-        {phase === 'done' && (
+        {phase === 'done' && benchNeeded > 0 && (
+          <View style={styles.doneZone}>
+            <Text style={styles.doneEmoji}>🪑</Text>
+            <Text style={styles.doneTitle}>Draft Your Bench</Text>
+            <Text style={styles.doneSub}>
+              {benchPlayers.length}/{BENCH_SIZE} subs drafted — {benchNeeded} more to go.
+              Subs get real minutes off the bench, at reduced odds to score or assist.
+            </Text>
+
+            {/* spin zone — identical slot-machine feel to the starting-XI spin */}
+            {benchPhase === 'idle' && (
+              <Pressable style={[styles.continueBtn, { backgroundColor: theme.accent }]} onPress={handleBenchSpin}>
+                <Text style={styles.continueBtnText}>SPIN FOR A SUB →</Text>
+              </Pressable>
+            )}
+            {benchPhase === 'spinning' && benchSpinDisplay && (
+              <View style={[styles.spinCard, styles.benchStretch]}>
+                {mode === 'world_cup' && flagForCountry(benchSpinDisplay.club_name)
+                  ? <Text style={{ fontSize: 44, lineHeight: 54, textAlign: 'center' }}>{flagForCountry(benchSpinDisplay.club_name)}</Text> : null}
+                <Text style={styles.spinClubName}>{benchSpinDisplay.club_name}</Text>
+                {mode !== 'world_cup' && (
+                  <Text style={styles.spinSeason}>
+                    {benchSpinDisplay.year_start}/{String(benchSpinDisplay.year_start + 1).slice(-2)}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* picking phase — same club header + rich player cards as the XI draft.
+                alignSelf: 'stretch' on every level here matters: doneZone centers its
+                children (alignItems: 'center'), so without it these would shrink-wrap
+                to content width instead of filling the card — which is exactly what
+                squished the flag/name text into a single narrow column before. */}
+            {benchPhase === 'picking' && benchSpin && (
+              <Animated.View style={[
+                styles.pickingZone, styles.benchStretch,
+                { opacity: benchFadeAnim, transform: [{ scale: benchScaleAnim }] },
+              ]}>
+                <View style={styles.clubHeader}>
+                  {mode === 'world_cup' && flagForCountry(benchSpin.club_name)
+                    ? <Text style={{ fontSize: 26, lineHeight: 34, paddingLeft: spacing.md, paddingVertical: spacing.md }}>{flagForCountry(benchSpin.club_name)}</Text>
+                    : <View style={[styles.clubColorBar, { backgroundColor: benchSpin.primary_color ?? colors.accent }]} />}
+                  <View style={styles.clubHeaderInfo}>
+                    <Text style={styles.clubName}>{benchSpin.club_name}</Text>
+                    {mode !== 'world_cup' && (
+                      <Text style={styles.clubSeason}>
+                        {benchSpin.year_start}/{String(benchSpin.year_start + 1).slice(-2)}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                {benchFact && (
+                  <View style={styles.factBox}>
+                    <Text style={styles.factLabel}>Did you know?</Text>
+                    <Text style={styles.factText}>{benchFact}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.pickingLabel}>Pick your sub</Text>
+
+                <ScrollView style={styles.benchPlayerScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+                <View style={styles.playerList}>
+                  {[...benchSquad].sort((a, b) => b.ovr - a.ovr).map(player => (
+                    <Pressable key={player.id} style={styles.playerCard} onPress={() => handleBenchPick(player)}>
+                      <View style={styles.playerCardLeft}>
+                        <View style={[styles.positionBadge, { backgroundColor: (colors.positions as any)[player.primary_position] + '33' }]}>
+                          <Text style={[styles.positionBadgeText, { color: (colors.positions as any)[player.primary_position] }]}>{player.primary_position}</Text>
+                        </View>
+                        <View style={{ flexShrink: 1 }}>
+                          <Text style={styles.playerName} numberOfLines={1}>{player.name}</Text>
+                          <Text style={styles.playerNationality}>{player.nationality}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.playerCardRight}>
+                        {!ratingsHidden && (
+                          <View style={styles.ovrBadge}>
+                            <Text style={styles.ovrBadgeText}>{player.ovr}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+                </ScrollView>
+              </Animated.View>
+            )}
+
+            <Pressable style={styles.skipBenchBtn} onPress={() => useGameStore.setState({ useSubstitutes: false, benchPlayers: [] })}>
+              <Text style={styles.skipBenchText}>Skip — play with no bench this run</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {phase === 'done' && benchNeeded === 0 && (
           <View style={styles.doneZone}>
             <Text style={styles.doneEmoji}>✅</Text>
             <Text style={styles.doneTitle}>Squad Complete</Text>
@@ -1171,6 +1416,11 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     borderColor:     colors.border,
   },
+  benchSectionTitle: {
+    fontSize: typography.xs, fontWeight: typography.black, color: colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.sm,
+  },
+  benchRow: { borderStyle: 'dashed', opacity: 0.9 },
   draftedPosBadge: {
     borderRadius:      radius.sm,
     paddingHorizontal: spacing.sm,
@@ -1222,6 +1472,11 @@ const styles = StyleSheet.create({
     gap:             spacing.md,
     ...shadows.md,
   },
+  // doneZone centers its children by content width — this forces the spin
+  // card / picking zone to fill it instead, which is what the main draft gets
+  // for free from its ScrollView's default full-width layout.
+  benchStretch: { alignSelf: 'stretch', width: '100%' },
+  benchPlayerScroll: { alignSelf: 'stretch', width: '100%', maxHeight: 420 },
   doneEmoji: {
     fontSize: 48,
   },
@@ -1235,6 +1490,8 @@ const styles = StyleSheet.create({
     color:     colors.textSecondary,
     textAlign: 'center',
   },
+  skipBenchBtn: { marginTop: spacing.xs, paddingVertical: spacing.sm },
+  skipBenchText: { fontSize: typography.xs, color: colors.textMuted, textDecorationLine: 'underline' },
   continueBtn: {
     backgroundColor: colors.accent,
     borderRadius:    radius.md,

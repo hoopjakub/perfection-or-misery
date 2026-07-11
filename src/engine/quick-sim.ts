@@ -72,6 +72,7 @@ function toDrafted(p: PlayerRow, slotIndex: number): DraftedPlayer {
     primaryPosition:  p.primary_position as any,
     secondaryPositions: secondary as any,
     ovr:              p.ovr,
+    attack:           p.attack,
     clubName:         p.club_name,
     season:           `${yy}/${String(p.year_start + 1).slice(-2)}`,
     slotIndex,

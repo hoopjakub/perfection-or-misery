@@ -86,6 +86,10 @@ export default function HomeScreen() {
           <Text style={styles.startBtnText}>START RUN</Text>
         </Pressable>
 
+        <Pressable onPress={() => router.push('/(tabs)/how-to-play')} style={styles.howToPlayLink}>
+          <Text style={styles.howToPlayLinkText}>How to play</Text>
+        </Pressable>
+
         {/* best run teaser */}
         {loading ? (
           <View style={styles.statsRow}>
@@ -229,6 +233,16 @@ const styles = StyleSheet.create({
     fontWeight:    typography.black,
     color:         colors.textPrimary,
     letterSpacing: 3,
+  },
+  howToPlayLink: {
+    alignSelf:    'center',
+    marginBottom: spacing.md,
+    paddingVertical: 2,
+  },
+  howToPlayLinkText: {
+    fontSize:  10,
+    color:     colors.textMuted,
+    textDecorationLine: 'underline',
   },
   statsRow: {
     flexDirection:     'row',

@@ -11,9 +11,10 @@ import type { DraftedPlayer, Formation, PositionSlot } from '@/types/game'
 // double pivot + AM band, a 3-4-3's wing-backs, etc. actually look distinct
 // from each other instead of every formation collapsing into the same
 // generic attack/mid/defense/GK bucketing.
-export function LineupPitch({ formation, draftedPlayers, title }: {
+export function LineupPitch({ formation, draftedPlayers, benchPlayers, title }: {
   formation: Formation
   draftedPlayers: DraftedPlayer[]
+  benchPlayers?: DraftedPlayer[]
   title?: string
 }) {
   const slots = getSlotsForFormation(formation)
@@ -60,6 +61,25 @@ export function LineupPitch({ formation, draftedPlayers, title }: {
       <View style={styles.pitch}>
         {rows.map((row, i) => renderRow(row, i))}
       </View>
+      {benchPlayers && benchPlayers.length > 0 && (
+        <View style={styles.benchBox}>
+          <Text style={styles.benchTitle}>Bench</Text>
+          <View style={styles.benchRow}>
+            {benchPlayers.map((p, i) => {
+              const color = (colors.positions as any)[p.primaryPosition] ?? colors.accent
+              return (
+                <View key={i} style={styles.benchPlayer}>
+                  <View style={[styles.posIndicator, { backgroundColor: color }]}>
+                    <Text style={styles.posText}>{p.primaryPosition}</Text>
+                  </View>
+                  <Text style={styles.playerNameText} numberOfLines={1}>{p.name.split(' ').slice(-1)[0]}</Text>
+                  <Text style={styles.playerOvrText}>{p.ovr}</Text>
+                </View>
+              )
+            })}
+          </View>
+        </View>
+      )}
     </View>
   )
 }
@@ -74,4 +94,8 @@ const styles = StyleSheet.create({
   posText: { fontSize: 8, fontWeight: typography.black, color: colors.bg },
   playerNameText: { fontSize: typography.xs, fontWeight: typography.medium, color: colors.textPrimary, textAlign: 'center' },
   playerOvrText: { fontSize: 10, fontWeight: typography.bold, color: colors.textSecondary },
+  benchBox: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', padding: spacing.md, gap: spacing.sm },
+  benchTitle: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  benchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, justifyContent: 'center' },
+  benchPlayer: { alignItems: 'center', width: 60 },
 })

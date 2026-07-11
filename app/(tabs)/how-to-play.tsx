@@ -51,6 +51,21 @@ export default function HowToPlayScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Substitutes</Text>
+          <Text style={styles.content}>
+            Once your 11 are set, spin for up to 5 subs — same spin-a-club-then-pick flow as the
+            starting XI. Your bench shows up in "Your Squad" alongside the XI, and you can MOVE a sub
+            into any compatible starting slot (and send that starter to the bench) right from the draft
+            screen.{'\n\n'}
+            Subs only come off the bench from the 60th minute onward, and even then score and assist at
+            reduced odds compared to a player who started — a small orange <Text style={styles.bold}>SUB</Text> tag
+            marks their goals and assists wherever they show up, for every team, not just yours.{'\n\n'}
+            Don't want a bench this run? Skip it — you (and every AI opponent) will simply play with no
+            substitutes at all, so nobody gets an unfair edge either way.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Placement</Text>
           <Text style={styles.content}>
             After drafting, a spinning globe reveals where you land — the country lights up as it

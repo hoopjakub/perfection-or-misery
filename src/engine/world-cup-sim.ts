@@ -28,8 +28,11 @@ export type WCKnockoutMatch = {
   result:  KnockoutResult
   winner:  WCTeam
   scorers?: MatchScorers   // attributed once, stored
-  penKicksHome?: PenKick[] // shootout sequence, stored for the result screen
-  penKicksAway?: PenKick[]
+  // Named shootout sequence, stored for the result screen — penKicksA/B (not
+  // Home/Away) to match CLKnockoutMatch's naming, since every knockout tie
+  // across modes now shares one attach-kicker-names helper (run-stats.ts).
+  penKicksA?: PenKick[]
+  penKicksB?: PenKick[]
 }
 
 // A single group-stage fixture result, recorded for the results screen.

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useModeTheme } from '@/hooks/useModeTheme'
@@ -14,7 +14,8 @@ type Tab = 'scorers' | 'assists' | 'clean'
 const YOUR_TINT = 'rgba(255,255,255,0.06)'   // light white tint for your players
 
 export default function StatsScreen() {
-  const { simResult, draftedPlayers, placedLeague, mode, clResult, wcResult, customUclQual } = useGameStore()
+  const { simResult, draftedPlayers, benchPlayers, useSubstitutes, placedLeague, mode, clResult, wcResult, customUclQual } = useGameStore()
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
   const theme = useModeTheme()
   const params = useLocalSearchParams<{ runId?: string }>()
 
@@ -24,6 +25,7 @@ export default function StatsScreen() {
   const [tab, setTab]         = useState<Tab>('scorers')
   const [query, setQuery]     = useState('')
   const [rulesOpen, setRulesOpen] = useState(false)
+  const [openTeamId, setOpenTeamId] = useState<string | null>(null)
 
   useEffect(() => {
     async function go() {
@@ -36,10 +38,10 @@ export default function StatsScreen() {
         }
         // Fresh run — compute from the live result in store.
         let res = null
-        if (mode === 'champions_league_custom' && clResult) res = await computeCLRunStats(clResult, draftedPlayers, 2025, customUclQual?.ties)
-        else if (mode === 'champions_league' && clResult)   res = await computeCLRunStats(clResult, draftedPlayers)
-        else if (mode === 'world_cup' && wcResult)         res = await computeWCRunStats(wcResult, draftedPlayers)
-        else if (simResult && placedLeague)                res = await computeLeagueRunStats(simResult, draftedPlayers, placedLeague)
+        if (mode === 'champions_league_custom' && clResult) res = await computeCLRunStats(clResult, fullSquad, 2025, customUclQual?.ties, useSubstitutes)
+        else if (mode === 'champions_league' && clResult)   res = await computeCLRunStats(clResult, fullSquad, undefined, undefined, useSubstitutes)
+        else if (mode === 'world_cup' && wcResult)         res = await computeWCRunStats(wcResult, fullSquad, undefined, useSubstitutes)
+        else if (simResult && placedLeague)                res = await computeLeagueRunStats(simResult, fullSquad, placedLeague, useSubstitutes)
         if (res) { setStats(res.stats); setAwards(res.awards) }
       } catch (e) {
         console.warn('[stats] compute failed:', e)
@@ -170,13 +172,13 @@ export default function StatsScreen() {
           {/* Scrolls like the player leaderboards — the custom UCL fields 90+ clubs. */}
           <ScrollView style={styles.listScroll} nestedScrollEnabled showsVerticalScrollIndicator>
             {[...teams].sort((a, b) => b.goalsFor - a.goalsFor).map(t => (
-              <View key={t.clubId} style={styles.row}>
+              <Pressable key={t.clubId} style={styles.row} onPress={() => setOpenTeamId(t.clubId)}>
                 <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={styles.name} containerStyle={styles.teamName} size={15} />
                 <Text style={styles.teamCol}>{t.goalsFor}</Text><Text style={styles.teamCol}>{t.goalsAgainst}</Text><Text style={styles.teamCol}>{t.cleanSheets}</Text>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
-          <Text style={styles.listCount}>{teams.length} clubs</Text>
+          <Text style={styles.listCount}>{teams.length} clubs · tap one to see its squad</Text>
         </View>
 
         {/* Your players */}
@@ -189,7 +191,9 @@ export default function StatsScreen() {
           {yourPlayers.map(p => (
             <View key={p.playerId} style={[styles.row, { backgroundColor: YOUR_TINT, borderRadius: radius.sm }]}>
               <View style={styles.teamName}>
-                <Text style={[styles.name, { color: theme.accent }]} numberOfLines={1}>{p.name}</Text>
+                <Text style={[styles.name, { color: theme.accent }]} numberOfLines={1}>
+                  {p.name}{p.isBench && <Text style={styles.subTag}> SUB</Text>}
+                </Text>
                 <Text style={styles.posTag}>{p.position} · {p.seasonLabel}</Text>
               </View>
               <Text style={styles.yc}>{p.goals}</Text><Text style={styles.yc}>{p.assists}</Text><Text style={styles.yc}>{p.cleanSheets}</Text><Text style={styles.yc}>{p.matchesPlayed ?? '—'}</Text>
@@ -205,9 +209,85 @@ export default function StatsScreen() {
         )}
       </ScrollView>
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} accent={theme.accent} />
+      <TeamRosterModal
+        team={teams.find(t => t.clubId === openTeamId) ?? null}
+        players={openTeamId ? players.filter(p => p.clubId === openTeamId) : []}
+        accent={theme.accent}
+        onClose={() => setOpenTeamId(null)}
+      />
     </View>
   )
 }
+
+// Opposing-team roster viewer — tap any team in Team Stats to see every one
+// of their players and individual stats for this run, same data source as
+// the leaderboards above (CompetitionStats.players), just filtered by club.
+function TeamRosterModal({ team, players, accent, onClose }: {
+  team: { clubId: string; clubName: string; goalsFor: number; goalsAgainst: number; cleanSheets: number } | null
+  players: PlayerStatLine[]
+  accent: string
+  onClose: () => void
+}) {
+  const sorted = [...players].sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.name.localeCompare(b.name))
+  return (
+    <Modal visible={team !== null} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={modalStyles.overlay} onPress={onClose}>
+        <Pressable style={modalStyles.card} onPress={() => {}}>
+          {team && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <TeamLabel clubId={team.clubId} name={team.clubName} textStyle={modalStyles.title} size={20} />
+              </View>
+              <Text style={modalStyles.subtitle}>
+                {team.goalsFor} scored · {team.goalsAgainst} conceded · {team.cleanSheets} clean sheets
+              </Text>
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                <View style={modalStyles.head}>
+                  <Text style={[modalStyles.col, modalStyles.nameCol]}>Player</Text>
+                  <Text style={modalStyles.col}>G</Text><Text style={modalStyles.col}>A</Text><Text style={modalStyles.col}>CS</Text>
+                </View>
+                {sorted.map(p => (
+                  <View key={p.playerId} style={[modalStyles.row, p.isPlayerClub && { backgroundColor: accent + '15' }]}>
+                    <View style={modalStyles.nameCol}>
+                      <Text style={[modalStyles.name, p.isPlayerClub && { color: accent }]} numberOfLines={1}>
+                        {p.name}{p.isBench && <Text style={modalStyles.subTag}> SUB</Text>}
+                      </Text>
+                      <Text style={modalStyles.pos}>{p.position}</Text>
+                    </View>
+                    <Text style={modalStyles.col}>{p.goals}</Text>
+                    <Text style={modalStyles.col}>{p.assists}</Text>
+                    <Text style={modalStyles.col}>{p.cleanSheets}</Text>
+                  </View>
+                ))}
+                {sorted.length === 0 && <Text style={modalStyles.empty}>No squad data for this club.</Text>}
+              </ScrollView>
+            </>
+          )}
+          <Pressable style={[modalStyles.closeBtn, { borderColor: accent }]} onPress={onClose}>
+            <Text style={[modalStyles.closeText, { color: accent }]}>Close</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
+
+const modalStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  card: { width: '100%', maxHeight: '80%', backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
+  title: { fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary },
+  subtitle: { fontSize: typography.xs, color: colors.textMuted, marginBottom: spacing.sm },
+  head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
+  nameCol: { flex: 1 },
+  col: { width: 28, fontSize: typography.xs, color: colors.textSecondary, textAlign: 'center', fontWeight: typography.bold },
+  name: { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.medium },
+  pos: { fontSize: 10, color: colors.textMuted },
+  subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
+  empty: { fontSize: typography.sm, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
+  closeBtn: { marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center' },
+  closeText: { fontSize: typography.md, fontWeight: typography.bold },
+})
 
 function RankChip({ label, val, rank, rankOnly }: { label: string; val?: number; rank?: number; rankOnly?: boolean }) {
   return (
@@ -301,6 +381,7 @@ const styles = StyleSheet.create({
   yourHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
   yc: { width: 30, textAlign: 'center', fontSize: typography.sm, color: colors.textSecondary },
   posTag: { fontSize: 10, color: colors.textMuted },
+  subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
   rulesBtn: { alignSelf: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgElevated },
   rulesBtnText: { fontSize: typography.xs, color: colors.textSecondary, fontWeight: typography.bold },
 })

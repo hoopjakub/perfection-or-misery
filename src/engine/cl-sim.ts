@@ -82,19 +82,158 @@ export function buildCLTeams(
   return teams
 }
 
-// 8-round partial round-robin using the circle method
-export function generateCLLeagueFixtures(
-  teams: CLTeam[]
-): { matchday: number; home: CLTeam; away: CLTeam }[] {
+type CLFixture = { home: CLTeam; away: CLTeam }
+
+// Every team plays exactly 2 opponents from EACH pot (1 home, 1 away) — the
+// real UEFA league-phase rule. A plain round-robin rotation (the old approach)
+// ignores pots entirely, so who you actually played bore no relation to the
+// pot badges shown on the fixture list.
+//
+// Home/away balance within a group of teams is just a consistent rotational
+// orientation of a cycle: team i always hosts its cyclic successor and visits
+// its predecessor. That gives every team exactly one home + one away leg
+// against that group, for any single cycle.
+//
+// Scheduling into rounds is a separate concern: an ODD-length cycle (a 9-team
+// pot, the normal UCL case) can't be split cleanly into 2 conflict-free
+// rounds — a 9-cycle's 9 edges need at least 3 rounds since no matching in an
+// odd cycle covers more than 4 of its 9 vertices at once. Splitting the group
+// into one EVEN sub-cycle (which slots into exactly 2 rounds) plus one small
+// ODD sub-cycle (the unavoidable leftover, kept as small as possible) makes
+// the whole schedule vastly easier to pack into 8 rounds.
+function cycleFixtures(group: CLTeam[]): CLFixture[] {
+  const n = group.length
+  const out: CLFixture[] = []
+  for (let i = 0; i < n; i++) out.push({ home: group[i], away: group[(i + 1) % n] })
+  return out
+}
+
+function samePotFixtures(pot: CLTeam[]): CLFixture[] {
+  const n = pot.length
+  if (n < 2) return []
+  if (n === 2) return [{ home: pot[0], away: pot[1] }, { home: pot[1], away: pot[0] }]
+  if (n % 2 === 0) return cycleFixtures(pot)
+  // Odd group — split off the smallest possible odd cycle (a triangle) and
+  // cycle the even remainder cleanly.
+  const triangle = pot.slice(0, 3)
+  const rest = pot.slice(3)
+  return [...cycleFixtures(triangle), ...(rest.length >= 2 ? cycleFixtures(rest) : [])]
+}
+
+// Cross-pot: two offset-based bijections between potA and potB. Matching 1
+// (offset 0) always has potA hosting; matching 2 (offset ≈ half the pot)
+// always has potB hosting. Distinct, nonzero offsets guarantee each side's
+// two opponents from the other pot are different clubs.
+function crossPotFixtures(potA: CLTeam[], potB: CLTeam[]): CLFixture[] {
+  const nA = potA.length, nB = potB.length
+  if (nA === 0 || nB === 0) return []
+  const shift = nB > 1 ? Math.max(1, Math.floor(nB / 2)) : 0
+  const out: CLFixture[] = []
+  for (let i = 0; i < nA; i++) {
+    const opp1 = potB[i % nB]
+    out.push({ home: potA[i], away: opp1 })
+    if (nB > 1) {
+      const opp2 = potB[(i + shift) % nB]
+      out.push({ home: opp2, away: potA[i] })
+    } else {
+      out.push({ home: opp1, away: potA[i] })   // single-team pot — play them twice, once each venue
+    }
+  }
+  return out
+}
+
+function shuffled<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// Packing an 8-regular graph's 144 edges into 8 conflict-free rounds is a
+// proper edge-colouring problem. Global backtracking over all 144 edges at
+// once (try every edge, undo on failure) never finishes in reasonable time —
+// the search space is too big without real pruning. What actually works: pull
+// off ONE round at a time as a maximum (ideally perfect) matching of
+// whichever edges remain, using most-constrained-team-first ordering — a much
+// smaller search per round, and each successfully-found round shrinks the
+// remaining graph for the next one.
+function findRoundMatching(pool: CLFixture[], teamIds: string[], stepBudget: number): CLFixture[] | null {
+  const byTeam = new Map<string, CLFixture[]>()
+  for (const id of teamIds) byTeam.set(id, [])
+  for (const fx of pool) {
+    byTeam.get(fx.home.clubId)?.push(fx)
+    byTeam.get(fx.away.clubId)?.push(fx)
+  }
+  const usedTeam = new Set<string>()
+  const usedFixture = new Set<CLFixture>()
+  const result: CLFixture[] = []
+  let steps = 0
+
+  function otherSide(fx: CLFixture, team: string): string {
+    return fx.home.clubId === team ? fx.away.clubId : fx.home.clubId
+  }
+  function optionsFor(team: string): CLFixture[] {
+    return (byTeam.get(team) ?? []).filter(fx => !usedFixture.has(fx) && !usedTeam.has(otherSide(fx, team)))
+  }
+  // Most-constrained-first: always branch on the team with the fewest
+  // remaining valid opponents — standard CSP ordering, drastically prunes the
+  // search versus a fixed/random team order.
+  function pickTeam(): string | null {
+    let best: string | null = null, bestCount = Infinity
+    for (const id of teamIds) {
+      if (usedTeam.has(id)) continue
+      const n = optionsFor(id).length
+      if (n < bestCount) { bestCount = n; best = id; if (n === 0) break }
+    }
+    return best
+  }
+
+  function backtrack(): boolean {
+    if (++steps > stepBudget) return false
+    const team = pickTeam()
+    if (team === null) return usedTeam.size === teamIds.length
+    const options = shuffled(optionsFor(team))
+    if (options.length === 0) return false
+    for (const fx of options) {
+      const other = otherSide(fx, team)
+      usedTeam.add(team); usedTeam.add(other); usedFixture.add(fx); result.push(fx)
+      if (backtrack()) return true
+      usedTeam.delete(team); usedTeam.delete(other); usedFixture.delete(fx); result.pop()
+    }
+    return false
+  }
+
+  if (backtrack()) return result
+  return null
+}
+
+function scheduleIntoRounds(fixtures: CLFixture[], teams: CLTeam[], rounds: number): CLFixture[][] | null {
+  const teamIds = teams.map(t => t.clubId)
+  let remaining = fixtures
+  const out: CLFixture[][] = []
+  for (let r = 0; r < rounds; r++) {
+    const matching = findRoundMatching(remaining, teamIds, 50_000)
+    if (!matching) return null
+    out.push(matching)
+    const used = new Set(matching)
+    remaining = remaining.filter(fx => !used.has(fx))
+  }
+  return remaining.length === 0 ? out : null
+}
+
+// Old plain round-robin rotation — kept only as a last-resort fallback if the
+// pot-aware scheduler somehow can't pack every fixture into 8 conflict-free
+// rounds (shouldn't happen for a normal 36-team/4-pot field).
+function legacyRotationFixtures(teams: CLTeam[]): { matchday: number; home: CLTeam; away: CLTeam }[] {
   const list = [...teams]
   if (list.length % 2 !== 0) list.push({ clubId: '__bye__' } as CLTeam)
-
   const n = list.length
   const half = n / 2
   const fixed = list[0]
   const rotating = list.slice(1)
   const fixtures: { matchday: number; home: CLTeam; away: CLTeam }[] = []
-
   for (let round = 0; round < 8; round++) {
     const roundTeams = [fixed, ...rotating]
     for (let i = 0; i < half; i++) {
@@ -105,8 +244,34 @@ export function generateCLLeagueFixtures(
     }
     rotating.unshift(rotating.pop()!)
   }
-
   return fixtures
+}
+
+export function generateCLLeagueFixtures(
+  teams: CLTeam[]
+): { matchday: number; home: CLTeam; away: CLTeam }[] {
+  const pots: Record<number, CLTeam[]> = { 1: [], 2: [], 3: [], 4: [] }
+  for (const t of teams) (pots[t.pot] ??= []).push(t)
+  const potIds = [1, 2, 3, 4].filter(p => pots[p].length > 0)
+
+  const fixtures: CLFixture[] = []
+  for (const p of potIds) fixtures.push(...samePotFixtures(pots[p]))
+  for (let i = 0; i < potIds.length; i++)
+    for (let j = i + 1; j < potIds.length; j++)
+      fixtures.push(...crossPotFixtures(pots[potIds[i]], pots[potIds[j]]))
+
+  // Pack into 8 conflict-free rounds, retried with a fresh shuffle if a
+  // particular attempt's round-by-round matching search dead-ends.
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const rounds = scheduleIntoRounds(fixtures, teams, 8)
+    if (rounds) {
+      const out: { matchday: number; home: CLTeam; away: CLTeam }[] = []
+      rounds.forEach((round, idx) => round.forEach(fx => out.push({ matchday: idx + 1, home: fx.home, away: fx.away })))
+      return out
+    }
+  }
+
+  return legacyRotationFixtures(teams)
 }
 
 // Runs the knockout phase after the league phase matchdays are done.

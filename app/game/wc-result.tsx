@@ -4,12 +4,13 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveWCRun, fetchRunById } from '@/db/queries/runs'
-import { computeWCRunStats, summariseScorers } from '@/engine/run-stats'
+import { computeWCRunStats, summariseScorers, attachWCShootoutNames } from '@/engine/run-stats'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
 import { PenShootout } from '@/components/PenShootout'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
+import type { DraftedPlayer } from '@/types/game'
 import { TeamLabel } from '@/components/TeamLabel'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
@@ -63,7 +64,8 @@ function sortGroupTeams(a: WCTeam, b: WCTeam): number {
 
 export default function WCResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, quickSim } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
   const fromHistory = !!params.runId
@@ -104,7 +106,7 @@ export default function WCResultScreen() {
   // Squad stats (fresh runs only — needs the live drafted XI).
   useEffect(() => {
     if (fromHistory || !store.wcResult || draftedPlayers.length === 0) return
-    computeWCRunStats(store.wcResult, draftedPlayers)
+    computeWCRunStats(store.wcResult, fullSquad, undefined, store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[wc-result] stats failed:', e))
   }, [])
@@ -178,7 +180,7 @@ export default function WCResultScreen() {
           formation,
           teamOvr: playerTeam.ovr,
           result: wcResult!,
-          squad: draftedPlayers,
+          squad: fullSquad,
           stats: runStats?.stats,
           awards: runStats?.awards,
         })
@@ -241,11 +243,12 @@ export default function WCResultScreen() {
       {/* Lineup + squad — live run or rehydrated from a saved one */}
       {(() => {
         const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
         const st    = runStats?.stats ?? dbRun?.stats ?? null
         return (
           <>
-            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} title="Your Lineup" />}
+            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
             {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={WC.accent} runId={params.runId} />}
           </>
         )
@@ -413,7 +416,11 @@ export default function WCResultScreen() {
         matches={openGroup ? groupMatchdays.filter(m => m.groupId === openGroup) : []}
         onClose={() => setOpenGroup(null)}
       />
-      <KOMatchModal match={openKO} onClose={() => setOpenKO(null)} />
+      <KOMatchModal
+        match={openKO} onClose={() => setOpenKO(null)}
+        playerClubId={playerTeam.clubId}
+        draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
+      />
     </ScrollView>
   )
 }
@@ -510,9 +517,23 @@ function BracketMatch({ match: m, onPress }: { match: WCKnockoutMatch; onPress: 
 }
 
 // Tap-through detail for a WC knockout tie.
-function KOMatchModal({ match: m, onClose }: { match: WCKnockoutMatch | null; onClose: () => void }) {
+function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers }: {
+  match: WCKnockoutMatch | null; onClose: () => void
+  playerClubId?: string; draftedPlayers?: DraftedPlayer[]
+}) {
   const hs = summariseScorers(m?.scorers?.home)
   const as = summariseScorers(m?.scorers?.away)
+  // Named penalty takers are only pre-built for the tie the reveal animated —
+  // expand lazily here (same shared helper the live sim uses) so a shootout
+  // reopened from history still shows its real takers. Your own nation's
+  // takers come from YOUR drafted squad, not the DB's historical roster.
+  const [, forceTick] = useState(0)
+  useEffect(() => {
+    if (!m || m.penKicksA || !m.result.homePenKicks || !m.result.awayPenKicks) return
+    let active = true
+    attachWCShootoutNames([m], playerClubId, draftedPlayers).then(() => { if (active) forceTick(x => x + 1) }).catch(() => { /* fall back to no list */ })
+    return () => { active = false }
+  }, [m])
   return (
     <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -533,7 +554,7 @@ function KOMatchModal({ match: m, onClose }: { match: WCKnockoutMatch | null; on
                   {as ? <Text style={styles.koModalScorerLine}>⚽ {m.teamB.clubName}: {as}</Text> : null}
                 </View>
               )}
-              {m.penKicksHome && m.penKicksAway && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksHome} kicksB={m.penKicksAway} />}
+              {m.penKicksA && m.penKicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksA} kicksB={m.penKicksB} />}
             </>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>

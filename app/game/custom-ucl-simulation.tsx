@@ -18,9 +18,11 @@ import { buildCLAccessList, ensureHolders, type AssociationEntry, type CLAccessL
 import { simulateCustomUclQualifying, type QualTie, type QualifyingResult } from '@/engine/cl-qualifying'
 import { getCustomUclAssociations, getCustomUclHolders } from '@/db/queries/custom-ucl'
 import { berthForPosition } from '@/data/uefa-coefficients'
-import { expandPenaltyKicks, type PenKick } from '@/engine/knockout-match'
-import { getTopKickers, getRostersForClubs } from '@/db/queries/seasons'
-import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeQualTieScorers, summariseScorers } from '@/engine/run-stats'
+import { getRostersForClubs } from '@/db/queries/seasons'
+import {
+  loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeQualTieScorers, summariseScorers,
+  attachCLShootoutNames,
+} from '@/engine/run-stats'
 import type { RosterPlayer } from '@/types/stats'
 import type { SimTeam } from '@/types/simulation'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
@@ -34,6 +36,8 @@ import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from 
 import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-formats'
 import { PenShootout } from '@/components/PenShootout'
 import { TeamLabel } from '@/components/TeamLabel'
+import { LineupPitch } from '@/components/LineupPitch'
+import { FixtureList } from '@/components/FixtureList'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 
 const CL = MODE_THEMES.champions_league
@@ -142,9 +146,10 @@ function sortStandings(teams: CLTeam[]): CLTeam[] {
 
 export default function CustomUclSimulationScreen() {
   const {
-    formation, draftedPlayers, clYear, customUclPlayerClubId,
+    formation, draftedPlayers, benchPlayers, useSubstitutes, clYear, customUclPlayerClubId,
     setClTeams, setClResult, setCustomUclQual, setCustomUclLeagues,
   } = useGameStore()
+  const fullSquad = [...draftedPlayers, ...benchPlayers]
 
   const totalTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, getSlotsForFormation(formation)) : 0
   const playerClubId = customUclPlayerClubId
@@ -219,7 +224,7 @@ export default function CustomUclSimulationScreen() {
       domMatchdaysRef.current = regularSeasonMatchdays(teams, mine.format ?? 'double_round_robin')
       setPhase('domestic_review')
       // Domestic scorer pools (background — ready before the first matchday).
-      loadLeaguePools(teams.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer })), draftedPlayers, 2025)
+      loadLeaguePools(teams.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer })), fullSquad, 2025, useSubstitutes)
         .then(p => { domPoolRef.current = p.poolByClub })
         .catch(e => console.warn('[custom-ucl-sim] domestic pool load failed:', e))
     }
@@ -355,7 +360,7 @@ export default function CustomUclSimulationScreen() {
         if (t.teamB) tieClubs.set(t.teamB.clubId, { clubId: t.teamB.clubId, clubName: t.teamB.clubName, isPlayer: t.teamB.clubId === playerClubId })
       }
       if (tieClubs.size > 0) {
-        const pools = await loadLeaguePools([...tieClubs.values()], draftedPlayers, clYear ?? 2025)
+        const pools = await loadLeaguePools([...tieClubs.values()], fullSquad, clYear ?? 2025, useSubstitutes)
         attributeQualTieScorers(q.ties, pools.poolByClub)
       }
     } catch (e) { console.warn('[custom-ucl-sim] qual scorer attribution failed:', e) }
@@ -403,7 +408,7 @@ export default function CustomUclSimulationScreen() {
   useEffect(() => {
     if (clTeamsLocal.length === 0 || !playerReachedLeaguePhase) return
     setFixtures(generateCLLeagueFixtures(clTeamsLocal))
-    loadLeaguePools(clTeamsLocal, draftedPlayers, clYear ?? 2025)
+    loadLeaguePools(clTeamsLocal, fullSquad, clYear ?? 2025, useSubstitutes)
       .then(p => { poolByClubRef.current = p.poolByClub })
       .catch(e => console.warn('[custom-ucl-sim] pool load failed:', e))
   }, [clTeamsLocal, playerReachedLeaguePhase])
@@ -487,7 +492,7 @@ export default function CustomUclSimulationScreen() {
     const result: CLSeasonResult = { leaguePhaseStandings: sorted, ...koResult, leagueMatchdays: leagueHistoryRef.current }
     try {
       let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(sorted, draftedPlayers, clYear ?? 2025)).poolByClub
+      if (pool.size === 0) pool = (await loadLeaguePools(sorted, fullSquad, clYear ?? 2025, useSubstitutes)).poolByClub
       attributeCLResultScorers(result, pool)
     } catch (e) { console.warn('[custom-ucl-sim] scorer attribution failed:', e) }
     await revealKnockouts(result)
@@ -495,16 +500,9 @@ export default function CustomUclSimulationScreen() {
 
   async function revealKnockouts(result: CLSeasonResult) {
     const allMatches: CLKnockoutMatch[] = [...result.playoffRound, ...result.r16, ...result.qf, ...result.sf, ...(result.final ? [result.final] : [])]
-    const penTeamIds = new Set<string>()
-    allMatches.filter(m => m.aPens !== undefined).forEach(m => { penTeamIds.add(m.teamA.clubId); penTeamIds.add(m.teamB.clubId) })
-    const kickerMap: Record<string, string[]> = {}
-    await Promise.all(Array.from(penTeamIds).map(async id => { kickerMap[id] = await getTopKickers(id) }))
-    for (const m of allMatches) {
-      if (m.aPens !== undefined && m.bPens !== undefined) {
-        const expanded = expandPenaltyKicks(kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [], m.aPenKicks ?? [], m.bPenKicks ?? [])
-        m.penKicksA = expanded.kicksA; m.penKicksB = expanded.kicksB
-      }
-    }
+    // Fetch + attach named shootout kickers — ONE shared implementation used
+    // by every mode (see attachCLShootoutNames in run-stats.ts).
+    await attachCLShootoutNames(allMatches, playerClubId ?? undefined, fullSquad)
     finalResultRef.current = result
     const rounds = [
       result.playoffRound.length > 0 ? { round: 'playoff', label: 'Knockout Play-off (9th–24th)', ties: result.playoffRound } : null,
@@ -888,7 +886,7 @@ export default function CustomUclSimulationScreen() {
             <Text style={styles.primaryBtnText}>SKIP →</Text>
           </Pressable>
         </View>
-        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} />
+        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} />
         <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
       </View>
     )
@@ -937,7 +935,7 @@ export default function CustomUclSimulationScreen() {
           <InfoBubble topic="league_phase" />
           {leaguesButton}
         </View>
-        <View style={{ flex: 1, padding: spacing.lg, gap: spacing.lg }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
           <View style={styles.reviewCard}>
             <Text style={styles.reviewClub}>{playerTeam?.clubName}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -946,7 +944,26 @@ export default function CustomUclSimulationScreen() {
             </View>
             <Text style={styles.reviewNote}>8 matches — 2 opponents from each of the 4 pots. Top 8 go straight to the Round of 16, 9th–24th enter the Playoff Round, 25th and below are out.</Text>
           </View>
-        </View>
+
+          {/* Who you actually play, and from which pot, before a ball is kicked */}
+          <FixtureList
+            accent={CL.accent}
+            items={fixtures
+              .filter(f => f.home.isPlayer || f.away.isPlayer)
+              .map(f => {
+                const isHome = f.home.isPlayer
+                const opp = isHome ? f.away : f.home
+                return { matchday: f.matchday, clubId: opp.clubId, clubName: opp.clubName, pot: opp.pot, isHome }
+              })}
+          />
+
+          {formation && draftedPlayers.length > 0 && (
+            <View style={{ gap: spacing.sm }}>
+              <Text style={styles.reviewClub}>Your Lineup ({formation})</Text>
+              <LineupPitch formation={formation} draftedPlayers={draftedPlayers} benchPlayers={benchPlayers} />
+            </View>
+          )}
+        </ScrollView>
         <View style={styles.footerBar}>
           <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setPhase('simulating'); setIsPlaying(true) }}>
             <Text style={styles.primaryBtnText}>SIMULATE LEAGUE PHASE →</Text>
@@ -1105,7 +1122,7 @@ export default function CustomUclSimulationScreen() {
           ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setLiveDone(Object.fromEntries(koRounds.map(r => [r.round, true]))); setKoVisibleCount(koRounds.length) }}><Text style={styles.primaryBtnText}>SKIP →</Text></Pressable>
           : <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={finishAll}><Text style={styles.primaryBtnText}>VIEW FINAL RESULT →</Text></Pressable>}
       </View>
-      <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} />
+      <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} />
       <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
     </View>
   )

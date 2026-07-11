@@ -150,25 +150,43 @@ export async function getAllClubsData(): Promise<Record<string, { color: string;
 // Penalty takers for a club: the best outfield kickers first, with the keeper
 // appended LAST — so a shootout rotates through all 11 starters (goalkeeper
 // included) before anyone steps up for a second kick.
+//
+// Clubs that carry MULTIPLE club_seasons rows (every UCL edition a club
+// appears in, e.g. both the 2024 and 2025 seed years for Real Madrid) would
+// otherwise return the SAME player twice — once per season row a long-serving
+// star appears in — which broke the "everyone kicks once before anyone
+// repeats" rule (the same name reappearing at kick 3 or 5). GROUP BY p.id
+// dedupes to one row per player, keeping their best score across every season
+// the club_id matches, before ranking and limiting.
 export async function getTopKickers(clubId: string, limit = 11): Promise<string[]> {
   const db = await getDb()
   const outfield = await db.getAllAsync<{ name: string }>(
     `SELECT p.name
-     FROM player_seasons ps
-     JOIN players p ON p.id = ps.player_id
-     JOIN club_seasons cs ON cs.id = ps.club_season_id
-     WHERE cs.club_id = ? AND p.primary_position != 'GK'
-     ORDER BY (COALESCE(ps.attack, 0) + COALESCE(ps.technical, 0)) DESC
+     FROM players p
+     JOIN (
+       SELECT ps.player_id AS id, MAX(COALESCE(ps.attack, 0) + COALESCE(ps.technical, 0)) AS score
+       FROM player_seasons ps
+       JOIN club_seasons cs ON cs.id = ps.club_season_id
+       JOIN players p2 ON p2.id = ps.player_id
+       WHERE cs.club_id = ? AND p2.primary_position != 'GK'
+       GROUP BY ps.player_id
+     ) best ON best.id = p.id
+     ORDER BY best.score DESC
      LIMIT ?`,
     [clubId, Math.max(1, limit - 1)]
   )
   const gk = await db.getFirstAsync<{ name: string }>(
     `SELECT p.name
-     FROM player_seasons ps
-     JOIN players p ON p.id = ps.player_id
-     JOIN club_seasons cs ON cs.id = ps.club_season_id
-     WHERE cs.club_id = ? AND p.primary_position = 'GK'
-     ORDER BY ps.ovr DESC LIMIT 1`,
+     FROM players p
+     JOIN (
+       SELECT ps.player_id AS id, MAX(ps.ovr) AS score
+       FROM player_seasons ps
+       JOIN club_seasons cs ON cs.id = ps.club_season_id
+       JOIN players p2 ON p2.id = ps.player_id
+       WHERE cs.club_id = ? AND p2.primary_position = 'GK'
+       GROUP BY ps.player_id
+     ) best ON best.id = p.id
+     ORDER BY best.score DESC LIMIT 1`,
     [clubId]
   )
   const names = outfield.map(r => r.name)

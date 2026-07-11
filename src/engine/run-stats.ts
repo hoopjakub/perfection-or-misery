@@ -7,16 +7,33 @@ import type { DraftedPlayer } from '@/types/game'
 import {
   attributeMatchScorers, createStatsAccumulator, computeAwards, buildClubGKMap,
 } from './stats'
-import { getRostersForClubs } from '@/db/queries/seasons'
+import { getRostersForClubs, getTopKickers } from '@/db/queries/seasons'
 import type { SeasonResult } from '@/types/simulation'
 import type { LeagueSeason } from '@/types/game'
-import type { CLSeasonResult } from '@/engine/cl-sim'
-import type { WCSeasonResult } from '@/engine/world-cup-sim'
+import type { CLSeasonResult, CLKnockoutMatch } from '@/engine/cl-sim'
+import type { WCSeasonResult, WCKnockoutMatch } from '@/engine/world-cup-sim'
 import type { QualTie } from '@/engine/cl-qualifying'
+import { expandPenaltyKicks } from '@/engine/knockout-match'
 
 export type LeaguePools = {
   poolByClub:   Map<string, RosterPlayer[]>
   playerClubId: string
+}
+
+// Real scraped squads carry the FULL ~20-30 player roster — apply the SAME
+// substitutes rule to them as the player's own squad, for symmetry: with subs
+// on, everyone outside the best 11 (1 GK + top 10 by OVR) can still
+// score/assist at reduced odds (see stats.ts BENCH_FACTOR); with subs off,
+// only that best-11 is even in the pool, matching what the player experiences
+// with no bench of their own.
+function applySubstituteRule(pool: RosterPlayer[], useSubstitutes: boolean): RosterPlayer[] {
+  const gks = pool.filter(p => p.primaryPosition === 'GK').sort((a, b) => b.ovr - a.ovr)
+  const outfield = pool.filter(p => p.primaryPosition !== 'GK').sort((a, b) => b.ovr - a.ovr)
+  const starters = [...gks.slice(0, 1), ...outfield.slice(0, 10)]
+  if (!useSubstitutes) return starters
+  const starterIds = new Set(starters.map(p => p.playerId))
+  const bench = pool.filter(p => !starterIds.has(p.playerId)).map(p => ({ ...p, isBench: true }))
+  return [...starters, ...bench]
 }
 
 // Load attribution pools for a league field: DB rosters for opponents + your XI.
@@ -24,12 +41,14 @@ export async function loadLeaguePools(
   teams: { clubId: string; clubName: string; isPlayer: boolean }[],
   drafted: DraftedPlayer[],
   yearStart: number,
+  useSubstitutes = true,
 ): Promise<LeaguePools> {
   // The player may not be in this field (custom UCL: eliminated in qualifying /
   // never qualified) — fall back to real scraped rosters for every club.
   const playerClub = teams.find(t => t.isPlayer)
   const rosters    = await getRostersForClubs(teams.map(t => t.clubId), yearStart)
   const poolByClub = new Map(rosters)
+  for (const [clubId, pool] of poolByClub) poolByClub.set(clubId, applySubstituteRule(pool, useSubstitutes))
   if (playerClub) {
     poolByClub.set(playerClub.clubId, draftedToPool(drafted, playerClub.clubId, playerClub.clubName, yearStart))
   }
@@ -129,12 +148,14 @@ export async function computeLeagueRunStats(
   simResult: SeasonResult,
   draftedPlayers: DraftedPlayer[],
   placedLeague: LeagueSeason,
+  useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards } | null> {
   const table = simResult.table
   const playerClub = table.find(t => t.isPlayer)
   if (!playerClub) return null
   const yearStart = placedLeague.yearStart
   const rosters    = await getRostersForClubs(table.map(t => t.clubId), yearStart)
+  for (const [clubId, pool] of rosters) rosters.set(clubId, applySubstituteRule(pool, useSubstitutes))
   const playerPool = draftedToPool(draftedPlayers, playerClub.clubId, playerClub.clubName, yearStart)
   const matches: RunMatch[] = (simResult.matchdayHistory ?? []).flatMap(s =>
     s.fixtures.filter(f => f.result).map(f => ({
@@ -194,7 +215,7 @@ export function attributeWCResultScorers(result: WCSeasonResult, poolByClub: Map
 // `qualTies` (custom path): the qualifying-round ties count toward stats/awards
 // too — the whole competition, not just the league phase + knockouts.
 export async function computeCLRunStats(
-  result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[],
+  result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[], useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards } | null> {
   const standings = result.leaguePhaseStandings
   if (!standings?.length) return null
@@ -202,6 +223,7 @@ export async function computeCLRunStats(
   const clubIds = new Set(standings.map(t => t.clubId))
   for (const t of qualTies ?? []) { clubIds.add(t.teamA.clubId); if (t.teamB) clubIds.add(t.teamB.clubId) }
   const rosters    = await getRostersForClubs([...clubIds], yearStart)
+  for (const [clubId, pool] of rosters) rosters.set(clubId, applySubstituteRule(pool, useSubstitutes))
   const playerPool = draftedToPool(draftedPlayers, playerClubId, result.playerTeam.clubName, yearStart)
 
   const matches: RunMatch[] = []
@@ -236,12 +258,13 @@ export async function computeCLRunStats(
 const WC_ROUND_POS: Record<string, number> = { r32: 17, r16: 9, qf: 5, sf: 3, final: 2 }
 
 export async function computeWCRunStats(
-  result: WCSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2026,
+  result: WCSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2026, useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards } | null> {
   const allTeams = result.groups.flatMap(g => g.teams)
   if (!allTeams.length) return null
   const playerClubId = result.playerTeam.clubId
   const rosters    = await getRostersForClubs(allTeams.map(t => t.clubId), yearStart)
+  for (const [clubId, pool] of rosters) rosters.set(clubId, applySubstituteRule(pool, useSubstitutes))
   const playerPool = draftedToPool(draftedPlayers, playerClubId, result.playerTeam.clubName, yearStart)
 
   const matches: RunMatch[] = []
@@ -262,6 +285,91 @@ export async function computeWCRunStats(
   return computeRunStats({ matches, rosters, playerPool, playerClubId, finalPositionByClub: pos, teamsInComp: allTeams.length })
 }
 
+// ── Shootout kicker names — ONE shared implementation ───────────────────────
+// Every mode used to fetch+expand penalty-kicker names with its own hand-rolled
+// copy of this loop (classic CL, custom UCL, World Cup all had one). Now there's
+// a single fetch step, and two thin per-shape attach functions that call it —
+// so a fix here reaches every mode instead of needing to be applied three times.
+
+// Your club's shootout order comes from YOUR drafted XI, not the real-world
+// roster in the DB — the DB roster is whoever the club *actually* fielded
+// historically, which isn't who's on the pitch once you've replaced them.
+// Ranked by OVR (the closest thing a DraftedPlayer carries to attack/technical),
+// keeper last, same "everyone kicks once before anyone repeats" shape as the DB path.
+function kickerNamesFromDrafted(drafted: DraftedPlayer[]): string[] {
+  const gk = drafted.find(p => p.primaryPosition === 'GK')
+  const outfield = drafted.filter(p => p.primaryPosition !== 'GK').sort((a, b) => b.ovr - a.ovr)
+  const names = outfield.map(p => p.name)
+  if (gk) names.push(gk.name)
+  return names
+}
+
+// Fetch each involved club's top kickers ONCE (not per-tie), keyed by clubId.
+// If `playerClubId`/`draftedPlayers` are given, the player's own club is
+// overridden with their actual squad instead of the DB's historical roster.
+async function fetchShootoutKickerNames(
+  ties: { teamAClubId: string; teamBClubId: string }[],
+  playerClubId?: string,
+  draftedPlayers?: DraftedPlayer[],
+): Promise<Record<string, string[]>> {
+  const ids = new Set<string>()
+  for (const t of ties) { ids.add(t.teamAClubId); ids.add(t.teamBClubId) }
+  const map: Record<string, string[]> = {}
+  await Promise.all([...ids].map(async id => {
+    map[id] = (id === playerClubId && draftedPlayers?.length) ? kickerNamesFromDrafted(draftedPlayers) : await getTopKickers(id)
+  }))
+  return map
+}
+
+// Classic + custom UCL share CLKnockoutMatch's flat aPens/aPenKicks shape.
+export async function attachCLShootoutNames(
+  matches: CLKnockoutMatch[], playerClubId?: string, draftedPlayers?: DraftedPlayer[],
+): Promise<void> {
+  const penTies = matches.filter(m => m.aPens !== undefined && m.bPens !== undefined)
+  if (penTies.length === 0) return
+  const kickerMap = await fetchShootoutKickerNames(penTies.map(m => ({ teamAClubId: m.teamA.clubId, teamBClubId: m.teamB.clubId })), playerClubId, draftedPlayers)
+  for (const m of penTies) {
+    const expanded = expandPenaltyKicks(kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [], m.aPenKicks ?? [], m.bPenKicks ?? [])
+    m.penKicksA = expanded.kicksA
+    m.penKicksB = expanded.kicksB
+  }
+}
+
+// World Cup nests the raw shootout under `result` — same fetch, different read/write shape.
+export async function attachWCShootoutNames(
+  matches: WCKnockoutMatch[], playerClubId?: string, draftedPlayers?: DraftedPlayer[],
+): Promise<void> {
+  const penTies = matches.filter(m => m.result.homePens !== null && m.result.awayPens !== null)
+  if (penTies.length === 0) return
+  const kickerMap = await fetchShootoutKickerNames(penTies.map(m => ({ teamAClubId: m.teamA.clubId, teamBClubId: m.teamB.clubId })), playerClubId, draftedPlayers)
+  for (const m of penTies) {
+    const expanded = expandPenaltyKicks(kickerMap[m.teamA.clubId] ?? [], kickerMap[m.teamB.clubId] ?? [], m.result.homePenKicks ?? [], m.result.awayPenKicks ?? [])
+    m.penKicksA = expanded.kicksA
+    m.penKicksB = expanded.kicksB
+  }
+}
+
+// ── Knockout tie record (leg-by-leg, not aggregate) ─────────────────────────
+// A two-legged tie is two separate matches on the pitch — you can win one leg
+// and lose the other. The "KO Record" stat should reflect that (1W 1L), not
+// just who won the tie overall (which used to collapse to a single W or L).
+export function koTieLegRecord(m: CLKnockoutMatch, isPlayerA: boolean): { w: number; d: number; l: number } {
+  let w = 0, d = 0, l = 0
+  const scoreLeg = (forGoals: number, againstGoals: number) => {
+    if (forGoals > againstGoals) w++
+    else if (forGoals < againstGoals) l++
+    else d++
+  }
+  if (m.leg1) scoreLeg(isPlayerA ? m.leg1.aGoals : m.leg1.bGoals, isPlayerA ? m.leg1.bGoals : m.leg1.aGoals)
+  if (m.leg2) {
+    const etA = m.leg2ExtraTime?.aGoals ?? 0, etB = m.leg2ExtraTime?.bGoals ?? 0
+    const aGoals = m.leg2.aGoals + etA, bGoals = m.leg2.bGoals + etB
+    scoreLeg(isPlayerA ? aGoals : bGoals, isPlayerA ? bGoals : aGoals)
+  }
+  if (!m.leg1 && !m.leg2) scoreLeg(isPlayerA ? m.aGoals : m.bGoals, isPlayerA ? m.bGoals : m.aGoals)
+  return { w, d, l }
+}
+
 // Turn the drafted XI into RosterPlayers for attribution (their club is yours).
 export function draftedToPool(
   drafted: DraftedPlayer[],
@@ -274,8 +382,13 @@ export function draftedToPool(
     playerId:        d.playerId,
     name:            d.name,
     primaryPosition: d.primaryPosition,
-    attack:          d.ovr,            // no per-attribute split for drafted players
+    // Real attacking attribute, not OVR — a high-OVR CDM (all his rating from
+    // passing/defense) must NOT inherit a striker-tier scoring likelihood just
+    // because his overall is high. Old drafted-player snapshots (pre-`attack`
+    // field) fall back to OVR since that's all they ever had.
+    attack:          d.attack ?? d.ovr,
     ovr:             d.ovr,
+    isBench:         d.isBench,
     birthYear:       d.birthYear ?? null,
     yearStart:       d.yearStart ?? yearStart,
     seasonLabel:     d.season || label,

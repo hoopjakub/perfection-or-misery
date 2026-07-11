@@ -7,11 +7,10 @@ import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-f
 import { flagForCountry } from '@/data/geo-iso'
 import { InfoBubble } from '@/components/InfoBubble'
 import { PenShootout } from '@/components/PenShootout'
-import { summariseScorers } from '@/engine/run-stats'
-import { expandPenaltyKicks, type PenKick } from '@/engine/knockout-match'
-import { getTopKickers } from '@/db/queries/seasons'
+import { summariseScorers, attachCLShootoutNames } from '@/engine/run-stats'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
+import type { DraftedPlayer } from '@/types/game'
 
 const CL = MODE_THEMES.champions_league
 
@@ -208,26 +207,24 @@ export function qualTieToKoMatch(t: import('@/engine/cl-qualifying').QualTie): C
 
 // ── Knockout tie detail (aggregate, both legs, ET, shootout) ────────────────
 
-export function KoTieDetailModal({ match: m, roundLabel, onClose }: { match: CLKnockoutMatch | null; roundLabel?: string; onClose: () => void }) {
+export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, draftedPlayers }: {
+  match: CLKnockoutMatch | null; roundLabel?: string; onClose: () => void
+  playerClubId?: string; draftedPlayers?: DraftedPlayer[]
+}) {
   // Penalty takers: matches carry the raw make/miss sequence; the NAMED kick
-  // list is only pre-built for ties the reveal animated. Expand lazily here so
-  // EVERY shootout (qualifying ties, no-player runs, history) shows its takers.
-  const [lazyKicks, setLazyKicks] = useState<{ a: PenKick[]; b: PenKick[] } | null>(null)
+  // list is only pre-built for ties the reveal animated. Expand lazily here
+  // (same shared helper the live sim uses) so EVERY shootout — qualifying
+  // ties, no-player runs, history — shows its real takers. Your own club's
+  // takers come from YOUR drafted squad, not the DB's historical roster.
+  const [, forceTick] = useState(0)
   useEffect(() => {
-    setLazyKicks(null)
     if (!m || m.penKicksA || !m.aPenKicks || !m.bPenKicks) return
     let active = true
-    Promise.all([getTopKickers(m.teamA.clubId), getTopKickers(m.teamB.clubId)])
-      .then(([namesA, namesB]) => {
-        if (!active) return
-        const expanded = expandPenaltyKicks(namesA, namesB, m.aPenKicks!, m.bPenKicks!)
-        setLazyKicks({ a: expanded.kicksA, b: expanded.kicksB })
-      })
-      .catch(() => { /* fall back to no list */ })
+    attachCLShootoutNames([m], playerClubId, draftedPlayers).then(() => { if (active) forceTick(x => x + 1) }).catch(() => { /* fall back to no list */ })
     return () => { active = false }
   }, [m])
-  const kicksA = m?.penKicksA ?? lazyKicks?.a
-  const kicksB = m?.penKicksB ?? lazyKicks?.b
+  const kicksA = m?.penKicksA
+  const kicksB = m?.penKicksB
 
   return (
     <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
