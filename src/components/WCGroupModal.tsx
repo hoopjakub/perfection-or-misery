@@ -1,5 +1,6 @@
 import React from 'react'
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import { TeamLabel } from './TeamLabel'
 import { summariseScorers } from '@/engine/run-stats'
 import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
@@ -64,7 +65,7 @@ export function WCGroupModal({ group, matches, onClose }: {
 }) {
   const teams = group ? [...group.teams].sort(sortGroupTeams) : []
   return (
-    <Modal visible={group !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={group !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {group && (
@@ -103,7 +104,7 @@ export function WCGroupModal({ group, matches, onClose }: {
           </Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 

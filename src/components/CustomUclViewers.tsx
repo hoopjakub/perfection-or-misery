@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
 import { berthForPosition, type UclRound, type UclPath } from '@/data/uefa-coefficients'
 import { QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
@@ -133,7 +134,7 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
 /** Modal wrapper for one league table. */
 export function LeagueTableModal({ table, playerClubId, onClose }: { table: SimLeagueTable | null; playerClubId?: string | null; onClose: () => void }) {
   return (
-    <Modal visible={table !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={table !== null} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {table && (
@@ -145,7 +146,7 @@ export function LeagueTableModal({ table, playerClubId, onClose }: { table: SimL
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 
@@ -159,7 +160,7 @@ export function LeaguesBrowserModal({ visible, tables, playerClubId, onClose }: 
   const [open, setOpen] = useState<SimLeagueTable | null>(null)
   return (
     <>
-      <Modal visible={visible && !open} transparent animationType="fade" onRequestClose={onClose}>
+      <AppModal visible={visible && !open} onRequestClose={onClose}>
         <Pressable style={styles.overlay} onPress={onClose}>
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <Text style={styles.modalTitle}>All Leagues</Text>
@@ -180,7 +181,7 @@ export function LeaguesBrowserModal({ visible, tables, playerClubId, onClose }: 
             <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </AppModal>
       <LeagueTableModal table={open} playerClubId={playerClubId} onClose={() => setOpen(null)} />
     </>
   )
@@ -227,7 +228,7 @@ export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, 
   const kicksB = m?.penKicksB
 
   return (
-    <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={m !== null} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {m && (
@@ -255,7 +256,7 @@ export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, 
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 

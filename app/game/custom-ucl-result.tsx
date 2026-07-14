@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Animated, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
@@ -469,7 +470,7 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
 
 function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void }) {
   return (
-    <Modal visible={team !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={team !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {team && (
@@ -482,7 +483,7 @@ function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubNam
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 

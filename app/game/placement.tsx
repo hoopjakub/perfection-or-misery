@@ -592,8 +592,10 @@ function WCPlacement() {
 
         <Animated.View style={[styles.compRevealCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }], borderColor: theme.accent }]}>
           <Text style={[styles.compRevealBadge, { color: theme.accent }]}>FIFA WORLD CUP · {yearLabel}</Text>
-          {flagForCountry(replacedName) ? <Text style={{ fontSize: 52, lineHeight: 64, textAlign: 'center' }}>{flagForCountry(replacedName)}</Text> : null}
-          <Text style={styles.compRevealYear}>{replacedName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
+            {flagForCountry(replacedName) ? <Text style={{ fontSize: 34, lineHeight: 40 }}>{flagForCountry(replacedName)}</Text> : null}
+            <Text style={styles.compRevealYear}>{replacedName}</Text>
+          </View>
 
           <Text style={styles.compRevealSubtitle}>
             Your squad takes the place of <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{replacedName}</Text> at the World Cup {yearLabel}, among {teamCount} national teams. Groups will be drawn at the start of simulation.

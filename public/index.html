@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+    <!-- Flag emoji font-family: country-flag-emoji-polyfill (wired into
+         app/_layout.tsx) only registers the @font-face — applying it to the
+         font stack is left to us. It's unicode-range scoped to just flag
+         codepoints, so it's safe first in the list for everyone. -->
+    <!-- RN's <Modal> renders via react-native-web as a `position: fixed`
+         element pinned to the full browser viewport (role="dialog"),
+         entirely outside the phone-width frame app/_layout.tsx wraps the
+         rest of the app in. Constrained it to the same width above 480px
+         viewports; below that (an actual phone browser) it's left alone. -->
+    <style id="pom-web-overrides">
+      html {
+        font-family: "Twemoji Country Flags", -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      @media (min-width: 481px) {
+        [role="dialog"][aria-modal="true"] {
+          left: 50% !important;
+          right: auto !important;
+          width: 480px !important;
+          max-width: 100vw !important;
+          transform: translateX(-50%);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react'
-import { View, Text, StyleSheet, Pressable, LayoutChangeEvent } from 'react-native'
+import { View, Text, StyleSheet, Pressable, LayoutChangeEvent, Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { colors, spacing, typography, radius } from '@/theme'
@@ -156,6 +156,28 @@ export function BracketPreview({
 
   const composedGesture = Gesture.Race(doubleTapGesture, Gesture.Simultaneous(pinchGesture, panGesture))
 
+  // Pinch is a two-finger touch gesture — a mouse/trackpad on desktop can't
+  // produce one, so without this, zoom simply never triggers on PC. Scroll
+  // wheel / trackpad-scroll zoom toward the center (simpler than the pinch's
+  // cursor-anchored math, but the actual complaint — "zoom doesn't work on
+  // PC at all" — is fully fixed by it). Dragging to pan already works with a
+  // mouse; Pan gesture handles that natively.
+  function handleWheelZoom(e: any) {
+    e.preventDefault?.()
+    const delta = e.deltaY ?? 0
+    const factor = Math.exp(-delta * 0.001)
+    const newScale = clampWorklet(scale.value * factor, minScale.value, MAX_SCALE)
+    scale.value = newScale
+    savedScale.value = newScale
+    const c = containerSize.value, k = contentSize.value
+    const maxX = Math.max(0, (k.width * newScale - c.width) / 2)
+    const maxY = Math.max(0, (k.height * newScale - c.height) / 2)
+    translateX.value = clampWorklet(translateX.value, -maxX, maxX)
+    translateY.value = clampWorklet(translateY.value, -maxY, maxY)
+    savedTranslateX.value = translateX.value
+    savedTranslateY.value = translateY.value
+  }
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -187,11 +209,17 @@ export function BracketPreview({
         <Text style={styles.roadNote}>Win {road.length + 1} ties and you're champions.</Text>
       )}
 
-      <Text style={styles.gestureHint}>Pinch to zoom · drag to pan · double-tap to reset</Text>
+      <Text style={styles.gestureHint}>
+        {Platform.OS === 'web' ? 'Scroll to zoom · drag to pan · double-click to reset' : 'Pinch to zoom · drag to pan · double-tap to reset'}
+      </Text>
 
       {/* The bracket tree — a pinch-zoom-and-pan canvas, boxed off from the rest
           of the screen so only this area responds to the gesture. */}
-      <View style={styles.bracketPanel} onLayout={onPanelLayout}>
+      <View
+        style={styles.bracketPanel}
+        onLayout={onPanelLayout}
+        {...(Platform.OS === 'web' ? { onWheel: handleWheelZoom } : {})}
+      >
         <GestureDetector gesture={composedGesture}>
           <Animated.View style={[styles.bracketRow, animatedStyle]} onLayout={onContentLayout}>
             {columns.map(col => (

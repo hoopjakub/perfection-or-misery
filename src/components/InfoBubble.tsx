@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
 import { EXPLAINERS, RULES_ORDER } from '@/data/explainers'
 
@@ -32,7 +33,7 @@ export function InfoBubble({
         <Text style={[styles.q, { color: accent, fontSize: size * 0.62 }]}>?</Text>
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <AppModal visible={open} onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
           <Pressable style={[styles.card, { borderColor: accent }]} onPress={() => {}}>
             <Text style={[styles.title, { color: accent }]}>{content.title}</Text>
@@ -42,7 +43,7 @@ export function InfoBubble({
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </AppModal>
     </>
   )
 }
@@ -99,7 +100,7 @@ const rowStyles = StyleSheet.create({
 // Opened from the "how this competition works" buttons on the result & stats screens.
 export function RulesModal({ visible, onClose, accent = CL.accent }: { visible: boolean; onClose: () => void; accent?: string }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.card, { borderColor: accent, maxHeight: '88%' }]} onPress={() => {}}>
           <Text style={[styles.title, { color: accent }]}>How this competition works</Text>
@@ -120,7 +121,7 @@ export function RulesModal({ visible, onClose, accent = CL.accent }: { visible: 
           </Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 

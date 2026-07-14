@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
-  View, Text, StyleSheet, Pressable, ScrollView, Dimensions, ActivityIndicator, Modal
+  View, Text, StyleSheet, Pressable, ScrollView, Dimensions, ActivityIndicator
 } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import Svg, { Line, Polyline, Text as SvgText, G } from 'react-native-svg'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
@@ -773,7 +774,7 @@ function TeamMatchesModal({ team, history, accent, onClose }: {
         .map((f: any) => ({ md: s.matchday, ...f })))
     : []
   return (
-    <Modal visible={team !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={team !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           <Text style={[styles.modalTitle, { color: accent }]} numberOfLines={1}>{team?.clubName}</Text>
@@ -798,7 +799,7 @@ function TeamMatchesModal({ team, history, accent, onClose }: {
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 

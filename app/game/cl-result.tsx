@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, ActivityIndicator, Animated } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
@@ -419,7 +420,7 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
 
 function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void }) {
   return (
-    <Modal visible={team !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={team !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {team && (
@@ -434,7 +435,7 @@ function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubNam
           </Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 
@@ -506,7 +507,7 @@ function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers }: {
   const kicksA = m?.penKicksA
   const kicksB = m?.penKicksB
   return (
-    <Modal visible={m !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={m !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {m && (
@@ -531,7 +532,7 @@ function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers }: {
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 

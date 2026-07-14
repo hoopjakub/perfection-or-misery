@@ -93,6 +93,24 @@ export default function DraftScreen() {
     }
   }
 
+  // Bench spins share the SAME reroll pool as the starting-XI draft — not a
+  // separate bench-only allowance — so this just re-uses useReroll()/rerollsLeft.
+  function handleBenchReroll() {
+    if (rerollsLeft <= 0 || benchPhase !== 'picking') return
+    useReroll()
+    setBenchPhase('spinning')
+    setBenchSquad([])
+    setBenchFact(null)
+    try {
+      const eraYear = era ? parseInt(era.replace('s+', '').replace('s', '')) : undefined
+      const spun = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', eraYear)
+      markSeasonSpun(spun.id)
+      runBenchSpinAnimation(spun)
+    } catch {
+      setBenchPhase('picking')
+    }
+  }
+
   function handleBenchPick(p: PlayerRow) {
     if (!benchSpin) return
     addBenchPlayer({
@@ -670,9 +688,11 @@ export default function DraftScreen() {
             )}
             {phase === 'spinning' && spinDisplay ? (
               <View style={styles.spinCard}>
-                {mode === 'world_cup' && flagForCountry(spinDisplay.club_name)
-                  ? <Text style={{ fontSize: 44, lineHeight: 54, textAlign: 'center' }}>{flagForCountry(spinDisplay.club_name)}</Text> : null}
-                <Text style={styles.spinClubName}>{spinDisplay.club_name}</Text>
+                <View style={styles.spinFlagRow}>
+                  {mode === 'world_cup' && flagForCountry(spinDisplay.club_name)
+                    ? <Text style={styles.spinFlagInline}>{flagForCountry(spinDisplay.club_name)}</Text> : null}
+                  <Text style={styles.spinClubName}>{spinDisplay.club_name}</Text>
+                </View>
                 {mode !== 'world_cup' && (
                   <Text style={styles.spinSeason}>
                     {spinDisplay.year_start}/{String(spinDisplay.year_start + 1).slice(-2)}
@@ -929,9 +949,11 @@ export default function DraftScreen() {
             )}
             {benchPhase === 'spinning' && benchSpinDisplay && (
               <View style={[styles.spinCard, styles.benchStretch]}>
-                {mode === 'world_cup' && flagForCountry(benchSpinDisplay.club_name)
-                  ? <Text style={{ fontSize: 44, lineHeight: 54, textAlign: 'center' }}>{flagForCountry(benchSpinDisplay.club_name)}</Text> : null}
-                <Text style={styles.spinClubName}>{benchSpinDisplay.club_name}</Text>
+                <View style={styles.spinFlagRow}>
+                  {mode === 'world_cup' && flagForCountry(benchSpinDisplay.club_name)
+                    ? <Text style={styles.spinFlagInline}>{flagForCountry(benchSpinDisplay.club_name)}</Text> : null}
+                  <Text style={styles.spinClubName}>{benchSpinDisplay.club_name}</Text>
+                </View>
                 {mode !== 'world_cup' && (
                   <Text style={styles.spinSeason}>
                     {benchSpinDisplay.year_start}/{String(benchSpinDisplay.year_start + 1).slice(-2)}
@@ -962,6 +984,11 @@ export default function DraftScreen() {
                       </Text>
                     )}
                   </View>
+                  {rerollsLeft > 0 && (
+                    <Pressable style={styles.rerollBtn} onPress={handleBenchReroll}>
+                      <Text style={styles.rerollBtnText}>🔄 Reroll</Text>
+                    </Pressable>
+                  )}
                 </View>
 
                 {benchFact && (
@@ -1139,6 +1166,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap:        spacing.xs,
   },
+  // Flag + nation name side by side, not stacked — a flag centered on its own
+  // line above the name read as two disconnected lines rather than one label.
+  spinFlagRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  spinFlagInline: { fontSize: 34, lineHeight: 40 },
   spinClubName: {
     fontSize:   typography.xxl,
     fontWeight: typography.black,

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react-native'
+import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { useModeTheme } from '@/hooks/useModeTheme'
@@ -230,7 +231,7 @@ function TeamRosterModal({ team, players, accent, onClose }: {
 }) {
   const sorted = [...players].sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.name.localeCompare(b.name))
   return (
-    <Modal visible={team !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={team !== null} onRequestClose={onClose}>
       <Pressable style={modalStyles.overlay} onPress={onClose}>
         <Pressable style={modalStyles.card} onPress={() => {}}>
           {team && (
@@ -268,7 +269,7 @@ function TeamRosterModal({ team, players, accent, onClose }: {
           </Pressable>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   )
 }
 
