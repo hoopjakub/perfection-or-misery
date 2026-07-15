@@ -1,10 +1,12 @@
- import React, { useState } from 'react'
+import React, { useState } from 'react'
 import {
   View, Text, StyleSheet, Pressable, ScrollView
 } from 'react-native'
 import { router } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { useGameStore, Formation } from '@/store/gameStore'
 import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
+import { PressCard, BackButton } from '@/components/ui'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
 
@@ -142,9 +144,7 @@ export default function FormationSelectScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+        <BackButton />
         <Text style={[styles.title, { color: theme.accent }]}>Formation</Text>
         <View style={{ width: 32 }} />
       </View>
@@ -154,6 +154,27 @@ export default function FormationSelectScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Substitutes toggle — off disables benches for EVERYONE this run,
+            you and every AI-controlled club alike (see run-stats.ts). */}
+        <PressCard
+          style={[styles.infoCard, styles.subsCard]}
+          onPress={() => setUseSubstitutes(!useSubstitutes)}
+        >
+          <View style={[styles.subsIcon, { backgroundColor: theme.accent + '1E' }]}>
+            <Ionicons name="people" size={18} color={theme.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.infoTitle}>Substitutes</Text>
+            <Text style={styles.infoDescription}>
+              {useSubstitutes
+                ? "On — you'll draft a bench after your XI, and every club (including AI opponents) can bring subs off the bench."
+                : 'Off — starting XI only, for you and every other club. No bench, no subs, all season.'}
+            </Text>
+          </View>
+          <View style={[styles.subsSwitch, useSubstitutes && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
+            <View style={[styles.subsKnob, useSubstitutes && styles.subsKnobOn]} />
+          </View>
+        </PressCard>
         <Text style={styles.sectionLabel}>Choose your shape</Text>
 
         {/* formation cards */}
@@ -161,13 +182,14 @@ export default function FormationSelectScreen() {
           {FORMATIONS.map(f => {
             const isSelected = selected === f.id
             return (
-              <Pressable
+              <PressCard
                 key={f.id}
                 style={[
                   styles.formationCard,
                   isSelected && {
                     borderColor: theme.accent,
-                    borderWidth: 2
+                    borderWidth: 2,
+                    backgroundColor: theme.accent + '0D',
                   }
                 ]}
                 onPress={() => setSelected(f.id)}
@@ -183,7 +205,7 @@ export default function FormationSelectScreen() {
                 ]}>
                   {f.label}
                 </Text>
-              </Pressable>
+              </PressCard>
             )
           })}
         </View>
@@ -218,31 +240,17 @@ export default function FormationSelectScreen() {
           </View>
         </View>
 
-        {/* Substitutes toggle — off disables benches for EVERYONE this run,
-            you and every AI-controlled club alike (see run-stats.ts). */}
-        <Pressable
-          style={[styles.infoCard, styles.subsCard]}
-          onPress={() => setUseSubstitutes(!useSubstitutes)}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.infoTitle}>Substitutes</Text>
-            <Text style={styles.infoDescription}>
-              {useSubstitutes
-                ? "On — you'll draft a bench after your XI, and every club (including AI opponents) can bring subs off the bench."
-                : 'Off — starting XI only, for you and every other club. No bench, no subs, all season.'}
-            </Text>
-          </View>
-          <View style={[styles.subsSwitch, useSubstitutes && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
-            <View style={[styles.subsKnob, useSubstitutes && styles.subsKnobOn]} />
-          </View>
-        </Pressable>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={[styles.continueBtn, { backgroundColor: theme.accent }]} onPress={handleContinue}>
+        <Pressable
+          style={({ pressed }) => [styles.continueBtn, { backgroundColor: theme.accent }, pressed && { opacity: 0.85, transform: [{ scale: 0.985 }] }]}
+          onPress={handleContinue}
+        >
           <Text style={styles.continueBtnText}>
             Draft with {selected}
           </Text>
+          <Ionicons name="arrow-forward" size={16} color={colors.textPrimary} />
         </Pressable>
       </View>
     </View>
@@ -328,6 +336,7 @@ const styles = StyleSheet.create({
     gap:             spacing.md,
   },
   subsCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
+  subsIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   subsSwitch: { width: 46, height: 26, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgElevated, padding: 2, justifyContent: 'center' },
   subsKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.textMuted },
   subsKnobOn: { backgroundColor: colors.textPrimary, alignSelf: 'flex-end' },
@@ -379,6 +388,9 @@ const styles = StyleSheet.create({
     borderRadius:    radius.md,
     paddingVertical: spacing.md,
     alignItems:      'center',
+    justifyContent:  'center',
+    flexDirection:   'row',
+    gap:             spacing.sm,
     ...shadows.md,
   },
   continueBtnText: {

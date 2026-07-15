@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
 import { TeamLabel } from '@/components/TeamLabel'
 import { PenShootout } from '@/components/PenShootout'
@@ -68,6 +68,7 @@ export function LiveMatch({
   const [feed, setFeed] = useState<{ text: string; isHome: boolean; isBench?: boolean }[]>([])
   const [showPens, setShowPens] = useState(false)
   const [penTick, setPenTick] = useState(0)     // number of shootout kicks revealed so far
+  const [paused, setPaused] = useState(false)   // stop-time: freezes the clock + pen reveal
   const doneRef = useRef(false)
 
   const totalKicks = (pens?.kicksA?.length ?? 0) + (pens?.kicksB?.length ?? 0)
@@ -88,10 +89,11 @@ export function LiveMatch({
     setFeed([])
   }, [periodIdx])
 
-  // The clock tick.
+  // The clock tick. While paused nothing advances — the match freezes exactly
+  // where it is (mid-period, between periods, or mid-shootout) until resumed.
   useEffect(() => {
     const p = periods[periodIdx]
-    if (!p) return
+    if (!p || paused) return
     if (clock >= p.toMin) {
       // period finished — advance or wrap up
       const t = setTimeout(() => {
@@ -121,7 +123,7 @@ export function LiveMatch({
       setClock(next)
     }, msPerMin)
     return () => clearTimeout(t)
-  }, [clock, periodIdx])
+  }, [clock, periodIdx, paused])
 
   function finish(delay: number) {
     if (doneRef.current) return
@@ -131,11 +133,11 @@ export function LiveMatch({
 
   // Reveal the shootout one kick at a time, then finish.
   useEffect(() => {
-    if (!showPens || totalKicks === 0) return
+    if (!showPens || totalKicks === 0 || paused) return
     if (penTick >= totalKicks) { finish(1000); return }
     const t = setTimeout(() => setPenTick(n => n + 1), 560)
     return () => clearTimeout(t)
-  }, [showPens, penTick, totalKicks])
+  }, [showPens, penTick, totalKicks, paused])
 
   const p = periods[periodIdx]
   if (!p) return null
@@ -166,10 +168,22 @@ export function LiveMatch({
     <View style={[styles.card, { borderColor: accent }]}>
       <View style={styles.topRow}>
         <Text style={styles.periodLabel}>{p.label}</Text>
-        <View style={[styles.clockPill, { borderColor: accent }]}>
-          <Text style={[styles.clockText, { color: accent }]}>{Math.min(clock, p.toMin)}'</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Pressable
+            onPress={() => setPaused(v => !v)}
+            style={[styles.pausePill, { borderColor: paused ? accent : colors.border }, paused && { backgroundColor: accent + '22' }]}
+            hitSlop={8}
+          >
+            <Text style={[styles.pauseText, { color: paused ? accent : colors.textMuted }]}>
+              {paused ? '▶ RESUME' : '⏸ PAUSE'}
+            </Text>
+          </Pressable>
+          <View style={[styles.clockPill, { borderColor: accent }]}>
+            <Text style={[styles.clockText, { color: accent }]}>{Math.min(clock, p.toMin)}'</Text>
+          </View>
         </View>
       </View>
+      {paused && <Text style={styles.pausedNote}>Time stopped — take your time, then resume.</Text>}
 
       <View style={styles.scoreRow}>
         <TeamLabel clubId={p.homeId} name={homeIsA ? teamA.clubName : teamB.clubName} textStyle={styles.teamName} containerStyle={{ flex: 1 }} size={15} />
@@ -182,7 +196,7 @@ export function LiveMatch({
           <Text style={styles.priorLeg} numberOfLines={1}>
             {L.label}: {L.homeName} {L.homeG}–{L.awayG} {L.awayName}
           </Text>
-          {(L.homeScorers || L.awayScorers) && (
+          {!!(L.homeScorers || L.awayScorers) && (
             <View style={styles.priorLegScorerRow}>
               <Text style={[styles.priorLegScorer, { textAlign: 'left' }]} numberOfLines={1}>{L.homeScorers}</Text>
               <Text style={[styles.priorLegScorer, { textAlign: 'right' }]} numberOfLines={1}>{L.awayScorers}</Text>
@@ -223,6 +237,9 @@ const styles = StyleSheet.create({
   periodLabel: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
   clockPill: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 2 },
   clockText: { fontSize: typography.sm, fontWeight: typography.black },
+  pausePill: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  pauseText: { fontSize: 9, fontWeight: typography.black, letterSpacing: 0.5 },
+  pausedNote: { fontSize: 10, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   teamName: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
   bigScore: { fontSize: typography.xxl, fontWeight: typography.black, color: colors.textPrimary },

@@ -36,6 +36,8 @@ export type QualTie = {
   leg1Scorers?: import('@/types/stats').MatchScorers
   leg2Scorers?: import('@/types/stats').MatchScorers
   leg2ExtraTimeScorers?: import('@/types/stats').MatchScorers
+  leg1Seed?: number   // deep-stat seeds, one per physical match (match-detail.ts)
+  leg2Seed?: number
 }
 
 export type QualifyingResult = {

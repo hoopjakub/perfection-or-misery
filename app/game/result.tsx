@@ -11,6 +11,7 @@ import { saveRun, fetchRunById } from '@/db/queries/runs'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { getAllClubsData } from '@/db/queries/seasons'
 import { summariseScorers, computeLeagueRunStats } from '@/engine/run-stats'
+import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
 import { getSlotsForFormation } from '@/engine/formations'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
@@ -200,6 +201,21 @@ export default function ResultScreen() {
   const params = useLocalSearchParams<{ runId: string }>()
   const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
+  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
+
+  // Deep-stats entry point: any finished fixture row → the match-detail modal.
+  const openFixtureDetail = (fixture: any, mdLabel: string) => {
+    if (!fixture?.result || !placedLeague) return
+    setMatchDetail({
+      homeClubId: fixture.home.clubId, homeName: fixture.home.clubName,
+      awayClubId: fixture.away.clubId, awayName: fixture.away.clubName,
+      homeGoals: fixture.result.homeGoals, awayGoals: fixture.result.awayGoals,
+      scorers: fixture.scorers, seed: fixture.seed,
+      yearStart: placedLeague.yearStart,
+      competitionLabel: mdLabel,
+      playerClubId: simResult?.table.find((t: any) => t.isPlayer)?.clubId,
+    })
+  }
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guard for the save/exit buttons — a quick double-tap (or tapping
   // both buttons) used to fire saveRun twice. Declared up here so it sits above
@@ -582,7 +598,7 @@ export default function ResultScreen() {
                 const homeScorers = summariseScorers(fixture.scorers?.home)
                 const awayScorers = summariseScorers(fixture.scorers?.away)
                 return (
-                  <View key={idx} style={styles.fixtureRowWrap}>
+                  <Pressable key={idx} style={styles.fixtureRowWrap} onPress={() => openFixtureDetail(fixture, `Matchday ${currentMatchday}`)}>
                     <View style={[styles.fixtureRow, (isPlayerHome || isPlayerAway) && styles.fixtureRowPlayer]}>
                       <Text
                         style={[styles.fixtureTeam, styles.fixtureTeamHome, isPlayerHome && styles.fixtureTeamPlayer]}
@@ -606,13 +622,13 @@ export default function ResultScreen() {
                         {fixture.away.clubName}
                       </Text>
                     </View>
-                    {(homeScorers || awayScorers) && (
+                    {!!(homeScorers || awayScorers) && (
                       <View style={styles.fixtureScorers}>
                         <Text style={[styles.fixtureScorerHalf, { textAlign: 'right' }]} numberOfLines={2}>{homeScorers ? `⚽ ${homeScorers}` : ''}</Text>
                         <Text style={styles.fixtureScorerHalf} numberOfLines={2}>{awayScorers ? `${awayScorers} ⚽` : ''}</Text>
                       </View>
                     )}
-                  </View>
+                  </Pressable>
                 )
               })}
             </View>
@@ -738,7 +754,7 @@ export default function ResultScreen() {
         {/* Player statistics — fresh run (compute from store) or a saved snapshot (by runId) */}
         {(isFreshRun || (params.runId && dbRunData?.stats)) ? (
           <Pressable
-            style={[styles.actionBtn, { backgroundColor: theme.accent, marginTop: spacing.md }]}
+            style={({ pressed }) => [styles.actionBtn, { backgroundColor: theme.accent, marginTop: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
             onPress={() => router.push(params.runId ? { pathname: '/game/stats', params: { runId: params.runId } } : '/game/stats')}
           >
             <Text style={styles.actionBtnText}>📊 View Stats</Text>
@@ -747,26 +763,29 @@ export default function ResultScreen() {
 
         {/* Play Again Button */}
         <View style={styles.buttonRow}>
-          <Pressable disabled={submitting} style={[styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }]} onPress={handleReturnToHome}>
+          <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleReturnToHome}>
             <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
           </Pressable>
-          <Pressable disabled={submitting} style={[styles.actionBtn, { backgroundColor: theme.accent }, submitting && { opacity: 0.5 }]} onPress={handlePlayAgain}>
+          <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, { backgroundColor: theme.accent }, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handlePlayAgain}>
             <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
           </Pressable>
         </View>
       </ScrollView>
 
-      <TeamMatchesModal team={openTeam} history={matchdayHistory} accent={theme.accent} onClose={() => setOpenTeam(null)} />
+      <TeamMatchesModal team={openTeam} history={matchdayHistory} accent={theme.accent} onClose={() => setOpenTeam(null)}
+        onOpenMatch={(f, md) => openFixtureDetail(f, `Matchday ${md}`)} />
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
 }
 
 // Every match a club played, in a scrollable modal (tap a club in the table).
-function TeamMatchesModal({ team, history, accent, onClose }: {
+function TeamMatchesModal({ team, history, accent, onClose, onOpenMatch }: {
   team: { clubId: string; clubName: string } | null
   history: any[]
   accent: string
   onClose: () => void
+  onOpenMatch?: (fixture: any, matchday: number) => void
 }) {
   const matches = team
     ? history.flatMap((s: any) => s.fixtures
@@ -787,12 +806,12 @@ function TeamMatchesModal({ team, history, accent, onClose }: {
               const resColor = res === 'W' ? colors.success : res === 'L' ? colors.danger : colors.warning
               const opp = isHome ? m.away.clubName : m.home.clubName
               return (
-                <View key={i} style={styles.mmRow}>
+                <Pressable key={i} style={styles.mmRow} onPress={onOpenMatch ? () => onOpenMatch(m, m.md) : undefined}>
                   <Text style={styles.mmMd}>MD{m.md}</Text>
                   <View style={[styles.mmRes, { backgroundColor: resColor + '22' }]}><Text style={[styles.mmResText, { color: resColor }]}>{res}</Text></View>
                   <Text style={styles.mmOpp} numberOfLines={1}>{isHome ? 'vs' : '@'} {opp}</Text>
                   <Text style={styles.mmScore}>{gf}-{ga}</Text>
-                </View>
+                </Pressable>
               )
             })}
           </ScrollView>

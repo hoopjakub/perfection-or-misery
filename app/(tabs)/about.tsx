@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native'
 import { router } from 'expo-router'
+import { BackButton } from '@/components/ui'
 import { useGameStore } from '@/store/gameStore'
 import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl } from '@/engine/quick-sim'
 import { SpinningGlobe } from '@/components/GlobeReveal'
@@ -48,9 +49,7 @@ export default function AboutScreen() {
     <View style={styles.container}>
       {/* header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+        <BackButton />
         <Text style={styles.title}>About Me</Text>
         <View style={{ width: 32 }} />
       </View>
@@ -68,7 +67,8 @@ export default function AboutScreen() {
           <Text style={styles.content}>
             I'm a high school student, born and raised in Slovakia. Perfection or Misery is a solo
             project I build in whatever spare time school leaves me — every mode, every screen, every
-            line of the simulation engine.
+            line of the simulation engine. No studio, no team: when a knockout bracket needed
+            pinch-to-zoom or the globe needed to spin, I sat down and figured out how to build it.
           </Text>
         </View>
 
@@ -79,7 +79,10 @@ export default function AboutScreen() {
             <Text style={styles.link} onPress={() => Linking.openURL('https://38-0.app/')}>38-0.app ↗</Text>
             {' '}— I loved the core idea, but kept noticing things I wanted to do differently. So I
             decided to build my own take on it: deeper simulation, real competitions, and a lot more
-            drama along the way. This app is that spin.
+            drama along the way. What started as "38-0 but mine" has grown into a full football
+            universe — a custom Champions League journey across all 53 UEFA leagues, a 48-team World
+            Cup, live matches on a ticking clock, and now FotMob-style deep stats with player ratings
+            for every single simulated match.
           </Text>
         </View>
 
@@ -91,13 +94,17 @@ export default function AboutScreen() {
             database — the whole game runs offline, no server needed to play{'\n'}
             • Every match is decided by a custom simulation engine — team OVR, form, and controlled
             randomness, goal by goal{'\n'}
+            • On top of the result engine sits a deterministic deep-stats generator: possession, xG,
+            shot maps, pass numbers, duels, individual 0–10 ratings and a Player of the Match for
+            every fixture — thousands of matches per run, each reproducible from a single stored seed
+            so reopening a match always shows identical numbers{'\n'}
             • Champions League and World Cup knockouts run through a full two-legged / extra-time /
             penalty-shootout engine, with named takers pulled from your actual squad{'\n'}
             • The country-reveal globe — draft spins, league placement, and the one spinning above —
             is a from-scratch orthographic map projection in SVG. No map library, just spherical
             trigonometry{'\n'}
-            • Live matches tick on a real clock, and the knockout bracket is a pinch-to-zoom tree you
-            pan around like a map
+            • Live matches tick on a real clock (pausable mid-match), and the knockout bracket is a
+            pinch-to-zoom tree you pan around like a map
           </Text>
         </View>
 

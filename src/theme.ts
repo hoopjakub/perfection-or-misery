@@ -6,10 +6,14 @@ export const colors = {
   border:       '#1F2937',
   borderLight:  '#374151',
 
-  // text
+  // text — muted must stay ≥4.5:1 on bgCard (#111827); the old #4B5563 sat
+  // around 3:1 and made every meta line borderline unreadable on real screens.
   textPrimary:   '#F9FAFB',
   textSecondary: '#9CA3AF',
-  textMuted:     '#4B5563',
+  textMuted:     '#6B7280',
+
+  // shared accents that were hardcoded ad hoc around the app
+  gold: '#FFD700',
 
   // accent — changes per league at runtime, this is default
   accent:        '#3B82F6',
@@ -37,11 +41,20 @@ export const colors = {
     absolute_misery:       '#EF4444',
   },
 
-  // status
+  // status — `danger` is the ONE red for "loss/eliminated/error" everywhere.
+  // (Several screens used to hardcode a second red, #DC2626, for the same
+  // meaning — that was never a deliberate second shade, just drift.)
   success: '#10B981',
   warning: '#F59E0B',
   danger:  '#EF4444',
   info:    '#3B82F6',
+
+  // draft-pot badges (UCL seeding, 1–4) — was duplicated as a local
+  // `POT_COLORS`/`potColors` object in 3+ separate screens.
+  pots: { 1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA' } as Record<number, string>,
+
+  // modal/overlay scrim — was hardcoded 'rgba(0,0,0,0.7|0.75)' inline in every modal.
+  overlay: 'rgba(0, 0, 0, 0.72)',
 
   // positions
   positions: {
@@ -153,6 +166,25 @@ export const typography = {
   medium:  '500' as const,
   bold:    '700' as const,
   black:   '900' as const,
+}
+
+// Append an alpha suffix to a 6-digit hex color — e.g. withAlpha(colors.accent, 0x33)
+// for ~20% opacity. Replaces the `color + '33'` / `color + '22'` pattern that
+// was repeated ad hoc (15+ call sites) across draft/mode-select/result screens.
+// `pct` is 0–100; converted to a 2-digit hex alpha suffix.
+export function withAlpha(hex: string, pct: number): string {
+  const clamped = Math.max(0, Math.min(100, pct))
+  const alpha = Math.round((clamped / 100) * 255).toString(16).padStart(2, '0')
+  return `${hex}${alpha}`
+}
+
+// Match-rating 0–10 → band color. Was implemented identically in both
+// SquadSummary.tsx and MatchDetailModal.tsx — single source now.
+export function ratingColor(r: number): string {
+  if (r >= 8) return '#9F5BFF'
+  if (r >= 7) return colors.success
+  if (r >= 6) return colors.warning
+  return colors.danger
 }
 
 export const shadows = {

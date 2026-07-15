@@ -15,7 +15,7 @@ export const LOGO_MAP: Record<string, number> = {
   // Add entries as you download images:
   // arsenal:       require('../../assets/logos/arsenal.png'),
   // chelsea:       require('../../assets/logos/chelsea.png'),
-  brazil_nt:     require('../../assets/logos/brazil_nt.png'),
+  //brazil_nt:     require('../../assets/logos/brazil_nt.png'),
   // real_madrid:   require('../../assets/logos/real_madrid.png'),
 }
 

@@ -27,4 +27,36 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
 const htmlStyle = `
   html, body, #root { height: 100%; margin: 0; padding: 0; background-color: #0A0E1A; }
+
+  /* Ambient desktop backdrop — the phone-width column floats on a subtle
+     stadium-lights wash instead of a flat void. Pure decoration behind #root's
+     transparent margins; costs nothing on mobile (gradients sit under the app). */
+  body {
+    background-image:
+      radial-gradient(1200px 700px at 15% -10%, rgba(59, 130, 246, 0.10), transparent 60%),
+      radial-gradient(1000px 600px at 85% 110%, rgba(239, 68, 68, 0.07), transparent 60%),
+      radial-gradient(800px 500px at 50% 50%, rgba(255, 255, 255, 0.02), transparent 70%);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Thin dark scrollbars — default chrome scrollbars scream "unfinished" on a
+     dark app. Firefox first, then WebKit. */
+  * { scrollbar-width: thin; scrollbar-color: #374151 transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+  *::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+
+  /* Brand-colored text selection */
+  ::selection { background: rgba(59, 130, 246, 0.45); color: #F9FAFB; }
+
+  /* Keyboard-visible focus ring without polluting mouse clicks */
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid #3B82F6; outline-offset: 2px; border-radius: 4px; }
+
+  /* Interactive RN-web elements get a real pointer + snappy color transitions */
+  [role="button"], [tabindex="0"], a { cursor: pointer; }
+  [role="button"] { transition: opacity 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms ease; }
 `

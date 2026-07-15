@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { router } from 'expo-router'
+import { BackButton } from '@/components/ui'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 export default function HowToPlayScreen() {
@@ -7,32 +8,41 @@ export default function HowToPlayScreen() {
     <View style={styles.container}>
       {/* header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+        <BackButton />
         <Text style={styles.title}>How to Play</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Getting Started</Text>
+          <Text style={styles.sectionTitle}>The Idea</Text>
           <Text style={styles.content}>
-            Welcome to Perfection or Misery! You draft a squad, get placed into a competition, and watch
-            it play out — sometimes match by match on a board, sometimes live on a real clock. Can you
-            achieve perfection, or will you suffer misery?
+            Perfection or Misery is a football-management roguelike. Every run: draft a squad from
+            random real club-seasons, get dropped into a competition somewhere on the planet, and watch
+            it play out — match by match on a scoreboard, or live on a ticking clock. At the end you're
+            graded on a tier ladder from <Text style={styles.bold}>ABSOLUTE MISERY</Text> to{' '}
+            <Text style={styles.bold}>ULTIMATE PERFECTION</Text>. No two runs are ever the same: the
+            clubs you spin, the league you land in, and every simulated match are fresh each time.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Drafting Your Squad</Text>
           <Text style={styles.content}>
-            1. Choose a formation — 11 shapes to pick from, everything from a classic 4-3-3 to a back
-            five or a narrow diamond midfield{'\n'}
-            2. Spin for clubs to pick players from{'\n'}
-            3. Select players that fit your open positions (some accept a nearby position too, at a
-            small rating penalty){'\n'}
-            4. Complete your 11-player squad
+            1. <Text style={styles.bold}>Pick a formation</Text> — 11 real shapes (see below). This
+            decides which position slots you must fill.{'\n'}
+            2. <Text style={styles.bold}>Spin the wheel</Text> — each spin lands on a random real club
+            season (e.g. 2011/12 Ajax) and shows you its squad.{'\n'}
+            3. <Text style={styles.bold}>Pick one player</Text> who fits an open slot. Players can also
+            fill nearby positions (a RW can play RM, a CB can play at full-back…) at a small OVR
+            penalty — the draft shows the adjusted rating before you commit.{'\n'}
+            4. Repeat until all 11 slots are filled. Depending on difficulty you may have rerolls to
+            skip a bad club spin.{'\n\n'}
+            You can <Text style={styles.bold}>MOVE</Text> any drafted player later: to an open slot, or
+            swapped with a teammate whose position is compatible both ways. When a move would displace
+            someone, the picker shows exactly what you'd get — the incoming player's OVR in that slot
+            and the outgoing player's OVR in the slot they'd move to (or a SUB tag if they'd drop to
+            the bench).
           </Text>
         </View>
 
@@ -57,9 +67,12 @@ export default function HowToPlayScreen() {
             starting XI. Your bench shows up in "Your Squad" alongside the XI, and you can MOVE a sub
             into any compatible starting slot (and send that starter to the bench) right from the draft
             screen.{'\n\n'}
-            Subs only come off the bench from the 60th minute onward, and even then score and assist at
-            reduced odds compared to a player who started — a small orange <Text style={styles.bold}>SUB</Text> tag
-            marks their goals and assists wherever they show up, for every team, not just yours.{'\n\n'}
+            Substitutions happen in the <Text style={styles.bold}>second half only</Text> — nobody
+            comes off the bench before the 45th minute, and subs score and assist at reduced odds
+            compared to a player who started. A small orange <Text style={styles.bold}>SUB</Text> tag
+            marks their goals and assists wherever they show up, for every team, not just yours. Open
+            any finished match's detail page and you'll see the actual substitution minutes (green ▲
+            on, red ▼ off) for both sides.{'\n\n'}
             Don't want a bench this run? Skip it — you (and every AI opponent) will simply play with no
             substitutes at all, so nobody gets an unfair edge either way.
           </Text>
@@ -88,7 +101,48 @@ export default function HowToPlayScreen() {
             {'\n\n'}
             Your own matches in the World Cup group stage and any knockout tie play out differently —
             on a real ticking clock, goals revealed minute by minute, with the rest of the round held
-            back until your match finishes so nothing spoils it early.
+            back until your match finishes so nothing spoils it early. Need a moment?{' '}
+            <Text style={styles.bold}>⏸ PAUSE</Text> in the top bar of any live match stops the clock
+            (mid-match, between legs, even mid-shootout) until you resume.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Match Detail Pages — Deep Stats</Text>
+          <Text style={styles.content}>
+            Every finished match, anywhere in the game, is <Text style={styles.bold}>tappable</Text> —
+            league matchdays, Champions League league-phase games, World Cup group games, knockout-tie
+            legs, even qualifying rounds. Tapping opens a FotMob-style match page:{'\n\n'}
+            • <Text style={styles.bold}>Team stats</Text> — possession, xG (split open play / set piece),
+            shots (on target, inside/outside box, blocked, woodwork), big chances, full passing numbers
+            (accuracy, long balls, crosses, throw-ins), duels, tackles, corners, cards, offsides and
+            more, drawn as comparison bars.{'\n'}
+            • <Text style={styles.bold}>Timeline</Text> — goals, cards and substitutions minute by minute.{'\n'}
+            • <Text style={styles.bold}>Both lineups</Text> — starters, subs with ▲/▼ minutes, unused
+            bench — each player carrying a colour-coded 0–10 match rating. Tap any player for their full
+            individual stat sheet (keepers get saves, save %, claims, sweeper actions).{'\n'}
+            • <Text style={styles.bold}>Team ratings + Player of the Match</Text> — each side's average
+            rating, and a gold banner for the match's best player.{'\n\n'}
+            The numbers respect the result but not blindly — a dominant team can lose 1-0 with 2.5 xG
+            against a smash-and-grab, especially in upsets. Reopen the same match any time: the sheet is
+            regenerated identically, down to the last touch.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ratings, POTM & the Stats Hub</Text>
+          <Text style={styles.content}>
+            Every player in the competition accumulates an <Text style={styles.bold}>average match
+            rating</Text> and <Text style={styles.bold}>★ Player of the Match</Text> count across the
+            whole run. The Player Statistics screen has leaderboards for goals, assists, clean sheets,
+            average rating and POTM — and you can tap any player to open their{' '}
+            <Text style={styles.bold}>match-by-match game log</Text>: every game they played, with
+            rating, goals/assists (saves for keepers), sub minutes and cards, each expandable into
+            their full stat sheet for that match.{'\n\n'}
+            Ratings matter for silverware too: <Text style={styles.bold}>Player of the Season</Text> and{' '}
+            <Text style={styles.bold}>Best U21</Text> now weigh average rating and POTM awards heavily
+            alongside goals, assists and clean sheets — a dominant defensive midfielder can beat a
+            one-dimensional poacher to the award.
           </Text>
         </View>
 
@@ -105,11 +159,16 @@ export default function HowToPlayScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Season Summary</Text>
+          <Text style={styles.sectionTitle}>Season Summary & Your Squad</Text>
           <Text style={styles.content}>
-            At the end of a run, see your final position, top scorers, and a full breakdown of how your
-            team performed — plus, for the bigger competitions, the complete bracket, every league table
-            involved, and your knockout run.
+            At the end of a run, see your final position, tier, and a full breakdown of how your team
+            performed — plus, for the bigger competitions, the complete bracket, every league table
+            involved, and your knockout run.{'\n\n'}
+            The <Text style={styles.bold}>Your Squad</Text> card shows each of your players' goals,
+            assists and clean sheets alongside their colour-coded average rating chip and ★ POTM count,
+            with top-3 league ranks flagged. "Full stats →" jumps into the stats hub above. Signed-in
+            runs are saved to your history and feed lifetime career stats for every player you've ever
+            drafted.
           </Text>
         </View>
 
@@ -143,9 +202,14 @@ export default function HowToPlayScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Scoring</Text>
+          <Text style={styles.sectionTitle}>Scoring & Tiers</Text>
           <Text style={styles.content}>
-            Your score is based on your final position, team OVR, and bonus points for unbeaten or perfect seasons. Higher tiers give better scores.
+            Your score is based on your final position, team OVR, and bonus points for unbeaten or
+            perfect seasons. Higher tiers give better scores — win the league unbeaten for{' '}
+            <Text style={styles.bold}>ALMOST PERFECTION</Text>, win every single match for{' '}
+            <Text style={styles.bold}>ULTIMATE PERFECTION</Text>; get relegated and it's{' '}
+            <Text style={styles.bold}>ABSOLUTE MISERY</Text>. Cup modes grade you on how deep your run
+            went, from group-stage exit to lifting the trophy.
           </Text>
         </View>
       </ScrollView>

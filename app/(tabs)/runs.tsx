@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from
 import { router } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { fetchRunHistory } from '@/db/queries/leaderboard'
+import { PressCard, BackButton } from '@/components/ui'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 type SortOption = 'date' | 'score' | 'wins' | 'draws' | 'losses' | 'tier'
@@ -70,9 +71,7 @@ export default function RunsScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>←</Text>
-          </Pressable>
+          <BackButton />
           <Text style={styles.title}>My Runs</Text>
           <View style={{ width: 32 }} />
         </View>
@@ -87,9 +86,7 @@ export default function RunsScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>←</Text>
-          </Pressable>
+          <BackButton />
           <Text style={styles.title}>My Runs</Text>
           <View style={{ width: 32 }} />
         </View>
@@ -107,9 +104,7 @@ export default function RunsScreen() {
     <View style={styles.container}>
       {/* header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+        <BackButton />
         <Text style={styles.title}>My Runs</Text>
         <View style={{ width: 32 }} />
       </View>
@@ -138,9 +133,9 @@ export default function RunsScreen() {
       ) : (
         <ScrollView style={styles.runsScroll} showsVerticalScrollIndicator={false}>
           {sortedRuns.map((run) => (
-            <Pressable
+            <PressCard
               key={run.id}
-              style={styles.runCard}
+              style={[styles.runCard, { borderLeftColor: (colors.tiers as any)[run.tier] ?? colors.accent, borderLeftWidth: 3 }]}
               onPress={() => router.push({
                 pathname: run.mode === 'world_cup' ? '/game/wc-result'
                         : run.mode === 'champions_league_custom' ? '/game/custom-ucl-result'
@@ -150,7 +145,7 @@ export default function RunsScreen() {
               })}
             >
               <View style={styles.runCardHeader}>
-                <Text style={styles.runTier}>{formatTier(run.tier)}</Text>
+                <Text style={[styles.runTier, { color: (colors.tiers as any)[run.tier] ?? colors.accent }]}>{formatTier(run.tier)}</Text>
                 <Text style={styles.runDate}>{formatDate(run.created_at)}</Text>
               </View>
               <Text style={styles.runLeague}>{run.league_name}</Text>
@@ -163,7 +158,7 @@ export default function RunsScreen() {
                 <Text style={styles.runStat}>D: {run.draws}</Text>
                 <Text style={styles.runStat}>L: {run.losses}</Text>
               </View>
-            </Pressable>
+            </PressCard>
           ))}
         </ScrollView>
       )}

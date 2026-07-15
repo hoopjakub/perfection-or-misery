@@ -1,5 +1,33 @@
 # Next Up: Deep Match Stats, Player Ratings & the Match-Detail Screen
 
+> ## ✅ IMPLEMENTED (July 2026)
+>
+> Shipped as designed (Path C hybrid). As-built map:
+>
+> - **Generator:** `src/engine/match-detail.ts` (`generateMatchDetail`) — seeded,
+>   deterministic, adopts the stored scorers verbatim; produces the full team
+>   grid (`src/types/match-stats.ts`), per-player lines, sub events, cards,
+>   0–10 ratings + team averages. Dominance tracks OVR more than the scoreline,
+>   so upset losers routinely out-possess/out-xG the winner. ~0.25 ms/match.
+> - **Seeds:** `src/lib/rng.ts` (mulberry32). Every match object carries a
+>   `seed` (`Fixture`, `CLLeagueMatch`, `WCGroupMatch`, `WCKnockoutMatch`,
+>   `CLKnockoutMatch.leg1Seed/leg2Seed`, `QualTie.leg1Seed/leg2Seed`); scorer
+>   attribution (`stats.ts`) accepts an `rng` so the same seed re-derives the
+>   same scorers. Legacy matches without a seed fall back to a stable
+>   `hashSeed` of the match identity.
+> - **UI:** `src/components/MatchDetailModal.tsx` (+ `koLegDetailRequest`
+>   shared builder). Entry points wired in: league result + live sim tickers,
+>   CL result (league MDs + KO legs), custom-UCL result/sim (domestic + league
+>   phase + KO/qualifying legs via `KoTieDetailModal`), WC result/sim (group
+>   modal + KO modal). Two-leg ties open per-leg; leg 2 folds its ET in.
+> - **Verification:** `npx tsx scripts/verify-match-detail.ts` — determinism
+>   (incl. legacy path), all cross-side invariants, rating sanity, upset
+>   texture. Run it after ANY change to the generator or attribution.
+>
+> Still open: the live knockout-reveal cards in `app/game/simulation.tsx`
+> (classic CL/WC) aren't tap-through yet — those ties are clickable from the
+> result screens instead. Rating scale kept 0–10 FotMob-style.
+
 The vision: go from "a funny game" to something a football fanatic would
 actually study. Every match — group, league, or knockout — becomes clickable
 *after it finishes*, opening a full **FotMob-style match page**: team stats

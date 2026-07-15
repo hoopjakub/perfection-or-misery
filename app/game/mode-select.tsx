@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { PressCard, BackButton } from '@/components/ui'
 import { router } from 'expo-router'
 import { useGameStore, GameMode, type Difficulty } from '@/store/gameStore'
 import { getAvailableLeagues, type LeagueOption } from '@/db/queries/seasons'
@@ -196,9 +198,7 @@ export default function ModeSelectScreen() {
     <View style={styles.container}>
       {/* header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+        <BackButton />
         <Text style={styles.title}>Choose Mode</Text>
         <View style={{ width: 32 }} />
       </View>
@@ -229,24 +229,30 @@ export default function ModeSelectScreen() {
         {visibleModes.map(mode => {
           const selected = selectedMode === mode.id
           return (
-            <Pressable
+            <PressCard
               key={mode.id}
               style={[
                 styles.card,
-                selected && { borderColor: mode.accentColor, borderWidth: 2 }
+                selected && {
+                  borderColor: mode.accentColor,
+                  borderWidth: 2,
+                  backgroundColor: mode.accentColor + '0D',   // ~5% tint — selection reads instantly
+                },
               ]}
               onPress={() => handleModePress(mode.id)}
             >
               <View style={styles.cardHeader}>
-                {mode.image ? (
-                  <Image 
-                    source={mode.image} 
-                    style={styles.cardImage}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <Text style={styles.cardEmoji}>{mode.emoji}</Text>
-                )}
+                <View style={[styles.cardIconTile, { backgroundColor: mode.accentColor + '1E' }]}>
+                  {mode.image ? (
+                    <Image
+                      source={mode.image}
+                      style={styles.cardImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={styles.cardEmoji}>{mode.emoji}</Text>
+                  )}
+                </View>
                 <View style={styles.cardTitles}>
                   <Text style={styles.cardTitle}>{mode.title}</Text>
                   <Text style={styles.cardSubtitle}>{mode.subtitle}</Text>
@@ -273,7 +279,7 @@ export default function ModeSelectScreen() {
                         key={era.id}
                         style={[
                           styles.pickerChip,
-                          selectedEra === era.id && styles.pickerChipSelected
+                          selectedEra === era.id && [styles.pickerChipSelected, { backgroundColor: mode.accentColor, borderColor: mode.accentColor }]
                         ]}
                         onPress={() => setSelectedEra(era.id)}
                       >
@@ -307,7 +313,7 @@ export default function ModeSelectScreen() {
                           key={league.id}
                           style={[
                             styles.pickerChip,
-                            selectedLeague === league.id && styles.pickerChipSelected
+                            selectedLeague === league.id && [styles.pickerChipSelected, { backgroundColor: mode.accentColor, borderColor: mode.accentColor }]
                           ]}
                           onPress={() => setSelectedLeagueState(league.id)}
                         >
@@ -334,7 +340,7 @@ export default function ModeSelectScreen() {
                         key={diff.id}
                         style={[
                           styles.pickerChip,
-                          selectedDifficulty === diff.id && styles.pickerChipSelected
+                          selectedDifficulty === diff.id && [styles.pickerChipSelected, { backgroundColor: mode.accentColor, borderColor: mode.accentColor }]
                         ]}
                         onPress={() => setSelectedDifficulty(diff.id)}
                       >
@@ -354,7 +360,7 @@ export default function ModeSelectScreen() {
                   )}
                 </View>
               )}
-            </Pressable>
+            </PressCard>
           )
         })}
       </ScrollView>
@@ -362,10 +368,11 @@ export default function ModeSelectScreen() {
       {/* continue button */}
       <View style={styles.footer}>
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.continueBtn,
             !canContinue && styles.continueBtnDisabled,
-            selectedMode && { backgroundColor: currentMode?.accentColor || colors.accent }
+            selectedMode && { backgroundColor: currentMode?.accentColor || colors.accent },
+            pressed && canContinue && { opacity: 0.85, transform: [{ scale: 0.985 }] },
           ]}
           onPress={handleContinue}
           disabled={!canContinue}
@@ -373,6 +380,7 @@ export default function ModeSelectScreen() {
           <Text style={styles.continueBtnText}>
             {selectedMode ? `Continue with ${currentMode?.title}` : 'Select a mode'}
           </Text>
+          {canContinue && <Ionicons name="arrow-forward" size={16} color={colors.textPrimary} />}
         </Pressable>
       </View>
     </View>
@@ -457,12 +465,19 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           spacing.md,
   },
+  cardIconTile: {
+    width:          48,
+    height:         48,
+    borderRadius:   radius.md,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
   cardEmoji: {
-    fontSize: 28,
+    fontSize: 26,
   },
   cardImage: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
   },
   cardTitles: {
     flex: 1,
@@ -568,6 +583,9 @@ const styles = StyleSheet.create({
     borderRadius:    radius.md,
     paddingVertical: spacing.md,
     alignItems:      'center',
+    justifyContent:  'center',
+    flexDirection:   'row',
+    gap:             spacing.sm,
     ...shadows.md,
   },
   continueBtnDisabled: {

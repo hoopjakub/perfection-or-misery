@@ -4,6 +4,8 @@ import {
   Animated, ActivityIndicator, ScrollView
 } from 'react-native'
 import { router } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
+import { PressCard } from '@/components/ui'
 import { useGameStore } from '@/store/gameStore'
 import { getAllClubSeasons, getLeagueSeasonWithTeams, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from '@/engine/placement'
@@ -133,11 +135,12 @@ function LeaguePlacement() {
   if (!formation || draftedPlayers.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Ionicons name="warning-outline" size={40} color={colors.warning} />
         <Text style={styles.loadingText}>No squad drafted yet.</Text>
-        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Draft</Text>
-        </Pressable>
+        <PressCard onPress={() => router.replace('/game/draft')} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }}>
+          <Ionicons name="arrow-back" size={14} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>Back to Draft</Text>
+        </PressCard>
       </View>
     )
   }
@@ -181,13 +184,13 @@ function LeaguePlacement() {
             <Text style={styles.filterLabel}>League Pool</Text>
             <View style={styles.filterOptions}>
               {(['all', 'specific'] as const).map(opt => (
-                <Pressable key={opt}
+                <PressCard key={opt}
                   style={[styles.filterOption, leagueFilter === opt && styles.filterOptionActive]}
                   onPress={() => setLeagueFilter(opt)}>
                   <Text style={[styles.filterOptionText, leagueFilter === opt && styles.filterOptionTextActive]}>
                     {opt === 'all' ? 'All Leagues' : 'One League Specific'}
                   </Text>
-                </Pressable>
+                </PressCard>
               ))}
             </View>
           </View>
@@ -197,7 +200,7 @@ function LeaguePlacement() {
         <View style={styles.spinZone}>
           {phase === 'ready' && (
             <>
-              <Text style={styles.spinReadyEmoji}>🌍</Text>
+              <Ionicons name="globe-outline" size={40} color={colors.textMuted} style={{ marginBottom: spacing.xs }} />
               <Text style={styles.spinReadyTitle}>Where will you land?</Text>
               <Text style={styles.spinReadySubtitle}>{eligibleSeasons.length} league{eligibleSeasons.length !== 1 ? 's' : ''} eligible</Text>
             </>
@@ -231,8 +234,8 @@ function LeaguePlacement() {
           )}
         </View>
 
-        {phase === 'ready'    && <Pressable style={[styles.spinBtn, { backgroundColor: theme.accent }]} onPress={handleSpin}>    <Text style={styles.spinBtnText}>SPIN PLACEMENT</Text></Pressable>}
-        {phase === 'revealed' && <Pressable style={styles.continueBtn} onPress={handleContinue}><Text style={styles.continueBtnText}>START SEASON →</Text></Pressable>}
+        {phase === 'ready'    && <Pressable style={({ pressed }) => [styles.spinBtn, { backgroundColor: theme.accent }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleSpin}><Text style={styles.spinBtnText}>SPIN PLACEMENT</Text></Pressable>}
+        {phase === 'revealed' && <Pressable style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleContinue}><Text style={styles.continueBtnText}>START SEASON →</Text></Pressable>}
       </View>
     </View>
   )
@@ -315,20 +318,20 @@ function CLPlacement() {
   if (!formation || draftedPlayers.length === 0 || teamCount < 8) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Ionicons name="warning-outline" size={40} color={colors.warning} />
         <Text style={styles.loadingText}>
           {teamCount < 8 && teamCount > 0
             ? `Only ${teamCount} UCL club${teamCount !== 1 ? 's' : ''} found. Seed at least 8 clubs to play.`
             : 'No UCL data found. Run the database seeder first.'}
         </Text>
-        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
-          <Text style={{ color: theme.accent, fontWeight: '700' }}>← Back</Text>
-        </Pressable>
+        <PressCard onPress={() => router.replace('/game/draft')} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }}>
+          <Ionicons name="arrow-back" size={14} color={theme.accent} />
+          <Text style={{ color: theme.accent, fontWeight: '700' }}>Back</Text>
+        </PressCard>
       </View>
     )
   }
 
-  const potColors: Record<number, string> = { 1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA' }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
@@ -349,8 +352,8 @@ function CLPlacement() {
             </Text>
             <Text style={styles.revealLabel}>You take over</Text>
             <Text style={styles.revealLeague}>{chosenName}</Text>
-            <View style={[styles.potBadge, { backgroundColor: potColors[pot] + '22', borderColor: potColors[pot], marginTop: spacing.sm }]}>
-              <Text style={[styles.potBadgeText, { color: potColors[pot] }]}>POT {pot}</Text>
+            <View style={[styles.potBadge, { backgroundColor: colors.pots[pot] + '22', borderColor: colors.pots[pot], marginTop: spacing.sm }]}>
+              <Text style={[styles.potBadgeText, { color: colors.pots[pot] }]}>POT {pot}</Text>
             </View>
             <Text style={styles.compRevealSubtitle}>
               Seeded into Pot {pot} for the league-phase draw among {teamCount} clubs · 8 games · Top 8 → R16 direct.
@@ -359,7 +362,7 @@ function CLPlacement() {
         )}
 
         {revealed && (
-          <Pressable style={styles.continueBtn} onPress={handleEnter}>
+          <Pressable style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleEnter}>
             <Text style={styles.continueBtnText}>ENTER THE UCL →</Text>
           </Pressable>
         )}
@@ -442,11 +445,12 @@ function CustomCLPlacement() {
   if (!formation || draftedPlayers.length === 0 || !chosen) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Ionicons name="warning-outline" size={40} color={colors.warning} />
         <Text style={styles.loadingText}>No custom UCL data found. Run the database seeder first.</Text>
-        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
-          <Text style={{ color: theme.accent, fontWeight: '700' }}>← Back</Text>
-        </Pressable>
+        <PressCard onPress={() => router.replace('/game/draft')} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }}>
+          <Ionicons name="arrow-back" size={14} color={theme.accent} />
+          <Text style={{ color: theme.accent, fontWeight: '700' }}>Back</Text>
+        </PressCard>
       </View>
     )
   }
@@ -481,7 +485,7 @@ function CustomCLPlacement() {
         </Animated.View>
 
         {revealed && (
-          <Pressable style={styles.continueBtn} onPress={handleEnter}>
+          <Pressable style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleEnter}>
             <Text style={styles.continueBtnText}>START YOUR SEASON →</Text>
           </Pressable>
         )}
@@ -565,15 +569,16 @@ function WCPlacement() {
   if (!formation || draftedPlayers.length === 0 || teamCount < 4) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Ionicons name="warning-outline" size={40} color={colors.warning} />
         <Text style={styles.loadingText}>
           {teamCount < 4 && teamCount > 0
             ? `Only ${teamCount} team${teamCount !== 1 ? 's' : ''} found. Seed at least 4 teams to play.`
             : 'No World Cup data found. Run the database seeder first.'}
         </Text>
-        <Pressable onPress={() => router.replace('/game/draft')} style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back</Text>
-        </Pressable>
+        <PressCard onPress={() => router.replace('/game/draft')} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }}>
+          <Ionicons name="arrow-back" size={14} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>Back</Text>
+        </PressCard>
       </View>
     )
   }
@@ -620,7 +625,7 @@ function WCPlacement() {
         </Animated.View>
 
         {revealed && (
-          <Pressable style={styles.continueBtn} onPress={() => router.push('/game/simulation')}>
+          <Pressable style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push('/game/simulation')}>
             <Text style={styles.continueBtnText}>ENTER THE WORLD CUP →</Text>
           </Pressable>
         )}

@@ -45,6 +45,10 @@ export type PlayerStatLine = {
   assists:       number
   cleanSheets:   number
   matchesPlayed?: number
+  // Deep-stats aggregates (match-detail generator, run over every match):
+  avgRating?:    number          // mean 0–10 match rating, 2 decimals
+  matchesRated?: number          // matches actually played (minutes > 0)
+  potm?:         number          // Player-of-the-Match awards this run
   isPlayerClub?: boolean         // true if this is one of YOUR drafted players
   isBench?:      boolean         // a substitute, not part of the starting XI
 }
@@ -74,6 +78,9 @@ export type AwardCandidate = {
   goals:         number
   assists:       number
   cleanSheets:   number
+  avgRating?:    number          // deep-stats: average match rating (heavy award weight)
+  potm?:         number          // deep-stats: Player-of-the-Match count
+  matchesRated?: number
   finalPosition: number          // their club's final standing (drives carry modifier)
   score:         number
   isPlayerClub?: boolean         // one of YOUR drafted players

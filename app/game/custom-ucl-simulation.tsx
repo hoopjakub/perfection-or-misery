@@ -23,6 +23,8 @@ import {
   loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeQualTieScorers, summariseScorers,
   attachCLShootoutNames,
 } from '@/engine/run-stats'
+import { randomSeed } from '@/lib/rng'
+import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
 import type { RosterPlayer } from '@/types/stats'
 import type { SimTeam } from '@/types/simulation'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
@@ -62,12 +64,14 @@ type MDResult = {
   homeId: string; awayId: string; home: string; away: string
   hg: number; ag: number; playerHome: boolean; playerAway: boolean
   hs?: string; as?: string
+  scorers?: import('@/types/stats').MatchScorers   // full events — match-detail modal
+  seed?: number                                    // deep-stat seed (match-detail.ts)
 }
 
 // A single matchday result row — clone of the league-mode "Matchday Results"
 // ticker (score badge, player highlight, scorer lines). Defined ABOVE the
 // screen component so it exists regardless of hoisting/Fast Refresh quirks.
-function MDResultRow({ r }: { r: MDResult }) {
+function MDResultRow({ r, onPress }: { r: MDResult; onPress?: () => void }) {
   const isPM = r.playerHome || r.playerAway
   let resultColor: string | null = null
   if (isPM) {
@@ -75,7 +79,7 @@ function MDResultRow({ r }: { r: MDResult }) {
     resultColor = r.hg === r.ag ? colors.warning : pWin ? colors.success : '#DC2626'
   }
   return (
-    <View style={[styles.resultRowWrap, isPM && styles.resultRowPlayerHighlight, resultColor ? { backgroundColor: resultColor + '15' } : null]}>
+    <Pressable onPress={onPress} disabled={!onPress} style={[styles.resultRowWrap, isPM && styles.resultRowPlayerHighlight, resultColor ? { backgroundColor: resultColor + '15' } : null]}>
       <View style={styles.resultRowInner}>
         <TeamLabel clubId={r.homeId} name={r.home} textStyle={[styles.resultClubNameText, r.playerHome && { color: CL.accent, fontWeight: typography.bold }]} containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]} size={14} />
         <View style={[styles.scoreBadge, resultColor ? { backgroundColor: resultColor + '33' } : null]}>
@@ -89,13 +93,13 @@ function MDResultRow({ r }: { r: MDResult }) {
           <Text style={styles.scorerHalf} numberOfLines={2}>{r.as ? `${r.as} ⚽` : ''}</Text>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   )
 }
 
 // Matchday Results card with LOOKBACK — follows the live matchday, but you can
 // scrub ‹ › back through every matchday already played (and jump to LIVE).
-function MatchdayResultsCard({ history }: { history: MDResult[][] }) {
+function MatchdayResultsCard({ history, onOpenMatch }: { history: MDResult[][]; onOpenMatch?: (r: MDResult, matchday: number) => void }) {
   const [idx, setIdx] = useState<number | null>(null)   // null = follow live
   const total = history.length
   const viewing = idx == null ? total : Math.min(idx, total)
@@ -127,7 +131,7 @@ function MatchdayResultsCard({ history }: { history: MDResult[][] }) {
         <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for kickoff...</Text></View>
       ) : (
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          {shown.map((r, i) => <MDResultRow key={i} r={r} />)}
+          {shown.map((r, i) => <MDResultRow key={i} r={r} onPress={onOpenMatch ? () => onOpenMatch(r, viewing) : undefined} />)}
         </ScrollView>
       )}
     </View>
@@ -153,6 +157,17 @@ export default function CustomUclSimulationScreen() {
 
   const totalTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, getSlotsForFormation(formation)) : 0
   const playerClubId = customUclPlayerClubId
+  // Deep-stats match-detail modal — served by both the domestic season and the
+  // UCL league phase (MDResult rows carry scorers + seed).
+  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
+  const openMdDetail = (r: MDResult, md: number, label: string, yearStart: number) => setMatchDetail({
+    homeClubId: r.homeId, homeName: r.home,
+    awayClubId: r.awayId, awayName: r.away,
+    homeGoals: r.hg, awayGoals: r.ag,
+    scorers: r.scorers, seed: r.seed, yearStart,
+    competitionLabel: `${label} · Matchday ${md}`,
+    playerClubId: playerClubId ?? undefined,
+  })
 
   const [phase, setPhase] = useState<Phase>('loading')
   const [speed, setSpeed] = useState<Speed>('normal')
@@ -245,11 +260,13 @@ export default function CustomUclSimulationScreen() {
     const results: MDResult[] = []
     for (const [home, away] of md) {
       const r = playLiveMatch(home, away)
-      const sc = attributeFixtureScorers(domPoolRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
+      const seed = randomSeed()
+      const sc = attributeFixtureScorers(domPoolRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
       results.push({
         homeId: home.clubId, awayId: away.clubId, home: home.clubName, away: away.clubName,
         hg: r.homeGoals, ag: r.awayGoals, playerHome: home.isPlayer, playerAway: away.isPlayer,
         hs: summariseScorers(sc.home), as: summariseScorers(sc.away),
+        scorers: sc, seed,
       })
     }
     // Player's match first, then the rest — same reading order as league mode.
@@ -433,17 +450,19 @@ export default function CustomUclSimulationScreen() {
       if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
       else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
       else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
+      const seed = randomSeed()
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
       leagueHistoryRef.current.push({
         matchday: currentMD,
         home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
         away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers,
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
       })
       results.push({
         homeId: home.clubId, awayId: away.clubId, home: home.clubName, away: away.clubName,
         hg: r.homeGoals, ag: r.awayGoals, playerHome: home.isPlayer, playerAway: away.isPlayer,
         hs: summariseScorers(scorers.home), as: summariseScorers(scorers.away),
+        scorers, seed,
       })
     })
     results.sort((a, b) => Number(b.playerHome || b.playerAway) - Number(a.playerHome || a.playerAway))
@@ -467,12 +486,13 @@ export default function CustomUclSimulationScreen() {
         if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
+        const seed = randomSeed()
+        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
         leagueHistoryRef.current.push({
           matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-          homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers,
+          homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
         })
       }
     }
@@ -793,9 +813,10 @@ export default function CustomUclSimulationScreen() {
             </View>
 
             {/* Matchday Results — scrub back through the whole season */}
-            <MatchdayResultsCard history={domHistory} />
+            <MatchdayResultsCard history={domHistory} onOpenMatch={(r, md) => openMdDetail(r, md, 'Domestic Season', 2025)} />
           </View>
         </View>
+        <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={CL.accent} />
       </View>
     )
   }
@@ -886,7 +907,7 @@ export default function CustomUclSimulationScreen() {
             <Text style={styles.primaryBtnText}>SKIP →</Text>
           </Pressable>
         </View>
-        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} />
+        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
         <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
       </View>
     )
@@ -1049,10 +1070,11 @@ export default function CustomUclSimulationScreen() {
               </ScrollView>
             </View>
 
-            <MatchdayResultsCard history={lpHistory} />
+            <MatchdayResultsCard history={lpHistory} onOpenMatch={(r, md) => openMdDetail(r, md, 'League Phase', clYear ?? 2025)} />
           </View>
         </View>
         <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
+        <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={CL.accent} />
       </View>
     )
   }
@@ -1122,7 +1144,7 @@ export default function CustomUclSimulationScreen() {
           ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setLiveDone(Object.fromEntries(koRounds.map(r => [r.round, true]))); setKoVisibleCount(koRounds.length) }}><Text style={styles.primaryBtnText}>SKIP →</Text></Pressable>
           : <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={finishAll}><Text style={styles.primaryBtnText}>VIEW FINAL RESULT →</Text></Pressable>}
       </View>
-      <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} />
+      <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
       <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
     </View>
   )

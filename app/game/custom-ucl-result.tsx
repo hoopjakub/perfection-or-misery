@@ -12,6 +12,7 @@ import { SquadSummary } from '@/components/SquadSummary'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
 import { TitleWithInfo, RulesModal } from '@/components/InfoBubble'
 import { LeagueTableModal, LeaguesBrowserModal, KoTieDetailModal, qualTieToKoMatch } from '@/components/CustomUclViewers'
+import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
 import { QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
 import { FORMAT_LABEL, isSpecialFormat } from '@/data/league-formats'
 import { flagForCountry } from '@/data/geo-iso'
@@ -37,8 +38,6 @@ const ROUND_COLORS: Record<string, string> = {
   league_exit: '#DC2626', playoff_exit: '#EA580C', r16_exit: '#F59E0B',
   qf_exit: '#F59E0B', sf_exit: '#A78BFA', finalist: '#34D399', winner: '#F59E0B',
 }
-const POT_COLORS: Record<number, string> = { 1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA' }
-
 export default function CustomUclResultScreen() {
   const store = useGameStore()
   const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
@@ -51,6 +50,7 @@ export default function CustomUclResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
+  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
   const [openLeague, setOpenLeague] = useState<SimLeagueTable | null>(null)
   const [browserOpen, setBrowserOpen] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
@@ -119,6 +119,19 @@ export default function CustomUclResultScreen() {
   const isChampion = playerFinalRound === 'winner'
   const playerPos = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
   const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
+
+  // Deep-stats entry point — league-phase matchday rows (KO legs open from
+  // the shared KoTieDetailModal's per-leg buttons).
+  const ovrByClub = new Map(leaguePhaseStandings.map(t => [t.clubId, t.ovr]))
+  const openLeagueMatchDetail = (m: CLLeagueMatch) => setMatchDetail({
+    homeClubId: m.home.clubId, homeName: m.home.clubName,
+    awayClubId: m.away.clubId, awayName: m.away.clubName,
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+    scorers: m.scorers, seed: m.seed, yearStart: store.clYear ?? 2025,
+    competitionLabel: `League Phase · Matchday ${m.matchday}`,
+    playerClubId: playerTeam.clubId,
+    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+  })
 
   // How the player's club reached (or fell short of) the league phase — plus
   // their DOMESTIC season, which is where the whole journey started.
@@ -223,8 +236,8 @@ export default function CustomUclResultScreen() {
             <Text style={styles.playerTeamMeta}>OVR {playerTeam.ovr}{reachedLeaguePhase ? ` · Pot ${playerPot}` : playerLeague ? ` · ${playerLeague.name}` : ''}</Text>
           </View>
           {reachedLeaguePhase && (
-            <View style={[styles.potPill, { backgroundColor: POT_COLORS[playerPot] + '22', borderColor: POT_COLORS[playerPot] }]}>
-              <Text style={[styles.potPillText, { color: POT_COLORS[playerPot] }]}>POT {playerPot}</Text>
+            <View style={[styles.potPill, { backgroundColor: colors.pots[playerPot] + '22', borderColor: colors.pots[playerPot] }]}>
+              <Text style={[styles.potPillText, { color: colors.pots[playerPot] }]}>POT {playerPot}</Text>
             </View>
           )}
         </View>
@@ -300,7 +313,7 @@ export default function CustomUclResultScreen() {
       {reachedLeaguePhase && leagueMatchdays.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Your League Phase</Text>
-          <TeamMatchdays matches={leagueMatchdays} clubId={playerTeam.clubId} />
+          <TeamMatchdays matches={leagueMatchdays} clubId={playerTeam.clubId} onOpenMatch={openLeagueMatchDetail} />
         </View>
       )}
 
@@ -370,7 +383,7 @@ export default function CustomUclResultScreen() {
       {fromHistory ? (
         <>
           {dbRun?.stats && (
-            <Pressable style={[styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
               <Text style={styles.actionBtnText}>📊 View Stats</Text>
             </Pressable>
           )}
@@ -378,7 +391,7 @@ export default function CustomUclResultScreen() {
             <Text style={styles.rulesBtnText}>📖 How this competition works — all rules</Text>
           </Pressable>
           <View style={styles.buttonRow}>
-            <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.back()}>
               <Text style={styles.actionBtnText}>Back</Text>
             </Pressable>
           </View>
@@ -386,7 +399,7 @@ export default function CustomUclResultScreen() {
       ) : (
         <>
           {draftedPlayers.length > 0 && (
-            <Pressable style={[styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }]} onPress={() => router.push('/game/stats')}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push('/game/stats')}>
               <Text style={styles.actionBtnText}>📊 View Stats</Text>
             </Pressable>
           )}
@@ -394,22 +407,24 @@ export default function CustomUclResultScreen() {
             <Text style={styles.rulesBtnText}>📖 How this competition works — all rules</Text>
           </Pressable>
           <View style={styles.buttonRow}>
-            <Pressable disabled={submitting} style={[styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }]} onPress={handleReturnToHome}>
+            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleReturnToHome}>
               <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
             </Pressable>
-            <Pressable disabled={submitting} style={[styles.actionBtn, submitting && { opacity: 0.5 }]} onPress={handlePlayAgain}>
+            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handlePlayAgain}>
               <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
             </Pressable>
           </View>
         </>
       )}
 
-      <TeamModal team={openTeam} matches={openTeam ? leagueMatchdays : []} onClose={() => setOpenTeam(null)} />
+      <TeamModal team={openTeam} matches={openTeam ? leagueMatchdays : []} onClose={() => setOpenTeam(null)} onOpenMatch={openLeagueMatchDetail} />
       <KoTieDetailModal
         match={openKO} roundLabel={openKO ? (CL_KO_NAMES[openKO.round] ?? QUAL_ROUND_LABEL[openKO.round]) : undefined} onClose={() => setOpenKO(null)}
         playerClubId={playerTeam.clubId}
         draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
+        yearStart={store.clYear ?? 2025}
       />
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={MODE_THEMES.champions_league.accent} />
       <LeagueTableModal table={openLeague} playerClubId={playerTeam.clubId} onClose={() => setOpenLeague(null)} />
       <LeaguesBrowserModal visible={browserOpen} tables={associations} playerClubId={playerTeam.clubId} onClose={() => setBrowserOpen(false)} />
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} />
@@ -439,7 +454,7 @@ function StandingsRow({ team, pos }: { team: any; pos: number }) {
   )
 }
 
-function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: string }) {
+function TeamMatchdays({ matches, clubId, onOpenMatch }: { matches: CLLeagueMatch[]; clubId: string; onOpenMatch?: (m: CLLeagueMatch) => void }) {
   const own = matches.filter(m => m.home.clubId === clubId || m.away.clubId === clubId).sort((a, b) => a.matchday - b.matchday)
   if (own.length === 0) return <Text style={styles.phaseNote}>No matchday data.</Text>
   return (
@@ -453,7 +468,7 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
         const myS = summariseScorers(atHome ? m.scorers?.home : m.scorers?.away)
         const oppS = summariseScorers(atHome ? m.scorers?.away : m.scorers?.home)
         return (
-          <View key={i}>
+          <Pressable key={i} onPress={onOpenMatch ? () => onOpenMatch(m) : undefined} disabled={!onOpenMatch}>
             <View style={styles.mdRow}>
               <Text style={styles.mdNum}>MD{m.matchday}</Text>
               <Text style={styles.mdVenue}>{atHome ? 'vs' : '@'}</Text>
@@ -461,14 +476,14 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
               <View style={[styles.mdScoreBadge, { backgroundColor: rc + '22' }]}><Text style={[styles.mdScoreText, { color: rc }]}>{gf}-{ga}</Text></View>
             </View>
             {(myS || oppS) && <Text style={styles.mdScorerLine} numberOfLines={2}>{[myS && `⚽ ${myS}`, oppS && `· ${oppS}`].filter(Boolean).join('  ')}</Text>}
-          </View>
+          </Pressable>
         )
       })}
     </View>
   )
 }
 
-function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void }) {
+function TeamModal({ team, matches, onClose, onOpenMatch }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void; onOpenMatch?: (m: CLLeagueMatch) => void }) {
   return (
     <AppModal visible={team !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -477,7 +492,7 @@ function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubNam
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={styles.modalTitle}>{team.clubName}</Text>
               <Text style={styles.phaseNote}>League phase results</Text>
-              <TeamMatchdays matches={matches} clubId={team.clubId} />
+              <TeamMatchdays matches={matches} clubId={team.clubId} onOpenMatch={onOpenMatch} />
             </ScrollView>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>

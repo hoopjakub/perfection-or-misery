@@ -4,6 +4,8 @@ import {
   ScrollView, Animated, ActivityIndicator, Modal,
 } from 'react-native'
 import { router } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
+import { PressCard } from '@/components/ui'
 import { useGameStore } from '@/store/gameStore'
 import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
@@ -30,6 +32,8 @@ import {
   attachCLShootoutNames, attachWCShootoutNames,
 } from '@/engine/run-stats'
 import type { RosterPlayer, MatchScorers } from '@/types/stats'
+import { randomSeed } from '@/lib/rng'
+import { MatchDetailModal, koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchDetailModal'
 
 type SimPhase = 'review' | 'simulating' | 'completed' | 'group_review' | 'knockout_phase'
 type Speed = 'slow' | 'normal' | 'fast'
@@ -74,6 +78,7 @@ type CompMatchResult = {
   awayGoals: number
   outcome: 'home' | 'away' | 'draw'
   scorers?: MatchScorers
+  seed?: number   // deep-stat seed, carried into the stored matchday history
 }
 
 function sortByStats(teams: SimTeam[]): SimTeam[] {
@@ -136,6 +141,7 @@ function LeagueSimulation() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>('normal')
   const [viewMD, setViewMD] = useState<number | null>(null)   // matchday-results lookback (null = live)
+  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)   // deep-stats modal
   const prevPlayerPosRef = useRef<number | null>(null)
   const [playerPosDelta, setPlayerPosDelta] = useState<number | null>(null)
   const [positionChangeAnim] = useState(new Animated.Value(0))
@@ -260,7 +266,8 @@ function LeagueSimulation() {
 
       const result = simulateMatch(homeTeam, awayTeam)
       fixture.result = result
-      fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals)
+      fixture.seed = randomSeed()
+      fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals, false, false, fixture.seed)
 
       // Update statistics
       homeTeam.stats.played++
@@ -417,7 +424,8 @@ function LeagueSimulation() {
 
         const result = simulateMatch(homeTeam, awayTeam)
         fixture.result = result
-        fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals)
+        fixture.seed = randomSeed()
+        fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals, false, false, fixture.seed)
 
         // Update statistics
         homeTeam.stats.played++
@@ -658,23 +666,25 @@ function LeagueSimulation() {
             {/* Controls */}
             {phase !== 'completed' && (
               <View style={styles.controlsRow}>
-                <Pressable
+                <PressCard
                   style={[styles.controlBtn, isPlaying && styles.controlBtnActive]}
                   onPress={() => setIsPlaying(!isPlaying)}
                 >
-                  <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
-                </Pressable>
+                  <Ionicons name={isPlaying ? 'pause' : 'play'} size={14} color={colors.textPrimary} />
+                  <Text style={styles.controlBtnText}>{isPlaying ? 'Pause' : 'Play'}</Text>
+                </PressCard>
 
-                <Pressable
+                <PressCard
                   style={[styles.controlBtn, styles.skipAllBtn]}
                   onPress={skipAllMatchdays}
                 >
-                  <Text style={styles.controlBtnText}>⏩ Skip All</Text>
-                </Pressable>
+                  <Ionicons name="play-skip-forward" size={14} color={colors.textPrimary} />
+                  <Text style={styles.controlBtnText}>Skip All</Text>
+                </PressCard>
 
                 <View style={styles.speedSelector}>
                   {(['slow', 'normal', 'fast'] as Speed[]).map(s => (
-                    <Pressable
+                    <PressCard
                       key={s}
                       style={[styles.speedBtn, speed === s && styles.speedBtnActive]}
                       onPress={() => setSpeed(s)}
@@ -682,7 +692,7 @@ function LeagueSimulation() {
                       <Text style={[styles.speedBtnText, speed === s && styles.speedBtnTextActive]}>
                         {s.toUpperCase()}
                       </Text>
-                    </Pressable>
+                    </PressCard>
                   ))}
                 </View>
               </View>
@@ -760,17 +770,17 @@ function LeagueSimulation() {
                 </Text>
                 {mdTotal > 1 && (
                   <View style={styles.mdScrub}>
-                    <Pressable style={styles.mdScrubBtn} disabled={mdViewing <= 1} onPress={() => setViewMD(Math.max(1, mdViewing - 1))}>
+                    <PressCard hitSlop={6} style={styles.mdScrubBtn} disabled={mdViewing <= 1} onPress={() => setViewMD(Math.max(1, mdViewing - 1))}>
                       <Text style={[styles.mdScrubText, mdViewing <= 1 && { opacity: 0.3 }]}>‹</Text>
-                    </Pressable>
+                    </PressCard>
                     <Text style={styles.mdScrubCount}>{mdViewing}/{mdTotal}</Text>
-                    <Pressable style={styles.mdScrubBtn} disabled={mdAtLive} onPress={() => setViewMD(Math.min(mdTotal, mdViewing + 1))}>
+                    <PressCard hitSlop={6} style={styles.mdScrubBtn} disabled={mdAtLive} onPress={() => setViewMD(Math.min(mdTotal, mdViewing + 1))}>
                       <Text style={[styles.mdScrubText, mdAtLive && { opacity: 0.3 }]}>›</Text>
-                    </Pressable>
+                    </PressCard>
                     {!mdAtLive && (
-                      <Pressable style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setViewMD(null)}>
+                      <PressCard style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setViewMD(null)}>
                         <Text style={[styles.mdLiveText, { color: theme.accent }]}>LIVE</Text>
-                      </Pressable>
+                      </PressCard>
                     )}
                   </View>
                 )}
@@ -797,13 +807,22 @@ function LeagueSimulation() {
                       } else if (result.outcome === 'draw') {
                         resultColor = colors.warning
                       } else {
-                        resultColor = '#DC2626' // red for losses
+                        resultColor = colors.danger // red for losses
                       }
                     }
                     
                     return (
-                      <View
+                      <Pressable
                         key={i}
+                        onPress={() => setMatchDetail({
+                          homeClubId: fixture.home.clubId, homeName: fixture.home.clubName,
+                          awayClubId: fixture.away.clubId, awayName: fixture.away.clubName,
+                          homeGoals: result.homeGoals, awayGoals: result.awayGoals,
+                          scorers: fixture.scorers, seed: fixture.seed,
+                          yearStart: placedLeague?.yearStart ?? 2024,
+                          competitionLabel: `Matchday ${fixture.matchday}`,
+                          playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
+                        })}
                         style={[
                           styles.resultRowWrap,
                           isPlayerMatch && styles.resultRowPlayerHighlight,
@@ -832,7 +851,7 @@ function LeagueSimulation() {
                           />
                         </View>
                         <ScorerLine scorers={fixture.scorers} big={isPlayerMatch} />
-                      </View>
+                      </Pressable>
                     )
                   })}
                 </ScrollView>
@@ -859,6 +878,7 @@ function LeagueSimulation() {
           )}
         </View>
       )}
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
 }
@@ -880,6 +900,7 @@ function CLSimulation() {
   const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
   const [recentResults,          setRecentResults]          = useState<CompMatchResult[]>([])
   const [clViewMD,               setClViewMD]               = useState<number | null>(null)  // MD-results lookback
+  const [matchDetail,            setMatchDetail]            = useState<MatchDetailRequest | null>(null)
   const [isPlaying,              setIsPlaying]              = useState(false)
   // League phase always runs at "slow" — the pace is locked (matches WC).
   const speed: Speed = 'slow'
@@ -1000,13 +1021,14 @@ function CLSimulation() {
       upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers })
+      const seed = randomSeed()
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed })
       leagueHistoryRef.current.push({
         matchday: currentMD,
         home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
         away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers,
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
       })
     })
 
@@ -1068,12 +1090,14 @@ function CLSimulation() {
         if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+        const seed = randomSeed()
         leagueHistoryRef.current.push({
           matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
           homeGoals: r.homeGoals, awayGoals: r.awayGoals,
-          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals),
+          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed),
+          seed,
         })
       })
     }
@@ -1263,14 +1287,17 @@ function CLSimulation() {
             </View>
             {phase !== 'completed' && (
               <View style={styles.controlsRow}>
-                <Pressable style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(!isPlaying)}>
-                  <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
-                </Pressable>
-                <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
-                  <Text style={styles.controlBtnText}>⏩ Skip All</Text>
-                </Pressable>
+                <PressCard style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(!isPlaying)}>
+                  <Ionicons name={isPlaying ? 'pause' : 'play'} size={14} color={colors.textPrimary} />
+                  <Text style={styles.controlBtnText}>{isPlaying ? 'Pause' : 'Play'}</Text>
+                </PressCard>
+                <PressCard style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
+                  <Ionicons name="play-skip-forward" size={14} color={colors.textPrimary} />
+                  <Text style={styles.controlBtnText}>Skip All</Text>
+                </PressCard>
                 <View style={styles.speedLockBadge}>
-                  <Text style={styles.speedLockText}>🐢 SLOW</Text>
+                  <Ionicons name="hourglass-outline" size={11} color={colors.textSecondary} />
+                  <Text style={styles.speedLockText}>SLOW</Text>
                 </View>
               </View>
             )}
@@ -1338,17 +1365,17 @@ function CLSimulation() {
                 </Text>
                 {clAppliedMDs.length > 1 && (
                   <View style={styles.mdScrub}>
-                    <Pressable style={styles.mdScrubBtn} disabled={clViewIdx <= 0} onPress={() => setClViewMD(clAppliedMDs[Math.max(0, clViewIdx - 1)])}>
+                    <PressCard hitSlop={6} style={styles.mdScrubBtn} disabled={clViewIdx <= 0} onPress={() => setClViewMD(clAppliedMDs[Math.max(0, clViewIdx - 1)])}>
                       <Text style={[styles.mdScrubText, clViewIdx <= 0 && { opacity: 0.3 }]}>‹</Text>
-                    </Pressable>
+                    </PressCard>
                     <Text style={styles.mdScrubCount}>{clViewIdx + 1}/{clAppliedMDs.length}</Text>
-                    <Pressable style={styles.mdScrubBtn} disabled={clAtLive} onPress={() => setClViewMD(clAppliedMDs[Math.min(clAppliedMDs.length - 1, clViewIdx + 1)])}>
+                    <PressCard hitSlop={6} style={styles.mdScrubBtn} disabled={clAtLive} onPress={() => setClViewMD(clAppliedMDs[Math.min(clAppliedMDs.length - 1, clViewIdx + 1)])}>
                       <Text style={[styles.mdScrubText, clAtLive && { opacity: 0.3 }]}>›</Text>
-                    </Pressable>
+                    </PressCard>
                     {!clAtLive && (
-                      <Pressable style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setClViewMD(null)}>
+                      <PressCard style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setClViewMD(null)}>
                         <Text style={[styles.mdLiveText, { color: theme.accent }]}>LIVE</Text>
-                      </Pressable>
+                      </PressCard>
                     )}
                   </View>
                 )}
@@ -1361,10 +1388,17 @@ function CLSimulation() {
                     const isPM = r.home.isPlayer || r.away.isPlayer
                     const rc = isPM
                       ? (r.home.isPlayer && r.homeGoals > r.awayGoals) || (r.away.isPlayer && r.awayGoals > r.homeGoals) ? colors.success
-                        : r.homeGoals === r.awayGoals ? colors.warning : '#DC2626'
+                        : r.homeGoals === r.awayGoals ? colors.warning : colors.danger
                       : null
                     return (
-                      <View key={i}>
+                      <Pressable key={i} onPress={() => setMatchDetail({
+                        homeClubId: r.home.clubId, homeName: r.home.clubName,
+                        awayClubId: r.away.clubId, awayName: r.away.clubName,
+                        homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+                        scorers: r.scorers, seed: r.seed, yearStart: clPoolYear,
+                        competitionLabel: 'League Phase',
+                        playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
+                      })}>
                         <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
                           <TeamLabel
                             clubId={r.home.clubId}
@@ -1385,7 +1419,7 @@ function CLSimulation() {
                           />
                         </View>
                         <ScorerLine scorers={r.scorers} big={isPM} />
-                      </View>
+                      </Pressable>
                     )
                   })}
                 </ScrollView>
@@ -1402,6 +1436,7 @@ function CLSimulation() {
           )}
         </View>
       )}
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
 }
@@ -1430,6 +1465,7 @@ function WCSimulation() {
   const [livePlayerMatch, setLivePlayerMatch] = useState<{ result: CompMatchResult; md: number } | null>(null)
   const [playedMD,        setPlayedMD]        = useState(0)
   const [wcViewMD,        setWcViewMD]        = useState<number | null>(null)  // other-matches lookback (null = latest)
+  const [matchDetail,     setMatchDetail]     = useState<MatchDetailRequest | null>(null)
   const pendingMDRef = useRef<{ teams: WCTeam[]; results: CompMatchResult[]; md: number } | null>(null)
   // World Cup group stage always runs at "slow" — the pace is locked.
   const speed: Speed = 'slow'
@@ -1543,8 +1579,9 @@ function WCSimulation() {
       upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals)
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers })
+      const seed = randomSeed()
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed })
     })
 
     const sorted = [...results].sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
@@ -1573,7 +1610,7 @@ function WCSimulation() {
         groupId: (r.home as WCTeam).groupId, matchday: pend.md,
         home: { clubId: r.home.clubId, clubName: r.home.clubName, isPlayer: r.home.isPlayer },
         away: { clubId: r.away.clubId, clubName: r.away.clubName, isPlayer: r.away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers: r.scorers,
+        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers: r.scorers, seed: r.seed,
       })
     })
     setSimTeams(pend.teams)
@@ -1602,12 +1639,14 @@ function WCSimulation() {
         if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
+        const seed = randomSeed()
         groupHistoryRef.current.push({
           groupId: home.groupId, matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
           homeGoals: r.homeGoals, awayGoals: r.awayGoals,
-          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals),
+          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed),
+          seed,
         })
       })
     }
@@ -1900,6 +1939,14 @@ function WCSimulation() {
               group={openGroupSim ? (groups.find(g => g.id === openGroupSim) ?? null) : null}
               matches={openGroupSim ? groupHistoryRef.current.filter(m => m.groupId === openGroupSim) : []}
               onClose={() => setOpenGroupSim(null)}
+              onOpenMatch={m => setMatchDetail({
+                homeClubId: m.home.clubId, homeName: m.home.clubName,
+                awayClubId: m.away.clubId, awayName: m.away.clubName,
+                homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+                scorers: m.scorers, seed: m.seed, yearStart: 2026,
+                competitionLabel: `Group ${m.groupId} · Matchday ${m.matchday}`,
+                playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
+              })}
             />
           </ScrollView>
         )
@@ -1935,11 +1982,13 @@ function WCSimulation() {
               <View style={[styles.progressBarFill, { width: `${(playedCount / totalMatchdays) * 100}%`, backgroundColor: theme.accent }]} />
             </View>
             <View style={styles.controlsRow}>
-              <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
-                <Text style={styles.controlBtnText}>⏩ Skip to Results</Text>
-              </Pressable>
+              <PressCard style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipAll}>
+                <Ionicons name="play-skip-forward" size={14} color={colors.textPrimary} />
+                <Text style={styles.controlBtnText}>Skip to Results</Text>
+              </PressCard>
               <View style={styles.speedLockBadge}>
-                <Text style={styles.speedLockText}>🐢 SLOW</Text>
+                <Ionicons name="hourglass-outline" size={11} color={colors.textSecondary} />
+                <Text style={styles.speedLockText}>SLOW</Text>
               </View>
             </View>
           </View>
@@ -1999,17 +2048,17 @@ function WCSimulation() {
               </Text>
               {wcAppliedMDs.length > 1 && (
                 <View style={styles.mdScrub}>
-                  <Pressable style={styles.mdScrubBtn} disabled={wcViewIdx <= 0} onPress={() => setWcViewMD(wcAppliedMDs[Math.max(0, wcViewIdx - 1)])}>
+                  <PressCard hitSlop={6} style={styles.mdScrubBtn} disabled={wcViewIdx <= 0} onPress={() => setWcViewMD(wcAppliedMDs[Math.max(0, wcViewIdx - 1)])}>
                     <Text style={[styles.mdScrubText, wcViewIdx <= 0 && { opacity: 0.3 }]}>‹</Text>
-                  </Pressable>
+                  </PressCard>
                   <Text style={styles.mdScrubCount}>{wcViewIdx + 1}/{wcAppliedMDs.length}</Text>
-                  <Pressable style={styles.mdScrubBtn} disabled={wcAtLive} onPress={() => setWcViewMD(wcAppliedMDs[Math.min(wcAppliedMDs.length - 1, wcViewIdx + 1)])}>
+                  <PressCard hitSlop={6} style={styles.mdScrubBtn} disabled={wcAtLive} onPress={() => setWcViewMD(wcAppliedMDs[Math.min(wcAppliedMDs.length - 1, wcViewIdx + 1)])}>
                     <Text style={[styles.mdScrubText, wcAtLive && { opacity: 0.3 }]}>›</Text>
-                  </Pressable>
+                  </PressCard>
                   {!wcAtLive && (
-                    <Pressable style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setWcViewMD(null)}>
+                    <PressCard style={[styles.mdLiveBtn, { borderColor: theme.accent }]} onPress={() => setWcViewMD(null)}>
                       <Text style={[styles.mdLiveText, { color: theme.accent }]}>LATEST</Text>
-                    </Pressable>
+                    </PressCard>
                   )}
                 </View>
               )}
@@ -2021,10 +2070,17 @@ function WCSimulation() {
                 const isPM = r.home.isPlayer || r.away.isPlayer
                 const rc = isPM
                   ? (r.home.isPlayer && r.homeGoals > r.awayGoals) || (r.away.isPlayer && r.awayGoals > r.homeGoals) ? colors.success
-                    : r.homeGoals === r.awayGoals ? colors.warning : '#DC2626'
+                    : r.homeGoals === r.awayGoals ? colors.warning : colors.danger
                   : null
                 return (
-                  <View key={i}>
+                  <Pressable key={i} onPress={() => setMatchDetail({
+                    homeClubId: r.home.clubId, homeName: r.home.clubName,
+                    awayClubId: r.away.clubId, awayName: r.away.clubName,
+                    homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+                    scorers: r.scorers, seed: r.seed, yearStart: 2026,
+                    competitionLabel: 'Group Stage',
+                    playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
+                  })}>
                     <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
                       <TeamLabel clubId={r.home.clubId} name={r.home.clubName} textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]} containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]} size={15} />
                       <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
@@ -2033,13 +2089,14 @@ function WCSimulation() {
                       <TeamLabel clubId={r.away.clubId} name={r.away.clubName} textStyle={[styles.resultClubNameText, r.away.isPlayer && { color: theme.accent, fontWeight: typography.bold }]} containerStyle={styles.resultTeamSide} size={15} />
                     </View>
                     <ScorerLine scorers={r.scorers} big={isPM} />
-                  </View>
+                  </Pressable>
                 )
               })
             )}
           </View>
         </ScrollView>
       )}
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
 }
@@ -2348,7 +2405,7 @@ function KnockoutTieFull({ tie, penReveal, accent }: { tie: KnockoutTie; penReve
 
       {/* Winner banner — only once the result is no longer a spoiler */}
       {penComplete && (
-        <Text style={[styles.koWinnerBanner, winner.isPlayer ? { color: colors.success } : { color: '#DC2626' }]}>
+        <Text style={[styles.koWinnerBanner, winner.isPlayer ? { color: colors.success } : { color: colors.danger }]}>
           {winner.isPlayer ? 'YOU ADVANCE' : `${winner.clubName} advances`}
         </Text>
       )}
@@ -2568,6 +2625,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   controlBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: colors.bgElevated,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
@@ -2612,6 +2672,9 @@ const styles = StyleSheet.create({
     color: colors.bg,
   },
   speedLockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.bgElevated,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -2647,7 +2710,7 @@ const styles = StyleSheet.create({
   },
   mdCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.xs },
   mdScrub: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  mdScrubBtn: { paddingHorizontal: 6, paddingVertical: 1 },
+  mdScrubBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm, minWidth: 26, alignItems: 'center' },
   mdScrubText: { fontSize: 18, fontWeight: typography.black, color: colors.textPrimary },
   mdScrubCount: { fontSize: typography.xs, color: colors.textMuted, minWidth: 34, textAlign: 'center' },
   mdLiveBtn: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 1, marginLeft: 2 },
@@ -2693,7 +2756,7 @@ const styles = StyleSheet.create({
     color: colors.success,
   },
   positionDown: {
-    color: '#DC2626',
+    color: colors.danger,
   },
   colPos: {
     width: 20,
@@ -3080,7 +3143,7 @@ const styles = StyleSheet.create({
     borderColor: colors.success + '66',
   },
   koTileLoss: {
-    borderColor: '#DC262666',
+    borderColor: colors.danger + '66',
   },
   koTilePending: {
     borderColor: colors.warning + '66',

@@ -4,6 +4,8 @@ import {
   ScrollView, Animated, Easing, ActivityIndicator
 } from 'react-native'
 import { router } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
+import { PressCard, BackButton } from '@/components/ui'
 import { useGameStore, type Difficulty } from '@/store/gameStore'
 import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
 import { calcTeamOvr, effectiveOvr, positionPenalty, derivedSecondaryPositions } from '@/engine/rating'
@@ -451,9 +453,7 @@ export default function DraftScreen() {
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       {/* header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+        <BackButton />
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: theme.accent }]}>Draft</Text>
           <Text style={styles.headerSub}>
@@ -461,7 +461,8 @@ export default function DraftScreen() {
           </Text>
         </View>
         <View style={styles.rerollBadge}>
-          <Text style={styles.rerollText}>{rerollsLeft} 🔄</Text>
+          <Text style={styles.rerollText}>{rerollsLeft}</Text>
+          <Ionicons name="refresh" size={12} color={colors.textSecondary} />
         </View>
       </View>
 
@@ -499,7 +500,7 @@ export default function DraftScreen() {
                 const isNatural  = pen === 0
 
                 return (
-                  <Pressable
+                  <PressCard
                     key={slot.slotIndex}
                     style={[
                       styles.slotOption,
@@ -525,7 +526,7 @@ export default function DraftScreen() {
                         <Text style={styles.slotPenalty}>OVR {penaltyOvr}</Text>
                       )
                     )}
-                  </Pressable>
+                  </PressCard>
                 )
               })}
               {/* fallback if no compatible slot exists */}
@@ -534,12 +535,12 @@ export default function DraftScreen() {
               )}
             </View>
 
-            <Pressable
+            <PressCard
               style={styles.modalCancel}
               onPress={() => { setShowSlotPicker(false); setSelectedPlayer(null) }}
             >
               <Text style={styles.modalCancelText}>Cancel</Text>
-            </Pressable>
+            </PressCard>
           </View>
         </View>
       )}
@@ -584,7 +585,7 @@ export default function DraftScreen() {
                 const ovrThere = Math.max(40, movingPlayer.ovr - pen)
                 const occ = slot.filledBy
                 return (
-                  <Pressable
+                  <PressCard
                     key={slot.slotIndex}
                     style={[styles.slotOption, styles.slotOptionAvailable]}
                     onPress={() => isBenchMove ? handleBenchSwap(movingPlayer, slot.slotIndex) : handleMovePlayer(slot)}
@@ -592,10 +593,32 @@ export default function DraftScreen() {
                     <View style={[styles.slotOptionBadge, { backgroundColor: (colors.positions as any)[slot.primary] + '33' }]}>
                       <Text style={[styles.slotOptionBadgeText, { color: (colors.positions as any)[slot.primary] }]}>{slot.label}</Text>
                     </View>
-                    {occ
-                      ? <Text style={styles.slotSwap}>⇄ {occ.name.split(' ').slice(-1)[0]}</Text>
-                      : (!ratingsHidden && <Text style={pen === 0 ? styles.slotNatural : styles.slotPenalty}>OVR {ovrThere}</Text>)}
-                  </Pressable>
+                    {occ ? (
+                      <View style={{ alignItems: 'flex-end' }}>
+                        {/* Swap preview: the player coming IN (their OVR at this slot)
+                            and the one going OUT (their OVR back at the vacated slot,
+                            or SUB if they're heading to the bench). */}
+                        <Text style={styles.slotSwap} numberOfLines={1}>
+                          ⇄ {occ.name.split(' ').slice(-1)[0]}
+                        </Text>
+                        {!ratingsHidden && (() => {
+                          const inOvr = ovrThere
+                          if (isBenchMove) return (
+                            <Text style={styles.slotSwapDetail}>
+                              in <Text style={pen === 0 ? styles.slotNatural : styles.slotPenalty}>{inOvr}</Text> · out <Text style={{ color: colors.warning, fontWeight: '900' }}>SUB</Text>
+                            </Text>
+                          )
+                          const backPen = positionPenalty(occ.primaryPosition, fromSlot!.primary)
+                          const outOvr = backPen !== null ? Math.max(40, occ.ovr - backPen) : occ.ovr
+                          return (
+                            <Text style={styles.slotSwapDetail}>
+                              in <Text style={pen === 0 ? styles.slotNatural : styles.slotPenalty}>{inOvr}</Text> · out <Text style={backPen === 0 ? styles.slotNatural : styles.slotPenalty}>{outOvr}</Text>
+                            </Text>
+                          )
+                        })()}
+                      </View>
+                    ) : (!ratingsHidden && <Text style={pen === 0 ? styles.slotNatural : styles.slotPenalty}>OVR {ovrThere}</Text>)}
+                  </PressCard>
                 )
               })}
               {slotTargets.length === 0 && (
@@ -607,25 +630,36 @@ export default function DraftScreen() {
               <>
                 <Text style={[styles.modalSubtitle, { marginTop: spacing.md }]}>Or bring on from the bench</Text>
                 <View style={styles.modalSlots}>
-                  {benchTargets.map(sub => (
-                    <Pressable
-                      key={sub.playerId}
-                      style={[styles.slotOption, styles.slotOptionAvailable]}
-                      onPress={() => handleBenchSwap(sub, movingPlayer.slotIndex)}
-                    >
-                      <View style={[styles.slotOptionBadge, { backgroundColor: colors.warning + '33' }]}>
-                        <Text style={[styles.slotOptionBadgeText, { color: colors.warning }]}>SUB</Text>
-                      </View>
-                      <Text style={styles.slotSwap} numberOfLines={1}>{sub.name.split(' ').slice(-1)[0]}</Text>
-                    </Pressable>
-                  ))}
+                  {benchTargets.map(sub => {
+                    const subPen = positionPenalty(sub.primaryPosition, fromSlot!.primary)
+                    const subOvr = subPen !== null ? Math.max(40, sub.ovr - subPen) : sub.ovr
+                    return (
+                      <PressCard
+                        key={sub.playerId}
+                        style={[styles.slotOption, styles.slotOptionAvailable]}
+                        onPress={() => handleBenchSwap(sub, movingPlayer.slotIndex)}
+                      >
+                        <View style={[styles.slotOptionBadge, { backgroundColor: colors.warning + '33' }]}>
+                          <Text style={[styles.slotOptionBadgeText, { color: colors.warning }]}>SUB</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', flexShrink: 1 }}>
+                          <Text style={styles.slotSwap} numberOfLines={1}>{sub.name.split(' ').slice(-1)[0]}</Text>
+                          {!ratingsHidden && (
+                            <Text style={styles.slotSwapDetail}>
+                              in <Text style={subPen === 0 ? styles.slotNatural : styles.slotPenalty}>{subOvr}</Text> · out <Text style={{ color: colors.warning, fontWeight: '900' }}>SUB</Text>
+                            </Text>
+                          )}
+                        </View>
+                      </PressCard>
+                    )
+                  })}
                 </View>
               </>
             )}
 
-            <Pressable style={styles.modalCancel} onPress={() => setMovingPlayer(null)}>
+            <PressCard style={styles.modalCancel} onPress={() => setMovingPlayer(null)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
-            </Pressable>
+            </PressCard>
           </View>
         </View>
         )
@@ -701,7 +735,7 @@ export default function DraftScreen() {
               </View>
             ) : phase !== 'spinning_position' && (
               <View style={styles.spinPlaceholder}>
-                <Text style={styles.spinPlaceholderEmoji}>🎰</Text>
+                <Ionicons name="albums-outline" size={34} color={colors.textMuted} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.spinPlaceholderText}>
                   {openSlots.length > 0
                     ? `${openSlots.length} slot${openSlots.length !== 1 ? 's' : ''} remaining`
@@ -716,7 +750,10 @@ export default function DraftScreen() {
             )}
 
             {phase === 'idle' && openSlots.length > 0 && (
-              <Pressable style={[styles.spinBtn, { backgroundColor: theme.accent }]} onPress={handleSpin}>
+              <Pressable
+                style={({ pressed }) => [styles.spinBtn, { backgroundColor: theme.accent }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                onPress={handleSpin}
+              >
                 <Text style={styles.spinBtnText}>SPIN</Text>
               </Pressable>
             )}
@@ -755,9 +792,9 @@ export default function DraftScreen() {
                     <Text style={[styles.draftedOvr, isAffected && { color: colors.warning }]}>{effectiveRating}</Text>
                   )}
                   {canMove && (
-                    <Pressable style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
+                    <PressCard style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
                       <Text style={[styles.moveBtnText, { color: theme.accent }]}>MOVE</Text>
-                    </Pressable>
+                    </PressCard>
                   )}
                 </View>
               )
@@ -778,9 +815,9 @@ export default function DraftScreen() {
                       <Text style={styles.draftedClub}>{player.clubName}</Text>
                       {!ratingsHidden && <Text style={styles.draftedOvr}>{player.ovr}</Text>}
                       {canMove && (
-                        <Pressable style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
+                        <PressCard style={styles.moveBtn} onPress={() => setMovingPlayer(player)}>
                           <Text style={[styles.moveBtnText, { color: theme.accent }]}>MOVE</Text>
-                        </Pressable>
+                        </PressCard>
                       )}
                     </View>
                   )
@@ -810,9 +847,10 @@ export default function DraftScreen() {
                 )}
               </View>
               {rerollsLeft > 0 && (
-                <Pressable style={styles.rerollBtn} onPress={handleReroll}>
-                  <Text style={styles.rerollBtnText}>🔄 Reroll</Text>
-                </Pressable>
+                <PressCard style={styles.rerollBtn} onPress={handleReroll}>
+                  <Ionicons name="refresh" size={12} color={colors.textPrimary} />
+                  <Text style={styles.rerollBtnText}>Reroll</Text>
+                </PressCard>
               )}
             </View>
 
@@ -832,9 +870,9 @@ export default function DraftScreen() {
             <View style={styles.sortRow}>
               <Text style={styles.sortRowLabel}>Sort:</Text>
               {(['ovr', 'position', 'name'] as const).filter(o => o !== 'ovr' || !ratingsHidden).map(o => (
-                <Pressable key={o} style={[styles.sortChip, sortBy === o && { borderColor: theme.accent, backgroundColor: theme.accent + '22' }]} onPress={() => setSortBy(o)}>
+                <PressCard key={o} style={[styles.sortChip, sortBy === o && { borderColor: theme.accent, backgroundColor: theme.accent + '22' }]} onPress={() => setSortBy(o)}>
                   <Text style={[styles.sortChipText, sortBy === o && { color: theme.accent }]}>{o === 'ovr' ? 'OVR' : o === 'position' ? 'Position' : 'A–Z'}</Text>
-                </Pressable>
+                </PressCard>
               ))}
             </View>
 
@@ -850,7 +888,7 @@ export default function DraftScreen() {
                 <Text style={styles.noPlayersText}>
                   No players fit your remaining slots. Spin another club.
                 </Text>
-                <Pressable style={styles.skipBtn} onPress={() => {
+                <PressCard style={styles.skipBtn} onPress={() => {
                   setPhase('idle')
                   setCurrentSpin(null)
                   setPlayers([])
@@ -858,7 +896,7 @@ export default function DraftScreen() {
                   scaleAnim.setValue(0.8)
                 }}>
                   <Text style={styles.skipBtnText}>SKIP →</Text>
-                </Pressable>
+                </PressCard>
               </View>
             )}
 
@@ -890,7 +928,7 @@ export default function DraftScreen() {
                   )
 
                   return (
-                    <Pressable
+                    <PressCard
                       key={player.id}
                       style={[styles.playerCard, !available && styles.playerCardDisabled]}
                       onPress={() => handleSelectPlayer(player)}
@@ -923,8 +961,7 @@ export default function DraftScreen() {
                           </View>
                         )}
                       </View>
-                      
-                    </Pressable>
+                    </PressCard>
                   )
                 })}
             </View>
@@ -934,7 +971,7 @@ export default function DraftScreen() {
         {/* done state */}
         {phase === 'done' && benchNeeded > 0 && (
           <View style={styles.doneZone}>
-            <Text style={styles.doneEmoji}>🪑</Text>
+            <Ionicons name="people-outline" size={40} color={colors.textMuted} />
             <Text style={styles.doneTitle}>Draft Your Bench</Text>
             <Text style={styles.doneSub}>
               {benchPlayers.length}/{BENCH_SIZE} subs drafted — {benchNeeded} more to go.
@@ -943,7 +980,10 @@ export default function DraftScreen() {
 
             {/* spin zone — identical slot-machine feel to the starting-XI spin */}
             {benchPhase === 'idle' && (
-              <Pressable style={[styles.continueBtn, { backgroundColor: theme.accent }]} onPress={handleBenchSpin}>
+              <Pressable
+                style={({ pressed }) => [styles.continueBtn, { backgroundColor: theme.accent }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                onPress={handleBenchSpin}
+              >
                 <Text style={styles.continueBtnText}>SPIN FOR A SUB →</Text>
               </Pressable>
             )}
@@ -985,9 +1025,10 @@ export default function DraftScreen() {
                     )}
                   </View>
                   {rerollsLeft > 0 && (
-                    <Pressable style={styles.rerollBtn} onPress={handleBenchReroll}>
-                      <Text style={styles.rerollBtnText}>🔄 Reroll</Text>
-                    </Pressable>
+                    <PressCard style={styles.rerollBtn} onPress={handleBenchReroll}>
+                      <Ionicons name="refresh" size={12} color={colors.textPrimary} />
+                      <Text style={styles.rerollBtnText}>Reroll</Text>
+                    </PressCard>
                   )}
                 </View>
 
@@ -1003,7 +1044,7 @@ export default function DraftScreen() {
                 <ScrollView style={styles.benchPlayerScroll} nestedScrollEnabled showsVerticalScrollIndicator>
                 <View style={styles.playerList}>
                   {[...benchSquad].sort((a, b) => b.ovr - a.ovr).map(player => (
-                    <Pressable key={player.id} style={styles.playerCard} onPress={() => handleBenchPick(player)}>
+                    <PressCard key={player.id} style={styles.playerCard} onPress={() => handleBenchPick(player)}>
                       <View style={styles.playerCardLeft}>
                         <View style={[styles.positionBadge, { backgroundColor: (colors.positions as any)[player.primary_position] + '33' }]}>
                           <Text style={[styles.positionBadgeText, { color: (colors.positions as any)[player.primary_position] }]}>{player.primary_position}</Text>
@@ -1020,26 +1061,26 @@ export default function DraftScreen() {
                           </View>
                         )}
                       </View>
-                    </Pressable>
+                    </PressCard>
                   ))}
                 </View>
                 </ScrollView>
               </Animated.View>
             )}
 
-            <Pressable style={styles.skipBenchBtn} onPress={() => useGameStore.setState({ useSubstitutes: false, benchPlayers: [] })}>
+            <PressCard style={styles.skipBenchBtn} onPress={() => useGameStore.setState({ useSubstitutes: false, benchPlayers: [] })}>
               <Text style={styles.skipBenchText}>Skip — play with no bench this run</Text>
-            </Pressable>
+            </PressCard>
           </View>
         )}
 
         {phase === 'done' && benchNeeded === 0 && (
           <View style={styles.doneZone}>
-            <Text style={styles.doneEmoji}>✅</Text>
+            <Ionicons name="checkmark-circle" size={40} color={colors.success} />
             <Text style={styles.doneTitle}>Squad Complete</Text>
             <Text style={styles.doneSub}>Time to find out where you end up.</Text>
             <Pressable
-              style={[styles.continueBtn, { backgroundColor: theme.accent }]}
+              style={({ pressed }) => [styles.continueBtn, { backgroundColor: theme.accent }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               onPress={() => router.push('/game/placement')}
             >
               <Text style={styles.continueBtnText}>SPIN PLACEMENT →</Text>
@@ -1095,6 +1136,9 @@ const styles = StyleSheet.create({
     color:    colors.textSecondary,
   },
   rerollBadge: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             4,
     backgroundColor: colors.bgCard,
     borderRadius:    radius.full,
     paddingHorizontal: spacing.sm,
@@ -1251,6 +1295,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   rerollBtn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             6,
     marginRight:     spacing.md,
     backgroundColor: colors.bgElevated,
     borderRadius:    radius.full,
@@ -1629,6 +1676,11 @@ slotSwap: {
   fontSize: typography.xs,
   color:    colors.accent,
   fontWeight: typography.bold,
+},
+slotSwapDetail: {
+  fontSize: 10,
+  color:    colors.textMuted,
+  marginTop: 1,
 },
 modalCancel: {
   alignItems:      'center',

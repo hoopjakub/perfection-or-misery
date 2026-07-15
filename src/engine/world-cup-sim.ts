@@ -28,6 +28,7 @@ export type WCKnockoutMatch = {
   result:  KnockoutResult
   winner:  WCTeam
   scorers?: MatchScorers   // attributed once, stored
+  seed?:   number          // deep-stat seed (match-detail.ts)
   // Named shootout sequence, stored for the result screen — penKicksA/B (not
   // Home/Away) to match CLKnockoutMatch's naming, since every knockout tie
   // across modes now shares one attach-kicker-names helper (run-stats.ts).
@@ -44,6 +45,7 @@ export type WCGroupMatch = {
   homeGoals: number
   awayGoals: number
   scorers?:  MatchScorers
+  seed?:     number   // deep-stat seed (match-detail.ts)
 }
 
 export type WCSeasonResult = {

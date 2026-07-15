@@ -40,6 +40,38 @@ async function installFlagFont() {
   document.head.appendChild(style)
 }
 
+// Web chrome (scrollbars, selection, ambient backdrop, focus rings). The same
+// rules live in +html.tsx for first-paint, but that shell is only re-read on a
+// dev-server restart — injecting here too makes the styles live immediately in
+// dev and belt-and-braces in production. Guarded by id so it never doubles up.
+function installWebChrome() {
+  if (document.getElementById('pom-web-chrome')) return
+  const style = document.createElement('style')
+  style.id = 'pom-web-chrome'
+  style.textContent = `
+    body {
+      background-image:
+        radial-gradient(1200px 700px at 15% -10%, rgba(59, 130, 246, 0.10), transparent 60%),
+        radial-gradient(1000px 600px at 85% 110%, rgba(239, 68, 68, 0.07), transparent 60%),
+        radial-gradient(800px 500px at 50% 50%, rgba(255, 255, 255, 0.02), transparent 70%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    * { scrollbar-width: thin; scrollbar-color: #374151 transparent; }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    *::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+    ::selection { background: rgba(59, 130, 246, 0.45); color: #F9FAFB; }
+    :focus { outline: none; }
+    :focus-visible { outline: 2px solid #3B82F6; outline-offset: 2px; border-radius: 4px; }
+    [role="button"], [tabindex="0"], a { cursor: pointer; }
+    [role="button"] { transition: opacity 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms ease; }
+  `
+  document.head.appendChild(style)
+}
+
 export default function RootLayout() {
   useEffect(() => {
     async function boot() {
@@ -49,6 +81,7 @@ export default function RootLayout() {
       await ensureGuestSession()
 
       if (Platform.OS === 'web') {
+        installWebChrome()
         installFlagFont().catch(console.error)
       }
     }
@@ -57,14 +90,22 @@ export default function RootLayout() {
 
   // This is a mobile-first layout — on a wide desktop browser window it would
   // otherwise stretch full-bleed. Cap it to a phone-like column and center it,
-  // same pattern most mobile-designed apps use when also shipped on web.
+  // and give the column hairline edges + a soft glow so on PC it reads as a
+  // deliberate device frame sitting on the ambient backdrop (painted by
+  // +html.tsx), not a stretched mobile site.
   const webFrame = Platform.OS === 'web'
-    ? { maxWidth: 480, width: '100%' as const, alignSelf: 'center' as const, flex: 1 }
+    ? {
+        maxWidth: 480, width: '100%' as const, alignSelf: 'center' as const, flex: 1,
+        borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#1F2937',
+        // @ts-ignore — web-only CSS shadow (RN types don't know boxShadow)
+        boxShadow: '0 0 80px rgba(59, 130, 246, 0.10), 0 0 24px rgba(0, 0, 0, 0.60)',
+      }
     : { flex: 1 }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: '#0A0E1A' }}>
+      {/* transparent outer layer lets +html.tsx's ambient gradients show on PC */}
+      <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? 'transparent' : '#0A0E1A' }}>
         <View style={[{ backgroundColor: '#0A0E1A' }, webFrame]}>
           <Stack screenOptions={{
             headerShown:  false,

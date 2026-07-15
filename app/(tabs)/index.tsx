@@ -1,10 +1,14 @@
 import React, { useCallback, useState } from 'react'
 import { View, Text, StyleSheet, Pressable, StatusBar, ScrollView, ActivityIndicator } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { useUserStore } from '@/store/userStore'
 import { fetchUserStats, fetchRunHistory, type UserStats } from '@/db/queries/leaderboard'
+import { PressCard } from '@/components/ui'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import { formatTier } from '@/data/tiers'
+
+const TIER_COLORS: Record<string, string> = colors.tiers
 
 export default function HomeScreen() {
   const { profile, isGuest, user } = useUserStore()
@@ -70,7 +74,11 @@ export default function HomeScreen() {
       {/* hero */}
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>PERFECTION</Text>
-        <Text style={styles.heroOr}>or</Text>
+        <View style={styles.heroOrRow}>
+          <View style={styles.heroOrLine} />
+          <Text style={styles.heroOr}>or</Text>
+          <View style={styles.heroOrLine} />
+        </View>
         <Text style={styles.heroMisery}>MISERY</Text>
         <Text style={styles.heroTagline}>
           Draft your XI. Face the consequences.
@@ -84,10 +92,12 @@ export default function HomeScreen() {
           onPress={() => router.push('/game/mode-select')}
         >
           <Text style={styles.startBtnText}>START RUN</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.textPrimary} />
         </Pressable>
 
         <Pressable onPress={() => router.push('/(tabs)/how-to-play')} style={styles.howToPlayLink}>
-          <Text style={styles.howToPlayLinkText}>How to play</Text>
+          <Ionicons name="book-outline" size={12} color={colors.textSecondary} />
+          <Text style={styles.howToPlayLinkText}>New here? Read how to play</Text>
         </Pressable>
 
         {/* best run teaser */}
@@ -129,19 +139,27 @@ export default function HomeScreen() {
           </View>
         ) : (
           <ScrollView style={styles.recentScroll} showsVerticalScrollIndicator={false}>
-            {recentRuns.map((run) => (
-              <View key={run.id} style={styles.runCard}>
-                <View style={styles.runCardHeader}>
-                  <Text style={styles.runTier}>{formatTier(run.tier)}</Text>
-                  <Text style={styles.runDate}>{formatDate(run.created_at)}</Text>
-                </View>
-                <Text style={styles.runLeague}>{run.league_name}</Text>
-                <View style={styles.runStats}>
-                  <Text style={styles.runStat}>Score: {run.score}</Text>
-                  <Text style={styles.runStat}>#{run.final_position}</Text>
-                </View>
-              </View>
-            ))}
+            {recentRuns.map((run) => {
+              const tierColor = TIER_COLORS[run.tier] ?? colors.accent
+              return (
+                <PressCard
+                  key={run.id}
+                  style={[styles.runCard, { borderLeftColor: tierColor, borderLeftWidth: 3 }]}
+                  onPress={() => router.push('/(tabs)/runs')}
+                >
+                  <View style={styles.runCardHeader}>
+                    <Text style={[styles.runTier, { color: tierColor }]}>{formatTier(run.tier)}</Text>
+                    <Text style={styles.runDate}>{formatDate(run.created_at)}</Text>
+                  </View>
+                  <Text style={styles.runLeague}>{run.league_name}</Text>
+                  <View style={styles.runStats}>
+                    <Text style={styles.runStat}>Score: <Text style={styles.runStatStrong}>{run.score}</Text></Text>
+                    <Text style={styles.runStat}>Finished <Text style={styles.runStatStrong}>#{run.final_position}</Text></Text>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
+                  </View>
+                </PressCard>
+              )
+            })}
           </ScrollView>
         )}
       </View>
@@ -193,18 +211,37 @@ const styles = StyleSheet.create({
     fontWeight:    typography.black,
     color:         colors.textPrimary,
     letterSpacing: 6,
+    textShadowColor:  'rgba(59, 130, 246, 0.45)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 24,
+  },
+  heroOrRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           spacing.md,
+    marginVertical: 4,
+    alignSelf:     'stretch',
+    paddingHorizontal: spacing.xxl,
+  },
+  heroOrLine: {
+    flex:            1,
+    height:          1,
+    backgroundColor: colors.border,
   },
   heroOr: {
-    fontSize:   typography.lg,
+    fontSize:   typography.md,
     color:      colors.textMuted,
     fontWeight: typography.regular,
-    marginVertical: 2,
+    fontStyle:  'italic',
   },
   heroMisery: {
     fontSize:      typography.hero,
     fontWeight:    typography.black,
     color:         colors.danger,
     letterSpacing: 6,
+    textShadowColor:  'rgba(239, 68, 68, 0.45)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 24,
   },
   heroTagline: {
     fontSize:   typography.sm,
@@ -221,6 +258,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderRadius:    radius.md,
     alignItems:      'center',
+    justifyContent:  'center',
+    flexDirection:   'row',
+    gap:             spacing.sm,
     marginBottom:    spacing.md,
     ...shadows.md,
   },
@@ -235,14 +275,17 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
   howToPlayLink: {
-    alignSelf:    'center',
-    marginBottom: spacing.md,
-    paddingVertical: 2,
+    alignSelf:     'center',
+    marginBottom:  spacing.md,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           6,
   },
   howToPlayLinkText: {
-    fontSize:  10,
-    color:     colors.textMuted,
-    textDecorationLine: 'underline',
+    fontSize: typography.xs,
+    color:    colors.textSecondary,
   },
   statsRow: {
     flexDirection:     'row',
@@ -314,11 +357,16 @@ const styles = StyleSheet.create({
   },
   runStats: {
     flexDirection: 'row',
+    alignItems:    'center',
     gap:           spacing.md,
   },
   runStat: {
     fontSize: typography.sm,
     color:    colors.textSecondary,
+  },
+  runStatStrong: {
+    color:      colors.textPrimary,
+    fontWeight: typography.bold,
   },
   emptyState: {
     alignItems:  'center',

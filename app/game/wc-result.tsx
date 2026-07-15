@@ -17,6 +17,7 @@ import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/the
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
 
 import { WCGroupModal, WCGroupMatchdays } from '@/components/WCGroupModal'
+import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
 
 const WC = MODE_THEMES.world_cup
 
@@ -75,6 +76,7 @@ export default function WCResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [openKO, setOpenKO] = useState<WCKnockoutMatch | null>(null)
+  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
   const savedRef = useRef(false)
@@ -150,6 +152,29 @@ export default function WCResultScreen() {
   const sortedGroups: WCGroup[] = groups.map(g => ({ id: g.id, teams: [...g.teams].sort(sortGroupTeams) }))
   const myGroup = sortedGroups.find(g => g.id === playerGroup)
   const myGroupSorted = myGroup ? myGroup.teams : []
+
+  // Deep-stats entry points — group matches + knockout ties.
+  const ovrByClub = new Map(groups.flatMap(g => g.teams).map(t => [t.clubId, t.ovr]))
+  const openGroupMatchDetail = (m: WCGroupMatch) => setMatchDetail({
+    homeClubId: m.home.clubId, homeName: m.home.clubName,
+    awayClubId: m.away.clubId, awayName: m.away.clubName,
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+    scorers: m.scorers, seed: m.seed, yearStart: 2026,
+    competitionLabel: `Group ${m.groupId} · Matchday ${m.matchday}`,
+    playerClubId: playerTeam.clubId,
+    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+  })
+  const openKoDetail = (m: WCKnockoutMatch) => setMatchDetail({
+    homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
+    awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
+    homeGoals: m.result.homeGoals, awayGoals: m.result.awayGoals,
+    extraTime: m.result.extraTime,
+    pensNote: m.result.homePens !== null ? `Penalties ${m.result.homePens} – ${m.result.awayPens} · ${m.winner.clubName} advance` : undefined,
+    scorers: m.scorers, seed: m.seed, yearStart: 2026,
+    competitionLabel: KO_ROUND_NAMES[m.round] ?? m.round,
+    playerClubId: playerTeam.clubId,
+    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+  })
 
   // Best third-place ranking across all groups
   const thirdPlaceTeams = sortedGroups.map(g => g.teams[2]).filter(Boolean).sort(sortGroupTeams)
@@ -286,7 +311,7 @@ export default function WCResultScreen() {
           })}
           <Text style={styles.phaseNote}>Top 2 qualify · Best 8 third-place teams also qualify</Text>
           {groupMatchdays.length > 0 && (
-            <WCGroupMatchdays matches={groupMatchdays.filter(m => m.groupId === playerGroup)} />
+            <WCGroupMatchdays matches={groupMatchdays.filter(m => m.groupId === playerGroup)} onOpenMatch={openGroupMatchDetail} />
           )}
         </View>
       )}
@@ -383,12 +408,12 @@ export default function WCResultScreen() {
       {fromHistory ? (
         <>
           {dbRun?.stats && (
-            <Pressable style={[styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
               <Text style={styles.actionBtnText}>📊 View Stats</Text>
             </Pressable>
           )}
           <View style={styles.buttonRow}>
-            <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.back()}>
               <Text style={styles.actionBtnText}>Back</Text>
             </Pressable>
           </View>
@@ -396,15 +421,15 @@ export default function WCResultScreen() {
       ) : (
         <>
           {draftedPlayers.length > 0 && (
-            <Pressable style={[styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }]} onPress={() => router.push('/game/stats')}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push('/game/stats')}>
               <Text style={styles.actionBtnText}>📊 View Stats</Text>
             </Pressable>
           )}
           <View style={styles.buttonRow}>
-            <Pressable disabled={submitting} style={[styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }]} onPress={handleReturnToHome}>
+            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleReturnToHome}>
               <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
             </Pressable>
-            <Pressable disabled={submitting} style={[styles.actionBtn, submitting && { opacity: 0.5 }]} onPress={handlePlayAgain}>
+            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handlePlayAgain}>
               <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
             </Pressable>
           </View>
@@ -416,12 +441,15 @@ export default function WCResultScreen() {
         group={openGroup ? sortedGroups.find(g => g.id === openGroup) ?? null : null}
         matches={openGroup ? groupMatchdays.filter(m => m.groupId === openGroup) : []}
         onClose={() => setOpenGroup(null)}
+        onOpenMatch={openGroupMatchDetail}
       />
       <KOMatchModal
         match={openKO} onClose={() => setOpenKO(null)}
         playerClubId={playerTeam.clubId}
         draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
+        onStats={() => { if (openKO) openKoDetail(openKO) }}
       />
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={WC.accent} />
     </ScrollView>
   )
 }
@@ -470,7 +498,7 @@ function WCHistorySummary({ run }: { run: any }) {
       </Text>
 
       <View style={styles.buttonRow}>
-        <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+        <Pressable style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.back()}>
           <Text style={styles.actionBtnText}>Back</Text>
         </Pressable>
       </View>
@@ -518,9 +546,10 @@ function BracketMatch({ match: m, onPress }: { match: WCKnockoutMatch; onPress: 
 }
 
 // Tap-through detail for a WC knockout tie.
-function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers }: {
+function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers, onStats }: {
   match: WCKnockoutMatch | null; onClose: () => void
   playerClubId?: string; draftedPlayers?: DraftedPlayer[]
+  onStats?: () => void   // opens the deep-stats match-detail modal
 }) {
   const hs = summariseScorers(m?.scorers?.home)
   const as = summariseScorers(m?.scorers?.away)
@@ -549,13 +578,18 @@ function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers }: {
               </View>
               {m.result.extraTime && <Text style={styles.koModalNote}>After extra time</Text>}
               {m.result.homePens !== null && <Text style={styles.koModalPens}>Penalties: {m.result.homePens} – {m.result.awayPens} · {m.winner.clubName} advance</Text>}
-              {(hs || as) && (
+              {!!(hs || as) && (
                 <View style={styles.koModalScorers}>
                   {hs ? <Text style={styles.koModalScorerLine}>⚽ {m.teamA.clubName}: {hs}</Text> : null}
                   {as ? <Text style={styles.koModalScorerLine}>⚽ {m.teamB.clubName}: {as}</Text> : null}
                 </View>
               )}
               {m.penKicksA && m.penKicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksA} kicksB={m.penKicksB} />}
+              {onStats && (
+                <Pressable style={styles.koStatsBtn} onPress={onStats}>
+                  <Text style={styles.koStatsBtnText}>📊 Full match stats & ratings ›</Text>
+                </Pressable>
+              )}
             </>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
@@ -810,6 +844,8 @@ const styles = StyleSheet.create({
   koModalGoals: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
   koModalNote:  { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
   koModalPens:  { fontSize: typography.sm, color: WC.accent, fontWeight: typography.bold, textAlign: 'center', marginTop: 2 },
+  koStatsBtn: { marginTop: spacing.sm, borderWidth: 1, borderColor: WC.accent, borderRadius: radius.md, paddingVertical: spacing.sm, alignItems: 'center', backgroundColor: WC.accent + '15' },
+  koStatsBtnText: { fontSize: typography.sm, fontWeight: typography.bold, color: WC.accent },
   koModalScorers: { marginTop: spacing.sm, gap: 4, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   koModalScorerLine: { fontSize: typography.xs, color: colors.textSecondary },
   mdScore: {

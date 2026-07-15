@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
+import { BackButton } from '@/components/ui'
 import { useUserStore } from '@/store/userStore'
 import { fetchCareer } from '@/db/queries/career'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
@@ -46,7 +47,7 @@ export default function CareerScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>←</Text></Pressable>
+        <BackButton />
         <Text style={styles.title}>Career</Text>
         <View style={{ width: 32 }} />
       </View>

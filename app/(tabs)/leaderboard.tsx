@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { fetchLeaderboard, type LeaderboardEntry } from '@/db/queries/leaderboard'
+import { PressCard } from '@/components/ui'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
+
+// Gold / silver / bronze for the podium ranks.
+const MEDALS = ['#FFD700', '#C0C0C0', '#CD7F32']
 
 export default function LeaderboardScreen() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
@@ -58,9 +62,9 @@ export default function LeaderboardScreen() {
       ) : (
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
           {leaderboard.map((entry, index) => (
-            <Pressable
+            <PressCard
               key={entry.id}
-              style={styles.entryCard}
+              style={[styles.entryCard, index < 3 && { borderColor: MEDALS[index] }]}
               onPress={() => router.push({
                 pathname: entry.mode === 'world_cup' ? '/game/wc-result'
                         : entry.mode === 'champions_league_custom' ? '/game/custom-ucl-result'
@@ -69,8 +73,8 @@ export default function LeaderboardScreen() {
                 params: { runId: entry.id },
               })}
             >
-              <View style={styles.rankBadge}>
-                <Text style={styles.rankText}>#{index + 1}</Text>
+              <View style={[styles.rankBadge, index < 3 && { backgroundColor: MEDALS[index] }]}>
+                <Text style={[styles.rankText, index < 3 && { color: '#0A0E1A' }]}>{index + 1}</Text>
               </View>
               <View style={styles.entryContent}>
                 <Text style={styles.username}>{entry.profiles.username}</Text>
@@ -81,7 +85,7 @@ export default function LeaderboardScreen() {
                 <Text style={styles.entryScore}>{entry.score}</Text>
                 <Text style={styles.entryDate}>{formatDate(entry.created_at)}</Text>
               </View>
-            </Pressable>
+            </PressCard>
           ))}
         </ScrollView>
       )}

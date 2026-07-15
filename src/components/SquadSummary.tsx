@@ -1,15 +1,17 @@
 import React, { useState } from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { router } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { getSlotsForFormation } from '@/engine/formations'
-import { colors, spacing, typography, radius } from '@/theme'
+import { PressCard } from '@/components/ui'
+import { colors, spacing, typography, radius, ratingColor } from '@/theme'
 import type { CompetitionStats } from '@/types/stats'
 import type { DraftedPlayer, Formation } from '@/types/game'
 
 // Your XI with per-player stats, in-lineup positions, and "notable" league ranks
 // (top-3 in any category). Shared by the league/CL/WC result pages. Toggle
-// between STATS (goals/assists/clean sheets) and TEAM (the real club & season
-// each drafted player came from).
+// between STATS (goals/assists/clean sheets + avg match rating + POTM count)
+// and TEAM (the real club & season each drafted player came from).
 export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }: {
   stats: CompetitionStats
   draftedPlayers: DraftedPlayer[]
@@ -40,9 +42,9 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
         <Text style={styles.title}>Your Squad</Text>
         <View style={styles.toggle}>
           {(['stats', 'team'] as const).map(v => (
-            <Pressable key={v} style={[styles.toggleBtn, view === v && { backgroundColor: accent }]} onPress={() => setView(v)}>
+            <PressCard key={v} style={[styles.toggleBtn, view === v && { backgroundColor: accent }]} onPress={() => setView(v)}>
               <Text style={[styles.toggleText, view === v && styles.toggleTextActive]}>{v === 'stats' ? 'Stats' : 'Team'}</Text>
-            </Pressable>
+            </PressCard>
           ))}
         </View>
       </View>
@@ -62,6 +64,12 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
             {view === 'stats' ? (
               <>
                 <Text style={styles.line}>{p.goals}G {p.assists}A {p.cleanSheets}CS</Text>
+                {p.avgRating != null && (
+                  <View style={[styles.ratingChip, { backgroundColor: ratingColor(p.avgRating) }]}>
+                    <Text style={styles.ratingChipText}>{p.avgRating.toFixed(2)}</Text>
+                  </View>
+                )}
+                {(p.potm ?? 0) > 0 && <Text style={styles.potm}>★{p.potm}</Text>}
                 {notable.length > 0 && <Text style={[styles.notable, { color: accent }]}>{notable.join(' ')}</Text>}
               </>
             ) : (
@@ -70,9 +78,13 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
           </View>
         )
       })}
-      <Pressable onPress={() => router.push(runId ? { pathname: '/game/stats', params: { runId } } : '/game/stats')} style={{ paddingTop: spacing.sm }}>
-        <Text style={[styles.more, { color: accent }]}>Full stats →</Text>
-      </Pressable>
+      <PressCard
+        onPress={() => router.push(runId ? { pathname: '/game/stats', params: { runId } } : '/game/stats')}
+        style={{ paddingTop: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+      >
+        <Text style={[styles.more, { color: accent }]}>Full stats</Text>
+        <Ionicons name="arrow-forward" size={14} color={accent} />
+      </PressCard>
     </View>
   )
 }
@@ -90,6 +102,9 @@ const styles = StyleSheet.create({
   name: { flex: 1, fontSize: typography.sm, color: colors.textPrimary },
   line: { fontSize: typography.xs, color: colors.textSecondary },
   notable: { fontSize: 10, fontWeight: typography.bold },
+  ratingChip: { borderRadius: radius.sm, paddingHorizontal: 4, paddingVertical: 1, minWidth: 32, alignItems: 'center' },
+  ratingChipText: { fontSize: 10, fontWeight: typography.black, color: '#0A0E1A' },
+  potm: { fontSize: 10, fontWeight: typography.black, color: '#FFD700' },
   subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
   more: { fontSize: typography.sm, fontWeight: typography.bold, textAlign: 'center' },
 })

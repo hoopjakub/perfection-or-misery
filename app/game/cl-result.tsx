@@ -6,6 +6,7 @@ import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
 import { computeCLRunStats, summariseScorers, attachCLShootoutNames, koTieLegRecord } from '@/engine/run-stats'
+import { MatchDetailModal, koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchDetailModal'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
@@ -38,10 +39,6 @@ const ROUND_COLORS: Record<string, string> = {
   winner:        '#F59E0B',
 }
 
-const POT_COLORS: Record<number, string> = {
-  1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA',
-}
-
 export default function CLResultScreen() {
   const store = useGameStore()
   const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
@@ -54,6 +51,7 @@ export default function CLResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
+  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
   const [rulesOpen, setRulesOpen] = useState(false)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
@@ -120,6 +118,26 @@ export default function CLResultScreen() {
   const isChampion  = playerFinalRound === 'winner'
   const playerPos   = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
   const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
+
+  // Deep-stats entry points — league-phase matches + knockout-tie legs.
+  const clYearStart = store.clYear ?? 2025
+  const ovrByClub = new Map(leaguePhaseStandings.map(t => [t.clubId, t.ovr]))
+  const openLeagueMatchDetail = (m: CLLeagueMatch) => setMatchDetail({
+    homeClubId: m.home.clubId, homeName: m.home.clubName,
+    awayClubId: m.away.clubId, awayName: m.away.clubName,
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+    scorers: m.scorers, seed: m.seed, yearStart: clYearStart,
+    competitionLabel: `League Phase · Matchday ${m.matchday}`,
+    playerClubId: playerTeam.clubId,
+    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+  })
+  const openKoLegDetail = (m: CLKnockoutMatch, leg: 1 | 2) => {
+    const req = koLegDetailRequest(m, leg, {
+      label: CL_KO_NAMES[m.round] ?? m.round, yearStart: clYearStart, playerClubId: playerTeam.clubId,
+      drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+    })
+    if (req) setMatchDetail(req)
+  }
 
   // Player's knockout run summary — record is LEG-by-leg (you can win one leg
   // and lose the other), not just who won the tie overall.
@@ -200,8 +218,8 @@ export default function CLResultScreen() {
             <Text style={styles.playerTeamName}>{playerTeam.clubName}</Text>
             <Text style={styles.playerTeamMeta}>OVR {playerTeam.ovr} · Pot {playerPot}</Text>
           </View>
-          <View style={[styles.potPill, { backgroundColor: POT_COLORS[playerPot] + '22', borderColor: POT_COLORS[playerPot] }]}>
-            <Text style={[styles.potPillText, { color: POT_COLORS[playerPot] }]}>POT {playerPot}</Text>
+          <View style={[styles.potPill, { backgroundColor: colors.pots[playerPot] + '22', borderColor: colors.pots[playerPot] }]}>
+            <Text style={[styles.potPillText, { color: colors.pots[playerPot] }]}>POT {playerPot}</Text>
           </View>
         </View>
 
@@ -254,7 +272,7 @@ export default function CLResultScreen() {
       {leagueMatchdays.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Your League Phase</Text>
-          <TeamMatchdays matches={leagueMatchdays} clubId={playerTeam.clubId} />
+          <TeamMatchdays matches={leagueMatchdays} clubId={playerTeam.clubId} onOpenMatch={openLeagueMatchDetail} />
         </View>
       )}
 
@@ -301,12 +319,12 @@ export default function CLResultScreen() {
       {fromHistory ? (
         <>
           {dbRun?.stats && (
-            <Pressable style={[styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
               <Text style={styles.actionBtnText}>📊 View Stats</Text>
             </Pressable>
           )}
           <View style={styles.buttonRow}>
-            <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.back()}>
               <Text style={styles.actionBtnText}>Back</Text>
             </Pressable>
           </View>
@@ -314,15 +332,15 @@ export default function CLResultScreen() {
       ) : (
         <>
           {draftedPlayers.length > 0 && (
-            <Pressable style={[styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }]} onPress={() => router.push('/game/stats')}>
+            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: CL.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push('/game/stats')}>
               <Text style={styles.actionBtnText}>📊 View Stats</Text>
             </Pressable>
           )}
           <View style={styles.buttonRow}>
-            <Pressable disabled={submitting} style={[styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }]} onPress={handleReturnToHome}>
+            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleReturnToHome}>
               <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
             </Pressable>
-            <Pressable disabled={submitting} style={[styles.actionBtn, submitting && { opacity: 0.5 }]} onPress={handlePlayAgain}>
+            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handlePlayAgain}>
               <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
             </Pressable>
           </View>
@@ -339,12 +357,15 @@ export default function CLResultScreen() {
         team={openTeam}
         matches={openTeam ? leagueMatchdays : []}
         onClose={() => setOpenTeam(null)}
+        onOpenMatch={openLeagueMatchDetail}
       />
       <KOTieModal
         match={openKO} onClose={() => setOpenKO(null)}
         playerClubId={playerTeam.clubId}
         draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
+        onStatsLeg={openKoLegDetail}
       />
+      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={CL.accent} />
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} accent={CL.accent} />
     </ScrollView>
   )
@@ -380,7 +401,7 @@ function StandingsRow({ team, pos }: { team: any; pos: number }) {
 }
 
 // One team's league-phase fixtures, from that team's perspective.
-function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: string }) {
+function TeamMatchdays({ matches, clubId, onOpenMatch }: { matches: CLLeagueMatch[]; clubId: string; onOpenMatch?: (m: CLLeagueMatch) => void }) {
   const own = matches
     .filter(m => m.home.clubId === clubId || m.away.clubId === clubId)
     .sort((a, b) => a.matchday - b.matchday)
@@ -397,7 +418,7 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
         const myS  = summariseScorers(atHome ? m.scorers?.home : m.scorers?.away)
         const oppS = summariseScorers(atHome ? m.scorers?.away : m.scorers?.home)
         return (
-          <View key={i}>
+          <Pressable key={i} onPress={onOpenMatch ? () => onOpenMatch(m) : undefined} disabled={!onOpenMatch}>
             <View style={styles.mdRow}>
               <Text style={styles.mdNum}>MD{m.matchday}</Text>
               <Text style={styles.mdVenue}>{atHome ? 'vs' : '@'}</Text>
@@ -411,14 +432,14 @@ function TeamMatchdays({ matches, clubId }: { matches: CLLeagueMatch[]; clubId: 
                 {[myS && `⚽ ${myS}`, oppS && `· ${oppS}`].filter(Boolean).join('  ')}
               </Text>
             )}
-          </View>
+          </Pressable>
         )
       })}
     </View>
   )
 }
 
-function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void }) {
+function TeamModal({ team, matches, onClose, onOpenMatch }: { team: { clubId: string; clubName: string } | null; matches: CLLeagueMatch[]; onClose: () => void; onOpenMatch?: (m: CLLeagueMatch) => void }) {
   return (
     <AppModal visible={team !== null} onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -427,7 +448,7 @@ function TeamModal({ team, matches, onClose }: { team: { clubId: string; clubNam
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={styles.modalTitle}>{team.clubName}</Text>
               <Text style={styles.phaseNote}>League phase results</Text>
-              <TeamMatchdays matches={matches} clubId={team.clubId} />
+              <TeamMatchdays matches={matches} clubId={team.clubId} onOpenMatch={onOpenMatch} />
             </ScrollView>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}>
@@ -489,9 +510,10 @@ function BracketMatch({ match: m, directIds, showDirect, onPress }: { match: CLK
 const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-Final', sf: 'Semi-Final', final: 'Final' }
 
 // Tap-through detail for a CL knockout tie (two legs, or the single final).
-function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers }: {
+function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers, onStatsLeg }: {
   match: CLKnockoutMatch | null; onClose: () => void
   playerClubId?: string; draftedPlayers?: DraftedPlayer[]
+  onStatsLeg?: (m: CLKnockoutMatch, leg: 1 | 2) => void   // deep-stats per leg
 }) {
   // Named penalty takers are only pre-built for the tie the reveal animated.
   // Expand lazily here (same shared helper the live sim uses) so EVERY
@@ -520,12 +542,12 @@ function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers }: {
 
               {m.leg1 ? (
                 <>
-                  <KOLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} />
-                  {m.leg2 && <KOLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} homeId={m.teamB.clubId} />}
+                  <KOLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} onStats={onStatsLeg ? () => onStatsLeg(m, 1) : undefined} />
+                  {m.leg2 && <KOLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} homeId={m.teamB.clubId} onStats={onStatsLeg ? () => onStatsLeg(m, 2) : undefined} />}
                   {m.leg2ExtraTime && (m.leg2ExtraTime.aGoals > 0 || m.leg2ExtraTime.bGoals > 0) && <KOLeg label="Extra Time (leg 2)" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2ExtraTime.bGoals} ag={m.leg2ExtraTime.aGoals} scorers={m.leg2ExtraTimeScorers} homeId={m.teamB.clubId} />}
                 </>
               ) : (
-                <KOLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} />
+                <KOLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} homeId={m.teamA.clubId} onStats={onStatsLeg ? () => onStatsLeg(m, 1) : undefined} />
               )}
             </ScrollView>
           )}
@@ -536,11 +558,18 @@ function KOTieModal({ match: m, onClose, playerClubId, draftedPlayers }: {
   )
 }
 
-function KOLeg({ label, home, away, hg, ag, scorers, homeId }: { label: string; home: string; away: string; hg: number; ag: number; scorers?: import('@/types/stats').MatchScorers; homeId: string }) {
+function KOLeg({ label, home, away, hg, ag, scorers, homeId, onStats }: { label: string; home: string; away: string; hg: number; ag: number; scorers?: import('@/types/stats').MatchScorers; homeId: string; onStats?: () => void }) {
   const hs = summariseScorers(scorers?.home), as = summariseScorers(scorers?.away)
   return (
     <View style={styles.koLegBlock}>
-      <Text style={styles.koLegLabel}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={styles.koLegLabel}>{label}</Text>
+        {onStats && (
+          <Pressable onPress={onStats} hitSlop={8}>
+            <Text style={{ fontSize: 10, color: CL.accent, fontWeight: typography.bold }}>📊 Match stats ›</Text>
+          </Pressable>
+        )}
+      </View>
       <Text style={styles.koLegScore}>{home} {hg} – {ag} {away}</Text>
       {hs ? <Text style={styles.koLegScorer}>⚽ {home}: {hs}</Text> : null}
       {as ? <Text style={styles.koLegScorer}>⚽ {away}: {as}</Text> : null}
@@ -590,7 +619,7 @@ function CLHistorySummary({ run }: { run: any }) {
         League to see the complete league table and bracket here.
       </Text>
       <View style={styles.buttonRow}>
-        <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={() => router.back()}>
+        <Pressable style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.back()}>
           <Text style={styles.actionBtnText}>Back</Text>
         </Pressable>
       </View>

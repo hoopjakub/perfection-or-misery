@@ -21,6 +21,7 @@ export type Fixture = {
   away: SimTeam
   result: MatchResult | null
   scorers?: import('./stats').MatchScorers   // attributed once during sim, stored here
+  seed?: number   // deep-stat seed — full match detail regenerates from this (match-detail.ts)
 }
 
 export type MatchResult = {

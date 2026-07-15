@@ -9,6 +9,7 @@ import { flagForCountry } from '@/data/geo-iso'
 import { InfoBubble } from '@/components/InfoBubble'
 import { PenShootout } from '@/components/PenShootout'
 import { summariseScorers, attachCLShootoutNames } from '@/engine/run-stats'
+import { MatchDetailModal, koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchDetailModal'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
 import type { DraftedPlayer } from '@/types/game'
@@ -203,15 +204,21 @@ export function qualTieToKoMatch(t: import('@/engine/cl-qualifying').QualTie): C
     aPens: t.legs.homePens ?? undefined, bPens: t.legs.awayPens ?? undefined,
     aPenKicks: t.legs.homePenKicks, bPenKicks: t.legs.awayPenKicks,
     leg1Scorers: t.leg1Scorers, leg2Scorers: t.leg2Scorers, leg2ExtraTimeScorers: t.leg2ExtraTimeScorers,
+    leg1Seed: t.leg1Seed, leg2Seed: t.leg2Seed,
   }
 }
 
 // ── Knockout tie detail (aggregate, both legs, ET, shootout) ────────────────
 
-export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, draftedPlayers }: {
+export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, draftedPlayers, yearStart = 2025, accent }: {
   match: CLKnockoutMatch | null; roundLabel?: string; onClose: () => void
   playerClubId?: string; draftedPlayers?: DraftedPlayer[]
+  yearStart?: number   // roster season for the deep-stats regeneration
+  accent?: string
 }) {
+  const [detailReq, setDetailReq] = useState<MatchDetailRequest | null>(null)
+  const legRequest = (leg: 1 | 2): MatchDetailRequest | null =>
+    m ? koLegDetailRequest(m, leg, { label: roundLabel ?? m.round, yearStart, playerClubId, drafted: draftedPlayers }) : null
   // Penalty takers: matches carry the raw make/miss sequence; the NAMED kick
   // list is only pre-built for ties the reveal animated. Expand lazily here
   // (same shared helper the live sim uses) so EVERY shootout — qualifying
@@ -243,28 +250,36 @@ export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, 
               {kicksA && kicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={kicksA} kicksB={kicksB} />}
               {m.leg1 ? (
                 <>
-                  <KoLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} />
-                  {m.leg2 && <KoLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} />}
+                  <KoLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} onStats={() => setDetailReq(legRequest(1))} />
+                  {m.leg2 && <KoLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} onStats={() => setDetailReq(legRequest(2))} />}
                   {m.leg2ExtraTime && (m.leg2ExtraTime.aGoals > 0 || m.leg2ExtraTime.bGoals > 0) &&
                     <KoLeg label="Extra Time (leg 2)" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2ExtraTime.bGoals} ag={m.leg2ExtraTime.aGoals} scorers={m.leg2ExtraTimeScorers} />}
                 </>
               ) : (
-                <KoLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} />
+                <KoLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} onStats={() => setDetailReq(legRequest(1))} />
               )}
             </ScrollView>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
+      <MatchDetailModal request={detailReq} onClose={() => setDetailReq(null)} accent={accent ?? CL.accent} />
     </AppModal>
   )
 }
 
-function KoLeg({ label, home, away, hg, ag, scorers }: { label: string; home: string; away: string; hg: number; ag: number; scorers?: import('@/types/stats').MatchScorers }) {
+function KoLeg({ label, home, away, hg, ag, scorers, onStats }: { label: string; home: string; away: string; hg: number; ag: number; scorers?: import('@/types/stats').MatchScorers; onStats?: () => void }) {
   const hs = summariseScorers(scorers?.home), as = summariseScorers(scorers?.away)
   return (
     <View style={styles.koLegBlock}>
-      <Text style={styles.koLegLabel}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={styles.koLegLabel}>{label}</Text>
+        {onStats && (
+          <Pressable onPress={onStats} hitSlop={8}>
+            <Text style={styles.koLegStats}>📊 Match stats ›</Text>
+          </Pressable>
+        )}
+      </View>
       <Text style={styles.koLegScore}>{home} {hg} – {ag} {away}</Text>
       {hs ? <Text style={styles.koLegScorer}>⚽ {home}: {hs}</Text> : null}
       {as ? <Text style={styles.koLegScorer}>⚽ {away}: {as}</Text> : null}
@@ -314,6 +329,7 @@ const styles = StyleSheet.create({
   koPens: { fontSize: typography.sm, color: CL.accent, fontWeight: typography.bold, textAlign: 'center', marginBottom: spacing.sm },
   koLegBlock: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
   koLegLabel: { fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  koLegStats: { fontSize: 10, color: CL.accent, fontWeight: typography.bold },
   koLegScore: { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
   koLegScorer: { fontSize: typography.xs, color: colors.textSecondary },
 

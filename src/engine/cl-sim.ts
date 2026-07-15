@@ -25,6 +25,8 @@ export type CLKnockoutMatch = {
   leg1Scorers?: MatchScorers   // attributed once, stored — leg1 (or the single final)
   leg2Scorers?: MatchScorers   // leg2 regulation (teamB at home), minutes 1-90
   leg2ExtraTimeScorers?: MatchScorers  // leg2 extra time (teamB at home), minutes 91-120
+  leg1Seed?: number            // deep-stat seeds, one per physical match (match-detail.ts)
+  leg2Seed?: number
   aPenKicks?: boolean[]        // raw make/miss sequence from the shootout sim
   bPenKicks?: boolean[]
   penKicksA?: PenKick[]        // names zipped on at reveal, stored for the result screen
@@ -39,6 +41,7 @@ export type CLLeagueMatch = {
   homeGoals: number
   awayGoals: number
   scorers?:  MatchScorers
+  seed?:     number   // deep-stat seed (match-detail.ts)
 }
 
 export type CLSeasonResult = {

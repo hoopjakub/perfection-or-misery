@@ -18,18 +18,22 @@ function sortGroupTeams(a: WCTeam, b: WCTeam): number {
   return b.stats.goalsFor - a.stats.goalsFor
 }
 
-export function WCGroupMatchdays({ matches }: { matches: WCGroupMatch[] }) {
+export function WCGroupMatchdays({ matches, onOpenMatch }: {
+  matches: WCGroupMatch[]
+  onOpenMatch?: (m: WCGroupMatch) => void   // deep-stats match-detail entry point
+}) {
   if (matches.length === 0) return null
   const matchdays = Array.from(new Set(matches.map(m => m.matchday))).sort((a, b) => a - b)
   return (
     <View style={styles.mdSection}>
+      {onOpenMatch && <Text style={styles.mdHint}>Tap a match for full stats & ratings</Text>}
       {matchdays.map(md => (
         <View key={md} style={styles.mdBlock}>
           <Text style={styles.mdLabel}>Matchday {md}</Text>
           {matches.filter(m => m.matchday === md).map((m, i) => {
             const hs = summariseScorers(m.scorers?.home), as = summariseScorers(m.scorers?.away)
             return (
-              <View key={i}>
+              <Pressable key={i} onPress={onOpenMatch ? () => onOpenMatch(m) : undefined} disabled={!onOpenMatch}>
                 <View style={styles.mdRow}>
                   <TeamLabel
                     clubId={m.home.clubId} name={m.home.clubName} size={12}
@@ -43,13 +47,13 @@ export function WCGroupMatchdays({ matches }: { matches: WCGroupMatch[] }) {
                     textStyle={[styles.mdTeamText, m.away.isPlayer && styles.mdTeamPlayer]}
                   />
                 </View>
-                {(hs || as) && (
+                {!!(hs || as) && (
                   <View style={styles.mdScorers}>
                     <Text style={[styles.mdScorerHalf, { textAlign: 'right' }]} numberOfLines={2}>{hs ? `⚽ ${hs}` : ''}</Text>
                     <Text style={styles.mdScorerHalf} numberOfLines={2}>{as ? `${as} ⚽` : ''}</Text>
                   </View>
                 )}
-              </View>
+              </Pressable>
             )
           })}
         </View>
@@ -58,10 +62,11 @@ export function WCGroupMatchdays({ matches }: { matches: WCGroupMatch[] }) {
   )
 }
 
-export function WCGroupModal({ group, matches, onClose }: {
+export function WCGroupModal({ group, matches, onClose, onOpenMatch }: {
   group: { id: string; teams: WCTeam[] } | null
   matches: WCGroupMatch[]
   onClose: () => void
+  onOpenMatch?: (m: WCGroupMatch) => void
 }) {
   const teams = group ? [...group.teams].sort(sortGroupTeams) : []
   return (
@@ -96,7 +101,7 @@ export function WCGroupModal({ group, matches, onClose }: {
                   </View>
                 )
               })}
-              <WCGroupMatchdays matches={matches} />
+              <WCGroupMatchdays matches={matches} onOpenMatch={onOpenMatch} />
             </ScrollView>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}>
@@ -123,6 +128,7 @@ const styles = StyleSheet.create({
   mdSection: { gap: spacing.sm, marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   mdBlock: { gap: 4 },
   mdLabel: { fontSize: typography.xs, fontWeight: typography.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  mdHint: { fontSize: 9, color: colors.textMuted, fontStyle: 'italic' },
   mdRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
   mdTeam:       { flex: 1 },
   mdTeamRight:  { justifyContent: 'flex-end' },
