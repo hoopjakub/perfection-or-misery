@@ -139,7 +139,7 @@ export function LeagueTableModal({ table, playerClubId, onClose }: { table: SimL
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {table && (
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
               <Text style={styles.modalTitle}>{flagForCountry(table.country) ? `${flagForCountry(table.country)} ` : ''}{table.name}</Text>
               <LeagueTableView key={table.rank} table={table} playerClubId={playerClubId} />
             </ScrollView>
@@ -166,7 +166,7 @@ export function LeaguesBrowserModal({ visible, tables, playerClubId, onClose }: 
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <Text style={styles.modalTitle}>All Leagues</Text>
             <Text style={styles.phaseNote}>{tables.length} leagues simulated this run · tap one for its table</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
               {tables.map(t => (
                 <Pressable key={t.rank} style={styles.browserRow} onPress={() => setOpen(t)}>
                   <Text style={styles.browserRank}>#{t.rank}</Text>
@@ -239,7 +239,7 @@ export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, 
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {m && (
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={styles.modalTitle}>{roundLabel ?? m.round}</Text>
                 {m.leg1 && <InfoBubble topic="two_legged_tie" size={16} />}

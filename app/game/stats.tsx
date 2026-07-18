@@ -292,7 +292,11 @@ function PlayerGamesModal({ player, entries, accent, onClose }: {
                 {player.avgRating != null ? ` · avg ${player.avgRating.toFixed(2)}` : ''}
                 {(player.potm ?? 0) > 0 ? ` · ★${player.potm} POTM` : ''}
               </Text>
-              <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              {/* flexShrink (not a fixed maxHeight) so the list fills only the
+                  space between the header and the Close button inside the capped
+                  card — otherwise a long game log overflowed and the bottom rows
+                  + Close button were clipped off-screen and unreachable. */}
+              <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
                 {entries.length === 0 && (
                   <Text style={modalStyles.empty}>No match-by-match data — game logs are only available on the run where the stats were computed.</Text>
                 )}
@@ -391,7 +395,7 @@ function TeamRosterModal({ team, players, accent, onClose }: {
               <Text style={modalStyles.subtitle}>
                 {team.goalsFor} scored · {team.goalsAgainst} conceded · {team.cleanSheets} clean sheets
               </Text>
-              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
                 <View style={modalStyles.head}>
                   <Text style={[modalStyles.col, modalStyles.nameCol]}>Player</Text>
                   <Text style={modalStyles.col}>G</Text><Text style={modalStyles.col}>A</Text><Text style={modalStyles.col}>CS</Text>

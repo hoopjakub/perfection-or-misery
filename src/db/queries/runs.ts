@@ -4,6 +4,22 @@ import type { SeasonResult } from '@/types/simulation'
 import type { DraftedPlayer, GameMode } from '@/types/game'
 import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { CLSeasonResult } from '@/engine/cl-sim'
+import { resolveDifficulty, type Difficulty, type CustomDifficulty } from '@/engine/difficulty'
+
+// Build the difficulty columns saved on every run so the achievements screen can
+// read back exactly how hard a run was. `difficulty` is the raw preset/custom
+// label; `difficulty_meta` carries the resolved knobs + the 0–11 hardness rating.
+// Both are optional columns (auto-dropped by insertRun if the DB lacks them).
+function difficultyColumns(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined) {
+  if (!difficulty) return { difficulty: null, difficulty_meta: null }
+  const r = resolveDifficulty(difficulty, custom)
+  return {
+    difficulty,
+    difficulty_meta: {
+      rerolls: r.rerolls, ratingsShown: r.ratingsShown, screwLevel: r.screwLevel, hardness: r.hardness,
+    },
+  }
+}
 
 // Insert a run, tolerating optional columns that may not exist in Supabase yet
 // (highlights / matchday_history / wc_result / cl_result / future stats columns).
@@ -37,6 +53,8 @@ export async function saveRun(params: {
   seasonResult: SeasonResult
   squad: DraftedPlayer[]
   matchdayHistory: unknown
+  difficulty: Difficulty | null
+  custom?: CustomDifficulty | null
   stats?: unknown
   awards?: unknown
 }) {
@@ -47,6 +65,7 @@ export async function saveRun(params: {
     teamOvr: params.teamOvr,
     losses: params.seasonResult.losses,
     draws: params.seasonResult.draws,
+    difficultyMultiplier: resolveDifficulty(params.difficulty, params.custom).scoreMultiplier,
   })
 
   await insertRun({
@@ -67,6 +86,7 @@ export async function saveRun(params: {
     goals_against: params.seasonResult.goalsAgainst,
     score,
     squad: params.squad,
+    ...difficultyColumns(params.difficulty, params.custom),
     // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     matchday_history: params.matchdayHistory,
     highlights: {
@@ -82,10 +102,11 @@ export async function saveRun(params: {
 // Knockout competitions (WC / UCL) don't have a league position. Score them on a
 // ROUND-REACHED ladder (so progress is rewarded and scores sit alongside league
 // scores), and report a real FINISH position (1–4 podium, then by round).
-function knockoutScore(base: number, teamOvr: number, losses: number): number {
+function knockoutScore(base: number, teamOvr: number, losses: number, difficultyMultiplier = 1): number {
   const ovrPenalty = Math.max(0, teamOvr - 80) * 10        // reward underdog squads
   const unbeaten   = losses === 0 ? 200 : 0                // bonus for an unbeaten run
-  return Math.round(Math.max(0, base - ovrPenalty + unbeaten))
+  // Same difficulty scaling as the league score — harder settings, more points.
+  return Math.round(Math.max(0, (base - ovrPenalty + unbeaten) * difficultyMultiplier))
 }
 
 // World Cup — finish position (with the 3rd-place playoff the top 4 are exact).
@@ -102,6 +123,8 @@ export async function saveWCRun(params: {
   teamOvr: number
   result: WCSeasonResult
   squad: DraftedPlayer[]
+  difficulty: Difficulty | null
+  custom?: CustomDifficulty | null
   stats?: unknown
   awards?: unknown
 }) {
@@ -109,7 +132,7 @@ export async function saveWCRun(params: {
   const pt = result.playerTeam
   const finalPosition = WC_ROUND_TO_POSITION[result.playerFinalRound] ?? 48
   const teamsInLeague = 48
-  const score = knockoutScore(WC_ROUND_SCORE[result.playerFinalRound] ?? 100, params.teamOvr, pt.stats.lost)
+  const score = knockoutScore(WC_ROUND_SCORE[result.playerFinalRound] ?? 100, params.teamOvr, pt.stats.lost, resolveDifficulty(params.difficulty, params.custom).scoreMultiplier)
 
   await insertRun({
     user_id: params.userId,
@@ -130,6 +153,7 @@ export async function saveWCRun(params: {
     goals_against: pt.stats.goalsAgainst,
     score,
     squad: params.squad,
+    ...difficultyColumns(params.difficulty, params.custom),
     // Full tournament so the WC result page can be rebuilt from history.
     // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     wc_result: result,
@@ -158,6 +182,8 @@ export async function saveCLRun(params: {
   teamOvr: number
   result: CLSeasonResult
   squad: DraftedPlayer[]
+  difficulty: Difficulty | null
+  custom?: CustomDifficulty | null
   stats?: unknown
   awards?: unknown
 }) {
@@ -165,7 +191,7 @@ export async function saveCLRun(params: {
   const pt = result.playerTeam
   const finalPosition = CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 36
   const teamsInLeague = 36
-  const score = knockoutScore(CL_ROUND_SCORE[result.playerFinalRound] ?? 100, params.teamOvr, pt.stats.lost)
+  const score = knockoutScore(CL_ROUND_SCORE[result.playerFinalRound] ?? 100, params.teamOvr, pt.stats.lost, resolveDifficulty(params.difficulty, params.custom).scoreMultiplier)
 
   await insertRun({
     user_id: params.userId,
@@ -186,6 +212,7 @@ export async function saveCLRun(params: {
     goals_against: pt.stats.goalsAgainst,
     score,
     squad: params.squad,
+    ...difficultyColumns(params.difficulty, params.custom),
     // Full tournament so the CL result page can be rebuilt from history.
     // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     cl_result: result,
@@ -212,6 +239,8 @@ export async function saveCustomUclRun(params: {
   teamOvr: number
   result: CLSeasonResult
   squad: DraftedPlayer[]
+  difficulty: Difficulty | null
+  custom?: CustomDifficulty | null
   stats?: unknown
   awards?: unknown
   qual?: unknown          // QualifyingResult — stored so history can rebuild the ladder
@@ -221,7 +250,7 @@ export async function saveCustomUclRun(params: {
   const pt = result.playerTeam
   const finalPosition = CUSTOM_CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 90
   const teamsInLeague = 36
-  const score = knockoutScore(CUSTOM_CL_ROUND_SCORE[result.playerFinalRound] ?? 30, params.teamOvr, pt.stats.lost)
+  const score = knockoutScore(CUSTOM_CL_ROUND_SCORE[result.playerFinalRound] ?? 30, params.teamOvr, pt.stats.lost, resolveDifficulty(params.difficulty, params.custom).scoreMultiplier)
 
   await insertRun({
     user_id: params.userId,
@@ -241,6 +270,7 @@ export async function saveCustomUclRun(params: {
     goals_against: pt.stats.goalsAgainst,
     score,
     squad: params.squad,
+    ...difficultyColumns(params.difficulty, params.custom),
     // Full tournament + qualifying ladder + domestic tables so the result page
     // can be rebuilt IDENTICALLY from history. The qualifying ladder and the 53
     // simulated league tables are nested INSIDE cl_result (a jsonb column that

@@ -5,6 +5,7 @@ import {
 import { AppModal } from '@/components/AppModal'
 import Svg, { Line, Polyline, Text as SvgText, G } from 'react-native-svg'
 import { router, useLocalSearchParams } from 'expo-router'
+import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveRun, fetchRunById } from '@/db/queries/runs'
@@ -194,7 +195,7 @@ const TIER_META: Record<Tier, { title: string; desc: string; emoji: string }> = 
 
 export default function ResultScreen() {
   const store = useGameStore()
-  const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers, benchPlayers, quickSim } = store
+  const { simResult, resetRun, mode, formation, placedLeague, draftedPlayers, benchPlayers, quickSim, difficulty, customDifficulty } = store
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const theme = useModeTheme()
@@ -427,6 +428,7 @@ export default function ResultScreen() {
           seasonResult: simResult,
           squad: fullSquad,
           matchdayHistory: simResult.matchdayHistory,
+          difficulty, custom: customDifficulty,
           stats: runStats?.stats,
           awards: runStats?.awards,
         })
@@ -442,7 +444,7 @@ export default function ResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await saveCurrentRun()
     resetRun()
-    router.replace('/game/mode-select')
+    restartToModeSelect()
   }
 
   async function handleReturnToHome() {
@@ -450,7 +452,7 @@ export default function ResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await saveCurrentRun()
     resetRun()
-    router.replace('/(tabs)')
+    exitToHome()
   }
 
   return (

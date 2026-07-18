@@ -124,6 +124,42 @@ export async function fetchUserStats(userId: string): Promise<UserStats> {
   }
 }
 
+// One run's fields needed to compute achievements. difficulty/difficulty_meta
+// are optional columns (added later) — the fetch degrades gracefully if the DB
+// doesn't have them yet, so old runs still count toward "conquered a mode".
+export type AchievementRun = {
+  mode: string
+  tier: string | null
+  final_position: number | null
+  difficulty: string | null
+  difficulty_meta: { hardness?: number; screwLevel?: number } | null
+}
+
+export async function fetchAchievementRuns(userId: string): Promise<AchievementRun[]> {
+  const base = 'mode, tier, final_position'
+  // Try WITH the difficulty columns; if they don't exist yet, retry without.
+  for (const cols of [`${base}, difficulty, difficulty_meta`, base]) {
+    const { data, error } = await supabase
+      .from('runs').select(cols).eq('user_id', userId)
+    if (!error) return (data as unknown as AchievementRun[]).map(r => ({
+      mode: r.mode, tier: r.tier ?? null, final_position: r.final_position ?? null,
+      difficulty: (r as any).difficulty ?? null, difficulty_meta: (r as any).difficulty_meta ?? null,
+    }))
+    // 42703 = undefined_column; anything else is a real error.
+    if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error
+  }
+  return []
+}
+
+// A run counts as "won" (trophy / league title) for achievements when the player
+// finished first: league modes → final_position 1; knockout modes → tier 'winner'.
+export function isRunWon(run: { mode: string; tier: string | null; final_position: number | null }): boolean {
+  if (run.mode === 'world_cup' || run.mode === 'champions_league' || run.mode === 'champions_league_custom') {
+    return run.tier === 'winner'
+  }
+  return run.final_position === 1
+}
+
 export function calculateScore(params: {
   mode: string
   finalPosition: number
@@ -131,6 +167,7 @@ export function calculateScore(params: {
   teamOvr: number
   losses: number
   draws: number
+  difficultyMultiplier?: number   // from engine/difficulty scoreMultiplierFor (1 = neutral)
 }): number {
   const { mode, finalPosition, teamsInLeague, teamOvr, losses, draws } = params
 
@@ -148,7 +185,13 @@ export function calculateScore(params: {
   const tierBonus = losses === 0 && draws === 0 ? 750
                   : losses === 0               ? 400 : 0
 
+  // Difficulty (rerolls / hidden ratings / screw-level) scales the whole score —
+  // an easy run with a fistful of rerolls is worth a fraction of a hard blind one.
+  // chaos/cursed have no difficulty knob, so they pass 1 and keep only their mode
+  // multiplier (which already rewards their inherent handicap).
   return Math.round(
-    (positionScore - ovrPenalty + tierBonus) * (modeMultiplier[mode] ?? 1.0)
+    (positionScore - ovrPenalty + tierBonus)
+    * (modeMultiplier[mode] ?? 1.0)
+    * (params.difficultyMultiplier ?? 1.0)
   )
 }

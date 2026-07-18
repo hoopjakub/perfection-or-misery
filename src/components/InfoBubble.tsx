@@ -104,7 +104,7 @@ export function RulesModal({ visible, onClose, accent = CL.accent }: { visible: 
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.card, { borderColor: accent, maxHeight: '88%' }]} onPress={() => {}}>
           <Text style={[styles.title, { color: accent }]}>How this competition works</Text>
-          <ScrollView showsVerticalScrollIndicator>
+          <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
             {RULES_ORDER.map(key => {
               const e = EXPLAINERS[key]
               if (!e) return null

@@ -8,7 +8,7 @@ import type { SimTeam, Fixture, SeasonResult, MatchdaySnapshot } from '@/types/s
 import { getSlotsForFormation } from './formations'
 import { calcTeamOvr } from './rating'
 import { generateFixtures } from './fixtures'
-import { simulateMatch } from './match'
+import { simulateMatch, setMatchTilt } from './match'
 import { updateForm } from './simulation'
 import { assignTier } from './tier'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from './placement'
@@ -245,6 +245,7 @@ export type QuickLeagueRun = {
 export type QuickCLRun = { formation: Formation; draftedPlayers: DraftedPlayer[]; clTeams: CLTeam[]; clResult: CLSeasonResult }
 
 export async function quickSimCL(): Promise<QuickCLRun> {
+  setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
   const teamOvr = calcTeamOvr(draftedPlayers, getSlotsForFormation(formation))
@@ -284,6 +285,7 @@ export async function quickSimCL(): Promise<QuickCLRun> {
 export type QuickCustomUclRun = QuickCLRun & { qual: QualifyingResult; tables: SimLeagueTable[] }
 
 export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
+  setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
   const teamOvr = calcTeamOvr(draftedPlayers, getSlotsForFormation(formation))
@@ -347,6 +349,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
 export type QuickWCRun = { formation: Formation; draftedPlayers: DraftedPlayer[]; wcTeams: WCTeam[]; wcResult: WCSeasonResult }
 
 export async function quickSimWC(): Promise<QuickWCRun> {
+  setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
   const teamOvr = calcTeamOvr(draftedPlayers, getSlotsForFormation(formation))
@@ -381,6 +384,7 @@ export async function quickSimWC(): Promise<QuickWCRun> {
 }
 
 export async function quickSimLeague(): Promise<QuickLeagueRun> {
+  setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
   const slots  = getSlotsForFormation(formation)

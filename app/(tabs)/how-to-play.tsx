@@ -195,9 +195,34 @@ export default function HowToPlayScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Difficulty Levels</Text>
           <Text style={styles.content}>
-            • <Text style={styles.bold}>Easy:</Text> 3 rerolls, ratings shown{'\n'}
-            • <Text style={styles.bold}>Medium:</Text> 1 reroll, ratings shown{'\n'}
-            • <Text style={styles.bold}>Hard:</Text> No rerolls, ratings hidden
+            Difficulty changes two things: the <Text style={styles.bold}>draft</Text> (rerolls and
+            whether ratings are shown) and — now — how hard <Text style={styles.bold}>your own
+            matches</Text> are. Only games your club plays are affected; every other result in the
+            table or bracket stays fair, so the competition around you is always honest.{'\n\n'}
+            • <Text style={styles.bold}>Easy:</Text> 3 rerolls, ratings shown, and your matches tilt
+            your way — a genuinely strong squad wins comfortably and can realistically go all the way{'\n'}
+            • <Text style={styles.bold}>Medium:</Text> 1 reroll, ratings shown, matches played straight
+            — realistic and demanding; even a great team has to earn a trophy{'\n'}
+            • <Text style={styles.bold}>Hard:</Text> no rerolls, ratings hidden, and the AI leans
+            against you — even good-vs-good games skew the opponent's way, so beating a top side is a
+            real achievement{'\n\n'}
+            <Text style={styles.bold}>Custom:</Text> build your own difficulty from three dials — a
+            rerolls slider (0–10), a ratings on/off toggle, and a 1–10 "screw-you-er" from Baby Mode to
+            Absolute Misery (Easy/Medium/Hard sit at 2/4/6). Every dial matters:{' '}
+            <Text style={styles.bold}>tougher settings score more, easier ones score less</Text> — a
+            pile of rerolls or visible ratings is a real cut to your final points, a blind Absolute
+            Misery run is worth far more. The same scaling applies to the base difficulties too.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Achievements</Text>
+          <Text style={styles.content}>
+            Profile → Achievements tracks, for every mode, which base difficulties you've{' '}
+            <Text style={styles.bold}>won a trophy on</Text> (league title or cup) — plus the hardest
+            Custom run you've conquered on a 0–11 scale (0 = Baby Mode with ten rerolls and ratings on,
+            11 = Absolute Misery, no rerolls, drafting blind). It's computed live from your saved runs,
+            so it fills in as you play and reflects your whole history.
           </Text>
         </View>
 

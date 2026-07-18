@@ -5,8 +5,11 @@ import type { CLTeam, CLSeasonResult } from '@/engine/cl-sim'
 import type { WCTeam, WCSeasonResult } from '@/engine/world-cup-sim'
 import type { QualifyingResult } from '@/engine/cl-qualifying'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
+import { type Difficulty, type CustomDifficulty, DEFAULT_CUSTOM } from '@/engine/difficulty'
 
-export type Difficulty = 'easy' | 'medium' | 'hard'
+// Canonical difficulty types live in engine/difficulty.ts; re-exported here so
+// existing importers (`@/store/gameStore`) keep working unchanged.
+export type { Difficulty, CustomDifficulty }
 
 // Re-export so consumers can import from the store path if needed
 export type { CLTeam, CLSeasonResult, WCTeam, WCSeasonResult }
@@ -15,6 +18,7 @@ type GameStore = {
   mode:           GameMode | null
   era:            string | null
   difficulty:     Difficulty | null
+  customDifficulty: CustomDifficulty   // knobs for the 'custom' difficulty (rerolls / ratings / screw-level)
   selectedLeague: string | null
   formation:      Formation | null
   draftedPlayers: DraftedPlayer[]
@@ -51,6 +55,7 @@ type GameStore = {
   resetRun:       () => void
   setMode:        (mode: GameMode, era?: string) => void
   setDifficulty:  (difficulty: Difficulty) => void
+  setCustomDifficulty: (custom: CustomDifficulty) => void
   setSelectedLeague: (league: string | null) => void
   setPlacement:   (league: LeagueSeason) => void
   setSimResult:   (result: SeasonResult | null) => void
@@ -70,6 +75,7 @@ const initialState = {
   mode:            null,
   era:             null,
   difficulty:      null,
+  customDifficulty: DEFAULT_CUSTOM,
   selectedLeague:  null,
   formation:       null,
   draftedPlayers:  [],
@@ -100,6 +106,7 @@ export const useGameStore = create<GameStore>((set) => ({
     formation,
     era: era ?? null,
     difficulty: s.difficulty, // Preserve difficulty when starting a new run
+    customDifficulty: s.customDifficulty, // Preserve the custom-difficulty knobs too
     selectedLeague: s.selectedLeague, // Preserve selected league
     accentColor: s.accentColor, // Preserve accent color
     useSubstitutes: s.useSubstitutes, // Preserve the substitutes toggle
@@ -151,6 +158,7 @@ export const useGameStore = create<GameStore>((set) => ({
   })),
   setMode:        (mode, era) => set({ mode, era: era ?? null }),
   setDifficulty:  (difficulty) => set({ difficulty }),
+  setCustomDifficulty: (customDifficulty) => set({ customDifficulty }),
   setSelectedLeague: (league) => set({ selectedLeague: league }),
   setPlacement:   (league) => set({ placedLeague: league }),
   setSimResult:   (simResult) => set({ simResult }),

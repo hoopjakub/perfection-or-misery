@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native'
 import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
+import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
@@ -41,7 +42,7 @@ const ROUND_COLORS: Record<string, string> = {
 
 export default function CLResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim, difficulty, customDifficulty } = store
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
@@ -166,6 +167,7 @@ export default function CLResultScreen() {
           teamOvr: playerTeam.ovr,
           result: clResult!,
           squad: fullSquad,
+          difficulty, custom: customDifficulty,
           stats: runStats?.stats,
           awards: runStats?.awards,
         })
@@ -188,7 +190,7 @@ export default function CLResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await persistRun()
     resetRun()
-    router.replace('/game/mode-select')
+    restartToModeSelect()
   }
 
   async function handleReturnToHome() {
@@ -196,7 +198,7 @@ export default function CLResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await persistRun()
     resetRun()
-    router.replace('/(tabs)')
+    exitToHome()
   }
 
   return (

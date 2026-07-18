@@ -71,6 +71,7 @@ export default function ProfileScreen() {
       {/* menu */}
       <View style={styles.menu}>
         {!isGuest && <MenuRow icon="medal-outline" label="My Runs" onPress={() => router.push('/(tabs)/runs')} />}
+        {!isGuest && <MenuRow icon="trophy-outline" label="Achievements" onPress={() => router.push('/game/achievements')} />}
         {!isGuest && <MenuRow icon="stats-chart-outline" label="Career Stats" onPress={() => router.push('/game/career')} />}
         <MenuRow icon="book-outline" label="How to Play" onPress={() => router.push('/(tabs)/how-to-play')} />
         <MenuRow icon="information-circle-outline" label="About Me" onPress={() => router.push('/(tabs)/about')} />

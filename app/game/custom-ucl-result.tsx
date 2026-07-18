@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native'
 import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
+import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCustomUclRun, fetchRunById } from '@/db/queries/runs'
@@ -40,7 +41,7 @@ const ROUND_COLORS: Record<string, string> = {
 }
 export default function CustomUclResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim, difficulty, customDifficulty } = store
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
@@ -185,6 +186,7 @@ export default function CustomUclResultScreen() {
           teamOvr: playerTeam.ovr,
           result: clResult!,
           squad: fullSquad,
+          difficulty, custom: customDifficulty,
           stats: runStats?.stats,
           awards: runStats?.awards,
           qual: customUclQual,
@@ -209,7 +211,7 @@ export default function CustomUclResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await persistRun()
     resetRun()
-    router.replace('/game/mode-select')
+    restartToModeSelect()
   }
 
   async function handleReturnToHome() {
@@ -217,7 +219,7 @@ export default function CustomUclResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await persistRun()
     resetRun()
-    router.replace('/(tabs)')
+    exitToHome()
   }
 
   return (

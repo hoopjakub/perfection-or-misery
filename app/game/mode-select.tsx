@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { PressCard, BackButton } from '@/components/ui'
+import { PressCard, BackButton, StepSlider } from '@/components/ui'
+import { screwLevelInfo } from '@/engine/difficulty'
 import { router } from 'expo-router'
 import { useGameStore, GameMode, type Difficulty } from '@/store/gameStore'
 import { getAvailableLeagues, type LeagueOption } from '@/db/queries/seasons'
@@ -128,13 +129,14 @@ const ERAS = [
 ]
 
 const DIFFICULTIES: { id: Difficulty; label: string; description: string }[] = [
-  { id: 'easy', label: 'Easy', description: '3 rerolls, ratings shown' },
-  { id: 'medium', label: 'Medium', description: '1 reroll, ratings shown' },
-  { id: 'hard', label: 'Hard', description: 'No rerolls, ratings hidden' },
+  { id: 'easy', label: 'Easy', description: '3 rerolls · ratings shown · your own matches tilt your way' },
+  { id: 'medium', label: 'Medium', description: '1 reroll · ratings shown · matches play it straight' },
+  { id: 'hard', label: 'Hard', description: 'No rerolls · ratings hidden · the AI leans against you' },
+  { id: 'custom', label: 'Custom', description: 'Dial in your own pain — rerolls, blind ratings, and how hard the AI screws you.' },
 ]
 
 export default function ModeSelectScreen() {
-  const { setMode, setDifficulty, setSelectedLeague, setAccentColor } = useGameStore()
+  const { setMode, setDifficulty, setSelectedLeague, setAccentColor, customDifficulty, setCustomDifficulty } = useGameStore()
   const [selectedCategory, setSelectedCategory] = useState<ModeCategory>('normal')
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null)
   const [selectedEra, setSelectedEra] = useState<string | null>(null)
@@ -142,6 +144,20 @@ export default function ModeSelectScreen() {
   const [selectedLeague, setSelectedLeagueState] = useState<string | null>(null)
   const [leagues, setLeagues] = useState<LeagueOption[]>([])
   const [loadingLeagues, setLoadingLeagues] = useState(false)
+
+  // Play Again lands here with the last run's mode/difficulty/league still in the
+  // store (resetRun keeps them) — preselect them so a rematch is one tap away.
+  useEffect(() => {
+    const s = useGameStore.getState()
+    if (!s.mode) return
+    const cfg = MODES.find(m => m.id === s.mode)
+    if (!cfg) return
+    setSelectedCategory(cfg.category)
+    setSelectedMode(s.mode)
+    if (s.era) setSelectedEra(s.era)
+    if (s.selectedLeague) setSelectedLeagueState(s.selectedLeague)
+    if (cfg.hasDifficulty && s.difficulty) setSelectedDifficulty(s.difficulty)
+  }, [])
 
   useEffect(() => {
     async function loadLeagues() {
@@ -358,6 +374,47 @@ export default function ModeSelectScreen() {
                       {DIFFICULTIES.find(d => d.id === selectedDifficulty)?.description}
                     </Text>
                   )}
+
+                  {/* Custom difficulty panel — three live knobs. Edits write
+                      straight to the store's customDifficulty so they're in place
+                      the moment Continue is tapped. */}
+                  {selectedDifficulty === 'custom' && (() => {
+                    const c = customDifficulty
+                    const info = screwLevelInfo(c.screwLevel)
+                    const acc = mode.accentColor
+                    return (
+                      <View style={styles.customPanel}>
+                        {/* rerolls */}
+                        <View style={styles.customRow}>
+                          <Text style={styles.customLabel}>Rerolls</Text>
+                          <Text style={[styles.customValue, { color: acc }]}>{c.rerolls}</Text>
+                        </View>
+                        <StepSlider min={0} max={10} value={c.rerolls} accent={acc}
+                          onChange={v => setCustomDifficulty({ ...c, rerolls: v })} />
+                        <Text style={styles.customNote}>More rerolls = an easier draft, but a real cut to your final score.</Text>
+
+                        {/* ratings toggle */}
+                        <Pressable style={styles.customToggleRow} onPress={() => setCustomDifficulty({ ...c, ratingsShown: !c.ratingsShown })}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.customLabel}>Show ratings</Text>
+                            <Text style={styles.customNote}>{c.ratingsShown ? 'OVRs visible while drafting.' : 'Draft blind — no OVRs. Harder, worth more.'}</Text>
+                          </View>
+                          <View style={[styles.switch, c.ratingsShown && { backgroundColor: acc, borderColor: acc }]}>
+                            <View style={[styles.switchKnob, c.ratingsShown && styles.switchKnobOn]} />
+                          </View>
+                        </Pressable>
+
+                        {/* screw-level */}
+                        <View style={[styles.customRow, { marginTop: spacing.sm }]}>
+                          <Text style={styles.customLabel}>Difficulty</Text>
+                          <Text style={[styles.customValue, { color: acc }]}>{info.name} · {c.screwLevel}/10</Text>
+                        </View>
+                        <StepSlider min={1} max={10} value={c.screwLevel} accent={acc}
+                          onChange={v => setCustomDifficulty({ ...c, screwLevel: v })} />
+                        <Text style={styles.customTagline}>{info.tagline}</Text>
+                      </View>
+                    )
+                  })()}
                 </View>
               )}
             </PressCard>
@@ -642,4 +699,22 @@ const styles = StyleSheet.create({
     color:     colors.textMuted,
     fontStyle: 'italic',
   },
+
+  // ── custom difficulty panel ──
+  customPanel: {
+    marginTop: spacing.sm, gap: 2,
+    borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm,
+  },
+  customRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  customLabel: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
+  customValue: { fontSize: typography.sm, fontWeight: typography.black },
+  customNote: { fontSize: 10, color: colors.textMuted, marginBottom: spacing.xs },
+  customTagline: { fontSize: typography.xs, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 },
+  customToggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    marginTop: spacing.sm, paddingVertical: 2,
+  },
+  switch: { width: 46, height: 26, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgElevated, padding: 2, justifyContent: 'center' },
+  switchKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.textMuted },
+  switchKnobOn: { backgroundColor: colors.textPrimary, alignSelf: 'flex-end' },
 })

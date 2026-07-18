@@ -11,7 +11,8 @@ import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
 import { calcTeamOvr, effectiveOvr, positionPenalty, derivedSecondaryPositions } from '@/engine/rating'
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
-import { spinClubSeason, isPlayerAvailable, getRerollLimit } from '@/engine/draft'
+import { spinClubSeason, isPlayerAvailable } from '@/engine/draft'
+import { rerollLimitFor, ratingsHiddenFor } from '@/engine/difficulty'
 import { getRandomFact } from '@/lib/clubFacts'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
@@ -25,7 +26,7 @@ type DraftPhase = 'idle' | 'spinning_position' | 'spinning' | 'picking' | 'done'
 
 export default function DraftScreen() {
   const {
-    mode, formation, era, difficulty,
+    mode, formation, era, difficulty, customDifficulty,
     selectedLeague,
     draftedPlayers, spunSeasonIds,
     rerollsUsed, addPlayer, movePlayer, markSeasonSpun, useReroll,
@@ -161,13 +162,14 @@ export default function DraftScreen() {
   const scaleAnim  = useRef(new Animated.Value(0.8)).current
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const rerollLimit  = getRerollLimit(difficulty ?? null, mode ?? null)
+  const rerollLimit  = rerollLimitFor(difficulty ?? null, customDifficulty, mode ?? null)
   const rerollsLeft  = rerollLimit - rerollsUsed
   const openSlots    = slots.filter(s => s.filledBy === null)
   const filledSlots  = slots.filter(s => s.filledBy !== null)
   const isDraftDone = slots.length > 0 && openSlots.length === 0
-  // Hide ratings in chaos/cursed modes and hard mode
-  const ratingsHidden = mode === 'chaos' || mode === 'cursed' || difficulty === 'hard'
+  // Hidden ratings: chaos/cursed always, hard preset, or a custom run with the
+  // ratings toggle off (engine/difficulty.ts resolves all three).
+  const ratingsHidden = ratingsHiddenFor(difficulty ?? null, customDifficulty, mode ?? null)
 
   // Squad OVR for display — pure positional team rating (no chemistry)
   const baseTeamOvr = slots.length > 0 && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0

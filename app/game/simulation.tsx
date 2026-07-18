@@ -10,7 +10,8 @@ import { useGameStore } from '@/store/gameStore'
 import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { generateFixtures } from '@/engine/fixtures'
-import { simulateMatch } from '@/engine/match'
+import { simulateMatch, setMatchTilt } from '@/engine/match'
+import { resolveDifficulty } from '@/engine/difficulty'
 import { assignTier } from '@/engine/tier'
 import { generateCLLeagueFixtures, simulateCLKnockoutsOnly } from '@/engine/cl-sim'
 import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/engine/cl-sim'
@@ -25,7 +26,8 @@ import { TeamLabel } from '@/components/TeamLabel'
 import { LineupPitch } from '@/components/LineupPitch'
 import { FixtureList } from '@/components/FixtureList'
 import ReAnimated, { FadeInDown } from 'react-native-reanimated'
-import { LiveMatch, type LivePeriod } from '@/components/LiveMatch'
+import { LiveMatch, type LivePeriod, type LiveRedCard } from '@/components/LiveMatch'
+import { generateMatchDetail } from '@/engine/match-detail'
 import { BracketPreview } from '@/components/BracketPreview'
 import {
   loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers,
@@ -107,6 +109,14 @@ function ScorerLine({ scorers, big }: { scorers?: MatchScorers; big?: boolean })
 // Top-level router — delegates to the right simulation per mode
 export default function SimulationScreen() {
   const mode = useGameStore(s => s.mode)
+  const difficulty = useGameStore(s => s.difficulty)
+  const customDifficulty = useGameStore(s => s.customDifficulty)
+  // Difficulty now tilts the PLAYER's own matches (see engine/match.ts). Set it
+  // synchronously here — before any child simulation component mounts and starts
+  // simulating — so every mode (league / CL / WC) picks up the right tilt. Doing
+  // it in an effect would race the children's own mount-time sim effects (React
+  // fires child effects before parent effects).
+  setMatchTilt(resolveDifficulty(difficulty, customDifficulty).tilt)
   if (mode === 'champions_league') return <CLSimulation />
   if (mode === 'world_cup')        return <WCSimulation />
   return <LeagueSimulation />
@@ -1539,6 +1549,16 @@ function WCSimulation() {
     return () => clearTimeout(timer)
   }, [phase, isPlaying, currentMD, playedMD, livePlayerMatch])
 
+  // Sending-offs for the live group match, from the same seed the modal uses.
+  // Must run before the early return below — every hook in a component has to
+  // fire on every render, or React loses track of hook order between renders
+  // (this one used to sit after the guard and only ran once wcTeams was ready,
+  // which crashed with "Rendered fewer hooks than expected" on the loading pass).
+  const liveGroupReds = React.useMemo<LiveRedCard[]>(
+    () => livePlayerMatch ? liveRedsFor(livePlayerMatch.result, poolByClubRef.current) : [],
+    [livePlayerMatch],
+  )
+
   if (!wcTeams || !formation || draftedPlayers.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -2004,6 +2024,7 @@ function WCSimulation() {
                 homeId: livePlayerMatch.result.home.clubId,
                 awayId: livePlayerMatch.result.away.clubId,
                 fromMin: 0, toMin: 90, scorers: livePlayerMatch.result.scorers,
+                redCards: liveGroupReds,
               }]}
               accent={theme.accent}
               onDone={applyMatchday}
@@ -2099,6 +2120,28 @@ function WCSimulation() {
       <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
+}
+
+// Deterministic live red-card events for one match, regenerated from the same
+// seed + pools the match-detail modal uses — so the live ticker and the later
+// modal agree on exactly who was sent off and when. Returns [] when the seed or
+// pools aren't available (older data / not-yet-loaded), so it's always safe.
+function liveRedsFor(
+  result: { home: { clubId: string }; away: { clubId: string }; homeGoals: number; awayGoals: number; scorers?: MatchScorers; seed?: number },
+  pools: Map<string, RosterPlayer[]>,
+  extraTime = false,
+): LiveRedCard[] {
+  if (result.seed === undefined) return []
+  const detail = generateMatchDetail({
+    seed: result.seed,
+    homePool: pools.get(result.home.clubId) ?? [],
+    awayPool: pools.get(result.away.clubId) ?? [],
+    homeGoals: result.homeGoals, awayGoals: result.awayGoals,
+    scorers: result.scorers, extraTime,
+  })
+  return (detail?.events ?? [])
+    .filter(e => e.type === 'red')
+    .map(e => ({ minute: e.minute, plus: e.plus, isHome: e.isHome, player: e.playerName }))
 }
 
 // Convert a KnockoutTie (WC single match OR CL two-legged) into LiveMatch periods.

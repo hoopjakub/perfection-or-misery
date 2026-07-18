@@ -12,9 +12,28 @@ const UPSET_THRESHOLD = 8
 const OVR_DELTA_DIVISOR = 6.5
 const MAX_WIN_PROB = 0.90   // was 0.85 — let clear favourites actually dominate
 
+// ── Player-only difficulty tilt ─────────────────────────────────────────────
+// Difficulty used to only touch the DRAFT (rerolls / hidden ratings). It now
+// also changes how hard the PLAYER's own matches are, as an effective-OVR swing
+// applied ONLY to a side flagged isPlayer. A POSITIVE tilt (easy levels) plays
+// the player a few OVR up so a genuinely strong squad finally wins comfortably;
+// a NEGATIVE tilt (hard levels) plays them down so even good-vs-good leans to the
+// AI. The tilt value comes from the difficulty screw-level (engine/difficulty.ts
+// `tiltForLevel`) — the engine just applies whatever it's handed.
+// AI-vs-AI matches are never touched, so every other result in the table /
+// bracket stays fair and the standings keep their integrity.
+
+// Run-scoped, set once when a real run's simulation starts (see the simulation
+// screens). Defaults to neutral so the headless quick-sim tester and the
+// stats/verification scripts — which never set it — stay unbiased.
+let activeTilt = 0
+export function setMatchTilt(tilt: number): void {
+  activeTilt = Number.isFinite(tilt) ? tilt : 0
+}
+
 export function simulateMatch(home: SimTeam, away: SimTeam): MatchResult {
-  const homeEff = home.ovr + HOME_ADVANTAGE + home.form * FORM_WEIGHT
-  const awayEff = away.ovr + away.form * FORM_WEIGHT
+  const homeEff = home.ovr + HOME_ADVANTAGE + home.form * FORM_WEIGHT + (home.isPlayer ? activeTilt : 0)
+  const awayEff = away.ovr + away.form * FORM_WEIGHT + (away.isPlayer ? activeTilt : 0)
 
   const delta = (homeEff - awayEff) / OVR_DELTA_DIVISOR
   const homeWinProb = sigmoid(delta) * MAX_WIN_PROB

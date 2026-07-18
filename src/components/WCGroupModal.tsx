@@ -74,7 +74,7 @@ export function WCGroupModal({ group, matches, onClose, onOpenMatch }: {
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           {group && (
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
               <Text style={styles.modalTitle}>Group {group.id}</Text>
               <View style={styles.tableHeaderRow}>
                 <Text style={[styles.tableCol, styles.colPos]}>#</Text>

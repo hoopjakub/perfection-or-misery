@@ -484,11 +484,20 @@ function rateSide(
     ? Math.min(0.5, 0.22 + 0.06 * margin)
     : margin < 0 ? Math.max(-0.55, -0.22 + 0.06 * margin) : 0
 
+  // A red card doesn't just wreck the sent-off player — the ten men left behind
+  // spend the rest of the match chasing the game a man down, so the whole side
+  // takes a small rating hit. This is how a sending-off "affects the game" in a
+  // result-first engine (the scoreline is already fixed): it visibly drags the
+  // team's average down and shows up on every remaining player's line.
+  const teamHadRed = lines.some(l => l.redCard)
+  const teammateRedPenalty = teamHadRed ? 0.3 : 0
+
   for (const l of lines) {
     if (l.minutes <= 0) { l.rating = 0; continue }
     const g = posGroup(l.position)
     const minFrac = l.minutes / duration
     let r = 6.05 + (l.gk ? 0 : 0)   // flat baseline; quality shows through the stats
+    if (teamHadRed && !l.redCard) r -= teammateRedPenalty
 
     r += l.goals * GOAL_RATING_W[g]
     r += l.assists * 0.65

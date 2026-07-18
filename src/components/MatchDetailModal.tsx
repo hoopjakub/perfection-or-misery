@@ -328,7 +328,10 @@ export function MatchDetailModal({ request, onClose, accent = colors.accent }: {
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           {r && (
-            <ScrollView showsVerticalScrollIndicator={false}>
+            // flexShrink so the (often tall) body fits between the card top and
+            // the Close button within the capped card — the button must always
+            // stay on-screen, and the body must scroll rather than overflow.
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
               {/* Header */}
               {r.competitionLabel ? <Text style={styles.compLabel}>{r.competitionLabel}</Text> : null}
               <View style={styles.header}>

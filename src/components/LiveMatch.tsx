@@ -12,6 +12,10 @@ const CL = MODE_THEMES.champions_league
 // ── Public shapes ───────────────────────────────────────────────────────────
 export type LiveTeam = { clubId: string; clubName: string }
 
+// A sending-off shown live in the feed (reds only — yellows stay in the
+// post-match detail). Minutes are clock minutes within the period.
+export type LiveRedCard = { minute: number; plus?: number; isHome: boolean; player: string }
+
 // One "period" of football to play through on the clock (a leg, or extra time).
 export type LivePeriod = {
   label: string          // 'Leg 1', 'Leg 2', 'Extra Time', 'Final'…
@@ -20,6 +24,7 @@ export type LivePeriod = {
   fromMin: number        // clock start (0 for a leg, 90 for ET)
   toMin: number          // clock end (90, or 120 for ET)
   scorers?: MatchScorers // home/away goal events (minutes) for this period
+  redCards?: LiveRedCard[] // sending-offs revealed on the clock, home/away by isHome
 }
 
 export type LivePens = { a: number; b: number; kicksA?: PenKick[]; kicksB?: PenKick[] }
@@ -65,7 +70,7 @@ export function LiveMatch({
   const [aggB, setAggB] = useState(0)
   const [legHome, setLegHome] = useState(0) // current period's HOME-side score
   const [legAway, setLegAway] = useState(0) // current period's AWAY-side score
-  const [feed, setFeed] = useState<{ text: string; isHome: boolean; isBench?: boolean }[]>([])
+  const [feed, setFeed] = useState<{ text: string; isHome: boolean; isBench?: boolean; isRed?: boolean }[]>([])
   const [showPens, setShowPens] = useState(false)
   const [penTick, setPenTick] = useState(0)     // number of shootout kicks revealed so far
   const [paused, setPaused] = useState(false)   // stop-time: freezes the clock + pen reveal
@@ -75,6 +80,8 @@ export function LiveMatch({
 
   const goalsRef = useRef<Goal[]>([])
   const goalCursor = useRef(0)
+  const cardsRef = useRef<LiveRedCard[]>([])
+  const cardCursor = useRef(0)
 
   // Start / restart a period. Clearing `feed` here is the key bit — otherwise
   // the previous leg's goal ticker lingers and reads as if it happened in the
@@ -84,6 +91,8 @@ export function LiveMatch({
     if (!p) return
     goalsRef.current = goalsForPeriod(p, teamA.clubId)
     goalCursor.current = 0
+    cardsRef.current = [...(p.redCards ?? [])].sort((a, b) => (a.minute + (a.plus ?? 0) / 100) - (b.minute + (b.plus ?? 0) / 100))
+    cardCursor.current = 0
     setClock(p.fromMin)
     setLegHome(0); setLegAway(0)
     setFeed([])
@@ -119,6 +128,12 @@ export function LiveMatch({
         if (g.sideIsA) setAggA(v => v + 1); else setAggB(v => v + 1)
         const mm = `${g.min}${g.plus ? `+${g.plus}` : ''}'`
         setFeed(f => [{ text: `⚽ ${g.scorer} ${mm}`, isHome: g.isHome, isBench: g.isBench }, ...f].slice(0, 6))
+      }
+      // reveal any red cards at/under the new minute (down to 10 men)
+      while (cardCursor.current < cardsRef.current.length && cardsRef.current[cardCursor.current].minute <= next) {
+        const c = cardsRef.current[cardCursor.current]; cardCursor.current++
+        const mm = `${c.minute}${c.plus ? `+${c.plus}` : ''}'`
+        setFeed(f => [{ text: `🟥 ${lastName(c.player)} ${mm}`, isHome: c.isHome, isRed: true }, ...f].slice(0, 6))
       }
       setClock(next)
     }, msPerMin)
@@ -214,7 +229,7 @@ export function LiveMatch({
       {feed.length > 0 && (
         <View style={styles.feed}>
           {feed.map((f, i) => (
-            <Text key={i} style={[styles.feedLine, { textAlign: f.isHome ? 'left' : 'right' }]} numberOfLines={1}>
+            <Text key={i} style={[styles.feedLine, f.isRed && styles.feedLineRed, { textAlign: f.isHome ? 'left' : 'right' }]} numberOfLines={1}>
               {f.text}{f.isBench && <Text style={styles.subTag}> SUB</Text>}
             </Text>
           ))}
@@ -250,6 +265,7 @@ const styles = StyleSheet.create({
   priorLegScorer: { flex: 1, fontSize: 10, color: colors.textMuted, opacity: 0.85 },
   feed: { gap: 2, minHeight: 20 },
   feedLine: { fontSize: typography.xs, color: colors.textSecondary },
+  feedLineRed: { color: colors.danger, fontWeight: typography.bold },
   subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
   penTitle: { fontSize: typography.sm, fontWeight: typography.black, textAlign: 'center', marginBottom: 4 },
 })

@@ -4,7 +4,8 @@ import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { calcTeamOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
-import { simulateMatch } from '@/engine/match'
+import { simulateMatch, setMatchTilt } from '@/engine/match'
+import { resolveDifficulty } from '@/engine/difficulty'
 import {
   buildCLTeams, generateCLLeagueFixtures, simulateCLKnockoutsOnly,
   type CLTeam, type CLKnockoutMatch, type CLSeasonResult, type CLLeagueMatch,
@@ -151,8 +152,11 @@ function sortStandings(teams: CLTeam[]): CLTeam[] {
 export default function CustomUclSimulationScreen() {
   const {
     formation, draftedPlayers, benchPlayers, useSubstitutes, clYear, customUclPlayerClubId,
-    setClTeams, setClResult, setCustomUclQual, setCustomUclLeagues,
+    setClTeams, setClResult, setCustomUclQual, setCustomUclLeagues, difficulty, customDifficulty,
   } = useGameStore()
+  // Difficulty tilts the player's own matches (engine/match.ts) — set before any
+  // domestic-season or UCL sim runs. Synchronous on purpose (see simulation.tsx).
+  setMatchTilt(resolveDifficulty(difficulty, customDifficulty).tilt)
   const fullSquad = [...draftedPlayers, ...benchPlayers]
 
   const totalTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, getSlotsForFormation(formation)) : 0

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native'
 import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
+import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveWCRun, fetchRunById } from '@/db/queries/runs'
@@ -66,7 +67,7 @@ function sortGroupTeams(a: WCTeam, b: WCTeam): number {
 
 export default function WCResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim, difficulty, customDifficulty } = store
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
@@ -207,6 +208,7 @@ export default function WCResultScreen() {
           teamOvr: playerTeam.ovr,
           result: wcResult!,
           squad: fullSquad,
+          difficulty, custom: customDifficulty,
           stats: runStats?.stats,
           awards: runStats?.awards,
         })
@@ -229,7 +231,7 @@ export default function WCResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await persistRun()
     resetRun()
-    router.replace('/game/mode-select')
+    restartToModeSelect()
   }
 
   async function handleReturnToHome() {
@@ -237,7 +239,7 @@ export default function WCResultScreen() {
     submittingRef.current = true; setSubmitting(true)
     await persistRun()
     resetRun()
-    router.replace('/(tabs)')
+    exitToHome()
   }
 
   return (

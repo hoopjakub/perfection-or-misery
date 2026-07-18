@@ -62,6 +62,7 @@ type Sample = {
   ratings: { pos: string; rating: number; goals: number; assists: number; motm: boolean; minutes: number; side: 'w' | 'l' | 'd' }[]
 }
 const samples: Sample[] = []
+let redMatchCount = 0
 
 console.log(`Simulating ${N} matches with full stat generation…`)
 const t0 = Date.now()
@@ -149,8 +150,21 @@ for (let i = 0; i < N; i++) {
       check(!!line && line.minutes > 0, `match ${i}: scorer ${g.scorerId} not on pitch`)
       if (line?.subOnMinute !== undefined) check(line.subOnMinute <= g.minute, `match ${i}: scored at ${g.minute} but on at ${line.subOnMinute}`)
     }
+
+    // Red cards: each red event pairs with a line flagged redCard, sent off in
+    // the second half, whose match ended at (or before) the red minute.
+    const redEvents = d.events.filter(e => e.type === 'red' && e.isHome === isHome)
+    const redLines  = lines.filter(l => l.redCard)
+    check(redEvents.length === redLines.length, `match ${i}: red events (${redEvents.length}) != red lines (${redLines.length}) for one side`)
+    for (const ev of redEvents) {
+      check(ev.minute >= 46, `match ${i}: red card at ${ev.minute}' (before half-time)`)
+      const line = lines.find(l => l.playerId === ev.playerId)
+      check(!!line && line.redCard, `match ${i}: red event has no matching redCard line`)
+      if (line) check(line.minutes <= ev.minute, `match ${i}: sent-off player kept playing after the red (${line.minutes}' > ${ev.minute}')`)
+    }
   }
   check(d.home.possession + d.away.possession === 100, `match ${i}: possession != 100`)
+  if (d.events.some(e => e.type === 'red')) redMatchCount++
 
   // Collect for aggregate sanity
   const outcome = result.homeGoals > result.awayGoals ? 'home' : result.awayGoals > result.homeGoals ? 'away' : 'draw'
@@ -179,6 +193,8 @@ const stAvg = byPos(['ST', 'CF'])
 const cdmAvg = byPos(['CDM'])
 const gkAvg = byPos(['GK'])
 
+console.log(`Red cards: ${redMatchCount}/${N} matches had a sending-off (${(redMatchCount / N * 100).toFixed(1)}%)`)
+check(redMatchCount > 0 && redMatchCount < N * 0.15, `red-card frequency ${(redMatchCount / N * 100).toFixed(1)}% looks wrong`)
 console.log(`Ratings: overall avg ${avgAll.toFixed(2)} | ST ${stAvg.toFixed(2)} | CDM ${cdmAvg.toFixed(2)} | GK ${gkAvg.toFixed(2)}`)
 check(avgAll > 6.0 && avgAll < 7.2, `overall avg rating ${avgAll.toFixed(2)} outside 6.0–7.2`)
 check(stAvg > cdmAvg, `strikers (${stAvg.toFixed(2)}) do not out-rate CDMs (${cdmAvg.toFixed(2)})`)
