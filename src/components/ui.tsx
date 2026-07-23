@@ -1,8 +1,10 @@
 import React from 'react'
-import { Pressable, View, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, View, Text, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { colors } from '@/theme'
+import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
+import { screwLevelInfo } from '@/engine/difficulty'
+import type { DifficultyFields } from '@/db/queries/leaderboard'
 
 // ── PressCard ────────────────────────────────────────────────────────────────
 // The one interaction primitive every tappable card/row should use: gentle
@@ -122,4 +124,75 @@ const sliderStyles = StyleSheet.create({
   },
   tapLayer: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
   tapSeg: { flex: 1 },
+})
+
+// ── DifficultyBadge ──────────────────────────────────────────────────────────
+// Every screen that lists a saved run (My Runs, Leaderboard, Achievements) needs
+// to show "how hard was this run" — but that means something different per
+// difficulty: easy/medium/hard is one word; Chaos/Cursed are their own fixed
+// identity (own colour + icon, borrowed from MODE_THEMES so it matches every
+// other chaos/cursed touchpoint in the app); custom is the richest case and
+// needs to show its actual knobs (rerolls, ratings on/off, the named level) not
+// just a number, or "Custom" tells you nothing about what you actually survived.
+// One component so all three screens render this identically.
+const DIFF_COLOR: Record<string, string> = { easy: colors.success, medium: colors.warning, hard: colors.danger }
+const DIFF_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  easy: 'happy-outline', medium: 'walk-outline', hard: 'flame-outline',
+}
+
+export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compact?: boolean }) {
+  const { difficulty, difficulty_meta: meta } = run
+  if (!difficulty) return null
+
+  // Chaos/Cursed: fixed identity, not a chosen level — pull straight from the
+  // same MODE_THEMES palette their result screens, headers and hero banners use.
+  if (difficulty === 'chaos' || difficulty === 'cursed') {
+    const theme = MODE_THEMES[difficulty]
+    const icon: keyof typeof Ionicons.glyphMap = difficulty === 'chaos' ? 'skull' : 'flame'
+    return (
+      <View style={[diffStyles.pill, { backgroundColor: theme.accent + '22', borderColor: theme.accent }]}>
+        <Ionicons name={icon} size={11} color={theme.accent} />
+        <Text style={[diffStyles.pillText, { color: theme.accent }]}>{difficulty === 'chaos' ? 'Chaos' : 'Cursed'}</Text>
+      </View>
+    )
+  }
+
+  if (difficulty === 'custom') {
+    const info = meta ? screwLevelInfo(meta.screwLevel) : null
+    return (
+      <View>
+        <View style={[diffStyles.pill, { backgroundColor: colors.gold + '22', borderColor: colors.gold }]}>
+          <Ionicons name="construct" size={11} color={colors.gold} />
+          <Text style={[diffStyles.pillText, { color: colors.gold }]}>
+            {info ? info.name : 'Custom'}{meta ? ` · ${meta.hardness.toFixed(1)}/10` : ''}
+          </Text>
+        </View>
+        {/* the actual knobs — what made it that hard — only worth the extra
+            line when the badge isn't crammed into a compact list row */}
+        {!compact && meta && (
+          <Text style={diffStyles.caption}>
+            {meta.rerolls} reroll{meta.rerolls === 1 ? '' : 's'} · Ratings {meta.ratingsShown ? 'on' : 'hidden'}
+          </Text>
+        )}
+      </View>
+    )
+  }
+
+  // easy / medium / hard
+  const color = DIFF_COLOR[difficulty] ?? colors.textSecondary
+  return (
+    <View style={[diffStyles.pill, { backgroundColor: color + '22', borderColor: color }]}>
+      <Ionicons name={DIFF_ICON[difficulty] ?? 'speedometer-outline'} size={11} color={color} />
+      <Text style={[diffStyles.pillText, { color }]}>{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</Text>
+    </View>
+  )
+}
+
+const diffStyles = StyleSheet.create({
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 3,
+  },
+  pillText: { fontSize: 10, fontWeight: typography.bold },
+  caption: { fontSize: 9, color: colors.textMuted, marginTop: 2 },
 })

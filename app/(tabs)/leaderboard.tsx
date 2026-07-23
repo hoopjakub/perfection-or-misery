@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { fetchLeaderboard, type LeaderboardEntry } from '@/db/queries/leaderboard'
-import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { PressCard, DifficultyBadge } from '@/components/ui'
+import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 
 // Gold / silver / bronze for the podium ranks.
 const MEDALS = ['#FFD700', '#C0C0C0', '#CD7F32']
@@ -61,32 +61,42 @@ export default function LeaderboardScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          {leaderboard.map((entry, index) => (
-            <PressCard
-              key={entry.id}
-              style={[styles.entryCard, index < 3 && { borderColor: MEDALS[index] }]}
-              onPress={() => router.push({
-                pathname: entry.mode === 'world_cup' ? '/game/wc-result'
-                        : entry.mode === 'champions_league_custom' ? '/game/custom-ucl-result'
-                        : entry.mode === 'champions_league' ? '/game/cl-result'
-                        : '/game/result',
-                params: { runId: entry.id },
-              })}
-            >
-              <View style={[styles.rankBadge, index < 3 && { backgroundColor: MEDALS[index] }]}>
-                <Text style={[styles.rankText, index < 3 && { color: '#0A0E1A' }]}>{index + 1}</Text>
-              </View>
-              <View style={styles.entryContent}>
-                <Text style={styles.username}>{entry.profiles.username}</Text>
-                <Text style={styles.entryTier}>{formatTier(entry.tier)}</Text>
-                <Text style={styles.entryLeague}>{entry.league_name}</Text>
-              </View>
-              <View style={styles.entryStats}>
-                <Text style={styles.entryScore}>{entry.score}</Text>
-                <Text style={styles.entryDate}>{formatDate(entry.created_at)}</Text>
-              </View>
-            </PressCard>
-          ))}
+          {leaderboard.map((entry, index) => {
+            // Chaos/Cursed get a full mode-coloured border so they stand out from
+            // the medal-coloured podium border, same treatment as My Runs.
+            const modeTheme = entry.mode === 'chaos' || entry.mode === 'cursed' ? MODE_THEMES[entry.mode] : null
+            return (
+              <PressCard
+                key={entry.id}
+                style={[
+                  styles.entryCard,
+                  index < 3 && { borderColor: MEDALS[index] },
+                  modeTheme && { borderWidth: 1.5, borderColor: modeTheme.accent, backgroundColor: modeTheme.bgTint },
+                ]}
+                onPress={() => router.push({
+                  pathname: entry.mode === 'world_cup' ? '/game/wc-result'
+                          : entry.mode === 'champions_league_custom' ? '/game/custom-ucl-result'
+                          : entry.mode === 'champions_league' ? '/game/cl-result'
+                          : '/game/result',
+                  params: { runId: entry.id },
+                })}
+              >
+                <View style={[styles.rankBadge, index < 3 && { backgroundColor: MEDALS[index] }]}>
+                  <Text style={[styles.rankText, index < 3 && { color: '#0A0E1A' }]}>{index + 1}</Text>
+                </View>
+                <View style={styles.entryContent}>
+                  <Text style={styles.username}>{entry.profiles.username}</Text>
+                  <Text style={styles.entryTier}>{formatTier(entry.tier)}</Text>
+                  <Text style={styles.entryLeague} numberOfLines={1}>{entry.league_name}</Text>
+                  <DifficultyBadge run={entry} compact />
+                </View>
+                <View style={styles.entryStats}>
+                  <Text style={styles.entryScore}>{entry.score}</Text>
+                  <Text style={styles.entryDate}>{formatDate(entry.created_at)}</Text>
+                </View>
+              </PressCard>
+            )
+          })}
         </ScrollView>
       )}
     </View>
@@ -154,6 +164,7 @@ const styles = StyleSheet.create({
   },
   entryContent: {
     flex: 1,
+    gap: 3,
   },
   username: {
     fontSize: typography.md,

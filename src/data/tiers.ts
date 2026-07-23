@@ -40,7 +40,7 @@ export const TIER_RANK: Record<string, number> = {
 
 // Display labels for the home page / teasers.
 export const TIER_LABEL: Record<string, string> = {
-  winner:                'Champion 🏆',
+  winner:                'WC Champion',
   perfection:            'Perfection',
   almost_perfection:     'Almost Perfection',
   champions:             'Champions',
@@ -52,7 +52,7 @@ export const TIER_LABEL: Record<string, string> = {
   absolute_misery:       'Absolute Misery',
   final:                 'WC Finalist',
   finalist:              'UCL Finalist',
-  third:                 '🥉 Third Place',
+  third:                 'Third Place',
   fourth:                "Semi 'No Medal' Finalist",
   sf:                    'Semi-Finalist',
   sf_exit:               'Semi-Finalist',

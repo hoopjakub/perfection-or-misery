@@ -116,7 +116,7 @@ export default function SimulationScreen() {
   // simulating — so every mode (league / CL / WC) picks up the right tilt. Doing
   // it in an effect would race the children's own mount-time sim effects (React
   // fires child effects before parent effects).
-  setMatchTilt(resolveDifficulty(difficulty, customDifficulty).tilt)
+  setMatchTilt(resolveDifficulty(difficulty, customDifficulty, mode).tilt)
   if (mode === 'champions_league') return <CLSimulation />
   if (mode === 'world_cup')        return <WCSimulation />
   return <LeagueSimulation />

@@ -6,15 +6,20 @@ import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { CLSeasonResult } from '@/engine/cl-sim'
 import { resolveDifficulty, type Difficulty, type CustomDifficulty } from '@/engine/difficulty'
 
-// Build the difficulty columns saved on every run so the achievements screen can
-// read back exactly how hard a run was. `difficulty` is the raw preset/custom
-// label; `difficulty_meta` carries the resolved knobs + the 0–11 hardness rating.
+// Build the difficulty columns saved on every run so the achievements/leaderboard/
+// run-history screens can read back exactly how hard a run was. `difficulty` is
+// the raw preset/custom label (or 'chaos'/'cursed' — those store their FIXED
+// screw-level here too, resolved via `mode`, rather than saving null and losing
+// the info); `difficulty_meta` carries the resolved knobs + the 0–11 hardness.
 // Both are optional columns (auto-dropped by insertRun if the DB lacks them).
-function difficultyColumns(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined) {
-  if (!difficulty) return { difficulty: null, difficulty_meta: null }
-  const r = resolveDifficulty(difficulty, custom)
+function difficultyColumns(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode?: GameMode | null) {
+  const isFixedMode = mode === 'chaos' || mode === 'cursed'
+  if (!difficulty && !isFixedMode) return { difficulty: null, difficulty_meta: null }
+  const r = resolveDifficulty(difficulty, custom, mode)
   return {
-    difficulty,
+    // Chaos/Cursed store their mode name as the "difficulty" label (their level
+    // is fixed, not chosen) so the run-history UI has something to badge on.
+    difficulty: isFixedMode ? mode : difficulty,
     difficulty_meta: {
       rerolls: r.rerolls, ratingsShown: r.ratingsShown, screwLevel: r.screwLevel, hardness: r.hardness,
     },
@@ -65,7 +70,7 @@ export async function saveRun(params: {
     teamOvr: params.teamOvr,
     losses: params.seasonResult.losses,
     draws: params.seasonResult.draws,
-    difficultyMultiplier: resolveDifficulty(params.difficulty, params.custom).scoreMultiplier,
+    difficultyMultiplier: resolveDifficulty(params.difficulty, params.custom, params.mode).scoreMultiplier,
   })
 
   await insertRun({
@@ -86,7 +91,7 @@ export async function saveRun(params: {
     goals_against: params.seasonResult.goalsAgainst,
     score,
     squad: params.squad,
-    ...difficultyColumns(params.difficulty, params.custom),
+    ...difficultyColumns(params.difficulty, params.custom, params.mode),
     // Optional columns — auto-dropped by insertRun if not present in the DB yet.
     matchday_history: params.matchdayHistory,
     highlights: {

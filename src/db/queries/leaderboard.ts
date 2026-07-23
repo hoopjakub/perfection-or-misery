@@ -1,7 +1,15 @@
 import { supabase } from '@/lib/supabase'
 import { bestTierOf } from '@/data/tiers'
 
-export type LeaderboardEntry = {
+// Shared shape for the resolved difficulty columns — one run's worth of "how
+// hard was this" data, read back by the badge everywhere a run is listed
+// (leaderboard, run history, achievements). Optional columns (added after the
+// difficulty feature shipped), so every fetch below degrades gracefully if the
+// DB doesn't have them yet rather than failing the whole query.
+export type DifficultyMeta = { rerolls: number; ratingsShown: boolean; screwLevel: number; hardness: number }
+export type DifficultyFields = { difficulty: string | null; difficulty_meta: DifficultyMeta | null }
+
+export type LeaderboardEntry = DifficultyFields & {
   id: string
   score: number
   tier: string
@@ -31,34 +39,43 @@ export type UserStats = {
   totalRuns: number
 }
 
+const LEADERBOARD_COLS = `
+  id, score, tier, mode, league_id, league_name,
+  final_position, teams_in_league, wins, draws, losses,
+  created_at,
+  profiles!inner(username)
+`
+const LEADERBOARD_COLS_WITH_DIFFICULTY = `${LEADERBOARD_COLS}, difficulty, difficulty_meta`
+
 export async function fetchLeaderboard(
   filter: LeaderboardFilter = {}
 ): Promise<LeaderboardEntry[]> {
-  let query = supabase
-    .from('runs')
-    .select(`
-      id, score, tier, mode, league_id, league_name,
-      final_position, teams_in_league, wins, draws, losses,
-      created_at,
-      profiles!inner(username)
-    `)
-    .order('score', { ascending: false })
-    .limit(filter.limit ?? 50)
-
-  if (filter.mode)     query = query.eq('mode', filter.mode)
-  if (filter.leagueId) query = query.eq('league_id', filter.leagueId)
-
-  if (filter.period && filter.period !== 'all') {
-    const cutoff = new Date()
-    if      (filter.period === 'day')   cutoff.setDate(cutoff.getDate() - 1)
-    else if (filter.period === 'week')  cutoff.setDate(cutoff.getDate() - 7)
-    else if (filter.period === 'month') cutoff.setMonth(cutoff.getMonth() - 1)
-    query = query.gte('created_at', cutoff.toISOString())
+  function buildQuery(cols: string) {
+    let query = supabase.from('runs').select(cols)
+      .order('score', { ascending: false })
+      .limit(filter.limit ?? 50)
+    if (filter.mode)     query = query.eq('mode', filter.mode)
+    if (filter.leagueId) query = query.eq('league_id', filter.leagueId)
+    if (filter.period && filter.period !== 'all') {
+      const cutoff = new Date()
+      if      (filter.period === 'day')   cutoff.setDate(cutoff.getDate() - 1)
+      else if (filter.period === 'week')  cutoff.setDate(cutoff.getDate() - 7)
+      else if (filter.period === 'month') cutoff.setMonth(cutoff.getMonth() - 1)
+      query = query.gte('created_at', cutoff.toISOString())
+    }
+    return query
   }
 
-  const { data, error } = await query
-  if (error) throw error
-  return (data as unknown as LeaderboardEntry[]) ?? []
+  // Try WITH the difficulty columns; if they don't exist yet in this DB, retry
+  // without them (same degrade-gracefully pattern as fetchAchievementRuns).
+  for (const cols of [LEADERBOARD_COLS_WITH_DIFFICULTY, LEADERBOARD_COLS]) {
+    const { data, error } = await buildQuery(cols)
+    if (!error) return ((data as unknown as LeaderboardEntry[]) ?? []).map(r => ({
+      ...r, difficulty: r.difficulty ?? null, difficulty_meta: r.difficulty_meta ?? null,
+    }))
+    if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error
+  }
+  return []
 }
 
 export async function fetchPersonalBest(userId: string) {
@@ -74,16 +91,35 @@ export async function fetchPersonalBest(userId: string) {
   return data
 }
 
-export async function fetchRunHistory(userId: string, limit = 20) {
-  const { data, error } = await supabase
-    .from('runs')
-    .select('id, score, tier, mode, league_name, final_position, created_at, wins, draws, losses')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
+export type RunHistoryEntry = DifficultyFields & {
+  id: string
+  score: number
+  tier: string
+  mode: string
+  league_name: string
+  final_position: number
+  created_at: string
+  wins: number
+  draws: number
+  losses: number
+}
 
-  if (error) throw error
-  return data ?? []
+const RUN_HISTORY_COLS = 'id, score, tier, mode, league_name, final_position, created_at, wins, draws, losses'
+const RUN_HISTORY_COLS_WITH_DIFFICULTY = `${RUN_HISTORY_COLS}, difficulty, difficulty_meta`
+
+export async function fetchRunHistory(userId: string, limit = 20): Promise<RunHistoryEntry[]> {
+  for (const cols of [RUN_HISTORY_COLS_WITH_DIFFICULTY, RUN_HISTORY_COLS]) {
+    const { data, error } = await supabase
+      .from('runs').select(cols)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (!error) return ((data as unknown as RunHistoryEntry[]) ?? []).map(r => ({
+      ...r, difficulty: r.difficulty ?? null, difficulty_meta: r.difficulty_meta ?? null,
+    }))
+    if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error
+  }
+  return []
 }
 
 export async function fetchUserStats(userId: string): Promise<UserStats> {
@@ -127,12 +163,10 @@ export async function fetchUserStats(userId: string): Promise<UserStats> {
 // One run's fields needed to compute achievements. difficulty/difficulty_meta
 // are optional columns (added later) — the fetch degrades gracefully if the DB
 // doesn't have them yet, so old runs still count toward "conquered a mode".
-export type AchievementRun = {
+export type AchievementRun = DifficultyFields & {
   mode: string
   tier: string | null
   final_position: number | null
-  difficulty: string | null
-  difficulty_meta: { hardness?: number; screwLevel?: number } | null
 }
 
 export async function fetchAchievementRuns(userId: string): Promise<AchievementRun[]> {
@@ -174,12 +208,21 @@ export function calculateScore(params: {
   const positionScore = ((teamsInLeague - finalPosition + 1) / teamsInLeague) * 1000
   const ovrPenalty    = Math.max(0, teamOvr - 80) * 10
 
+  // Chaos/Cursed used to carry a flat 1.5×/1.3× bonus here to reward their
+  // inherent unfairness — back when they had no real difficulty concept at all.
+  // Now that they resolve to a FIXED screw-level (Chaos = Brutal/7, Cursed =
+  // Masochist/9 — see engine/difficulty.ts) that flows into difficultyMultiplier
+  // below, keeping the flat bonus on top would double-count the same "this mode
+  // is nastier" reasoning. Dropped to 1.0 so the real, calculated hardness
+  // multiplier does that job — and it does it more honestly: the old constants
+  // actually scored Cursed LOWER than Chaos (1.3 vs 1.5) despite Cursed being the
+  // harder mode; the hardness-derived multiplier gets that ordering right.
   const modeMultiplier: Record<string, number> = {
     league:   1.0,
     all_time: 1.2,
     era:      1.1,
-    chaos:    1.5,
-    cursed:   1.3,
+    chaos:    1.0,
+    cursed:   1.0,
   }
 
   const tierBonus = losses === 0 && draws === 0 ? 750
@@ -187,8 +230,6 @@ export function calculateScore(params: {
 
   // Difficulty (rerolls / hidden ratings / screw-level) scales the whole score —
   // an easy run with a fistful of rerolls is worth a fraction of a hard blind one.
-  // chaos/cursed have no difficulty knob, so they pass 1 and keep only their mode
-  // multiplier (which already rewards their inherent handicap).
   return Math.round(
     (positionScore - ovrPenalty + tierBonus)
     * (modeMultiplier[mode] ?? 1.0)

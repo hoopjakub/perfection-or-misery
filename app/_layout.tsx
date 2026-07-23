@@ -3,7 +3,7 @@ import { View, Platform } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
 import { Asset } from 'expo-asset'
-import { initBundledDb, getDb } from '@/db/setup'
+import { getDb } from '@/db/setup'
 import { initAuthListener } from '@/store/userStore'
 import { ensureGuestSession } from '@/lib/auth'
 
@@ -75,7 +75,10 @@ function installWebChrome() {
 export default function RootLayout() {
   useEffect(() => {
     async function boot() {
-      await initBundledDb()
+      // getDb() alone guarantees the bundled db is copied/opened (native) or
+      // deserialized (web) — every query module calls it independently too,
+      // and they all share the same in-flight init, so this is just the
+      // earliest of those calls, not a required first step. See db/setup.ts.
       await getDb()
       initAuthListener()
       await ensureGuestSession()

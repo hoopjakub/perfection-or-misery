@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
     fontSize:   typography.xl,
     fontWeight: typography.black,
     color:      colors.textPrimary,
+    textAlign:   'center',
   },
   statLabel: {
     fontSize:  typography.xs,

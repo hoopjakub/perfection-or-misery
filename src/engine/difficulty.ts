@@ -71,16 +71,31 @@ export type ResolvedDifficulty = {
   scoreMultiplier: number
 }
 
+// Chaos and Cursed have no difficulty picker in mode-select (hasDifficulty:
+// false) — but they're not "no difficulty," they're PARTICULARLY nasty ones,
+// fixed rather than chosen: Chaos = Brutal (7), Cursed = Masochist (9), both
+// zero rerolls and blind ratings. This also closes a real bug — since the
+// store's `difficulty` field is only ever cleared by picking a new mode WITH a
+// difficulty picker, a chaos/cursed run used to silently inherit whatever
+// difficulty was left over from your last easy/medium/hard/custom run. Fixing
+// it here, at resolution time, means it can never matter what's sitting in the
+// store: any chaos/cursed match always resolves to its own fixed level.
+const FIXED_MODE_LEVEL: Partial<Record<GameMode, number>> = { chaos: 7, cursed: 9 }
+
 export function resolveDifficulty(
   difficulty: Difficulty | null,
   custom: CustomDifficulty | null | undefined,
+  mode?: GameMode | null,
 ): ResolvedDifficulty {
-  const knobs = difficulty === 'custom'
+  const fixedLevel = mode ? FIXED_MODE_LEVEL[mode] : undefined
+  const knobs = fixedLevel !== undefined
+    ? { level: fixedLevel, rerolls: 0, ratingsShown: false }
+    : difficulty === 'custom'
     ? { level: custom?.screwLevel ?? DEFAULT_CUSTOM.screwLevel,
         rerolls: custom?.rerolls ?? DEFAULT_CUSTOM.rerolls,
         ratingsShown: custom?.ratingsShown ?? DEFAULT_CUSTOM.ratingsShown }
-    // No difficulty set (chaos/cursed, or legacy) resolves to medium's knobs so
-    // the tilt is sane; those modes handle rerolls/ratings/score their own way.
+    // No difficulty set (legacy data, or a screen that hasn't picked one yet)
+    // resolves to medium's knobs so the tilt is sane.
     : { level: PRESET_LEVEL[difficulty ?? 'medium'],
         rerolls: PRESET_REROLLS[difficulty ?? 'medium'],
         ratingsShown: PRESET_RATINGS_SHOWN[difficulty ?? 'medium'] }
@@ -118,20 +133,25 @@ export function scoreMultiplierFor(hardness: number): number {
 }
 
 // ── Reroll allowance + hidden ratings (replaces engine/draft.ts helpers) ─────
-// Chaos/Cursed override: they always play blind with no rerolls, whatever the
-// difficulty knob says (they're a separate flavour of pain).
+// Both just read the resolved knobs — the chaos/cursed override lives ONLY in
+// resolveDifficulty now, so there's exactly one place that says "0 rerolls,
+// ratings hidden" for those modes instead of three copies drifting apart.
 export function rerollLimitFor(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode: GameMode | null): number {
-  if (mode === 'chaos' || mode === 'cursed') return 0
-  return resolveDifficulty(difficulty, custom).rerolls
+  return resolveDifficulty(difficulty, custom, mode).rerolls
 }
 
 export function ratingsHiddenFor(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode: GameMode | null): boolean {
-  if (mode === 'chaos' || mode === 'cursed') return true
-  return !resolveDifficulty(difficulty, custom).ratingsShown
+  return !resolveDifficulty(difficulty, custom, mode).ratingsShown
 }
 
-// Short label for the run summary / achievements ("Easy", "Custom · Nightmare 7/10").
-export function difficultyLabel(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined): string {
+// Short label for the run summary / achievements / run-history cards. Chaos and
+// Cursed get their own mode-flavoured label (not "Custom · Brutal" — the mode
+// name already says which one) since the level is fixed, not a player choice.
+const FIXED_MODE_LABEL: Partial<Record<GameMode, string>> = { chaos: 'Chaos', cursed: 'Cursed' }
+
+export function difficultyLabel(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode?: GameMode | null): string {
+  const fixed = mode ? FIXED_MODE_LABEL[mode] : undefined
+  if (fixed) return fixed
   if (!difficulty) return '—'
   if (difficulty !== 'custom') return difficulty.charAt(0).toUpperCase() + difficulty.slice(1)
   const info = screwLevelInfo(custom?.screwLevel ?? DEFAULT_CUSTOM.screwLevel)
