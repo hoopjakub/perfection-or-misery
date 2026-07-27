@@ -17,15 +17,24 @@ import {
 } from '@/engine/cl-league-sim'
 import { buildCLAccessList, ensureHolders, type AssociationEntry, type CLAccessList } from '@/engine/cl-access'
 import { simulateCustomUclQualifying, type QualTie, type QualifyingResult } from '@/engine/cl-qualifying'
+import {
+  createAvailabilityLedger, availabilityFor, recordMatchOutcome, type AvailabilityLedger,
+} from '@/engine/availability'
 import { getCustomUclAssociations, getCustomUclHolders } from '@/db/queries/custom-ucl'
 import { berthForPosition } from '@/data/uefa-coefficients'
 import { getRostersForClubs } from '@/db/queries/seasons'
 import {
-  loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeQualTieScorers, summariseScorers,
+  loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResultScorers, attributeQualTieScorers, summariseScorers,
   attachCLShootoutNames,
 } from '@/engine/run-stats'
+import {
+  clKnockoutAvailabilityHook, CL_TOTAL_MATCHDAYS,
+} from '@/engine/knockout-availability'
 import { randomSeed } from '@/lib/rng'
-import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { openMatchStats } from '@/lib/matchStats'
+import { openDeepMatch } from '@/lib/deepMatch'
+import { koLegDetailRequest } from '@/components/MatchStatsParts'
+import { Ionicons } from '@expo/vector-icons'
 import type { RosterPlayer } from '@/types/stats'
 import type { SimTeam } from '@/types/simulation'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
@@ -33,8 +42,10 @@ import { LiveMatch, periodsForTwoLegTie } from '@/components/LiveMatch'
 import { BracketPreview } from '@/components/BracketPreview'
 import { InfoBubble } from '@/components/InfoBubble'
 import {
-  BerthBadge, LeaguesBrowserModal, LeagueTableModal, KoTieDetailModal, qualTieToKoMatch,
+  BerthBadge, LeaguesBrowserModal, LeagueTableModal, LeagueTableView, KoTieDetailModal, qualTieToKoMatch,
 } from '@/components/CustomUclViewers'
+import { KnockoutTieRow, clKoMatchToRow } from '@/components/KnockoutRoundsView'
+import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
 import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-formats'
 import { PenShootout } from '@/components/PenShootout'
@@ -161,19 +172,21 @@ export default function CustomUclSimulationScreen() {
 
   const totalTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, getSlotsForFormation(formation)) : 0
   const playerClubId = customUclPlayerClubId
-  // Deep-stats match-detail modal — served by both the domestic season and the
-  // UCL league phase (MDResult rows carry scorers + seed).
-  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
-  const openMdDetail = (r: MDResult, md: number, label: string, yearStart: number) => setMatchDetail({
+  // Deep stats — served by both the domestic season and the UCL league phase
+  // (MDResult rows carry scorers + seed).
+  const openMdDetail = (r: MDResult, md: number, label: string, yearStart: number) => openMatchStats({
     homeClubId: r.homeId, homeName: r.home,
     awayClubId: r.awayId, awayName: r.away,
     homeGoals: r.hg, awayGoals: r.ag,
     scorers: r.scorers, seed: r.seed, yearStart,
     competitionLabel: `${label} · Matchday ${md}`,
     playerClubId: playerClubId ?? undefined,
-  })
+  }, CL.accent)
 
   const [phase, setPhase] = useState<Phase>('loading')
+  // §3 — active once the domestic season starts simulating; 'loading' and the
+  // pre-kickoff 'domestic_review' squad screen have nothing decided yet.
+  useSimBackGuard(phase !== 'loading' && phase !== 'domestic_review')
   const [speed, setSpeed] = useState<Speed>('normal')
   const [isPlaying, setIsPlaying] = useState(false)
 
@@ -185,6 +198,10 @@ export default function CustomUclSimulationScreen() {
   const domSplitIdsRef = useRef<Set<string> | null>(null)
   const domStageLabelRef = useRef('Regular Season')
   const domRegularSnapshotRef = useRef<SimStandingRow[] | undefined>(undefined)
+  // The player's OWN final domestic table, frozen once the season ends — shown
+  // on both hand-off screens (domestic_result, quali_result) per Big Fixes §2,
+  // not just threaded into the access-list calc and then dropped.
+  const domPlayerTableRef = useRef<SimLeagueTable | null>(null)
   const [domMD, setDomMD] = useState(0)             // 0-based index into current plan
   const [domStage, setDomStage] = useState<'regular' | 'split'>('regular')
   const [showRegularTable, setShowRegularTable] = useState(false)  // split view: peek at pre-split table
@@ -198,6 +215,7 @@ export default function CustomUclSimulationScreen() {
   // Scorer pools for the player's DOMESTIC league (attribution is display-only
   // there; the UCL phases use poolByClubRef).
   const domPoolRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  const domLineupCtxRef = useRef<{ playerClubId?: string; benchSize?: number }>({})
 
   // ── World / access / qualifying ──
   const [tables, setTables] = useState<SimLeagueTable[]>([])
@@ -205,6 +223,9 @@ export default function CustomUclSimulationScreen() {
   const [qual, setQual] = useState<QualifyingResult | null>(null)
   const [worldRevealed, setWorldRevealed] = useState(0)
   const [qualRoundIdx, setQualRoundIdx] = useState(0)
+  const [liveQualDone, setLiveQualDone] = useState<Record<string, boolean>>({})
+  const [liveQualMatch, setLiveQualMatch] = useState<CLKnockoutMatch | null>(null)
+  const [justDecidedQualTie, setJustDecidedQualTie] = useState<QualTie | null>(null)
   const [openLeague, setOpenLeague] = useState<SimLeagueTable | null>(null)
   const [openKo, setOpenKo] = useState<{ m: CLKnockoutMatch; label?: string } | null>(null)
   const [browserOpen, setBrowserOpen] = useState(false)
@@ -215,11 +236,20 @@ export default function CustomUclSimulationScreen() {
   const [currentMD, setCurrentMD] = useState(1)
   const leagueHistoryRef = useRef<CLLeagueMatch[]>([])
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  // §10.5 — carried alongside the pools so every attribution in this screen
+  // selects the same eleven the stat sheet will regenerate later.
+  const lineupCtxRef = useRef<{ playerClubId?: string; benchSize?: number }>({})
+  // §10.5 phase 4 — sequential availability across the league phase AND the
+  // bracket. See engine/availability.ts; same shape as the other three sims.
+  const availabilityRef = useRef<AvailabilityLedger | null>(null)
   const [koRounds, setKoRounds] = useState<{ round: string; label: string; ties: CLKnockoutMatch[] }[]>([])
   const [koVisibleCount, setKoVisibleCount] = useState(0)
   const [liveDone, setLiveDone] = useState<Record<string, boolean>>({})
   const finishedRef = useRef(false)
   const finalResultRef = useRef<CLSeasonResult | null>(null)
+  // §7 R6 — the Deep Match final is watched exactly once; after that the tie
+  // settles into the normal row and the results CTA appears.
+  const [deepFinalWatched, setDeepFinalWatched] = useState(false)
   const totalMatchdays = 8
 
   const playerReachedLeaguePhase = clTeamsLocal.some(t => t.isPlayer)
@@ -244,7 +274,7 @@ export default function CustomUclSimulationScreen() {
       setPhase('domestic_review')
       // Domestic scorer pools (background — ready before the first matchday).
       loadLeaguePools(teams.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer })), fullSquad, 2025, useSubstitutes)
-        .then(p => { domPoolRef.current = p.poolByClub })
+        .then(p => { domPoolRef.current = p.poolByClub; domLineupCtxRef.current = { playerClubId: p.playerClubId, benchSize: p.benchSize } })
         .catch(e => console.warn('[custom-ucl-sim] domestic pool load failed:', e))
     }
     init()
@@ -265,7 +295,7 @@ export default function CustomUclSimulationScreen() {
     for (const [home, away] of md) {
       const r = playLiveMatch(home, away)
       const seed = randomSeed()
-      const sc = attributeFixtureScorers(domPoolRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
+      const sc = attributeFixtureScorers(domPoolRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, domLineupCtxRef.current)
       results.push({
         homeId: home.clubId, awayId: away.clubId, home: home.clubName, away: away.clubName,
         hg: r.homeGoals, ag: r.awayGoals, playerHome: home.isPlayer, playerAway: away.isPlayer,
@@ -349,6 +379,7 @@ export default function CustomUclSimulationScreen() {
       })),
       regularStandings: domRegularSnapshotRef.current,
     }
+    domPlayerTableRef.current = playerTable
     // Now resolve the REST of Europe (headless, format-aware) + access + qualifying.
     resolveWorld(playerTable, pos)
     setPhase('domestic_result')
@@ -382,7 +413,7 @@ export default function CustomUclSimulationScreen() {
       }
       if (tieClubs.size > 0) {
         const pools = await loadLeaguePools([...tieClubs.values()], fullSquad, clYear ?? 2025, useSubstitutes)
-        attributeQualTieScorers(q.ties, pools.poolByClub)
+        attributeQualTieScorers(q.ties, pools.poolByClub, lineupCtxOf(pools))
       }
     } catch (e) { console.warn('[custom-ucl-sim] qual scorer attribution failed:', e) }
     setQual(q)
@@ -412,12 +443,34 @@ export default function CustomUclSimulationScreen() {
 
   // ── Qualifying reveal (one round every ~4s) ────────────────────────────────
   const qualRoundsWithTies = QUAL_ROUND_ORDER.filter(r => qual?.ties.some(t => t.round === r))
+  const currentQualRound = qualRoundsWithTies[qualRoundIdx]
+  // Your own tie gets the same live-clock treatment knockout ties already get
+  // (Big Fixes feedback: qualifying had none) — hold the round back until it's watched.
+  const playerQualTie = (qual?.ties ?? []).find(t => t.round === currentQualRound && t.teamB && t.legs &&
+    (t.teamA.clubId === playerClubId || t.teamB.clubId === playerClubId))
+  const waitingOnLiveQual = !!playerQualTie && !liveQualDone[currentQualRound]
   useEffect(() => {
     if (phase !== 'qualifying') return
     if (qualRoundIdx >= qualRoundsWithTies.length) return
+    if (waitingOnLiveQual) return   // hold until the live watch finishes
     const t = setTimeout(() => setQualRoundIdx(n => n + 1), 4200)
     return () => clearTimeout(t)
-  }, [phase, qualRoundIdx, qualRoundsWithTies.length])
+  }, [phase, qualRoundIdx, qualRoundsWithTies.length, waitingOnLiveQual])
+
+  // Named shootout takers are only pre-built for knockout ties (attachCLShootoutNames
+  // runs before reveal); qualifying ties need the same lazy expansion the tie-detail
+  // modal already does, so a penalty-decided qualifying tie can play out live too.
+  useEffect(() => {
+    if (!waitingOnLiveQual || !playerQualTie) { setLiveQualMatch(null); return }
+    const m = qualTieToKoMatch(playerQualTie)
+    if (!m) { setLiveQualMatch(null); return }
+    if (!m.aPenKicks || !m.bPenKicks) { setLiveQualMatch(m); return }
+    let active = true
+    attachCLShootoutNames([m], playerClubId ?? undefined, draftedPlayers)
+      .then(() => { if (active) setLiveQualMatch({ ...m }) })
+      .catch(() => { if (active) setLiveQualMatch(m) })
+    return () => { active = false }
+  }, [waitingOnLiveQual, playerQualTie?.round, playerQualTie?.teamA.clubId])
 
   useEffect(() => {
     if (phase === 'qualifying' && qualRoundsWithTies.length > 0 && qualRoundIdx >= qualRoundsWithTies.length) {
@@ -430,7 +483,14 @@ export default function CustomUclSimulationScreen() {
     if (clTeamsLocal.length === 0 || !playerReachedLeaguePhase) return
     setFixtures(generateCLLeagueFixtures(clTeamsLocal))
     loadLeaguePools(clTeamsLocal, fullSquad, clYear ?? 2025, useSubstitutes)
-      .then(p => { poolByClubRef.current = p.poolByClub })
+      .then(p => {
+        poolByClubRef.current = p.poolByClub
+        lineupCtxRef.current = { playerClubId: p.playerClubId, benchSize: p.benchSize }
+        availabilityRef.current = createAvailabilityLedger({
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: CL_TOTAL_MATCHDAYS,
+        })
+      })
       .catch(e => console.warn('[custom-ucl-sim] pool load failed:', e))
   }, [clTeamsLocal, playerReachedLeaguePhase])
 
@@ -447,7 +507,13 @@ export default function CustomUclSimulationScreen() {
     const results: MDResult[] = []
     mdFixtures.forEach(({ home: h, away: a }) => {
       const home = teams.find(t => t.clubId === h.clubId)!, away = teams.find(t => t.clubId === a.clubId)!
-      const r = simulateMatch(home, away)
+      // §10.5 phase 4 — absences are priced into the OVR that decides the
+      // scoreline, then stored on the match so it regenerates the same eleven.
+      const av = availabilityFor(availabilityRef.current, currentMD, home.clubId, away.clubId)
+      const r = simulateMatch(
+        { ...home, ovr: home.ovr + av.homeOvrDelta },
+        { ...away, ovr: away.ovr + av.awayOvrDelta },
+      )
       home.stats.played++; away.stats.played++
       home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
       away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
@@ -455,12 +521,18 @@ export default function CustomUclSimulationScreen() {
       else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
       else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
       const seed = randomSeed()
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
+      const lineupOpts = { ...lineupCtxRef.current, unavailableIds: av.unavailableIds, standIns: av.standIns }
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
+      if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+        matchday: currentMD, homeClubId: home.clubId, awayClubId: away.clubId,
+        seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
+      })
       leagueHistoryRef.current.push({
         matchday: currentMD,
         home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
         away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
         homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
+        absent: av.absent, standIns: av.standIns,
       })
       results.push({
         homeId: home.clubId, awayId: away.clubId, home: home.clubName, away: away.clubName,
@@ -483,7 +555,13 @@ export default function CustomUclSimulationScreen() {
     for (let md = currentMD; md <= totalMatchdays; md++) {
       for (const { home: h, away: a } of fixtures.filter(f => f.matchday === md)) {
         const home = teams.find(t => t.clubId === h.clubId)!, away = teams.find(t => t.clubId === a.clubId)!
-        const r = simulateMatch(home, away)
+        // §10.5 phase 4 — absences are priced into the OVR that decides the
+        // scoreline, then stored on the match so it regenerates the same eleven.
+        const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
+        const r = simulateMatch(
+          { ...home, ovr: home.ovr + av.homeOvrDelta },
+          { ...away, ovr: away.ovr + av.awayOvrDelta },
+        )
         home.stats.played++; away.stats.played++
         home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
         away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
@@ -491,12 +569,18 @@ export default function CustomUclSimulationScreen() {
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
         const seed = randomSeed()
-        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
+        const lineupOpts = { ...lineupCtxRef.current, unavailableIds: av.unavailableIds, standIns: av.standIns }
+        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
+        if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+          matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
+          seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
+        })
         leagueHistoryRef.current.push({
           matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
           homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
+          absent: av.absent, standIns: av.standIns,
         })
       }
     }
@@ -512,12 +596,37 @@ export default function CustomUclSimulationScreen() {
   async function finishLeaguePhaseWith(finalTeams: CLTeam[]) {
     setIsPlaying(false)
     const sorted = sortStandings(finalTeams)
-    const koResult = simulateCLKnockoutsOnly(sorted)
-    const result: CLSeasonResult = { leaguePhaseStandings: sorted, ...koResult, leagueMatchdays: leagueHistoryRef.current }
+    // §10.5 phase 4 — the pools have to be in hand BEFORE the bracket: each tie
+    // is priced with its absences and attributed the moment it's decided, so a
+    // red card in the round of 16 is already a suspension by the quarter-final.
+    let pool = poolByClubRef.current
+    let ctx = lineupCtxRef.current
+    if (pool.size === 0) {
+      try {
+        const p = await loadLeaguePools(sorted, fullSquad, clYear ?? 2025, useSubstitutes)
+        pool = p.poolByClub; ctx = lineupCtxOf(p)
+        availabilityRef.current ??= createAvailabilityLedger({
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: CL_TOTAL_MATCHDAYS,
+        })
+      } catch (e) { console.warn('[custom-ucl-sim] pool load failed:', e) }
+    }
+    const koHook = availabilityRef.current && pool.size > 0
+      ? clKnockoutAvailabilityHook({
+          ledger: availabilityRef.current, poolByClub: pool, lineupCtx: ctx,
+          playerFormation: formation ?? undefined, firstMatchday: totalMatchdays,
+        })
+      : undefined
+    const koResult = simulateCLKnockoutsOnly(sorted, koHook)
+    const result: CLSeasonResult = {
+      leaguePhaseStandings: sorted, ...koResult, leagueMatchdays: leagueHistoryRef.current,
+      // Read AFTER the bracket, so knockout absences make the medical table.
+      absences: availabilityRef.current?.absences() ?? [],
+    }
+    // Backstop only — the hook already attributed every tie it saw, and this is
+    // idempotent, so it fills in only when the hook couldn't run.
     try {
-      let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(sorted, fullSquad, clYear ?? 2025, useSubstitutes)).poolByClub
-      attributeCLResultScorers(result, pool)
+      attributeCLResultScorers(result, pool, ctx)
     } catch (e) { console.warn('[custom-ucl-sim] scorer attribution failed:', e) }
     await revealKnockouts(result)
   }
@@ -540,10 +649,17 @@ export default function CustomUclSimulationScreen() {
     setPhase('knockout_phase')
   }
 
-  function finishAll() {
+  // Split in two so §7's Deep Match can commit the run WITHOUT this screen
+  // navigating — it replaces itself with the result screen instead, so the
+  // finished bracket never flashes up in between.
+  function commitFinalResult() {
     if (finishedRef.current || !finalResultRef.current) return
     finishedRef.current = true
     setClResult(finalResultRef.current)
+  }
+  function finishAll() {
+    if (finishedRef.current || !finalResultRef.current) return
+    commitFinalResult()
     router.push('/game/custom-ucl-result')
   }
 
@@ -597,7 +713,7 @@ export default function CustomUclSimulationScreen() {
     const result = buildNoPlayerResult(finalRound)
     try {
       const rosters = await getRostersForClubs(result.leaguePhaseStandings.map(t => t.clubId), clYear ?? 2025)
-      attributeCLResultScorers(result, rosters)
+      attributeCLResultScorers(result, rosters, lineupCtxRef.current)
     } catch (e) { console.warn('[custom-ucl-sim] scorer attribution failed:', e) }
     setClResult(result)
     router.push('/game/custom-ucl-result')
@@ -820,7 +936,6 @@ export default function CustomUclSimulationScreen() {
             <MatchdayResultsCard history={domHistory} onOpenMatch={(r, md) => openMdDetail(r, md, 'Domestic Season', 2025)} />
           </View>
         </View>
-        <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={CL.accent} />
       </View>
     )
   }
@@ -833,21 +948,34 @@ export default function CustomUclSimulationScreen() {
     const qualified = !!berth || holderIn
     const berthText = berth
       ? (berth.round === 'league_phase' ? 'Straight into the League Phase!' : `You enter at the ${QUAL_ROUND_LABEL[berth.round]} (${PATH_LABEL[berth.path]}).`)
-      : holderIn ? 'No spot through the league — but as TITLE HOLDERS you\'re in the League Phase anyway!' : 'No Champions League this season.'
+      : holderIn ? 'No spot through the league — but as TITLE HOLDERS you\'re in the League Phase anyway!' : 'No UEFA Champions League this season.'
+    const domTable = domPlayerTableRef.current
+    // Compact hero banner + the final table you actually earned it from (Big
+    // Fixes §2) → CTA. Was a bare hero + button with the table thrown away
+    // right after computing it; the table is what justifies the outcome.
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl }]}>
-        <Text style={{ fontSize: 56 }}>{qualified ? (pos === 1 ? '🏆' : '🎫') : '💔'}</Text>
-        <Text style={[styles.resultBigText, { color: qualified ? colors.success : colors.danger }]}>
-          {pos === 1 ? `${mine.name} CHAMPIONS` : `FINISHED ${pos}${pos === 2 ? 'ND' : pos === 3 ? 'RD' : 'TH'}`}
-        </Text>
-        <Text style={styles.resultSubText}>{berthText}</Text>
-        <Pressable
-          style={[styles.primaryBtn, { backgroundColor: CL.accent, alignSelf: 'stretch' }, !qual && { opacity: 0.5 }]}
-          disabled={!qual}
-          onPress={() => setPhase('world_sim')}
-        >
-          <Text style={styles.primaryBtnText}>{!qual ? 'RESOLVING EUROPE…' : qualified ? 'SEE THE REST OF EUROPE →' : 'SEE WHO TOOK YOUR PLACE →'}</Text>
-        </Pressable>
+      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
+        <View style={[styles.header, styles.headerRow]}>
+          <Text style={{ fontSize: 22 }}>{qualified ? (pos === 1 ? '🏆' : '🎫') : '💔'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.resultCompactText, { color: qualified ? colors.success : colors.danger }]}>
+              {pos === 1 ? `${mine.name} CHAMPIONS` : `FINISHED ${pos}${pos === 2 ? 'ND' : pos === 3 ? 'RD' : 'TH'}`}
+            </Text>
+            <Text style={styles.resultCompactSub}>{berthText}</Text>
+          </View>
+        </View>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
+          {domTable && <LeagueTableView table={domTable} playerClubId={playerClubId} />}
+        </ScrollView>
+        <View style={styles.footerBar}>
+          <Pressable
+            style={[styles.primaryBtn, { backgroundColor: CL.accent }, !qual && { opacity: 0.5 }]}
+            disabled={!qual}
+            onPress={() => setPhase('world_sim')}
+          >
+            <Text style={styles.primaryBtnText}>{!qual ? 'RESOLVING EUROPE…' : qualified ? 'SEE THE REST OF EUROPE →' : 'SEE WHO TOOK YOUR PLACE →'}</Text>
+          </Pressable>
+        </View>
       </View>
     )
   }
@@ -891,7 +1019,16 @@ export default function CustomUclSimulationScreen() {
 
   // ── Phase: qualifying reveal ───────────────────────────────────────────────
   if (phase === 'qualifying') {
-    const visibleTies = (qual?.ties ?? []).filter(t => qualRoundsWithTies.indexOf(t.round) <= qualRoundIdx)
+    // The WHOLE current round stays hidden until your own tie's live watch
+    // finishes — not just your row — same as the knockout rounds' `revealOthers`
+    // gate in simulation.tsx (maintainer feedback: this was only hiding your
+    // own tie, so the rest of the round spoiled itself immediately).
+    const visibleTies = (qual?.ties ?? []).filter(t => {
+      const idx = qualRoundsWithTies.indexOf(t.round)
+      if (idx < qualRoundIdx) return true
+      if (idx === qualRoundIdx) return !waitingOnLiveQual
+      return false
+    })
     return (
       <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
         <View style={[styles.header, styles.headerRow]}>
@@ -900,14 +1037,37 @@ export default function CustomUclSimulationScreen() {
           {leaguesButton}
         </View>
         <Text style={styles.phaseHint}>Two-legged ties · tap any tie for legs, extra time & shootouts</Text>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
-          <QualifyingLadder ties={visibleTies} onTiePress={t => {
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+          {/* Earlier, already-settled rounds first — the live round belongs
+              UNDER them (maintainer feedback: it was pinned above everything,
+              including rounds that finished long ago). */}
+          <QualifyingLadder ties={visibleTies} justDecidedTie={justDecidedQualTie ?? undefined} onTiePress={t => {
             const m = qualTieToKoMatch(t)
             if (m) setOpenKo({ m, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
           }} />
+          {waitingOnLiveQual && liveQualMatch && currentQualRound && (
+            <View style={{ gap: spacing.xs }}>
+              {/* Which qualifying round/path you've landed in — previously this
+                  only showed up retroactively in the ladder above (maintainer
+                  feedback: "no idea when we appear"). */}
+              <Text style={styles.koRoundLabel}>
+                {QUAL_ROUND_LABEL[currentQualRound]}{playerQualTie ? ` · ${PATH_LABEL[playerQualTie.path]}` : ''}
+              </Text>
+              <LiveMatch
+                teamA={liveQualMatch.teamA} teamB={liveQualMatch.teamB}
+                periods={periodsForTwoLegTie(liveQualMatch)}
+                pens={liveQualMatch.aPens !== undefined ? { a: liveQualMatch.aPens, b: liveQualMatch.bPens ?? 0, kicksA: liveQualMatch.penKicksA, kicksB: liveQualMatch.penKicksB } : null}
+                aggregate
+                onDone={() => {
+                  setJustDecidedQualTie(playerQualTie)
+                  setLiveQualDone(d => ({ ...d, [currentQualRound]: true }))
+                }}
+              />
+            </View>
+          )}
         </ScrollView>
         <View style={styles.footerBar}>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => setQualRoundIdx(qualRoundsWithTies.length)}>
+          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setLiveQualDone(Object.fromEntries(qualRoundsWithTies.map(r => [r, true]))); setQualRoundIdx(qualRoundsWithTies.length) }}>
             <Text style={styles.primaryBtnText}>SKIP →</Text>
           </Pressable>
         </View>
@@ -920,32 +1080,69 @@ export default function CustomUclSimulationScreen() {
   // ── Phase: qualifying resolved ─────────────────────────────────────────────
   if (phase === 'quali_result') {
     const playerHadTies = qual?.ties.some(t => t.teamA.clubId === playerClubId || t.teamB?.clubId === playerClubId)
+    // This hand-off is about the QUALIFYING run, not the domestic league (that
+    // already got its own table on domestic_result) — so it shows the
+    // qualifying ladder (your ties highlighted throughout), not domTable.
+    // Reuses QualifyingLadder as-is (same component + "your ties highlighted"
+    // framing as the final result screen's ladder section).
     if (playerReachedLeaguePhase) {
       return (
-        <View style={[styles.container, { backgroundColor: CL.bgTint, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl }]}>
-          <Text style={{ fontSize: 56 }}>🎉</Text>
-          <Text style={[styles.resultBigText, { color: colors.success }]}>{playerHadTies ? 'QUALIFIED!' : 'THE FIELD IS SET'}</Text>
-          <Text style={styles.resultSubText}>
-            {playerHadTies
-              ? "You've battled through qualifying into the League Phase. 36 clubs, 8 games, top 8 go straight to the Round of 16."
-              : 'Your league finish put you straight into the League Phase — the ladder just decided who joins you. 36 clubs, 8 games.'}
-          </Text>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent, alignSelf: 'stretch' }]} onPress={() => setPhase('review')}>
-            <Text style={styles.primaryBtnText}>CONTINUE →</Text>
-          </Pressable>
+        <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
+          <View style={[styles.header, styles.headerRow]}>
+            <Text style={{ fontSize: 22 }}>🎉</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.resultCompactText, { color: colors.success }]}>{playerHadTies ? 'QUALIFIED!' : 'THE FIELD IS SET'}</Text>
+              <Text style={styles.resultCompactSub}>
+                {playerHadTies
+                  ? "You've battled through qualifying into the League Phase. 36 clubs, 8 games, top 8 go straight to the Round of 16."
+                  : 'Your league finish put you straight into the League Phase — the ladder just decided who joins you. 36 clubs, 8 games.'}
+              </Text>
+            </View>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
+            {playerHadTies && qual && (
+              <QualifyingLadder ties={qual.ties} onTiePress={t => {
+                const m = qualTieToKoMatch(t)
+                if (m) setOpenKo({ m, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
+              }} />
+            )}
+          </ScrollView>
+          <View style={styles.footerBar}>
+            <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => setPhase('review')}>
+              <Text style={styles.primaryBtnText}>CONTINUE →</Text>
+            </Pressable>
+          </View>
+          <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
         </View>
       )
     }
     const exitTie = [...(qual?.ties ?? [])].reverse().find(t => t.teamA.clubId === playerClubId || t.teamB?.clubId === playerClubId)
     const exitKey = exitTie ? (Object.entries(QUAL_EXIT_ROUND).find(([, r]) => r === exitTie.round)?.[0] as CLSeasonResult['playerFinalRound'] | undefined) : undefined
+    // Same "show your qualifying run" treatment as the reached-league-phase
+    // branch above — this screen previously had no table at all.
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl }]}>
-        <Text style={{ fontSize: 56 }}>💔</Text>
-        <Text style={[styles.resultBigText, { color: colors.danger }]}>ELIMINATED</Text>
-        <Text style={styles.resultSubText}>Your Champions League run ends in qualifying. The tournament continues without you — see how it plays out.</Text>
-        <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent, alignSelf: 'stretch' }]} onPress={() => handleOutOfEurope(exitKey ?? 'q1_exit')}>
-          <Text style={styles.primaryBtnText}>VIEW RESULT →</Text>
-        </Pressable>
+      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
+        <View style={[styles.header, styles.headerRow]}>
+          <Text style={{ fontSize: 22 }}>💔</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.resultCompactText, { color: colors.danger }]}>ELIMINATED</Text>
+            <Text style={styles.resultCompactSub}>Your UEFA Champions League run ends in qualifying. The tournament continues without you — see how it plays out.</Text>
+          </View>
+        </View>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
+          {qual && (
+            <QualifyingLadder ties={qual.ties} onTiePress={t => {
+              const m = qualTieToKoMatch(t)
+              if (m) setOpenKo({ m, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
+            }} />
+          )}
+        </ScrollView>
+        <View style={styles.footerBar}>
+          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => handleOutOfEurope(exitKey ?? 'q1_exit')}>
+            <Text style={styles.primaryBtnText}>VIEW RESULT →</Text>
+          </Pressable>
+        </View>
+        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
       </View>
     )
   }
@@ -1078,7 +1275,6 @@ export default function CustomUclSimulationScreen() {
           </View>
         </View>
         <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
-        <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={CL.accent} />
       </View>
     )
   }
@@ -1107,6 +1303,45 @@ export default function CustomUclSimulationScreen() {
   // ── Phase: knockout reveal ─────────────────────────────────────────────────
   const visibleRounds = koRounds.slice(0, koVisibleCount)
   const allRevealed = koVisibleCount >= koRounds.length
+
+  // §7 — the Deep Match, offered only when YOUR side made the final. The generic
+  // SKIP becomes a jump to the final, and the results CTA is withheld until the
+  // final has actually been watched.
+  const koFinalIdx = koRounds.findIndex(r => r.round === 'final')
+  const koFinal = koFinalIdx >= 0 ? koRounds[koFinalIdx] : undefined
+  const playerFinalTie = koFinal?.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer) ?? null
+  const atFinal = koFinalIdx >= 0 && koVisibleCount - 1 >= koFinalIdx
+  // Offered from the first revealed round — see the note on the UCL-classic
+  // screen: gating it until the semis made the button turn up too late to be
+  // worth having.
+  const canSkipToFinal = !!playerFinalTie && !atFinal
+  const awaitingDeepFinal = !!playerFinalTie && atFinal && !deepFinalWatched
+
+  const revealThrough = (idx: number) => {
+    setLiveDone(Object.fromEntries(koRounds.slice(0, idx + 1).map(r => [r.round, true])))
+    setKoVisibleCount(idx + 1)
+  }
+
+  const openCustomDeepFinal = () => {
+    if (!koFinal || !playerFinalTie) return
+    // A final is a single match, which koLegDetailRequest reads off leg1* — the
+    // same request the result screen builds, so both replay the same sheet.
+    const detail = koLegDetailRequest(playerFinalTie, 1, {
+      label: koFinal.label, yearStart: clYear ?? 2025,
+      playerClubId: playerClubId ?? undefined, drafted: draftedPlayers,
+    })
+    if (!detail) return
+    openDeepMatch({
+      detail: { ...detail, playerFormation: formation ?? undefined },
+      competitionLabel: 'UEFA Champions League',
+      roundLabel: koFinal.label,
+      accent: CL.accent,
+      playerWon: playerFinalTie.winner.isPlayer,
+      playerClubName: (playerFinalTie.teamA.isPlayer ? playerFinalTie.teamA : playerFinalTie.teamB).clubName,
+      onFinished: () => { setDeepFinalWatched(true); commitFinalResult() },
+      resultRoute: '/game/custom-ucl-result',
+    })
+  }
   return (
     <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
       <View style={[styles.header, styles.headerRow]}>
@@ -1128,7 +1363,26 @@ export default function CustomUclSimulationScreen() {
               </View>
               {/* your tie plays out minute-by-minute FIRST; the rest of the round
                   is held back until your match settles, then revealed. */}
-              {watchLive && playerTie ? (
+              {/* §7 — your final never plays out inline, and its scoreline is
+                  kept off screen until the Deep Match has revealed it. */}
+              {r.round === 'final' && playerFinalTie && !deepFinalWatched ? (
+                <View style={styles.deepFinalCard}>
+                  <Text style={[styles.deepFinalKicker, { color: CL.accent }]}>The Final</Text>
+                  <Text style={styles.deepFinalTeams} numberOfLines={2}>
+                    {playerFinalTie.teamA.clubName}  vs  {playerFinalTie.teamB.clubName}
+                  </Text>
+                  <Text style={styles.deepFinalNote}>
+                    One match. Played out in full, minute by minute — you only get to watch it once.
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [styles.deepFinalBtn, { backgroundColor: CL.accent }, pressed && { opacity: 0.85 }]}
+                    onPress={openCustomDeepFinal}
+                  >
+                    <Ionicons name="people" size={15} color={colors.textPrimary} />
+                    <Text style={styles.deepFinalBtnText}>SEE LINEUPS →</Text>
+                  </Pressable>
+                </View>
+              ) : watchLive && playerTie ? (
                 <LiveMatch
                   teamA={playerTie.teamA} teamB={playerTie.teamB}
                   periods={playerTie.leg1 ? periodsForTwoLegTie(playerTie) : [{ label: r.label, homeId: playerTie.teamA.clubId, awayId: playerTie.teamB.clubId, fromMin: 0, toMin: playerTie.extraTime ? 120 : 90, scorers: playerTie.leg1Scorers }]}
@@ -1137,15 +1391,37 @@ export default function CustomUclSimulationScreen() {
                   onDone={() => setLiveDone(d => ({ ...d, [r.round]: true }))}
                 />
               ) : (
-                r.ties.map((m, i) => <KoTieCard key={i} m={m} onPress={() => setOpenKo({ m, label: r.label })} />)
+                <View style={{ gap: spacing.xs }}>
+                  {r.ties.map((m, i) => {
+                    // Your settled tie gets the same "YOU ADVANCE"/"YOU'RE
+                    // ELIMINATED" treatment WC already has: colored INSIDE the
+                    // row itself (green win / red loss), not a separate line —
+                    // maintainer feedback: a gold border read as neutral. Not
+                    // gated on `isLatest` — a club only ever appears in ONE
+                    // round's ties once eliminated, so this must persist as
+                    // later rounds reveal, exactly like UCL classic/WC do.
+                    const isPlayerTie = m.teamA.isPlayer || m.teamB.isPlayer
+                    const justDecided = isPlayerTie ? {
+                      outcomeLine: m.winner.isPlayer ? 'YOU ADVANCE' : "YOU'RE ELIMINATED",
+                      outcomeColor: m.winner.isPlayer ? colors.success : colors.danger,
+                    } : undefined
+                    return (
+                      <KnockoutTieRow key={i} accent={CL.accent} tie={clKoMatchToRow(m, undefined, () => setOpenKo({ m, label: r.label }), justDecided)} />
+                    )
+                  })}
+                </View>
               )}
             </View>
           )
         })}
       </ScrollView>
       <View style={styles.footerBar}>
-        {!allRevealed
-          ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setLiveDone(Object.fromEntries(koRounds.map(r => [r.round, true]))); setKoVisibleCount(koRounds.length) }}><Text style={styles.primaryBtnText}>SKIP →</Text></Pressable>
+        {canSkipToFinal
+          ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => revealThrough(koFinalIdx)}><Text style={styles.primaryBtnText}>SKIP TO FINAL →</Text></Pressable>
+          : !allRevealed
+          ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => revealThrough(koRounds.length - 1)}><Text style={styles.primaryBtnText}>SKIP →</Text></Pressable>
+          : awaitingDeepFinal
+          ? null
           : <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={finishAll}><Text style={styles.primaryBtnText}>VIEW FINAL RESULT →</Text></Pressable>}
       </View>
       <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
@@ -1154,23 +1430,6 @@ export default function CustomUclSimulationScreen() {
   )
 }
 
-function KoTieCard({ m, onPress }: { m: CLKnockoutMatch; onPress?: () => void }) {
-  const aWon = m.winner.clubId === m.teamA.clubId
-  const suffix = m.aPens !== undefined ? `pens ${m.aPens}-${m.bPens}` : m.extraTime ? 'AET' : null
-  const isPM = m.teamA.isPlayer || m.teamB.isPlayer
-  return (
-    <Pressable style={[styles.koCard, isPM && { borderColor: CL.accent, backgroundColor: CL.accent + '11' }]} onPress={onPress}>
-      <View style={styles.koCardRow}>
-        <TeamLabel clubId={m.teamA.clubId} name={m.teamA.clubName} textStyle={[styles.koCardName, aWon && styles.koCardWon]} size={14} gap={4} containerStyle={{ flex: 1 }} />
-        <Text style={styles.koCardScore}>{m.aGoals} – {m.bGoals}</Text>
-        <TeamLabel clubId={m.teamB.clubId} name={m.teamB.clubName} textStyle={[styles.koCardName, !aWon && styles.koCardWon]} size={14} gap={4} containerStyle={{ flex: 1, justifyContent: 'flex-end' }} />
-      </View>
-      {m.leg1 && m.leg2 && <Text style={styles.koCardLegs}>{m.leg1.aGoals}-{m.leg1.bGoals} · {m.leg2.aGoals}-{m.leg2.bGoals}{suffix ? ` · ${suffix}` : ''}</Text>}
-      {!m.leg1 && suffix && <Text style={styles.koCardSuffix}>{suffix}</Text>}
-      {m.penKicksA && m.penKicksB && isPM && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksA} kicksB={m.penKicksB} />}
-    </Pressable>
-  )
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
@@ -1197,6 +1456,10 @@ const styles = StyleSheet.create({
 
   resultBigText: { fontSize: typography.xxl, fontWeight: typography.black, textAlign: 'center' },
   resultSubText: { fontSize: typography.sm, color: colors.textSecondary, textAlign: 'center', lineHeight: 21 },
+  // Compact hand-off banner (Big Fixes §2) — demotes the hero so the final
+  // table below is the focus, instead of a full-screen result + a lost table.
+  resultCompactText: { fontSize: typography.lg, fontWeight: typography.black, textAlign: 'left' },
+  resultCompactSub: { fontSize: typography.xs, color: colors.textSecondary, textAlign: 'left', lineHeight: 16, marginTop: 2 },
 
   reviewCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
   reviewClub: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
@@ -1275,12 +1538,20 @@ const styles = StyleSheet.create({
   speedChipText: { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
 
   koRoundBlock: { gap: spacing.sm },
+  // §7 — matches the card on the UCL-classic / World Cup knockout screens.
+  deepFinalCard: {
+    backgroundColor: colors.bgElevated, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.lg, gap: spacing.sm, alignItems: 'center',
+  },
+  deepFinalKicker: { fontSize: typography.xs, fontWeight: typography.black, textTransform: 'uppercase', letterSpacing: 1.5 },
+  deepFinalTeams: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, textAlign: 'center' },
+  deepFinalNote: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
+  deepFinalBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
+    marginTop: spacing.xs,
+  },
+  deepFinalBtnText: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1 },
   koRoundLabel: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary },
-  koCard: { backgroundColor: colors.bgCard, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 4 },
-  koCardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  koCardName: { fontSize: 13, color: colors.textMuted },
-  koCardWon: { color: colors.textPrimary, fontWeight: typography.black },
-  koCardScore: { fontSize: 15, fontWeight: typography.black, color: colors.textPrimary },
-  koCardSuffix: { fontSize: 10, color: colors.warning, fontWeight: typography.bold, textAlign: 'center' },
-  koCardLegs: { fontSize: 10, color: colors.textMuted, textAlign: 'center' },
 })

@@ -83,13 +83,13 @@ export default function HowToPlayScreen() {
           <Text style={styles.content}>
             After drafting, a spinning globe reveals where you land — the country lights up as it
             settles. What happens next depends on the mode:{'\n\n'}
-            • <Text style={styles.bold}>League / All-Time / Era / Chaos / Cursed:</Text> you replace an
+            • <Text style={styles.bold}>League / All-Time / Chaos / Cursed:</Text> you replace an
             existing club in a real league and season{'\n'}
-            • <Text style={styles.bold}>Champions League (classic):</Text> you take over any club already
+            • <Text style={styles.bold}>UEFA Champions League (classic):</Text> you take over any club already
             in that UCL edition — could be Real Madrid, could be a minnow{'\n'}
-            • <Text style={styles.bold}>Champions League (custom path):</Text> you land in a real domestic
+            • <Text style={styles.bold}>UEFA Champions League (custom path):</Text> you land in a real domestic
             league first — where you finish there decides your route into Europe{'\n'}
-            • <Text style={styles.bold}>World Cup:</Text> you take over one of the 48 qualified nations
+            • <Text style={styles.bold}>FIFA World Cup:</Text> you take over one of the 48 qualified nations
           </Text>
         </View>
 
@@ -99,7 +99,7 @@ export default function HowToPlayScreen() {
             League-style rounds play out on a scoreboard — standings update live, and a matchday-results
             card lets you scrub ‹ › back through every round already played, or jump straight to LIVE.
             {'\n\n'}
-            Your own matches in the World Cup group stage and any knockout tie play out differently —
+            Your own matches in the FIFA World Cup group stage and any knockout tie play out differently —
             on a real ticking clock, goals revealed minute by minute, with the rest of the round held
             back until your match finishes so nothing spoils it early. Need a moment?{' '}
             <Text style={styles.bold}>⏸ PAUSE</Text> in the top bar of any live match stops the clock
@@ -111,7 +111,7 @@ export default function HowToPlayScreen() {
           <Text style={styles.sectionTitle}>Match Detail Pages — Deep Stats</Text>
           <Text style={styles.content}>
             Every finished match, anywhere in the game, is <Text style={styles.bold}>tappable</Text> —
-            league matchdays, Champions League league-phase games, World Cup group games, knockout-tie
+            league matchdays, UEFA Champions League league-phase games, FIFA World Cup group games, knockout-tie
             legs, even qualifying rounds. Tapping opens a FotMob-style match page:{'\n\n'}
             • <Text style={styles.bold}>Team stats</Text> — possession, xG (split open play / set piece),
             shots (on target, inside/outside box, blocked, woodwork), big chances, full passing numbers
@@ -152,7 +152,7 @@ export default function HowToPlayScreen() {
             Before a knockout phase kicks off, you get a bracket preview — a real pinch-to-zoom bracket
             tree showing the full first-round draw (your tie highlighted) and the shape of the rounds
             ahead. Pinch to zoom in and read it, drag to pan around, double-tap to reset.{'\n\n'}
-            Two-legged ties (Champions League) play leg 1, then leg 2 with home and away swapped — the
+            Two-legged ties (UEFA Champions League) play leg 1, then leg 2 with home and away swapped — the
             aggregate score and leg 1's result stay visible while leg 2 plays. If it's still level after
             extra time, penalties are taken kick by kick by named players from your actual squad.
           </Text>
@@ -178,16 +178,15 @@ export default function HowToPlayScreen() {
             <Text style={styles.bold}>Normal:</Text>{'\n'}
             • <Text style={styles.bold}>All Time:</Text> any league, any era{'\n'}
             • <Text style={styles.bold}>League Mode:</Text> pick a specific league{'\n'}
-            • <Text style={styles.bold}>Era Mode:</Text> pick a specific decade{'\n'}
             • <Text style={styles.bold}>Chaos Mode:</Text> ratings hidden, no rerolls{'\n'}
             • <Text style={styles.bold}>Cursed Mode:</Text> like Chaos, but positions are random{'\n\n'}
             <Text style={styles.bold}>Special:</Text>{'\n'}
-            • <Text style={styles.bold}>Champions League (classic):</Text> jump straight into an existing
+            • <Text style={styles.bold}>UEFA Champions League (classic):</Text> jump straight into an existing
             UCL edition's league phase and knockouts{'\n'}
-            • <Text style={styles.bold}>Champions League (custom path):</Text> play your domestic season
+            • <Text style={styles.bold}>UEFA Champions League (custom path):</Text> play your domestic season
             first, then — depending how you finished — qualifying rounds, the 36-team league phase, and
             the knockouts, across all 53 UEFA leagues simulated fresh each run{'\n'}
-            • <Text style={styles.bold}>World Cup:</Text> group stage (top 2 + best third-place teams
+            • <Text style={styles.bold}>FIFA World Cup:</Text> group stage (top 2 + best third-place teams
             qualify) into a Round-of-32 knockout bracket
           </Text>
         </View>

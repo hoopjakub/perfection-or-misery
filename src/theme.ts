@@ -116,9 +116,27 @@ export const MODE_THEMES: Record<string, ModeTheme> = {
     bgTint:    '#0E0614',
     banner:    '#1E0A2E',
   },
+  champions_league_custom: {
+    accent:    '#0232FF',
+    accentDim: '#010056',
+    secondary: '#B2BEBE',
+    highlight: '#00EEFF',
+    bgTint:    '#070B1E',
+    banner:    '#010056',
+  } 
 }
 // The custom UCL path shares the classic UCL identity.
-MODE_THEMES.champions_league_custom = MODE_THEMES.champions_league
+
+
+// Single source for the full official competition names (Big Fixes §5.5) —
+// every screen/label that names these competitions should read from here
+// instead of hardcoding "Champions League" / "World Cup" (the internal mode
+// ids stay short; this is a display-string-only rename).
+export const MODE_LABELS: Record<string, string> = {
+  world_cup:                'FIFA World Cup',
+  champions_league_custom:  'UEFA Champions League',
+  champions_league:         'UEFA Champions League',
+}
 
 // Resolve the active palette: mode-specific theme, else the league accent (or
 // the default blue) wrapped in a neutral ModeTheme so callers are uniform.
@@ -179,7 +197,7 @@ export function withAlpha(hex: string, pct: number): string {
 }
 
 // Match-rating 0–10 → band color. Was implemented identically in both
-// SquadSummary.tsx and MatchDetailModal.tsx — single source now.
+// SquadSummary.tsx and MatchStatsParts.tsx — single source now.
 export function ratingColor(r: number): string {
   if (r >= 8) return '#9F5BFF'
   if (r >= 7) return colors.success

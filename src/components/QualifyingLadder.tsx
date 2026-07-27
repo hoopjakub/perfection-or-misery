@@ -1,7 +1,8 @@
 import React from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
+import { View, Text, StyleSheet } from 'react-native'
+import { colors, spacing, typography, MODE_THEMES } from '@/theme'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
+import { KnockoutTieRow, qualTieToKoRow } from '@/components/KnockoutRoundsView'
 import type { QualTie } from '@/engine/cl-qualifying'
 
 const CL = MODE_THEMES.champions_league
@@ -17,9 +18,18 @@ const ROUND_NEXT: Record<string, string> = {
 
 // Shared renderer for the custom Champions League qualifying ladder — used by
 // the live qualifying-reveal screen and the result page, so both look and read
-// identically. Groups ties by round, then by path (Champions/League). Pass
-// `onTiePress` to make ties tappable (opens the leg-by-leg detail).
-export function QualifyingLadder({ ties, onTiePress }: { ties: QualTie[]; onTiePress?: (t: QualTie) => void }) {
+// identically. Groups ties by round, then by path (Champions/League) — that
+// grouping is qualifying-specific, but every row itself is the SAME
+// `KnockoutTieRow` the knockout rounds and final use (Big Fixes §1).
+export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
+  ties: QualTie[]
+  onTiePress?: (t: QualTie) => void
+  // The tie whose live watch just finished — same "colored row + ADVANCES/
+  // ELIMINATED caption" treatment knockout ties already get (Big Fixes
+  // feedback: qualifiers had none). Only ever one at a time (the live view's
+  // current round), so identity match is enough — no id scheme needed.
+  justDecidedTie?: QualTie
+}) {
   return (
     <View style={{ gap: spacing.md }}>
       {QUAL_ROUND_ORDER.map(round => {
@@ -32,15 +42,32 @@ export function QualifyingLadder({ ties, onTiePress }: { ties: QualTie[]; onTieP
             <Text style={styles.qualRoundLabel}>{QUAL_ROUND_LABEL[round]}</Text>
             <Text style={styles.qualRoundDetail}>
               {realTies} two-legged {realTies === 1 ? 'tie' : 'ties'}
-              {byes > 0 ? ` + ${byes} bye${byes > 1 ? 's' : ''}` : ''} · {ROUND_NEXT[round] ?? ''} · losers are out of the Champions League
+              {byes > 0 ? ` + ${byes} bye${byes > 1 ? 's' : ''}` : ''} · {ROUND_NEXT[round] ?? ''} · losers are out of the UEFA Champions League
             </Text>
             {(['champions', 'league'] as const).map(path => {
               const inPath = inRound.filter(t => t.path === path)
               if (inPath.length === 0) return null
+              // Your own tie first in its path group — no hunting through a
+              // long list to find the one that matters (maintainer feedback).
+              const isPlayerTie = (t: QualTie) => t.teamA.isPlayer || !!t.teamB?.isPlayer
+              const sorted = [...inPath].sort((a, b) => Number(isPlayerTie(b)) - Number(isPlayerTie(a)))
               return (
                 <View key={path} style={styles.qualPathBlock}>
                   <Text style={styles.qualPathLabel}>{PATH_LABEL[path]}</Text>
-                  {inPath.map((t, i) => <QualTieRow key={i} tie={t} onPress={onTiePress ? () => onTiePress(t) : undefined} />)}
+                  {sorted.map((t, i) => {
+                    const decided = justDecidedTie === t
+                    const winnerIsPlayer = (t.teamA.isPlayer && t.winnerId === t.teamA.clubId) || (!!t.teamB?.isPlayer && t.winnerId === t.teamB.clubId)
+                    return (
+                      <KnockoutTieRow
+                        key={i}
+                        accent={CL.accent}
+                        tie={qualTieToKoRow(t, onTiePress ? () => onTiePress(t) : undefined, decided ? {
+                          outcomeLine: winnerIsPlayer ? 'YOU ADVANCE' : "YOU'RE ELIMINATED",
+                          outcomeColor: winnerIsPlayer ? colors.success : colors.danger,
+                        } : undefined)}
+                      />
+                    )
+                  })}
                 </View>
               )
             })}
@@ -51,46 +78,10 @@ export function QualifyingLadder({ ties, onTiePress }: { ties: QualTie[]; onTieP
   )
 }
 
-export function QualTieRow({ tie, onPress }: { tie: QualTie; onPress?: () => void }) {
-  const isPM = tie.teamA.isPlayer || tie.teamB?.isPlayer
-  if (!tie.teamB || !tie.legs) {
-    return (
-      <View style={[styles.qualTie, isPM && styles.qualTiePlayer]}>
-        <Text style={[styles.qualTieName, styles.qualWon]} numberOfLines={1}>{tie.teamA.clubName}</Text>
-        <Text style={styles.qualTieBye}>bye — advances without playing (odd number of entrants; the strongest side sits the round out)</Text>
-      </View>
-    )
-  }
-  const aWon = tie.winnerId === tie.teamA.clubId
-  const { legs } = tie
-  const pens = legs.homePens != null ? ` · pens ${legs.homePens}-${legs.awayPens}` : legs.extraTime ? ' · AET' : ''
-  const legStr = `${legs.leg1.homeGoals}-${legs.leg1.awayGoals}, ${legs.leg2.homeGoals}-${legs.leg2.awayGoals}`
-  return (
-    <Pressable style={[styles.qualTie, isPM && styles.qualTiePlayer]} onPress={onPress} disabled={!onPress}>
-      <Text style={[styles.qualTieName, aWon && styles.qualWon, tie.teamA.isPlayer && styles.qualPlayerName]} numberOfLines={1}>{tie.teamA.clubName}</Text>
-      <View style={styles.qualScoreCol}>
-        <Text style={styles.qualAgg}>{legs.totalA}–{legs.totalB}</Text>
-        <Text style={styles.qualLegs}>{legStr}{pens}</Text>
-      </View>
-      <Text style={[styles.qualTieName, styles.qualTieRight, !aWon && styles.qualWon, tie.teamB.isPlayer && styles.qualPlayerName]} numberOfLines={1}>{tie.teamB.clubName}</Text>
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
   qualRoundBlock: { gap: spacing.xs },
   qualRoundLabel: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary },
   qualRoundDetail: { fontSize: 9, color: colors.textMuted, lineHeight: 13 },
   qualPathBlock: { gap: 3, paddingLeft: spacing.xs, marginTop: 2 },
   qualPathLabel: { fontSize: 9, fontWeight: typography.bold, color: CL.accent, textTransform: 'uppercase', letterSpacing: 1 },
-  qualTie: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
-  qualTiePlayer: { backgroundColor: CL.accent + '11', borderRadius: radius.sm },
-  qualTieName: { flex: 1, fontSize: 11, color: colors.textMuted },
-  qualTieRight: { textAlign: 'right' },
-  qualWon: { color: colors.textPrimary, fontWeight: typography.bold },
-  qualPlayerName: { color: CL.accent },
-  qualScoreCol: { alignItems: 'center', minWidth: 78 },
-  qualAgg: { fontSize: 12, fontWeight: typography.black, color: colors.textSecondary },
-  qualLegs: { fontSize: 8, color: colors.textMuted },
-  qualTieBye: { flex: 2, fontSize: 9, color: colors.warning, fontWeight: typography.bold, textAlign: 'right', lineHeight: 12 },
 })

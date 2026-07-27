@@ -2,6 +2,7 @@ import { SimTeam } from '@/types/simulation'
 import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
 import { simulateKnockout, KnockoutResult, type PenKick } from './knockout-match'
+import type { KnockoutSimHook } from './availability'
 import { clamp } from '@/lib/math'
 
 export type WCTeam = SimTeam & {
@@ -29,6 +30,9 @@ export type WCKnockoutMatch = {
   winner:  WCTeam
   scorers?: MatchScorers   // attributed once, stored
   seed?:   number          // deep-stat seed (match-detail.ts)
+  // §10.5 phase 4 — injured/suspended players in this tie, plus your stand-ins.
+  absent?:   string[]
+  standIns?: import('@/types/stats').RosterPlayer[]
   // Named shootout sequence, stored for the result screen — penKicksA/B (not
   // Home/Away) to match CLKnockoutMatch's naming, since every knockout tie
   // across modes now shares one attach-kicker-names helper (run-stats.ts).
@@ -46,6 +50,15 @@ export type WCGroupMatch = {
   awayGoals: number
   scorers?:  MatchScorers
   seed?:     number   // deep-stat seed (match-detail.ts)
+  // §10.5 — how heavily each side rested players. Stored because that eleven
+  // decided the scoreline; regenerating without it would pick a different one.
+  homeRotation?: number
+  awayRotation?: number
+  // §10.5 phase 4 — injured/suspended players in this match, plus the stand-ins
+  // that covered your side. Travel with the match for the same reason rotation
+  // does: without them the sheet fields somebody who wasn't available.
+  absent?:   string[]
+  standIns?: import('@/types/stats').RosterPlayer[]
 }
 
 export type WCSeasonResult = {
@@ -57,6 +70,10 @@ export type WCSeasonResult = {
   playerFinalRound: string
   playerGroup:      string
   playerGroupPos:   number
+  // §10.5 phase 4 (R8) — the medical table: who missed matches through injury or
+  // suspension and for how long. Sequential, so it can't be recomputed later —
+  // it travels with the result.
+  absences?:        import('@/engine/availability').Absence[]
   groupMatchdays?:  WCGroupMatch[]   // populated by the simulation component
 }
 
@@ -226,7 +243,13 @@ export function generateWCGroupFixtures(
 // Runs knockout phase from already-simulated groups
 export function simulateWCKnockoutsOnly(
   groups: WCGroup[],
-  allTeams: WCTeam[]
+  allTeams: WCTeam[],
+  // §10.5 phase 4 — optional availability hook, called per tie in bracket order:
+  // `ovrFor` prices in who's unavailable before the tie is decided, `onTie` hands
+  // the finished tie back so the caller can attribute it and feed its cards and
+  // injuries into the ledger before the next round is played. Without one this
+  // behaves exactly as it always did (quick-sim, legacy paths).
+  hook?: KnockoutSimHook<WCKnockoutMatch>,
 ): Omit<WCSeasonResult, 'groups'> {
   const byStats = (a: WCTeam, b: WCTeam) => {
     if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
@@ -265,12 +288,17 @@ export function simulateWCKnockoutsOnly(
     for (let i = 0; i < current.length; i += 2) {
       const teamA = current[i]
       const teamB = current[i + 1]
-      const result = simulateKnockout(teamA as any, teamB as any) as KnockoutResult
+      // Absences are priced in BEFORE the tie is decided — otherwise losing your
+      // best striker to a suspension would be a note on a table rather than
+      // something that knocks you out.
+      const result = simulateKnockout(withHookOvr(teamA, hook, round) as any, withHookOvr(teamB, hook, round) as any) as KnockoutResult
       const winner = result.winner === 'home' ? teamA : teamB
       const loser  = winner.clubId === teamA.clubId ? teamB : teamA
       winners.push(winner)
       losers.push(loser)
-      roundMatches.push({ round, teamA, teamB, result, winner })
+      const m: WCKnockoutMatch = { round, teamA, teamB, result, winner }
+      hook?.onTie(m, round)
+      roundMatches.push(m)
       if ((teamA.isPlayer || teamB.isPlayer) && !winner.isPlayer) {
         playerFinalRound = round
       }
@@ -284,9 +312,11 @@ export function simulateWCKnockoutsOnly(
   // Third-place playoff (always simulated; revealed between SF and final).
   if (sfLosers.length === 2) {
     const [tpA, tpB] = sfLosers
-    const tpResult = simulateKnockout(tpA as any, tpB as any) as KnockoutResult
+    const tpResult = simulateKnockout(withHookOvr(tpA, hook, 'third') as any, withHookOvr(tpB, hook, 'third') as any) as KnockoutResult
     const tpWinner = tpResult.winner === 'home' ? tpA : tpB
-    knockoutRounds.push({ round: 'third', matches: [{ round: 'third', teamA: tpA, teamB: tpB, result: tpResult, winner: tpWinner }] })
+    const tpMatch: WCKnockoutMatch = { round: 'third', teamA: tpA, teamB: tpB, result: tpResult, winner: tpWinner }
+    hook?.onTie(tpMatch, 'third')
+    knockoutRounds.push({ round: 'third', matches: [tpMatch] })
     if (tpA.isPlayer || tpB.isPlayer) {
       playerFinalRound = tpWinner.isPlayer ? 'third' : 'fourth'
     }
@@ -294,10 +324,12 @@ export function simulateWCKnockoutsOnly(
 
   // Final.
   const [f1, f2] = current
-  const finalResult = simulateKnockout(f1 as any, f2 as any) as KnockoutResult
+  const finalResult = simulateKnockout(withHookOvr(f1, hook, 'final') as any, withHookOvr(f2, hook, 'final') as any) as KnockoutResult
   const champion = finalResult.winner === 'home' ? f1 : f2
   const runnerUp = champion.clubId === f1.clubId ? f2 : f1
-  knockoutRounds.push({ round: 'final', matches: [{ round: 'final', teamA: f1, teamB: f2, result: finalResult, winner: champion }] })
+  const finalMatch: WCKnockoutMatch = { round: 'final', teamA: f1, teamB: f2, result: finalResult, winner: champion }
+  hook?.onTie(finalMatch, 'final')
+  knockoutRounds.push({ round: 'final', matches: [finalMatch] })
   if (champion.isPlayer) playerFinalRound = 'winner'
   else if (runnerUp.isPlayer) playerFinalRound = 'final'
 
@@ -310,6 +342,14 @@ export function simulateWCKnockoutsOnly(
     playerGroup:      playerGroup.id,
     playerGroupPos,
   }
+}
+
+// The nation as it plays TODAY: a copy with its OVR adjusted for who's
+// unavailable, so the real WCTeam (which carries the group standings) is never
+// permanently downgraded by one tie's absences.
+function withHookOvr(t: WCTeam, hook?: KnockoutSimHook<WCKnockoutMatch>, round = ''): WCTeam {
+  if (!hook) return t
+  return { ...t, ovr: hook.ovrFor(t.clubId, t.ovr, round) }
 }
 
 export function assignGroups(teams: WCTeam[]): WCGroup[] {

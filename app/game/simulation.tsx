@@ -12,16 +12,23 @@ import { getSlotsForFormation } from '@/engine/formations'
 import { generateFixtures } from '@/engine/fixtures'
 import { simulateMatch, setMatchTilt } from '@/engine/match'
 import { resolveDifficulty } from '@/engine/difficulty'
+import { rotationFor } from '@/engine/rotation'
+import { effectiveMatchOvrs } from '@/engine/lineup'
+import {
+  createAvailabilityLedger, availabilityFor, recordMatchOutcome, type AvailabilityLedger,
+} from '@/engine/availability'
 import { assignTier } from '@/engine/tier'
 import { generateCLLeagueFixtures, simulateCLKnockoutsOnly } from '@/engine/cl-sim'
 import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/engine/cl-sim'
 import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
+import { simulateWCKnockoutsForceToFinal } from '@/engine/quick-sim'
 import { WCGroupModal } from '@/components/WCGroupModal'
 import type { WCTeam, WCGroup, WCKnockoutMatch, WCSeasonResult, WCGroupMatch } from '@/engine/world-cup-sim'
 import type { PenKick } from '@/engine/knockout-match'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
+import type { DraftedPlayer } from '@/types/game'
 import { TeamLabel } from '@/components/TeamLabel'
 import { LineupPitch } from '@/components/LineupPitch'
 import { FixtureList } from '@/components/FixtureList'
@@ -29,13 +36,83 @@ import ReAnimated, { FadeInDown } from 'react-native-reanimated'
 import { LiveMatch, type LivePeriod, type LiveRedCard } from '@/components/LiveMatch'
 import { generateMatchDetail } from '@/engine/match-detail'
 import { BracketPreview } from '@/components/BracketPreview'
+import { KnockoutTieRow, type KoTieVM } from '@/components/KnockoutRoundsView'
+import { getFlag } from '@/lib/flagMap'
 import {
-  loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers,
+  loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers,
   attachCLShootoutNames, attachWCShootoutNames,
 } from '@/engine/run-stats'
+import {
+  clKnockoutAvailabilityHook, wcKnockoutAvailabilityHook,
+  CL_TOTAL_MATCHDAYS, WC_TOTAL_MATCHDAYS,
+} from '@/engine/knockout-availability'
 import type { RosterPlayer, MatchScorers } from '@/types/stats'
 import { randomSeed } from '@/lib/rng'
-import { MatchDetailModal, koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchStatsParts'
+import { openMatchStats } from '@/lib/matchStats'
+import { openDeepMatch } from '@/lib/deepMatch'
+import { appendKnockoutRounds, koLegMatchday, type ContextMatch } from '@/engine/match-context'
+import { KoTieDetailModal } from '@/components/CustomUclViewers'
+import { useSimBackGuard } from '@/hooks/useSimBackGuard'
+
+// §10 R6/R7: the stats screen can show the table as it stood and each side's
+// form going in, but only if it's handed the competition's results. Every
+// league-shaped fixture list in this file reduces to the same tiny shape.
+// Goals are optional because a LIVE season's timeline has to include fixtures
+// that haven't been played yet — without them "next match" has nothing to point
+// at mid-season and every side reads as eliminated. Unplayed rows are ignored by
+// the table and by form; only `nextMatchFor` looks at them.
+function toContextMatches(
+  rows: {
+    matchday: number
+    home: { clubId: string; clubName: string }; away: { clubId: string; clubName: string }
+    homeGoals?: number; awayGoals?: number
+    inTable?: boolean
+    scorers?: MatchScorers; seed?: number
+    homeRotation?: number; awayRotation?: number
+    absent?: string[]; standIns?: RosterPlayer[]
+  }[],
+  label = (md: number) => `Matchday ${md}`,
+): ContextMatch[] {
+  return rows.map(m => ({
+    matchday: m.matchday, label: label(m.matchday),
+    homeClubId: m.home.clubId, homeClubName: m.home.clubName,
+    awayClubId: m.away.clubId, awayClubName: m.away.clubName,
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+    inTable: m.inTable,
+    // Carried so form rows and the next fixture are tappable in their own right.
+    scorers: m.scorers, seed: m.seed,
+    // Rotation MUST travel with the match: regenerating without it selects a
+    // different eleven than the stored scorers were attributed against.
+    homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+    // Same for availability — regenerating without it fields a player who
+    // wasn't available and the stored scorers were never attributed against.
+    absent: m.absent, standIns: m.standIns,
+  }))
+}
+
+
+// §10.5 — a league side rests players once the table says the game can no
+// longer change its season, and never while anything is still live. Your own
+// club is never rotated: you drafted that XI, so you field it.
+const LEAGUE_EURO_SPOTS = 5
+const LEAGUE_RELEGATION_SPOTS = 3
+
+function leagueRotations(
+  teams: SimTeam[], home: SimTeam, away: SimTeam, totalMatchdays: number, playedMatchdays: number,
+): { home: number; away: number } {
+  const stakes = {
+    standings: teams.map(t => ({ clubId: t.clubId, points: t.stats.points })),
+    totalMatchdays, playedMatchdays,
+    qualifyCutoff: LEAGUE_EURO_SPOTS, dropCutoff: LEAGUE_RELEGATION_SPOTS, titleMatters: true,
+  }
+  return {
+    home: home.isPlayer ? 0 : rotationFor({ ...stakes, clubId: home.clubId }),
+    away: away.isPlayer ? 0 : rotationFor({ ...stakes, clubId: away.clubId }),
+  }
+}
+
+const WC_GROUP_MATCHDAYS = 3
 
 type SimPhase = 'review' | 'simulating' | 'completed' | 'group_review' | 'knockout_phase'
 type Speed = 'slow' | 'normal' | 'fast'
@@ -59,6 +136,20 @@ type KnockoutTie = {
   leg2Scorers?: MatchScorers
   leg2ExtraTimeScorers?: MatchScorers
   scorers?: MatchScorers       // WC single match
+  // Deep-stat seeds — needed so a tapped live tie can open the same match-stats
+  // screen the result screens use (maintainer feedback: live ties need to stay
+  // clickable, not just once the run finishes).
+  leg1Seed?: number
+  leg2Seed?: number
+  seed?: number                // WC single match
+  // §10.5 phase 4 — availability, so a tie tapped DURING the reveal regenerates
+  // the same eleven the result screen will show.
+  leg1Absent?: string[]
+  leg2Absent?: string[]
+  leg1StandIns?: RosterPlayer[]
+  leg2StandIns?: RosterPlayer[]
+  absent?: string[]            // WC single match
+  standIns?: RosterPlayer[]
 }
 type KnockoutRound = {
   round: string
@@ -81,6 +172,13 @@ type CompMatchResult = {
   outcome: 'home' | 'away' | 'draw'
   scorers?: MatchScorers
   seed?: number   // deep-stat seed, carried into the stored matchday history
+  // §10.5 — how heavily each side rested players. Stored because that eleven
+  // decided the scoreline; regenerating without it would pick a different one.
+  homeRotation?: number
+  awayRotation?: number
+  // §10.5 phase 4 — and who wasn't available to be picked at all.
+  absent?:   string[]
+  standIns?: RosterPlayer[]
 }
 
 function sortByStats(teams: SimTeam[]): SimTeam[] {
@@ -144,6 +242,7 @@ function LeagueSimulation() {
   const theme = useModeTheme()
 
   const [phase, setPhase] = useState<SimPhase>('review')
+  useSimBackGuard(phase !== 'review')   // §3 — active once the season starts simulating
   const [currentMatchday, setCurrentMatchday] = useState(1)
   const [simTeams, setSimTeams] = useState<SimTeam[]>([])
   const [allFixtures, setAllFixtures] = useState<Fixture[]>([])
@@ -151,7 +250,6 @@ function LeagueSimulation() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>('normal')
   const [viewMD, setViewMD] = useState<number | null>(null)   // matchday-results lookback (null = live)
-  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)   // deep-stats modal
   const prevPlayerPosRef = useRef<number | null>(null)
   const [playerPosDelta, setPlayerPosDelta] = useState<number | null>(null)
   const [positionChangeAnim] = useState(new Animated.Value(0))
@@ -178,6 +276,13 @@ function LeagueSimulation() {
 
   // Goalscorer attribution pools (per club) — loaded async during the review screen.
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  // §10.5 — carried alongside the pools so every attribution in this screen
+  // selects the same eleven the stat sheet will regenerate later.
+  const lineupCtxRef = useRef<{ playerClubId?: string; benchSize?: number }>({})
+  // §10.5 phase 4 — availability is SEQUENTIAL (who's out on matchday 12 depends
+  // on matchdays 1–11), so unlike everything else in the stats pipeline it can't
+  // be regenerated on demand. One ledger per run, fed in matchday order.
+  const availabilityRef = useRef<AvailabilityLedger | null>(null)
 
   // Smooth row-slide animation (FLIP technique via useLayoutEffect)
   const rowTransAnims = useRef<Record<string, Animated.Value>>({})
@@ -221,7 +326,14 @@ function LeagueSimulation() {
 
     // Load goalscorer pools in the background (ready well before kickoff).
     loadLeaguePools(placedLeague.teams, fullSquad, placedLeague.yearStart, useSubstitutes)
-      .then(p => { poolByClubRef.current = p.poolByClub })
+      .then(p => {
+        poolByClubRef.current = p.poolByClub
+        lineupCtxRef.current = { playerClubId: p.playerClubId, benchSize: p.benchSize }
+        availabilityRef.current = createAvailabilityLedger({
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: Math.max(...fixtures.map(f => f.matchday)),
+        })
+      })
       .catch(e => console.warn('[stats] roster load failed:', e))
   }, [placedLeague, totalTeamOvr])
 
@@ -274,10 +386,42 @@ function LeagueSimulation() {
       const homeTeam = updatedTeams.find(t => t.clubId === fixture.home.clubId)!
       const awayTeam = updatedTeams.find(t => t.clubId === fixture.away.clubId)!
 
-      const result = simulateMatch(homeTeam, awayTeam)
-      fixture.result = result
+      // Seed FIRST: the eleven each side picks (and whether they rested anyone)
+      // has to be known before the scoreline is decided, or rotation would be
+      // pure decoration.
       fixture.seed = randomSeed()
-      fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals, false, false, fixture.seed)
+      const rot = leagueRotations(updatedTeams, homeTeam, awayTeam, totalMatchdays, currentMatchday - 1)
+      fixture.homeRotation = rot.home
+      fixture.awayRotation = rot.away
+      // §10.5 phase 4 — the absences for THIS matchday, stored on the fixture so
+      // every later regeneration fields the same eleven. An absence your bench
+      // can't cover costs your team OVR on the day (decision 1), which is what
+      // makes it hurt rather than merely read differently.
+      const av = availabilityFor(availabilityRef.current, currentMatchday, homeTeam.clubId, awayTeam.clubId)
+      fixture.absent = av.absent
+      fixture.standIns = av.standIns
+      const lineupOpts = {
+        ...lineupCtxRef.current, homeRotation: rot.home, awayRotation: rot.away,
+        unavailableIds: av.unavailableIds, standIns: av.standIns,
+      }
+      const eff = effectiveMatchOvrs(
+        poolByClubRef.current.get(homeTeam.clubId) ?? [], poolByClubRef.current.get(awayTeam.clubId) ?? [],
+        {
+          seed: fixture.seed, ...lineupOpts,
+          homeBaseOvr: homeTeam.ovr + av.homeOvrDelta, awayBaseOvr: awayTeam.ovr + av.awayOvrDelta,
+        },
+      )
+      const result = simulateMatch({ ...homeTeam, ovr: eff.homeOvr }, { ...awayTeam, ovr: eff.awayOvr })
+      fixture.result = result
+      fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals, false, false, fixture.seed, lineupOpts)
+      // Read this match's own sheet back for red cards and injuries — the SAME
+      // sheet the timeline will show, so "suspended next week" and what you
+      // watched happen are one fact rather than two rolls that look alike.
+      if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+        matchday: currentMatchday, homeClubId: fixture.home.clubId, awayClubId: fixture.away.clubId,
+        seed: fixture.seed, homeGoals: result.homeGoals, awayGoals: result.awayGoals,
+        scorers: fixture.scorers, lineups: lineupOpts,
+      })
 
       // Update statistics
       homeTeam.stats.played++
@@ -432,10 +576,40 @@ function LeagueSimulation() {
         const homeTeam = updatedTeams.find(t => t.clubId === fixture.home.clubId)!
         const awayTeam = updatedTeams.find(t => t.clubId === fixture.away.clubId)!
 
-        const result = simulateMatch(homeTeam, awayTeam)
-        fixture.result = result
+        // Same seed-first ordering as the live path — see simulateNextMatchday.
         fixture.seed = randomSeed()
-        fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals, false, false, fixture.seed)
+        const rot = leagueRotations(updatedTeams, homeTeam, awayTeam, totalMatchdays, md - 1)
+        fixture.homeRotation = rot.home
+        fixture.awayRotation = rot.away
+        // §10.5 phase 4 — the absences for THIS matchday, stored on the fixture so
+        // every later regeneration fields the same eleven. An absence your bench
+        // can't cover costs your team OVR on the day (decision 1), which is what
+        // makes it hurt rather than merely read differently.
+        const av = availabilityFor(availabilityRef.current, md, homeTeam.clubId, awayTeam.clubId)
+        fixture.absent = av.absent
+        fixture.standIns = av.standIns
+        const lineupOpts = {
+          ...lineupCtxRef.current, homeRotation: rot.home, awayRotation: rot.away,
+          unavailableIds: av.unavailableIds, standIns: av.standIns,
+        }
+        const eff = effectiveMatchOvrs(
+          poolByClubRef.current.get(homeTeam.clubId) ?? [], poolByClubRef.current.get(awayTeam.clubId) ?? [],
+          {
+            seed: fixture.seed, ...lineupOpts,
+            homeBaseOvr: homeTeam.ovr + av.homeOvrDelta, awayBaseOvr: awayTeam.ovr + av.awayOvrDelta,
+          },
+        )
+        const result = simulateMatch({ ...homeTeam, ovr: eff.homeOvr }, { ...awayTeam, ovr: eff.awayOvr })
+        fixture.result = result
+        fixture.scorers = attributeFixtureScorers(poolByClubRef.current, fixture.home.clubId, fixture.away.clubId, result.homeGoals, result.awayGoals, false, false, fixture.seed, lineupOpts)
+        // Read this match's own sheet back for red cards and injuries — the SAME
+        // sheet the timeline will show, so "suspended next week" and what you
+        // watched happen are one fact rather than two rolls that look alike.
+        if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+          matchday: md, homeClubId: fixture.home.clubId, awayClubId: fixture.away.clubId,
+          seed: fixture.seed, homeGoals: result.homeGoals, awayGoals: result.awayGoals,
+          scorers: fixture.scorers, lineups: lineupOpts,
+        })
 
         // Update statistics
         homeTeam.stats.played++
@@ -558,6 +732,8 @@ function LeagueSimulation() {
         perfectSeason,
         tier: assignTier(finalPosition, sorted.length, unbeaten, perfectSeason),
         matchdayHistory: matchdayHistoryRef.current,
+        // §10.5 phase 4 — the medical table (R8).
+        absences: availabilityRef.current?.absences() ?? [],
       }
 
       setSimResult(resultObject)
@@ -824,15 +1000,29 @@ function LeagueSimulation() {
                     return (
                       <Pressable
                         key={i}
-                        onPress={() => setMatchDetail({
+                        onPress={() => openMatchStats({
                           homeClubId: fixture.home.clubId, homeName: fixture.home.clubName,
                           awayClubId: fixture.away.clubId, awayName: fixture.away.clubName,
                           homeGoals: result.homeGoals, awayGoals: result.awayGoals,
                           scorers: fixture.scorers, seed: fixture.seed,
+                          homeRotation: fixture.homeRotation, awayRotation: fixture.awayRotation,
+                          absent: fixture.absent, standIns: fixture.standIns,
                           yearStart: placedLeague?.yearStart ?? 2024,
                           competitionLabel: `Matchday ${fixture.matchday}`,
                           playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
-                        })}
+                playerFormation: formation ?? undefined,
+                          matchday: fixture.matchday,
+                          // The WHOLE schedule, not just what's been played —
+                          // mid-season "next match" needs the fixture that's
+                          // still to come, and it renders as "To play".
+                          contextMatches: toContextMatches(allFixtures.map(f => ({
+                            matchday: f.matchday, home: f.home, away: f.away,
+                            homeGoals: f.result?.homeGoals, awayGoals: f.result?.awayGoals,
+                            scorers: f.scorers, seed: f.seed,
+                            homeRotation: f.homeRotation, awayRotation: f.awayRotation,
+                            absent: f.absent, standIns: f.standIns,
+                          }))),
+                        }, theme.accent)}
                         style={[
                           styles.resultRowWrap,
                           isPlayerMatch && styles.resultRowPlayerHighlight,
@@ -888,7 +1078,6 @@ function LeagueSimulation() {
           )}
         </View>
       )}
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
 }
@@ -905,12 +1094,16 @@ function CLSimulation() {
   const totalTeamOvr = baseTeamOvr
 
   const [phase,                  setPhase]                  = useState<SimPhase>('review')
+  useSimBackGuard(phase !== 'review')   // §3 — active once the league phase starts simulating
   const [currentMD,              setCurrentMD]              = useState(1)
   const [simTeams,               setSimTeams]               = useState<CLTeam[]>([])
   const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
   const [recentResults,          setRecentResults]          = useState<CompMatchResult[]>([])
   const [clViewMD,               setClViewMD]               = useState<number | null>(null)  // MD-results lookback
-  const [matchDetail,            setMatchDetail]            = useState<MatchDetailRequest | null>(null)
+  // Two-legged ties need the leg-picker modal (Big Fixes feedback: tapping a
+  // live tie used to jump straight to Leg 1 stats with no way to reach Leg 2 —
+  // Custom UCL's tie modal already gets this right, so reuse it here).
+  const [openKoTie,              setOpenKoTie]              = useState<{ m: CLKnockoutMatch; label: string } | null>(null)
   const [isPlaying,              setIsPlaying]              = useState(false)
   // League phase always runs at "slow" — the pace is locked (matches WC).
   const speed: Speed = 'slow'
@@ -923,10 +1116,24 @@ function CLSimulation() {
   // Scorer pools, loaded once so we can attribute goalscorers live, matchday by
   // matchday (same as the league sim does).
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  // §10.5 — carried alongside the pools so every attribution in this screen
+  // selects the same eleven the stat sheet will regenerate later.
+  const lineupCtxRef = useRef<{ playerClubId?: string; benchSize?: number }>({})
+  // §10.5 phase 4 — sequential availability; see the league sim above.
+  const availabilityRef = useRef<AvailabilityLedger | null>(null)
   useEffect(() => {
     if (!clTeams || clTeams.length === 0 || draftedPlayers.length === 0) return
     loadLeaguePools(clTeams, fullSquad, clPoolYear, useSubstitutes)
-      .then(p => { poolByClubRef.current = p.poolByClub })
+      .then(p => {
+        poolByClubRef.current = p.poolByClub
+        lineupCtxRef.current = { playerClubId: p.playerClubId, benchSize: p.benchSize }
+        availabilityRef.current = createAvailabilityLedger({
+          // The bracket keeps counting matchdays after the league phase, so an
+          // injury on matchday 8 can still cost somebody the round of 16.
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: CL_TOTAL_MATCHDAYS,
+        })
+      })
       .catch(e => console.warn('[cl] pool load failed:', e))
   }, [clTeams])
   const clPrevPosRef = useRef<number | null>(null)
@@ -948,6 +1155,10 @@ function CLSimulation() {
 
   // Knockout phase state
   const [koRounds, setKoRounds]             = useState<KnockoutRound[]>([])
+  // §7 R6 — the Deep Match is a one-time experience. Once it's been watched the
+  // final settles into the normal tie display and the results CTA appears;
+  // there is deliberately no way back into it.
+  const [deepFinalWatched, setDeepFinalWatched] = useState(false)
   const [koVisibleCount, setKoVisibleCount] = useState(0)
   const [koPenReveal, setKoPenReveal]       = useState(0)
   const [koLiveDone, setKoLiveDone]         = useState<Record<string, boolean>>({})
@@ -1015,7 +1226,33 @@ function CLSimulation() {
     mdFixtures.forEach(({ home: h, away: a }) => {
       const home = teams.find(t => t.clubId === h.clubId)!
       const away = teams.find(t => t.clubId === a.clubId)!
-      const r    = simulateMatch(home, away)
+      // §10.5 — seed and rotation BEFORE the result: in the league phase the
+      // stakes are simply whether a club is mathematically into (or out of) the
+      // top 24, so a side already through can rest people.
+      const seed = randomSeed()
+      const clStakes = {
+        standings: teams.map(t => ({ clubId: t.clubId, points: t.stats.points })),
+        totalMatchdays, playedMatchdays: currentMD - 1, qualifyCutoff: 24,
+      }
+      const rot = {
+        home: home.isPlayer ? 0 : rotationFor({ ...clStakes, clubId: home.clubId }),
+        away: away.isPlayer ? 0 : rotationFor({ ...clStakes, clubId: away.clubId }),
+      }
+      // §10.5 phase 4 — see the league sim: absences for this matchday, stored
+      // on the match, priced into the OVR that decides the scoreline.
+      const av = availabilityFor(availabilityRef.current, currentMD, home.clubId, away.clubId)
+      const lineupOpts = {
+        ...lineupCtxRef.current, homeRotation: rot.home, awayRotation: rot.away,
+        unavailableIds: av.unavailableIds, standIns: av.standIns,
+      }
+      const eff = effectiveMatchOvrs(
+        poolByClubRef.current.get(home.clubId) ?? [], poolByClubRef.current.get(away.clubId) ?? [],
+        {
+          seed, ...lineupOpts,
+          homeBaseOvr: home.ovr + av.homeOvrDelta, awayBaseOvr: away.ovr + av.awayOvrDelta,
+        },
+      )
+      const r    = simulateMatch({ ...home, ovr: eff.homeOvr }, { ...away, ovr: eff.awayOvr })
 
       home.stats.played++; away.stats.played++
       home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
@@ -1031,14 +1268,19 @@ function CLSimulation() {
       upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
-      const seed = randomSeed()
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
       results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed })
       leagueHistoryRef.current.push({
         matchday: currentMD,
         home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
         away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
         homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
+        homeRotation: rot.home, awayRotation: rot.away,
+        absent: av.absent, standIns: av.standIns,
+      })
+      if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+        matchday: currentMD, homeClubId: home.clubId, awayClubId: away.clubId,
+        seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
       })
     })
 
@@ -1101,13 +1343,21 @@ function CLSimulation() {
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
         const seed = randomSeed()
+        // §10.5 phase 4 — a skipped matchday still respects who's out, and still
+        // feeds the ledger, or a skip mid-season would quietly heal everybody.
+        const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
+        const lineupOpts = { ...lineupCtxRef.current, unavailableIds: av.unavailableIds, standIns: av.standIns }
+        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
+        if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+          matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
+          seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
+        })
         leagueHistoryRef.current.push({
           matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-          homeGoals: r.homeGoals, awayGoals: r.awayGoals,
-          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed),
-          seed,
+          homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
+          absent: av.absent, standIns: av.standIns,
         })
       })
     }
@@ -1123,21 +1373,45 @@ function CLSimulation() {
     setIsFinishing(true)
     koFinishedRef.current = false
     const sorted = sortByStats(simTeams) as CLTeam[]
-    const result = simulateCLKnockoutsOnly(sorted)
+
+    // §10.5 phase 4 — the pools have to exist BEFORE the bracket is simulated
+    // now: each tie is priced with its absences and attributed the moment it's
+    // decided, so an injury or a red card in one round is already in the ledger
+    // when the next round kicks off. (They're normally loaded during the review
+    // screen; this is the fallback for a run that got here first.)
+    let pool = poolByClubRef.current
+    let ctx = lineupCtxRef.current
+    if (pool.size === 0) {
+      try {
+        const p = await loadLeaguePools(simTeams, fullSquad, clPoolYear, useSubstitutes)
+        pool = p.poolByClub; ctx = lineupCtxOf(p)
+        availabilityRef.current ??= createAvailabilityLedger({
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: CL_TOTAL_MATCHDAYS,
+        })
+      } catch (e) { console.warn('[cl] pool load failed:', e) }
+    }
+    const koHook = availabilityRef.current && pool.size > 0
+      ? clKnockoutAvailabilityHook({
+          ledger: availabilityRef.current, poolByClub: pool, lineupCtx: ctx,
+          playerFormation: formation ?? undefined, firstMatchday: totalMatchdays,
+        })
+      : undefined
+    const result = simulateCLKnockoutsOnly(sorted, koHook)
 
     koStoredResultRef.current = {
       leaguePhaseStandings: sorted,
       ...result,
       leagueMatchdays: leagueHistoryRef.current,
+      // Read AFTER the bracket, so knockout injuries and suspensions are on it.
+      absences: availabilityRef.current?.absences() ?? [],
     }
 
-    // Attribute goalscorers ONCE, BEFORE building the reveal ties (league
-    // matchdays already carry live scorers; this fills the knockout legs). The
-    // same match objects feed both the live reveal and the result screen.
+    // Backstop: the hook already attributed every tie it saw, and this is
+    // idempotent (it only fills matches with no scorers), so it just covers the
+    // no-pools case where the hook couldn't run at all.
     try {
-      let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, fullSquad, clPoolYear, useSubstitutes)).poolByClub
-      attributeCLResultScorers(koStoredResultRef.current, pool)
+      attributeCLResultScorers(koStoredResultRef.current, pool, ctx)
     } catch (e) { console.warn('[cl] scorer attribution failed:', e) }
 
     // Fetch + attach named shootout kickers — ONE shared implementation used
@@ -1157,6 +1431,9 @@ function CLSimulation() {
         aPens: m.aPens, bPens: m.bPens,
         penKicksA: m.penKicksA, penKicksB: m.penKicksB,
         leg1Scorers: m.leg1Scorers, leg2Scorers: m.leg2Scorers, leg2ExtraTimeScorers: m.leg2ExtraTimeScorers,
+        leg1Seed: m.leg1Seed, leg2Seed: m.leg2Seed,
+        leg1Absent: m.leg1Absent, leg2Absent: m.leg2Absent,
+        leg1StandIns: m.leg1StandIns, leg2StandIns: m.leg2StandIns,
       }
     }
 
@@ -1196,10 +1473,17 @@ function CLSimulation() {
     setPhase('knockout_phase')
   }
 
-  function finishKnockoutPhase() {
+  // Split in two so §7's Deep Match can commit the run WITHOUT this screen
+  // navigating: the Deep Match replaces itself with the result screen instead,
+  // which is what stops the finished bracket flashing up in between.
+  function commitKnockoutResult() {
     if (koFinishedRef.current) return
     koFinishedRef.current = true
     if (koStoredResultRef.current) setClResult(koStoredResultRef.current)
+  }
+  function finishKnockoutPhase() {
+    if (koFinishedRef.current) return
+    commitKnockoutResult()
     router.push('/game/cl-result')
   }
 
@@ -1216,12 +1500,69 @@ function CLSimulation() {
     .filter(m => m.matchday === clViewing)
     .sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
 
+  // §10.5 — the competition timeline as it stands RIGHT NOW: the full league
+  // phase (played fixtures filled in, the rest still to come) plus every
+  // knockout round revealed so far. Rebuilt per tap rather than memoised
+  // because the history and the revealed-round count are refs/state that move
+  // constantly during a sim, and it's a few hundred rows at most.
+  //
+  // Both halves matter: without the unplayed fixtures, "next match" said every
+  // side's campaign had ended in the middle of the league phase; without the
+  // knockout rounds, a tie tapped live had no bracket and no next round.
+  const clTimeline = (): ContextMatch[] => {
+    const phase: ContextMatch[] = fixtures.map(f => {
+      // One club never plays twice on the same matchday, so matchday + home id
+      // identifies the fixture uniquely.
+      const played = leagueHistoryRef.current.find(m => m.matchday === f.matchday && m.home.clubId === f.home.clubId)
+      return {
+        matchday: f.matchday, label: `League Phase · Matchday ${f.matchday}`,
+        homeClubId: f.home.clubId, homeClubName: f.home.clubName,
+        awayClubId: f.away.clubId, awayClubName: f.away.clubName,
+        homeGoals: played?.homeGoals, awayGoals: played?.awayGoals,
+        scorers: played?.scorers, seed: played?.seed,
+        homeRotation: played?.homeRotation, awayRotation: played?.awayRotation,
+        absent: played?.absent, standIns: played?.standIns,
+      }
+    })
+    return appendKnockoutRounds(phase, koRounds.slice(0, koVisibleCount).map(r => ({
+      label: r.label, ties: r.ties.map(t => knockoutTieToCLMatch(t, r.round)),
+    })))
+  }
+
+  // §7 — the Deep Match, offered only when YOUR side is in the final. If you
+  // were knocked out earlier the final plays out in the normal round list; the
+  // finale is the player's payoff, not a cutscene for someone else's match.
+  const clFinalRound = koRounds.find(r => r.round === 'final')
+  const clPlayerFinal = clFinalRound?.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer) ?? null
+  const openClDeepFinal = () => {
+    if (!clFinalRound || !clPlayerFinal) return
+    const detail = koTieToMatchDetailRequest(
+      clPlayerFinal, clFinalRound.label, simTeams.find(t => t.isPlayer)?.clubId, fullSquad, clPoolYear,
+      { playerFormation: formation ?? undefined },
+    )
+    openDeepMatch({
+      detail,
+      competitionLabel: 'UEFA Champions League',
+      roundLabel: clFinalRound.label,
+      accent: theme.accent,
+      playerWon: clPlayerFinal.winner.isPlayer,
+      playerClubName: (clPlayerFinal.teamA.isPlayer ? clPlayerFinal.teamA : clPlayerFinal.teamB).clubName,
+      // "Final Results →" goes straight where every other run ends up. The
+      // watched flag is set too, so a screen still mounted underneath shows the
+      // settled final rather than the invitation to play it.
+      onFinished: () => { setDeepFinalWatched(true); commitKnockoutResult() },
+      resultRoute: '/game/cl-result',
+    })
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: theme.accent }]}>UEFA Champions League</Text>
-          <Text style={styles.headerSub}>League Phase · 8 matchdays</Text>
+          {/* Phase-correct sub-header (Big Fixes §1) — same stale-header bug
+              as the WC path, just not the one called out in the raw notes. */}
+          <Text style={styles.headerSub}>{phase === 'knockout_phase' ? 'Knockout Phase' : 'League Phase · 8 matchdays'}</Text>
         </View>
       </View>
 
@@ -1280,9 +1621,25 @@ function CLSimulation() {
             accent={theme.accent}
             bgTint={theme.bgTint}
             onFinish={finishKnockoutPhase}
+            deepFinal={clPlayerFinal ? { watched: deepFinalWatched, onSeeLineups: openClDeepFinal } : undefined}
             onSkipToRound={(idx) => { setKoVisibleCount(idx + 1); setKoPenReveal(Infinity) }}
             onLiveDone={(k) => setKoLiveDone(d => ({ ...d, [k]: true }))}
             liveDone={koLiveDone}
+            onTiePress={(tie, label) => tie.leg1
+              ? setOpenKoTie({ m: knockoutTieToCLMatch(tie, label), label })
+              : openMatchStats((() => {
+                  // §10.5 — without the timeline, a live knockout tie showed no
+                  // form and no next match (the result screens already had it).
+                  // The matchday has to be the tie's REAL slot in that timeline,
+                  // not a sentinel: the bracket-so-far and "what did they play
+                  // next" both hang off it.
+                  const timeline = clTimeline()
+                  return koTieToMatchDetailRequest(tie, label, simTeams.find(t => t.isPlayer)?.clubId, fullSquad, clPoolYear, {
+                    playerFormation: formation ?? undefined,
+                    matchday: koLegMatchday(timeline, tie.teamA.clubId, tie.teamB.clubId, label),
+                    contextMatches: timeline,
+                  })
+                })(), theme.accent)}
           />
         )
       ) : (
@@ -1401,14 +1758,16 @@ function CLSimulation() {
                         : r.homeGoals === r.awayGoals ? colors.warning : colors.danger
                       : null
                     return (
-                      <Pressable key={i} onPress={() => setMatchDetail({
+                      <Pressable key={i} onPress={() => openMatchStats({
                         homeClubId: r.home.clubId, homeName: r.home.clubName,
                         awayClubId: r.away.clubId, awayName: r.away.clubName,
                         homeGoals: r.homeGoals, awayGoals: r.awayGoals,
                         scorers: r.scorers, seed: r.seed, yearStart: clPoolYear,
-                        competitionLabel: 'League Phase',
+                        competitionLabel: `League Phase · Matchday ${r.matchday}`,
                         playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
-                      })}>
+                playerFormation: formation ?? undefined,
+                        matchday: r.matchday, contextMatches: clTimeline(),
+                      }, theme.accent)}>
                         <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
                           <TeamLabel
                             clubId={r.home.clubId}
@@ -1446,7 +1805,11 @@ function CLSimulation() {
           )}
         </View>
       )}
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
+      <KoTieDetailModal
+        match={openKoTie?.m ?? null} roundLabel={openKoTie?.label} onClose={() => setOpenKoTie(null)}
+        playerClubId={simTeams.find(t => t.isPlayer)?.clubId} draftedPlayers={fullSquad} yearStart={clPoolYear}
+        accent={theme.accent}
+      />
     </View>
   )
 }
@@ -1454,7 +1817,7 @@ function CLSimulation() {
 // ── World Cup Simulation ─────────────────────────────────────────────────────
 
 function WCSimulation() {
-  const { draftedPlayers, benchPlayers, useSubstitutes, formation, wcTeams, setWcResult } = useGameStore()
+  const { draftedPlayers, benchPlayers, useSubstitutes, formation, wcTeams, setWcResult, testForceWinUntilFinal } = useGameStore()
   const fullSquad = [...draftedPlayers, ...benchPlayers]
 
   const slots        = formation ? getSlotsForFormation(formation) : []
@@ -1462,6 +1825,7 @@ function WCSimulation() {
   const totalTeamOvr = baseTeamOvr
 
   const [phase,         setPhase]         = useState<SimPhase>('review')
+  useSimBackGuard(phase !== 'review')   // §3 — active once the group stage starts simulating
   const [currentMD,     setCurrentMD]     = useState(1)
   const [simTeams,      setSimTeams]      = useState<WCTeam[]>([])
   const [groups,        setGroups]        = useState<WCGroup[]>([])
@@ -1475,7 +1839,6 @@ function WCSimulation() {
   const [livePlayerMatch, setLivePlayerMatch] = useState<{ result: CompMatchResult; md: number } | null>(null)
   const [playedMD,        setPlayedMD]        = useState(0)
   const [wcViewMD,        setWcViewMD]        = useState<number | null>(null)  // other-matches lookback (null = latest)
-  const [matchDetail,     setMatchDetail]     = useState<MatchDetailRequest | null>(null)
   const pendingMDRef = useRef<{ teams: WCTeam[]; results: CompMatchResult[]; md: number } | null>(null)
   // World Cup group stage always runs at "slow" — the pace is locked.
   const speed: Speed = 'slow'
@@ -1486,6 +1849,8 @@ function WCSimulation() {
 
   // WC Knockout phase state
   const [wcKoRounds,       setWcKoRounds]       = useState<KnockoutRound[]>([])
+  // §7 R6 — see the UCL screen above: watched once, then never again.
+  const [wcDeepFinalWatched, setWcDeepFinalWatched] = useState(false)
   const [wcKoVisibleCount, setWcKoVisibleCount] = useState(0)
   const [wcKoPenReveal,    setWcKoPenReveal]    = useState(0)
   const [wcKoLiveDone,     setWcKoLiveDone]     = useState<Record<string, boolean>>({})
@@ -1495,10 +1860,24 @@ function WCSimulation() {
   const groupHistoryRef = useRef<WCGroupMatch[]>([])
   // Scorer pools, loaded once so group-stage goalscorers show live.
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  // §10.5 — carried alongside the pools so every attribution in this screen
+  // selects the same eleven the stat sheet will regenerate later.
+  const lineupCtxRef = useRef<{ playerClubId?: string; benchSize?: number }>({})
+  // §10.5 phase 4 — sequential availability; see the league sim above.
+  const availabilityRef = useRef<AvailabilityLedger | null>(null)
   useEffect(() => {
     if (!wcTeams || wcTeams.length === 0 || draftedPlayers.length === 0) return
     loadLeaguePools(wcTeams, fullSquad, 2026, useSubstitutes)
-      .then(p => { poolByClubRef.current = p.poolByClub })
+      .then(p => {
+        poolByClubRef.current = p.poolByClub
+        lineupCtxRef.current = { playerClubId: p.playerClubId, benchSize: p.benchSize }
+        availabilityRef.current = createAvailabilityLedger({
+          // Groups plus the whole bracket — a group-stage injury can rule
+          // somebody out of the quarter-finals.
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: WC_TOTAL_MATCHDAYS,
+        })
+      })
       .catch(e => console.warn('[wc] pool load failed:', e))
   }, [wcTeams])
 
@@ -1563,12 +1942,24 @@ function WCSimulation() {
     return (
       <View style={styles.loadingContainer}>
         <Text style={{ fontSize: 40 }}>⚠️</Text>
-        <Text style={styles.loadingText}>No World Cup data found.</Text>
+        <Text style={styles.loadingText}>No FIFA World Cup data found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: 12 }}>
           <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back</Text>
         </Pressable>
       </View>
     )
+  }
+
+  // Big Fixes §12 "Test final game" dev tool: while active, force any group
+  // match the player's team plays to a clean 1-0 win instead of the real
+  // simulation — the live clock/reveal still plays out normally, only the
+  // result is fixed. Every other fixture (not involving the player) is
+  // untouched. Knockout ties are forced the same way in buildWcKoRounds below.
+  function simGroupMatch(home: WCTeam, away: WCTeam): MatchResult {
+    if (testForceWinUntilFinal && (home.isPlayer || away.isPlayer)) {
+      return { homeGoals: home.isPlayer ? 1 : 0, awayGoals: away.isPlayer ? 1 : 0, outcome: home.isPlayer ? 'home' : 'away', isUpset: false }
+    }
+    return simulateMatch(home, away)
   }
 
   // Simulate a matchday into a PENDING buffer — nothing is shown yet. If the
@@ -1583,7 +1974,32 @@ function WCSimulation() {
     mdFixtures.forEach(({ home: h, away: a }) => {
       const home = teams.find(t => t.clubId === h.clubId)!
       const away = teams.find(t => t.clubId === a.clubId)!
-      const r    = simulateMatch(home, away)
+      // §10.5 — stakes are decided INSIDE the group: top two go through, so a
+      // nation already mathematically qualified (or already out) can rest
+      // people, which in a three-game group is realistically the last round.
+      const seed = randomSeed()
+      const wcStakes = {
+        standings: teams.filter(t => t.groupId === home.groupId).map(t => ({ clubId: t.clubId, points: t.stats.points })),
+        totalMatchdays: WC_GROUP_MATCHDAYS, playedMatchdays: md - 1, qualifyCutoff: 2,
+      }
+      const rot = {
+        home: home.isPlayer ? 0 : rotationFor({ ...wcStakes, clubId: home.clubId }),
+        away: away.isPlayer ? 0 : rotationFor({ ...wcStakes, clubId: away.clubId }),
+      }
+      // §10.5 phase 4 — see the league sim.
+      const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
+      const lineupOpts = {
+        ...lineupCtxRef.current, homeRotation: rot.home, awayRotation: rot.away,
+        unavailableIds: av.unavailableIds, standIns: av.standIns,
+      }
+      const eff = effectiveMatchOvrs(
+        poolByClubRef.current.get(home.clubId) ?? [], poolByClubRef.current.get(away.clubId) ?? [],
+        {
+          seed, ...lineupOpts,
+          homeBaseOvr: home.ovr + av.homeOvrDelta, awayBaseOvr: away.ovr + av.awayOvrDelta,
+        },
+      )
+      const r    = simGroupMatch({ ...home, ovr: eff.homeOvr }, { ...away, ovr: eff.awayOvr })
 
       home.stats.played++; away.stats.played++
       home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
@@ -1599,9 +2015,12 @@ function WCSimulation() {
       upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
       upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
 
-      const seed = randomSeed()
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed)
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed })
+      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
+      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed, homeRotation: rot.home, awayRotation: rot.away, absent: av.absent, standIns: av.standIns })
+      if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+        matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
+        seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
+      })
     })
 
     const sorted = [...results].sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
@@ -1631,6 +2050,8 @@ function WCSimulation() {
         home: { clubId: r.home.clubId, clubName: r.home.clubName, isPlayer: r.home.isPlayer },
         away: { clubId: r.away.clubId, clubName: r.away.clubName, isPlayer: r.away.isPlayer },
         homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers: r.scorers, seed: r.seed,
+        homeRotation: r.homeRotation, awayRotation: r.awayRotation,
+        absent: r.absent, standIns: r.standIns,
       })
     })
     setSimTeams(pend.teams)
@@ -1652,7 +2073,7 @@ function WCSimulation() {
       fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
         const home = teams.find(t => t.clubId === h.clubId)!
         const away = teams.find(t => t.clubId === a.clubId)!
-        const r = simulateMatch(home, away)
+        const r = simGroupMatch(home, away)
         home.stats.played++; away.stats.played++
         home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
         away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
@@ -1660,13 +2081,20 @@ function WCSimulation() {
         else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
         else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
         const seed = randomSeed()
+        // §10.5 phase 4 — see the CL skip: a skip still respects availability.
+        const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
+        const lineupOpts = { ...lineupCtxRef.current, unavailableIds: av.unavailableIds, standIns: av.standIns }
+        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
+        if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
+          matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
+          seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
+        })
         groupHistoryRef.current.push({
           groupId: home.groupId, matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-          homeGoals: r.homeGoals, awayGoals: r.awayGoals,
-          scorers: attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed),
-          seed,
+          homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
+          absent: av.absent, standIns: av.standIns,
         })
       })
     }
@@ -1688,16 +2116,46 @@ function WCSimulation() {
       id: g.id,
       teams: g.teams.map(t => ({ ...t, stats: { ...t.stats } })),
     }))
-    const result = simulateWCKnockoutsOnly(clonedGroups, simTeams)
+    // §10.5 phase 4 — pools first: every tie is priced with its absences and
+    // attributed as soon as it's decided, so a suspension picked up in the round
+    // of 32 is already in the ledger by the round of 16. (Normally loaded during
+    // the review screen; this covers a run that reached here first.)
+    let pool = poolByClubRef.current
+    let ctx = lineupCtxRef.current
+    if (pool.size === 0) {
+      try {
+        const p = await loadLeaguePools(simTeams, fullSquad, 2026, useSubstitutes)
+        pool = p.poolByClub; ctx = lineupCtxOf(p)
+        availabilityRef.current ??= createAvailabilityLedger({
+          poolByClub: p.poolByClub, playerClubId: p.playerClubId,
+          totalMatchdays: WC_TOTAL_MATCHDAYS,
+        })
+      } catch (e) { console.warn('[wc] pool load failed:', e) }
+    }
+    const koHook = availabilityRef.current && pool.size > 0
+      ? wcKnockoutAvailabilityHook({
+          ledger: availabilityRef.current, poolByClub: pool, lineupCtx: ctx,
+          playerFormation: formation ?? undefined, firstMatchday: WC_GROUP_MATCHDAYS,
+        })
+      : undefined
 
-    wcKoStoredResultRef.current = { groups: clonedGroups, ...result, groupMatchdays: groupHistoryRef.current }
+    // Big Fixes §12: force the player's own tie in every round up to (not
+    // including) the final — see simulateWCKnockoutsForceToFinal for details.
+    // The dev-only forcing path takes no hook; it isn't a real run.
+    const result = testForceWinUntilFinal
+      ? simulateWCKnockoutsForceToFinal(clonedGroups, simTeams)
+      : simulateWCKnockoutsOnly(clonedGroups, simTeams, koHook)
 
-    // Attribute goalscorers ONCE, BEFORE building the reveal ties (group
-    // matchdays already carry live scorers). Same match objects feed reveal + result.
+    wcKoStoredResultRef.current = {
+      groups: clonedGroups, ...result, groupMatchdays: groupHistoryRef.current,
+      // Read AFTER the bracket, so knockout absences are on the medical table.
+      absences: availabilityRef.current?.absences() ?? [],
+    }
+
+    // Backstop: the hook already attributed every tie it saw, and this is
+    // idempotent, so it only fills in when the hook couldn't run at all.
     try {
-      let pool = poolByClubRef.current
-      if (pool.size === 0) pool = (await loadLeaguePools(simTeams, fullSquad, 2026, useSubstitutes)).poolByClub
-      attributeWCResultScorers(wcKoStoredResultRef.current, pool)
+      attributeWCResultScorers(wcKoStoredResultRef.current, pool, ctx)
     } catch (e) { console.warn('[wc] scorer attribution failed:', e) }
 
     // Fetch + attach named shootout kickers — ONE shared implementation used
@@ -1714,7 +2172,8 @@ function WCSimulation() {
         aPens: r.homePens ?? undefined,
         bPens: r.awayPens ?? undefined,
         penKicksA: m.penKicksA, penKicksB: m.penKicksB,
-        scorers: m.scorers,
+        scorers: m.scorers, seed: m.seed,
+        absent: m.absent, standIns: m.standIns,
       }
     }
 
@@ -1722,7 +2181,7 @@ function WCSimulation() {
       r32: 1500, r16: 2500, qf: 4000, sf: 5000, third: 4500, final: 0,
     }
     const ROUND_LABELS: Record<string, string> = {
-      r32: 'Round of 32', r16: 'Round of 16', qf: 'Quarter-Finals', sf: 'Semi-Finals', third: 'Third-Place Playoff', final: 'World Cup Final',
+      r32: 'Round of 32', r16: 'Round of 16', qf: 'Quarter-Finals', sf: 'Semi-Finals', third: 'Third-Place Playoff', final: 'FIFA World Cup Final',
     }
 
     const wcRounds: KnockoutRound[] = result.knockoutRounds.map(r => ({
@@ -1750,10 +2209,15 @@ function WCSimulation() {
     setPhase('knockout_phase')
   }
 
-  function finishWCKnockoutPhase() {
+  // See the UCL screen: the commit is separate so §7 can finish the run itself.
+  function commitWCKnockoutResult() {
     if (wcKoFinishedRef.current) return
     wcKoFinishedRef.current = true
     if (wcKoStoredResultRef.current) setWcResult(wcKoStoredResultRef.current)
+  }
+  function finishWCKnockoutPhase() {
+    if (wcKoFinishedRef.current) return
+    commitWCKnockoutResult()
     router.push('/game/wc-result')
   }
 
@@ -1779,12 +2243,73 @@ function WCSimulation() {
     .filter(m => m.matchday === wcViewing)
     .sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
 
+  // §10.5 — the World Cup timeline as it stands right now: all three group
+  // matchdays for EVERY group (played ones filled in, the rest still to come)
+  // followed by each knockout round revealed so far.
+  //
+  // `tableGroup` is the only group whose games feed a standings table — a World
+  // Cup group is its own mini-league, and lumping all twelve into one table was
+  // producing a nonsense 48-nation "league phase" above every knockout tie.
+  // Pass null for a knockout tie: the two sides may come from different groups,
+  // so there IS no shared table and the screen shows the bracket instead. Every
+  // group game still has to be present either way, or the other side's form
+  // would come up empty.
+  const wcTimeline = (tableGroup: string | null): ContextMatch[] => {
+    const phase: ContextMatch[] = fixtures.map(f => {
+      const played = groupHistoryRef.current.find(m => m.matchday === f.matchday && m.home.clubId === f.home.clubId)
+      const groupId = f.home.groupId ?? ''
+      return {
+        matchday: f.matchday, label: `Group ${groupId} · Matchday ${f.matchday}`,
+        inTable: groupId === tableGroup,
+        homeClubId: f.home.clubId, homeClubName: f.home.clubName,
+        awayClubId: f.away.clubId, awayClubName: f.away.clubName,
+        homeGoals: played?.homeGoals, awayGoals: played?.awayGoals,
+        scorers: played?.scorers, seed: played?.seed,
+        homeRotation: played?.homeRotation, awayRotation: played?.awayRotation,
+        absent: played?.absent, standIns: played?.standIns,
+      }
+    })
+    return appendKnockoutRounds(phase, wcKoRounds.slice(0, wcKoVisibleCount).map(r => ({
+      label: r.label, ties: r.ties.map(t => knockoutTieToCLMatch(t, r.round)),
+    })))
+  }
+
+  // §7 — the World Cup final, same contract as the UCL screen above. The World
+  // Cup keys its ceremony off the competition label, which is how it gets the
+  // globe trophy instead of the cup.
+  const wcFinalRound = wcKoRounds.find(r => r.round === 'final')
+  const wcPlayerFinal = wcFinalRound?.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer) ?? null
+  const openWcDeepFinal = () => {
+    if (!wcFinalRound || !wcPlayerFinal) return
+    const detail = koTieToMatchDetailRequest(
+      wcPlayerFinal, wcFinalRound.label, simTeams.find(t => t.isPlayer)?.clubId, fullSquad, 2026,
+      { playerFormation: formation ?? undefined },
+    )
+    openDeepMatch({
+      detail,
+      competitionLabel: 'FIFA World Cup',
+      roundLabel: wcFinalRound.label,
+      accent: theme.accent,
+      playerWon: wcPlayerFinal.winner.isPlayer,
+      playerClubName: (wcPlayerFinal.teamA.isPlayer ? wcPlayerFinal.teamA : wcPlayerFinal.teamB).clubName,
+      onFinished: () => { setWcDeepFinalWatched(true); commitWCKnockoutResult() },
+      resultRoute: '/game/wc-result',
+    })
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: theme.accent }]}>FIFA World Cup</Text>
-          <Text style={styles.headerSub}>Group Stage{playerGroup ? ` · Group ${playerGroup.id}` : ''}</Text>
+          {/* Phase-correct sub-header (Big Fixes §1) — this used to hardcode
+              "Group Stage · Group K" even once the group stage was long over
+              and knockouts were on screen. */}
+          <Text style={styles.headerSub}>
+            {phase === 'knockout_phase' ? 'Knockout Phase'
+              : phase === 'group_review' ? 'Group Stage Complete'
+              : `Group Stage${playerGroup ? ` · Group ${playerGroup.id}` : ''}`}
+          </Text>
         </View>
       </View>
 
@@ -1794,7 +2319,7 @@ function WCSimulation() {
             <View style={styles.ovrCol}><Text style={styles.ovrLabel}>Team OVR</Text><Text style={[styles.ovrValue, { color: theme.accent }]}>{baseTeamOvr}</Text></View>
           </View>
           <View style={styles.replacementCard}>
-            <Text style={styles.replacementTitle}>World Cup Group Stage</Text>
+            <Text style={styles.replacementTitle}>FIFA World Cup Group Stage</Text>
             <Text style={styles.replacementText}>
               Your squad plays <Text style={[styles.replacementHighlight, { color: theme.accent }]}>3 group stage games</Text> in a group of 4.{'\n'}
               Top 2 per group + 8 best 3rd-place teams qualify for the Round of 32.
@@ -1959,14 +2484,18 @@ function WCSimulation() {
               group={openGroupSim ? (groups.find(g => g.id === openGroupSim) ?? null) : null}
               matches={openGroupSim ? groupHistoryRef.current.filter(m => m.groupId === openGroupSim) : []}
               onClose={() => setOpenGroupSim(null)}
-              onOpenMatch={m => setMatchDetail({
+              onOpenMatch={m => openMatchStats({
                 homeClubId: m.home.clubId, homeName: m.home.clubName,
                 awayClubId: m.away.clubId, awayName: m.away.clubName,
                 homeGoals: m.homeGoals, awayGoals: m.awayGoals,
                 scorers: m.scorers, seed: m.seed, yearStart: 2026,
+                homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+                absent: m.absent, standIns: m.standIns,
                 competitionLabel: `Group ${m.groupId} · Matchday ${m.matchday}`,
                 playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
-              })}
+                playerFormation: formation ?? undefined,
+                matchday: m.matchday, contextMatches: wcTimeline(m.groupId),
+              }, theme.accent)}
             />
           </ScrollView>
         )
@@ -1984,9 +2513,20 @@ function WCSimulation() {
             accent={theme.accent}
             bgTint={theme.bgTint}
             onFinish={finishWCKnockoutPhase}
+            deepFinal={wcPlayerFinal ? { watched: wcDeepFinalWatched, onSeeLineups: openWcDeepFinal } : undefined}
             onSkipToRound={(idx) => { setWcKoVisibleCount(idx + 1); setWcKoPenReveal(Infinity) }}
             onLiveDone={(k) => setWcKoLiveDone(d => ({ ...d, [k]: true }))}
             liveDone={wcKoLiveDone}
+            onTiePress={(tie, label) => openMatchStats((() => {
+              // The tie's real slot in the timeline — the bracket-so-far and
+              // 'what did they play next' both hang off it (see clTimeline).
+              const timeline = wcTimeline(null)
+              return koTieToMatchDetailRequest(tie, label, simTeams.find(t => t.isPlayer)?.clubId, fullSquad, 2026, {
+                playerFormation: formation ?? undefined,
+                matchday: koLegMatchday(timeline, tie.teamA.clubId, tie.teamB.clubId, label),
+                contextMatches: timeline,
+              })
+            })(), theme.accent)}
           />
         )
       ) : (
@@ -2094,14 +2634,16 @@ function WCSimulation() {
                     : r.homeGoals === r.awayGoals ? colors.warning : colors.danger
                   : null
                 return (
-                  <Pressable key={i} onPress={() => setMatchDetail({
+                  <Pressable key={i} onPress={() => openMatchStats({
                     homeClubId: r.home.clubId, homeName: r.home.clubName,
                     awayClubId: r.away.clubId, awayName: r.away.clubName,
                     homeGoals: r.homeGoals, awayGoals: r.awayGoals,
                     scorers: r.scorers, seed: r.seed, yearStart: 2026,
-                    competitionLabel: 'Group Stage',
+                    competitionLabel: `Group ${r.groupId} · Matchday ${r.matchday}`,
                     playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
-                  })}>
+                playerFormation: formation ?? undefined,
+                    matchday: r.matchday, contextMatches: wcTimeline(r.groupId),
+                  }, theme.accent)}>
                     <View style={[styles.resultRow, isPM && styles.resultRowPlayerHighlight, rc && { backgroundColor: rc + '15' }]}>
                       <TeamLabel clubId={r.home.clubId} name={r.home.clubName} textStyle={[styles.resultClubNameText, r.home.isPlayer && { color: theme.accent, fontWeight: typography.bold }]} containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]} size={15} />
                       <View style={[styles.scoreBadge, rc && { backgroundColor: rc + '33' }]}>
@@ -2117,7 +2659,6 @@ function WCSimulation() {
           </View>
         </ScrollView>
       )}
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
     </View>
   )
 }
@@ -2188,11 +2729,39 @@ type KnockoutPhaseViewProps = {
   onSkipToRound: (idx: number) => void  // reserved for future skip UI
   onLiveDone?: (roundKey: string) => void  // fired when the player's live match finishes
   liveDone?: Record<string, boolean>       // which rounds' live matches have finished
+  // Tap a settled tie (yours or anyone else's) to open its deep-stats sheet —
+  // ties should be clickable during simulation the same way they already are
+  // once the run is finished (maintainer feedback: WC/CL live views had lost
+  // this after §1's list-view revert broke the wiring).
+  onTiePress?: (tie: KnockoutTie, roundLabel: string) => void
+  // §7 — supplied ONLY when the player's own side reached the final. From the
+  // semi-finals on, the round list yields to Skip-to-Final → See-Lineups →
+  // Start-Final, and the player's final never plays out in the inline LiveMatch:
+  // it's the Deep Match's whole reason for existing.
+  deepFinal?: {
+    watched: boolean
+    onSeeLineups: () => void
+  }
 }
 
-function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, accent, bgTint, onFinish, onLiveDone, liveDone = {} }: KnockoutPhaseViewProps) {
+function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, accent, bgTint, onFinish, onSkipToRound, onLiveDone, liveDone = {}, onTiePress, deepFinal }: KnockoutPhaseViewProps) {
   const allVisible = visibleCount >= rounds.length
   const currentRound = rounds[visibleCount - 1]
+
+  // The final is the round keyed 'final' — not simply the last one, because the
+  // World Cup plays its third-place match after the semis and before it.
+  const finalIdx = rounds.findIndex(r => r.round === 'final')
+  const atFinal = finalIdx >= 0 && visibleCount - 1 >= finalIdx
+  // Offered from the FIRST revealed round, not from the semis. The spec framed
+  // it as "semi-finals onward", but your final is the thing you're waiting for
+  // from the moment the bracket opens, and gating it until the semis meant the
+  // button turned up so late it was nearly pointless (maintainer feedback).
+  // Skipping still reveals every round on the way — nothing is lost, it all
+  // just arrives at once.
+  const canSkipToFinal = !!deepFinal && finalIdx > 0 && !atFinal
+  // The final is reached but not yet watched — nothing else may be offered
+  // until it has been, or the payoff is trivially skippable.
+  const awaitingDeepFinal = !!deepFinal && atFinal && !deepFinal.watched
 
   return (
     <View style={{ flex: 1, backgroundColor: bgTint }}>
@@ -2215,7 +2784,9 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
 
               {/* Player's tie FIRST: plays out minute-by-minute while it's the live
                   round; once it's a past round, show the settled full display. */}
-              {playerTie && isCurrent && (
+              {/* §7 — the player's FINAL is never played out inline; it goes to
+                  the Deep Match instead. Every other round still reveals here. */}
+              {playerTie && isCurrent && !(deepFinal && round.round === 'final') && (
                 <LiveMatch
                   key={round.round}
                   teamA={playerTie.teamA} teamB={playerTie.teamB}
@@ -2226,23 +2797,50 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
                   onDone={() => onLiveDone?.(round.round)}
                 />
               )}
-              {playerTie && !isCurrent && (
-                <KnockoutTieFull
-                  tie={playerTie}
-                  penReveal={currentPenReveal}
-                  isFinal={round.round === 'final'}
-                  accent={accent}
-                />
+              {/* The final, reached but not yet watched: the tie is deliberately
+                  NOT shown — the scoreline is the thing the Deep Match exists to
+                  reveal, and printing it here first would give it away. */}
+              {playerTie && deepFinal && round.round === 'final' && !deepFinal.watched && (
+                <View style={styles.deepFinalCard}>
+                  <Text style={[styles.deepFinalKicker, { color: accent }]}>The Final</Text>
+                  <Text style={styles.deepFinalTeams} numberOfLines={2}>
+                    {playerTie.teamA.clubName}  vs  {playerTie.teamB.clubName}
+                  </Text>
+                  <Text style={styles.deepFinalNote}>
+                    One match. Played out in full, minute by minute — you only get to watch it once.
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [styles.deepFinalBtn, { backgroundColor: accent }, pressed && { opacity: 0.85 }]}
+                    onPress={deepFinal.onSeeLineups}
+                  >
+                    <Ionicons name="people" size={15} color={colors.textPrimary} />
+                    <Text style={styles.deepFinalBtnText}>SEE LINEUPS →</Text>
+                  </Pressable>
+                </View>
               )}
 
-              {/* The rest of the round — revealed only after your match settles. */}
+              {playerTie && (!isCurrent || (deepFinal?.watched && round.round === 'final')) && (
+                <Pressable onPress={onTiePress ? () => onTiePress(playerTie, round.label) : undefined} disabled={!onTiePress}>
+                  <KnockoutTieFull
+                    tie={playerTie}
+                    penReveal={currentPenReveal}
+                    isFinal={round.round === 'final'}
+                    accent={accent}
+                  />
+                </Pressable>
+              )}
+
+              {/* The rest of the round — revealed only after your match settles.
+                  Same KnockoutTieRow as the static result screens (Big Fixes
+                  §1) — no more "Elsewhere in the Round" hero-then-afterthought
+                  split; every tie reads as an equally-weighted row. Tappable
+                  during simulation too, same as once the run is finished. */}
               {revealOthers && otherTies.length > 0 && (
-                <>
-                  {playerTie && <Text style={styles.koOtherTiesLabel}>Elsewhere in the {round.label}</Text>}
-                  <View style={styles.koTiesGrid}>
-                    {otherTies.map((tie, i) => <KnockoutTieCompact key={i} tie={tie} />)}
-                  </View>
-                </>
+                <View style={{ gap: spacing.xs, marginTop: playerTie ? spacing.sm : 0 }}>
+                  {otherTies.map((tie, i) => (
+                    <KnockoutTieRow key={i} tie={koTieToRow(tie, onTiePress ? () => onTiePress(tie, round.label) : undefined)} accent={accent} />
+                  ))}
+                </View>
               )}
             </View>
           )
@@ -2256,8 +2854,19 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
           </View>
         )}
 
-        {/* Final CTA */}
-        {allVisible && (
+        {/* §7 R1 — from the semis on, the only control is a jump to the final. */}
+        {canSkipToFinal && (
+          <Pressable
+            style={({ pressed }) => [styles.finishBtn, { backgroundColor: accent }, pressed && { opacity: 0.85 }]}
+            onPress={() => onSkipToRound(finalIdx)}
+          >
+            <Text style={styles.finishBtnText}>SKIP TO FINAL →</Text>
+          </Pressable>
+        )}
+
+        {/* Final CTA — withheld until the Deep Match has actually been watched,
+            so "Final Results" can never be the way you skip past the finale. */}
+        {allVisible && !awaitingDeepFinal && (
           <Pressable style={[styles.finishBtn, { backgroundColor: accent }]} onPress={onFinish}>
             <Text style={styles.finishBtnText}>VIEW FINAL RESULTS →</Text>
           </Pressable>
@@ -2267,37 +2876,97 @@ function KnockoutPhaseView({ rounds, visibleCount, penReveal, competitionLabel, 
   )
 }
 
-function KnockoutTieCompact({ tie }: { tie: KnockoutTie }) {
-  const { teamA, teamB, winner, aGoals, bGoals, extraTime, aPens, bPens } = tie
-  const aWins = winner.clubId === teamA.clubId
+// KnockoutTie (this file's shared adapter shape for CL + WC live ties) → the
+// row list used by every knockout screen (Big Fixes §1). Player-tie ring +
+// focus styling handled by KnockoutTieRow itself via `isPlayerTie`.
+function koTieToRow(tie: KnockoutTie, onPress?: () => void): KoTieVM {
+  const winnerIsA = tie.winner.clubId === tie.teamA.clubId
+  let subLine: string | undefined
+  let inlineSuffix: string | undefined
+  if (tie.leg1) {
+    const parts = [`${tie.leg1.aGoals}-${tie.leg1.bGoals}`]
+    if (tie.leg2) parts.push(`${tie.leg2.aGoals}-${tie.leg2.bGoals}`)
+    if (tie.extraTime) parts.push('AET')
+    if (tie.aPens !== undefined) parts.push(`pens ${tie.aPens}-${tie.bPens}`)
+    subLine = parts.join(' · ')
+  } else {
+    inlineSuffix = tie.aPens !== undefined ? `(P ${tie.aPens}-${tie.bPens})` : tie.extraTime ? '(AET)' : undefined
+  }
+  return {
+    id: `${tie.teamA.clubId}-${tie.teamB.clubId}`,
+    teamAName: tie.teamA.clubName, teamBName: tie.teamB.clubName,
+    teamAFlag: getFlag(tie.teamA.clubId) ?? undefined,
+    teamBFlag: getFlag(tie.teamB.clubId) ?? undefined,
+    winnerIsA, isPlayerTie: tie.teamA.isPlayer || tie.teamB.isPlayer,
+    scoreLabel: `${tie.aGoals} – ${tie.bGoals}`,
+    inlineSuffix, subLine, onPress,
+  }
+}
 
-  let suffix = ''
-  if (aPens !== undefined) suffix = ` (P ${aPens}-${bPens})`
-  else if (extraTime) suffix = ' (AET)'
+// Two-legged (CL classic) live ties open the SAME leg-by-leg tie modal Custom
+// UCL already uses (KoTieDetailModal) instead of jumping straight to Leg 1's
+// stats with no way to reach Leg 2 — maintainer feedback: that was a real gap,
+// not an intentional simplification. `KoTieDetailModal` only ever reads
+// clubId/clubName/goals/scorers/seed off teamA/teamB, so the extra CLTeam
+// fields it doesn't use (ovr/form/stats/pot) are harmless placeholders here.
+function knockoutTieToCLMatch(tie: KnockoutTie, round: string): CLKnockoutMatch {
+  const blankStats = { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }
+  const fill = (t: KnockoutTie['teamA']): CLTeam => ({ ...t, ovr: 0, form: 0, stats: blankStats, pot: 4 })
+  return {
+    round,
+    teamA: fill(tie.teamA), teamB: fill(tie.teamB), winner: fill(tie.winner),
+    aGoals: tie.aGoals, bGoals: tie.bGoals,
+    leg1: tie.leg1, leg2: tie.leg2, leg2ExtraTime: tie.leg2ExtraTime,
+    extraTime: tie.extraTime, aPens: tie.aPens, bPens: tie.bPens,
+    // A World Cup tie is ONE match, so it stores its sheet on the tie itself
+    // rather than under a leg. Falling back to those fields lets a WC bracket
+    // through this adapter with its scorers and seed intact — without it the
+    // knockout half of the WC timeline had no stats to open. Two-legged ties
+    // never set them, so the fallback can't shadow real leg data.
+    leg1Scorers: tie.leg1Scorers ?? tie.scorers, leg2Scorers: tie.leg2Scorers, leg2ExtraTimeScorers: tie.leg2ExtraTimeScorers,
+    leg1Seed: tie.leg1Seed ?? tie.seed, leg2Seed: tie.leg2Seed,
+    leg1Absent: tie.leg1Absent ?? tie.absent, leg2Absent: tie.leg2Absent,
+    leg1StandIns: tie.leg1StandIns ?? tie.standIns, leg2StandIns: tie.leg2StandIns,
+    penKicksA: tie.penKicksA, penKicksB: tie.penKicksB,
+  }
+}
 
-  return (
-    <View style={styles.koTieCompact}>
-      <TeamLabel
-        clubId={teamA.clubId}
-        name={teamA.clubName}
-        textStyle={[styles.koTieCompactTeam, aWins && styles.koTieWinner]}
-        containerStyle={styles.koTieLabelSide}
-        size={13}
-        gap={4}
-      />
-      <Text style={styles.koTieCompactScore}>
-        {aGoals}-{bGoals}{suffix}
-      </Text>
-      <TeamLabel
-        clubId={teamB.clubId}
-        name={teamB.clubName}
-        textStyle={[styles.koTieCompactTeam, !aWins && styles.koTieWinner]}
-        containerStyle={styles.koTieLabelSide}
-        size={13}
-        gap={4}
-      />
-    </View>
-  )
+// A tapped live tie opens the same deep-stats sheet the result screens use.
+// Single-match ties (WC, and the CL final) have no "which leg" to pick, so
+// they still go straight to the stats sheet.
+function koTieToMatchDetailRequest(
+  tie: KnockoutTie, label: string, playerClubId: string | undefined, drafted: DraftedPlayer[], yearStart: number,
+  extra?: Partial<MatchDetailRequest>,
+): MatchDetailRequest {
+  if (tie.leg1) {
+    return {
+      homeClubId: tie.teamA.clubId, homeName: tie.teamA.clubName,
+      awayClubId: tie.teamB.clubId, awayName: tie.teamB.clubName,
+      homeGoals: tie.leg1.aGoals, awayGoals: tie.leg1.bGoals,
+      scorers: tie.leg1Scorers, seed: tie.leg1Seed,
+      absent: tie.leg1Absent, standIns: tie.leg1StandIns,
+      yearStart, competitionLabel: `${label} · Leg 1`,
+      playerClubId, drafted,
+      ...extra,
+    }
+  }
+  const pensNote = tie.aPens !== undefined ? `Penalties ${tie.aPens} – ${tie.bPens} · ${tie.winner.clubName} advance` : undefined
+  return {
+    homeClubId: tie.teamA.clubId, homeName: tie.teamA.clubName,
+    awayClubId: tie.teamB.clubId, awayName: tie.teamB.clubName,
+    homeGoals: tie.aGoals, awayGoals: tie.bGoals,
+    extraTime: tie.extraTime, pensNote,
+    // A World Cup tie stores its sheet on the tie; a Champions League FINAL is
+    // also a single match but comes through the two-legged shape, so it stores
+    // the same data under `leg1*`. Without the fallback a live CL final opened
+    // with no scorers and a hashed seed — a different match to the one the
+    // result screen shows, and the Deep Match would replay the wrong sheet.
+    scorers: tie.scorers ?? tie.leg1Scorers, seed: tie.seed ?? tie.leg1Seed,
+    absent: tie.absent ?? tie.leg1Absent, standIns: tie.standIns ?? tie.leg1StandIns,
+    yearStart, competitionLabel: label,
+    playerClubId, drafted,
+    ...extra,
+  }
 }
 
 function KnockoutTieFull({ tie, penReveal, accent }: { tie: KnockoutTie; penReveal: number; isFinal: boolean; accent: string }) {
@@ -2325,8 +2994,10 @@ function KnockoutTieFull({ tie, penReveal, accent }: { tie: KnockoutTie; penReve
   return (
     <View style={[
       styles.koTieFull,
+      // Border reads green/red by outcome (win/loss), not the mode's accent —
+      // maintainer feedback: a gold (accent) border on a win reads as neutral,
+      // not a result. Accent is still used elsewhere (score badge, etc).
       penComplete ? (winner.isPlayer ? styles.koTileWin : styles.koTileLoss) : styles.koTilePending,
-      penComplete && winner.isPlayer && { borderColor: accent, backgroundColor: accent + '14' },
     ]}>
       {/* Header row */}
       <View style={styles.koTileHeader}>
@@ -2932,6 +3603,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  // §7 — the "your final is waiting" card. Names the two sides and nothing else:
+  // the scoreline is the payoff, so it must not appear before the Deep Match.
+  deepFinalCard: {
+    backgroundColor: colors.bgElevated, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.lg, gap: spacing.sm, alignItems: 'center',
+  },
+  deepFinalKicker: { fontSize: typography.xs, fontWeight: typography.black, textTransform: 'uppercase', letterSpacing: 1.5 },
+  deepFinalTeams: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, textAlign: 'center' },
+  deepFinalNote: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
+  deepFinalBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
+    marginTop: spacing.xs,
+  },
+  deepFinalBtnText: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1 },
   finishBtnText: {
     fontSize: typography.sm,
     fontWeight: typography.black,
@@ -3184,9 +3871,11 @@ const styles = StyleSheet.create({
   },
   koTileWin: {
     borderColor: colors.success + '66',
+    backgroundColor: colors.success + '14',
   },
   koTileLoss: {
     borderColor: colors.danger + '66',
+    backgroundColor: colors.danger + '14',
   },
   koTilePending: {
     borderColor: colors.warning + '66',

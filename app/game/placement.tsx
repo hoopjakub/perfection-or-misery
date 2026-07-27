@@ -22,6 +22,7 @@ import { getCustomUclAssociations } from '@/db/queries/custom-ucl'
 import type { AssociationEntry } from '@/engine/cl-access'
 import { PositionStakes } from '@/components/CustomUclViewers'
 import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
+import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 
 // Top-level router — delegates to the right placement component per mode
 export default function PlacementScreen() {
@@ -44,6 +45,11 @@ function LeaguePlacement() {
   const theme = useModeTheme()
 
   const [phase,           setPhase]           = useState<Phase>('ready')
+  // §3 — placement is decided the instant SPIN is tapped (the globe animation
+  // is just playback), so back must be blocked from 'spinning' onward, not
+  // just after the reveal — otherwise back-during-spin lets you re-tap SPIN
+  // for a different landing.
+  useSimBackGuard(phase !== 'ready')
   const [eligibleSeasons, setEligibleSeasons] = useState<LeagueSeasonWithTeams[]>([])
   const [placedLeague,    setPlacedLeague]    = useState<LeagueSeason | null>(null)
   const [teamOvr,         setTeamOvr]         = useState(0)
@@ -255,6 +261,9 @@ function CLPlacement() {
   const [chosenCountry, setChosenCountry] = useState<string | undefined>(undefined)
   const [revealed,    setRevealed]    = useState(false)
   const [loading,     setLoading]     = useState(true)
+  // §3 — the club is picked in the mount effect below, before there's any
+  // reveal animation to watch, so the guard arms the moment loading finishes.
+  useSimBackGuard(!loading)
 
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.9)).current
@@ -388,6 +397,7 @@ function CustomCLPlacement() {
   const theme = MODE_THEMES.champions_league
 
   const [loading, setLoading] = useState(true)
+  useSimBackGuard(!loading)   // §3 — club is picked before loading flips false
   const [teamOvr, setTeamOvr] = useState(0)
   const [chosen, setChosen] = useState<ChosenClub | null>(null)
   const [leagueSize, setLeagueSize] = useState(0)
@@ -458,7 +468,7 @@ function CustomCLPlacement() {
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.accent }]}>Road to the Champions League</Text>
+        <Text style={[styles.headerTitle, { color: theme.accent }]}>Road to the UEFA Champions League</Text>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg }}>
@@ -473,7 +483,7 @@ function CustomCLPlacement() {
           </Text>
           <Text style={styles.compRevealYear}>{chosen.clubName}</Text>
           <Text style={styles.compRevealSubtitle}>
-            You take over <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{chosen.clubName}</Text> in {chosen.country ? `${chosen.country}'s` : 'the'} {chosen.leagueName} ({leagueSize} clubs). First you play your DOMESTIC season — where you finish decides your Champions League entry. Finish too low and there's no Europe at all.
+            You take over <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{chosen.clubName}</Text> in {chosen.country ? `${chosen.country}'s` : 'the'} {chosen.leagueName} ({leagueSize} clubs). First you play your DOMESTIC season — where you finish decides your UEFA Champions League entry. Finish too low and there's no Europe at all.
           </Text>
           <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: spacing.xs }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -507,6 +517,7 @@ function WCPlacement() {
   const [replacedId,   setReplacedId]   = useState('')
   const [loading,      setLoading]      = useState(true)
   const [revealed,     setRevealed]     = useState(false)
+  useSimBackGuard(!loading)   // §3 — nation is picked before loading flips false
 
   const fadeAnim  = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.9)).current
@@ -561,7 +572,7 @@ function WCPlacement() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={colors.accent} size="large" />
-        <Text style={styles.loadingText}>Loading World Cup draw...</Text>
+        <Text style={styles.loadingText}>Loading FIFA World Cup draw...</Text>
       </View>
     )
   }
@@ -573,7 +584,7 @@ function WCPlacement() {
         <Text style={styles.loadingText}>
           {teamCount < 4 && teamCount > 0
             ? `Only ${teamCount} team${teamCount !== 1 ? 's' : ''} found. Seed at least 4 teams to play.`
-            : 'No World Cup data found. Run the database seeder first.'}
+            : 'No FIFA World Cup data found. Run the database seeder first.'}
         </Text>
         <PressCard onPress={() => router.replace('/game/draft')} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }}>
           <Ionicons name="arrow-back" size={14} color={colors.accent} />
@@ -586,7 +597,7 @@ function WCPlacement() {
   return (
     <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.accent }]}>World Cup Draw</Text>
+        <Text style={[styles.headerTitle, { color: theme.accent }]}>FIFA World Cup Draw</Text>
       </View>
 
       <View style={styles.body}>
@@ -603,7 +614,7 @@ function WCPlacement() {
           </View>
 
           <Text style={styles.compRevealSubtitle}>
-            Your squad takes the place of <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{replacedName}</Text> at the World Cup {yearLabel}, among {teamCount} national teams. Groups will be drawn at the start of simulation.
+            Your squad takes the place of <Text style={{ color: theme.accent, fontWeight: typography.bold }}>{replacedName}</Text> at the FIFA World Cup {yearLabel}, among {teamCount} national teams. Groups will be drawn at the start of simulation.
           </Text>
 
           <View style={styles.compInfoRow}>

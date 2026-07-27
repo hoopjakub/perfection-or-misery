@@ -1,4 +1,7 @@
-export type GameMode = 'league' | 'all_time' | 'era' | 'chaos' | 'cursed' | 'champions_league' | 'champions_league_custom' | 'world_cup'
+// 'era' is retired (see docs/Big Fixes — Spec.md §6) — historical runs may still
+// carry it in the DB (typed as plain `string` there, not GameMode), but it's no
+// longer a selectable/live mode, so it's dropped from this union.
+export type GameMode = 'league' | 'all_time' | 'chaos' | 'cursed' | 'champions_league' | 'champions_league_custom' | 'world_cup'
 
 export type Position =
   'GK' | 'CB' | 'LB' | 'RB' | 'CDM' |
@@ -6,7 +9,7 @@ export type Position =
 
 export type Formation =
   '4-3-3' | '4-4-2' | '4-2-3-1' | '3-5-2' | '5-3-2' |
-  '3-4-3' | '4-1-4-1' | '4-3-1-2' | '4-1-2-1-2' | '5-4-1' | '3-4-2-1'
+  '3-4-3' | '4-1-4-1' | '4-3-1-2' | '4-1-2-1-2' | '5-4-1' | '3-4-2-1' | '3-4-1-2'
 
 export type PositionSlot = {
   slotIndex: number

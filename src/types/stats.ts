@@ -18,8 +18,14 @@ export type RosterPlayer = {
 }
 
 // One goal within a match. Penalty SHOOTOUT kicks never produce these.
+//
+// A GoalEvent always lives in the array of the side the goal COUNTS FOR
+// (`MatchScorers.home` = goals on home's scoreline). For an own goal that means
+// the event sits with the *benefiting* team while `clubId`/`scorerId` point at
+// the *conceding* team's player — which is exactly how an OG is displayed
+// everywhere: on the beneficiary's line, credited against the man who put it in.
 export type GoalEvent = {
-  clubId:      string
+  clubId:      string            // the SCORER's club (≠ the benefiting club for an OG)
   scorerId:    string
   scorerName:  string
   scorerIsBench?: boolean        // came off the bench — drives the orange SUB tag
@@ -28,6 +34,17 @@ export type GoalEvent = {
   assistIsBench?: boolean
   minute:      number            // 1..90 (regulation) or 91..120 (extra time)
   plus?:       number            // stoppage-time add-on: minute 90 + plus 3 → "90+3'"
+  // ── §9 event flavour (own goals / penalties / mistakes) ──
+  // Decided once, at attribution time, and stored on the match — so the live
+  // reveal, the deep-stats sheet, the stats screen and history can never
+  // disagree about how a goal was scored. Mutually exclusive: an own goal is
+  // never a penalty, and neither carries an assist or an error.
+  ownGoal?:     boolean          // scorer put it into their OWN net
+  penalty?:     boolean          // converted from the spot (open play, not a shootout)
+  penWonId?:    string           // who drew the penalty — benefiting side, ≠ the taker
+  penWonName?:  string
+  errorById?:   string           // conceding-side player whose mistake led to this goal
+  errorByName?: string
 }
 
 export type MatchScorers = { home: GoalEvent[]; away: GoalEvent[] }
@@ -45,6 +62,26 @@ export type PlayerStatLine = {
   assists:       number
   cleanSheets:   number
   matchesPlayed?: number
+  // §9 — left undefined (not 0) when it never happened, so the saved-run JSON
+  // doesn't grow three zero fields for every player in the competition.
+  ownGoals?:      number
+  penaltyGoals?:  number         // subset of `goals` that were spot-kicks
+  penaltiesWon?:  number         // fouled for a penalty someone else converted
+  errorsLeadingToGoal?: number
+  // §10.5 phase 3 — season totals behind the statistics screen's columns,
+  // summed from each match's regenerated sheet. Optional for the same reason:
+  // a player who never registered one costs the saved run nothing.
+  chancesCreated?:   number      // key passes
+  shots?:            number
+  shotsOnTarget?:    number
+  passes?:           number      // with accuratePasses → pass success rate
+  accuratePasses?:   number
+  dribbles?:         number      // successful
+  dribblesAttempted?: number     // with dribbles → dribble success rate
+  tacklesWon?:       number
+  fouls?:            number      // committed, card or not
+  yellowCards?:      number
+  redCards?:         number
   // Deep-stats aggregates (match-detail generator, run over every match):
   avgRating?:    number          // mean 0–10 match rating, 2 decimals
   matchesRated?: number          // matches actually played (minutes > 0)

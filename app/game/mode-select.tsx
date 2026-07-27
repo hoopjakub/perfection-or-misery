@@ -6,25 +6,39 @@ import { screwLevelInfo } from '@/engine/difficulty'
 import { router } from 'expo-router'
 import { useGameStore, GameMode, type Difficulty } from '@/store/gameStore'
 import { getAvailableLeagues, type LeagueOption } from '@/db/queries/seasons'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_LABELS } from '@/theme'
 
-type ModeCategory = 'normal' | 'special'
+type ModeCategory = 'normal' | 'special' | 'special_finals'
+
+// A card can advertise a mode that isn't built yet, so its id is deliberately
+// NOT confined to GameMode — an unplayable mode must never reach the store, the
+// simulation screens or a saved run. `world_cup_full` joins GameMode when §11
+// actually ships.
+type ModeId = GameMode | 'world_cup_full'
 
 type ModeConfig = {
-  id: GameMode
+  id: ModeId
   category: ModeCategory
   title: string
   subtitle: string
   description: string
   emoji: string
   accentColor: string
+  // A mode with more than one identity colour (the World Cup's green/blue/red).
+  // Rendered as a stripe across the top of the card; `accentColor` stays the
+  // single colour everything else (selection ring, Continue button) uses.
+  accentColors?: string[]
   hasDifficulty: boolean
+  // Announced but not playable: the card renders dimmed with a COMING SOON
+  // badge and can't be selected at all.
+  comingSoon?: boolean
   image?: any // Image require statement
 }
 
 const CATEGORIES: { id: ModeCategory; label: string }[] = [
   { id: 'normal',  label: 'Normal Modes' },
   { id: 'special', label: 'Special Modes' },
+  { id: 'special_finals', label: 'SM (Finals)' },
 ]
 
 const MODES: ModeConfig[] = [
@@ -47,16 +61,6 @@ const MODES: ModeConfig[] = [
     description:   'Pick a league. Every spin comes from that league across all available seasons. Placement stays within it too.',
     emoji:         '🏴',
     accentColor:   colors.accent,
-    hasDifficulty: true,
-  },
-  {
-    id:            'era',
-    category:      'normal',
-    title:         'Era Mode',
-    subtitle:      'Pick a decade',
-    description:   'Lock the draft to a specific decade. All clubs, all leagues — but only from your chosen era.',
-    emoji:         '📅',
-    accentColor:   '#8B5CF6',
     hasDifficulty: true,
   },
   {
@@ -83,18 +87,37 @@ const MODES: ModeConfig[] = [
   {
     id:            'champions_league_custom',
     category:      'special',
-    title:         'Champions League',
+    title:         MODE_LABELS.champions_league_custom,
     subtitle:      'Real leagues, real qualifying',
-    description:   'Every UEFA league simulated from scratch. Qualify (or go straight in), survive the League Phase, then the knockouts. The full road to the trophy.',
+    description:   'Every UEFA league simulated from scratch. Qualify (or go straight in), survive the League Phase, then the knockouts. The full road to the trophy. Crown yourself the best club in Europe.',
     emoji:         '🏆',
-    accentColor:   '#4FA9FF',
+    accentColor:   '#00088E',
     hasDifficulty: true,
     image:         require('../../assets/modes/champions-league.png'),
   },
+  // §11 — the full World Cup: qualifying through to the final. Announced here so
+  // the road ahead is visible, but it has its OWN id rather than sharing
+  // `world_cup` with the playable finals-only mode: two cards with the same id
+  // meant every MODES.find() resolved to whichever came first, so picking the
+  // playable World Cup silently inherited this one's `hasDifficulty: false` and
+  // skipped the difficulty step entirely.
+  {
+    id:            'world_cup_full',
+    category:      'special',
+    title:         MODE_LABELS.world_cup,
+    subtitle:      'The full road from qualifying to the final',
+    description:   'Your confederation\'s qualifiers, the play-offs, then the tournament itself. The complete route. Become the champion of the world.',
+    emoji:         '⚽',
+    accentColor:   '#F5C518',
+    accentColors:  ['#3CAC3B', '#2A398D', '#E61D25'],
+    hasDifficulty: false,
+    comingSoon:    true,
+    image:         require('../../assets/modes/world-cup.png'),
+  },
   {
     id:            'champions_league',
-    category:      'special',
-    title:         'Champions League Classic',
+    category:      'special_finals',
+    title:         MODE_LABELS.champions_league,
     subtitle:      'Finals only',
     description:   'The 36-club League Phase and knockouts only, no qualifying — just the best clubs from Europe\'s top competitions.',
     emoji:         '🏆',
@@ -104,28 +127,15 @@ const MODES: ModeConfig[] = [
   },
   {
     id:            'world_cup',
-    category:      'special',
-    title:         'World Cup',
-    subtitle:      'Global glory',
-    description:   'National teams from around the world. Draft your squad and lead your country to victory.',
+    category:      'special_finals',
+    title:         MODE_LABELS.world_cup,
+    subtitle:      'Global glory (Not full route for now)',
+    description:   'The best 48 national teams in the world. Draft your squad and lead your country to victory.',
     emoji:         '⚽',
     accentColor:   '#F5C518',
     hasDifficulty: true,
     image:         require('../../assets/modes/world-cup.png'),
   },
-]
-
-const ERAS = [
-  { id: '2020s',  label: '2020s',   year: 2020 },
-  { id: '2010s',  label: '2010s',   year: 2010 },
-  { id: '2000s',  label: '2000s',   year: 2000 },
-  { id: '1990s',  label: '1990s',   year: 1990 },
-  { id: '1980s',  label: '1980s',   year: 1980 },
-  { id: '2020s+', label: '2020s+',  year: 2020 },
-  { id: '2010s+', label: '2010s+',  year: 2010 },
-  { id: '2000s+', label: '2000s+',  year: 2000 },
-  { id: '1990s+', label: '1990s+',  year: 1990 },
-  { id: '1980s+', label: '1980s+',  year: 1980 },
 ]
 
 const DIFFICULTIES: { id: Difficulty; label: string; description: string }[] = [
@@ -136,10 +146,9 @@ const DIFFICULTIES: { id: Difficulty; label: string; description: string }[] = [
 ]
 
 export default function ModeSelectScreen() {
-  const { setMode, setDifficulty, setSelectedLeague, setAccentColor, customDifficulty, setCustomDifficulty } = useGameStore()
+  const { setMode, setDifficulty, setSelectedLeague, setAccentColor, customDifficulty, setCustomDifficulty, weightedPicksOverride, setWeightedPicksOverride } = useGameStore()
   const [selectedCategory, setSelectedCategory] = useState<ModeCategory>('normal')
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null)
-  const [selectedEra, setSelectedEra] = useState<string | null>(null)
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null)
   const [selectedLeague, setSelectedLeagueState] = useState<string | null>(null)
   const [leagues, setLeagues] = useState<LeagueOption[]>([])
@@ -154,7 +163,6 @@ export default function ModeSelectScreen() {
     if (!cfg) return
     setSelectedCategory(cfg.category)
     setSelectedMode(s.mode)
-    if (s.era) setSelectedEra(s.era)
     if (s.selectedLeague) setSelectedLeagueState(s.selectedLeague)
     if (cfg.hasDifficulty && s.difficulty) setSelectedDifficulty(s.difficulty)
   }, [])
@@ -176,7 +184,6 @@ export default function ModeSelectScreen() {
 
   function handleModePress(mode: GameMode) {
     setSelectedMode(mode)
-    if (mode !== 'era') setSelectedEra(null)
     if (mode !== 'league') setSelectedLeagueState(null)
     if (!MODES.find(m => m.id === mode)?.hasDifficulty) {
       setSelectedDifficulty(null)
@@ -184,14 +191,13 @@ export default function ModeSelectScreen() {
   }
 
   function handleContinue() {
-    console.log('[mode-select] selectedMode:', selectedMode, 'selectedEra:', selectedEra, 'selectedDifficulty:', selectedDifficulty, 'selectedLeague:', selectedLeague)
+    console.log('[mode-select] selectedMode:', selectedMode, 'selectedDifficulty:', selectedDifficulty, 'selectedLeague:', selectedLeague)
     if (!selectedMode) return
-    if (selectedMode === 'era' && !selectedEra) return
     if (selectedMode === 'league' && !selectedLeague) return
     if (MODES.find(m => m.id === selectedMode)?.hasDifficulty && !selectedDifficulty) return
 
     const selectedModeConfig = MODES.find(m => m.id === selectedMode)
-    setMode(selectedMode, selectedEra ?? undefined)
+    setMode(selectedMode)
     if (selectedDifficulty) setDifficulty(selectedDifficulty)
     setSelectedLeague(selectedLeague)
     // Store accent color for use in other screens
@@ -203,7 +209,6 @@ export default function ModeSelectScreen() {
   }
 
   const canContinue = selectedMode !== null &&
-    (selectedMode === 'era' ? selectedEra !== null : true) &&
     (selectedMode === 'league' ? selectedLeague !== null : true) &&
     (!MODES.find(m => m.id === selectedMode)?.hasDifficulty || selectedDifficulty !== null)
 
@@ -243,6 +248,7 @@ export default function ModeSelectScreen() {
         showsVerticalScrollIndicator={false}
       >
         {visibleModes.map(mode => {
+          if (mode.comingSoon) return <ComingSoonCard key={mode.id} mode={mode} />
           const selected = selectedMode === mode.id
           return (
             <PressCard
@@ -255,7 +261,9 @@ export default function ModeSelectScreen() {
                   backgroundColor: mode.accentColor + '0D',   // ~5% tint — selection reads instantly
                 },
               ]}
-              onPress={() => handleModePress(mode.id)}
+              // Coming-soon cards returned above, so every id that reaches here
+              // is a mode the store can actually run.
+              onPress={() => handleModePress(mode.id as GameMode)}
             >
               <View style={styles.cardHeader}>
                 <View style={[styles.cardIconTile, { backgroundColor: mode.accentColor + '1E' }]}>
@@ -284,37 +292,6 @@ export default function ModeSelectScreen() {
               </View>
 
               <Text style={styles.cardDescription}>{mode.description}</Text>
-
-              {/* era picker — only shows when era mode selected */}
-              {mode.id === 'era' && selected && (
-                <View style={styles.pickerSection}>
-                  <Text style={styles.pickerLabel}>Choose era:</Text>
-                  <View style={styles.pickerGrid}>
-                    {ERAS.map(era => (
-                      <Pressable
-                        key={era.id}
-                        style={[
-                          styles.pickerChip,
-                          selectedEra === era.id && [styles.pickerChipSelected, { backgroundColor: mode.accentColor, borderColor: mode.accentColor }]
-                        ]}
-                        onPress={() => setSelectedEra(era.id)}
-                      >
-                        <Text style={[
-                          styles.pickerChipText,
-                          selectedEra === era.id && styles.pickerChipTextSelected
-                        ]}>
-                          {era.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {selectedEra?.endsWith('+') && (
-                    <Text style={styles.pickerHint}>
-                      + means that era and everything after it
-                    </Text>
-                  )}
-                </View>
-              )}
 
               {/* league picker — only shows when league mode selected */}
               {mode.id === 'league' && selected && (
@@ -412,6 +389,31 @@ export default function ModeSelectScreen() {
                         <StepSlider min={1} max={10} value={c.screwLevel} accent={acc}
                           onChange={v => setCustomDifficulty({ ...c, screwLevel: v })} />
                         <Text style={styles.customTagline}>{info.tagline}</Text>
+
+                        {/* Weighted picks (Big Fixes §4) — CL (full) custom-difficulty
+                            only. Defaults ON; this is the only place it can be turned
+                            off, since easy/medium/hard resolve it automatically (ON/ON/OFF)
+                            with no override available. Must be set before drafting starts —
+                            it changes the spin pool — so it lives here, not in the draft
+                            screen. */}
+                        {mode.id === 'champions_league_custom' && (
+                          <Pressable
+                            style={[styles.customToggleRow, { marginTop: spacing.sm }]}
+                            onPress={() => setWeightedPicksOverride(!(weightedPicksOverride ?? true))}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.customLabel}>Weighted picks</Text>
+                              <Text style={styles.customNote}>
+                                {(weightedPicksOverride ?? true)
+                                  ? 'On — spins are drawn from the top-6 UEFA-coefficient leagues only.'
+                                  : 'Off — spins are drawn from the full pool.'}
+                              </Text>
+                            </View>
+                            <View style={[styles.switch, (weightedPicksOverride ?? true) && { backgroundColor: acc, borderColor: acc }]}>
+                              <View style={[styles.switchKnob, (weightedPicksOverride ?? true) && styles.switchKnobOn]} />
+                            </View>
+                          </Pressable>
+                        )}
                       </View>
                     )
                   })()}
@@ -439,6 +441,44 @@ export default function ModeSelectScreen() {
           </Text>
           {canContinue && <Ionicons name="arrow-forward" size={16} color={colors.textPrimary} />}
         </Pressable>
+      </View>
+    </View>
+  )
+}
+
+// An announced-but-unbuilt mode. Deliberately NOT a PressCard: there's nothing
+// to press, and a card that dims under your finger and then does nothing reads
+// as broken rather than as unreleased. The content is dimmed while the colour
+// stripe and the badge stay at full strength, so the card looks *deferred*, not
+// disabled-because-something-went-wrong.
+function ComingSoonCard({ mode }: { mode: ModeConfig }) {
+  const stripe = mode.accentColors ?? [mode.accentColor]
+  return (
+    <View style={[styles.card, styles.cardComingSoon]}>
+      {/* The mode's identity colours — the World Cup is the first mode with
+          more than one, so this is a stripe rather than a single accent. */}
+      <View style={styles.stripe}>
+        {stripe.map(c => <View key={c} style={[styles.stripeSegment, { backgroundColor: c }]} />)}
+      </View>
+
+      <View style={styles.comingSoonBody}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.cardIconTile, { backgroundColor: stripe[0] + '1E' }]}>
+            {mode.image
+              ? <Image source={mode.image} style={styles.cardImage} resizeMode="contain" />
+              : <Text style={styles.cardEmoji}>{mode.emoji}</Text>}
+          </View>
+          <View style={styles.cardTitles}>
+            <Text style={styles.cardTitle}>{mode.title}</Text>
+            <Text style={styles.cardSubtitle}>{mode.subtitle}</Text>
+          </View>
+        </View>
+        <Text style={styles.cardDescription}>{mode.description}</Text>
+      </View>
+
+      <View style={styles.comingSoonBadge}>
+        <Ionicons name="lock-closed" size={11} color={colors.textSecondary} />
+        <Text style={styles.comingSoonText}>Coming soon</Text>
       </View>
     </View>
   )
@@ -516,6 +556,40 @@ const styles = StyleSheet.create({
     padding:         spacing.lg,
     gap:             spacing.sm,
     ...shadows.sm,
+  },
+  // `overflow: hidden` so the colour stripe is clipped to the card's radius,
+  // and extra top padding so it doesn't sit on top of the icon tile.
+  cardComingSoon: {
+    overflow:   'hidden',
+    paddingTop: spacing.lg + 4,
+  },
+  stripe: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height:   4,
+    flexDirection: 'row',
+  },
+  stripeSegment: { flex: 1 },
+  // Only the CONTENT is dimmed — the stripe and the badge stay legible.
+  comingSoonBody: { opacity: 0.5, gap: spacing.sm },
+  comingSoonBadge: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    alignSelf:         'flex-start',
+    gap:               6,
+    marginTop:         spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical:   4,
+    borderRadius:      radius.full,
+    borderWidth:       1,
+    borderColor:       colors.border,
+    backgroundColor:   colors.bgElevated,
+  },
+  comingSoonText: {
+    fontSize:      typography.xs,
+    fontWeight:    typography.black,
+    color:         colors.textSecondary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   cardHeader: {
     flexDirection: 'row',

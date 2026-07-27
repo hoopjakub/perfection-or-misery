@@ -22,6 +22,17 @@ export type Fixture = {
   result: MatchResult | null
   scorers?: import('./stats').MatchScorers   // attributed once during sim, stored here
   seed?: number   // deep-stat seed — full match detail regenerates from this (match-detail.ts)
+  // §10.5 — how heavily each side rested players. Stored because the XI it
+  // produced decided the scoreline: regenerating the sheet without it would
+  // pick a different eleven and a stored scorer could end up off the pitch.
+  homeRotation?: number
+  awayRotation?: number
+  // §10.5 phase 4 — who was injured or suspended for this match, and the
+  // stand-ins that covered for your side. Stored for the same reason rotation
+  // is: the eleven they produced decided the scoreline, and regenerating
+  // without them would field somebody who wasn't available.
+  absent?:   string[]
+  standIns?: import('./stats').RosterPlayer[]
 }
 
 export type MatchResult = {
@@ -54,6 +65,11 @@ export type SeasonResult = {
   unbeaten: boolean
   perfectSeason: boolean
   matchdayHistory: MatchdaySnapshot[] // Stored locally, not in database
+  // §10.5 phase 4 (R8) — the medical table: everyone who missed a match through
+  // injury or suspension, and for how long. Built in matchday order by the
+  // availability ledger during the sim; it cannot be recomputed afterwards
+  // because availability is sequential, so it travels with the result.
+  absences?: import('@/engine/availability').Absence[]
 }
 
 export type Tier =

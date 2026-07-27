@@ -11,7 +11,7 @@
 
 ## 2. Stack & how to run
 
-- **Expo SDK 54**, React Native 0.81, **expo-router** (file-based routing), TypeScript (strict).
+- **Expo SDK 54**, React Native 0.81, **expo-router** (file-based routing), TypeScript (strict).3
 - **Zustand** (`src/store/gameStore.ts`) — per-run state.
 - **expo-sqlite** — bundled read-only player DB (`assets/db/players_v5.db`), versioned.
 - **Supabase** — auth + `runs` and `career_stats` tables.

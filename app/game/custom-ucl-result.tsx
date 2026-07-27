@@ -13,7 +13,9 @@ import { SquadSummary } from '@/components/SquadSummary'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
 import { TitleWithInfo, RulesModal } from '@/components/InfoBubble'
 import { LeagueTableModal, LeaguesBrowserModal, KoTieDetailModal, qualTieToKoMatch } from '@/components/CustomUclViewers'
-import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { MedicalTable } from '@/components/MedicalTable'
+import { openMatchStats } from '@/lib/matchStats'
+import { clCompetitionMatches } from '@/engine/match-context'
 import { QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
 import { FORMAT_LABEL, isSpecialFormat } from '@/data/league-formats'
 import { flagForCountry } from '@/data/geo-iso'
@@ -41,7 +43,7 @@ const ROUND_COLORS: Record<string, string> = {
 }
 export default function CustomUclResultScreen() {
   const store = useGameStore()
-  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim, difficulty, customDifficulty } = store
+  const { resetRun, formation, draftedPlayers, benchPlayers, quickSim, difficulty, customDifficulty, weightedPicksOverride } = store
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const { user, isGuest } = useUserStore()
   const params = useLocalSearchParams<{ runId?: string }>()
@@ -51,7 +53,6 @@ export default function CustomUclResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
-  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
   const [openLeague, setOpenLeague] = useState<SimLeagueTable | null>(null)
   const [browserOpen, setBrowserOpen] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
@@ -120,19 +121,44 @@ export default function CustomUclResultScreen() {
   const isChampion = playerFinalRound === 'winner'
   const playerPos = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
   const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
+  // 1st-8th place enter the Round of 16 directly, skipping the Playoff — the
+  // ◆ marker on the R16 rows (Big Fixes §1).
+  const directIds = new Set(leaguePhaseStandings.slice(0, 8).map(t => t.clubId))
 
   // Deep-stats entry point — league-phase matchday rows (KO legs open from
   // the shared KoTieDetailModal's per-leg buttons).
   const ovrByClub = new Map(leaguePhaseStandings.map(t => [t.clubId, t.ovr]))
-  const openLeagueMatchDetail = (m: CLLeagueMatch) => setMatchDetail({
-    homeClubId: m.home.clubId, homeName: m.home.clubName,
-    awayClubId: m.away.clubId, awayName: m.away.clubName,
-    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
-    scorers: m.scorers, seed: m.seed, yearStart: store.clYear ?? 2025,
-    competitionLabel: `League Phase · Matchday ${m.matchday}`,
-    playerClubId: playerTeam.clubId,
-    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
-  })
+  // Also TeamModal's onOpenMatch — opened from a tap *inside* that already-open
+  // modal, so close it here too (not just set matchDetail). AppModal has no
+  // shared z-index stack, so leaving the parent "open" stacked two full-screen
+  // fixed overlays at once and could leave the page unclickable after closing
+  // the top one (Big Fixes §5.6 — PC/mouse only, touch's hit-testing masked it).
+  // §10.5 — one continuous timeline (league phase → every knockout leg) so the
+  // stats screen can show the table, five games of form and what came next.
+  const clContextMatches = clCompetitionMatches(leagueMatchdays, [
+    { label: 'KO Play-off',   ties: playoffRound },
+    { label: 'Round of 16',   ties: r16 },
+    { label: 'Quarter-final', ties: qf },
+    { label: 'Semi-final',    ties: sf },
+    { label: 'Final',         ties: final ? [final] : [] },
+  ])
+
+  const openLeagueMatchDetail = (m: CLLeagueMatch) => {
+    setOpenTeam(null)
+    openMatchStats({
+      homeClubId: m.home.clubId, homeName: m.home.clubName,
+      awayClubId: m.away.clubId, awayName: m.away.clubName,
+      homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+      scorers: m.scorers, seed: m.seed, yearStart: store.clYear ?? 2025,
+      homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+      absent: m.absent, standIns: m.standIns,
+      competitionLabel: `League Phase · Matchday ${m.matchday}`,
+      playerClubId: playerTeam.clubId,
+      drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+      playerFormation: (fromHistory ? dbRun?.formation : store.formation) ?? undefined,
+      matchday: m.matchday, contextMatches: clContextMatches,
+    }, MODE_THEMES.champions_league.accent)
+  }
 
   // How the player's club reached (or fell short of) the league phase — plus
   // their DOMESTIC season, which is where the whole journey started.
@@ -147,7 +173,7 @@ export default function CustomUclResultScreen() {
   const entryRound = playerEntry?.entryRound ?? playerQualPath[0]?.round ?? 'league_phase'
   const entryPath = playerEntry?.entryPath ?? playerQualPath[0]?.path ?? 'none'
   const entryText = notQualified
-    ? `Finished ${domPos}${ordinal(domPos)} in the ${playerLeague?.name ?? 'league'} — below every Champions League spot. No Europe this season.`
+    ? `Finished ${domPos}${ordinal(domPos)} in the ${playerLeague?.name ?? 'league'} — below every UEFA Champions League spot. No Europe this season.`
     : qualExitRound
     ? `Eliminated in the ${QUAL_ROUND_LABEL[qualExitRound]} (${PATH_LABEL[entryPath]})`
     : entryRound === 'league_phase'
@@ -186,7 +212,7 @@ export default function CustomUclResultScreen() {
           teamOvr: playerTeam.ovr,
           result: clResult!,
           squad: fullSquad,
-          difficulty, custom: customDifficulty,
+          difficulty, custom: customDifficulty, weightedPicksOverride,
           stats: runStats?.stats,
           awards: runStats?.awards,
           qual: customUclQual,
@@ -225,7 +251,7 @@ export default function CustomUclResultScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: CL.bgTint }]} contentContainerStyle={styles.content}>
       <Animated.View style={[styles.header, { opacity: heroAnim, transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
-        <Text style={styles.competitionLabel}>Champions League · Custom Path</Text>
+        <Text style={styles.competitionLabel}>UEFA Champions League · Custom Path</Text>
         <Text style={[styles.resultBanner, { color: resultColor }]}>{resultLabel.toUpperCase()}</Text>
         {isChampion && <Text style={styles.trophy}>🏆</Text>}
       </Animated.View>
@@ -268,7 +294,11 @@ export default function CustomUclResultScreen() {
 
       {/* Lineup + squad — live run or rehydrated from a saved one */}
       {(() => {
-        const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        // Include bench players too — SquadSummary's "Team" view looks each row
+        // up by playerId to show their real drafted club/season, and a squad
+        // limited to the starting XI left every substitute with no match, so
+        // their row rendered "—" for team (Big Fixes §5.1).
+        const squad = (fromHistory ? dbRun?.squad ?? [] : fullSquad) as any[]
         const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
         const st    = runStats?.stats ?? dbRun?.stats ?? null
@@ -288,6 +318,9 @@ export default function CustomUclResultScreen() {
           <QualifyingLadder ties={qualTies} onTiePress={t => { const m = qualTieToKoMatch(t); if (m) setOpenKO(m) }} />
         </View>
       )}
+
+      {/* §10.5 phase 4 (R8) — the medical table. */}
+      <MedicalTable absences={clResult.absences} accent={CL.accent} />
 
       {/* League phase standings */}
       <View style={styles.card}>
@@ -341,7 +374,7 @@ export default function CustomUclResultScreen() {
               { key: 'sf', label: 'Semi-Finals', sub: '', matches: sf },
               { key: 'final', label: 'Final', sub: '', matches: final ? [final] : [] },
             ].filter(r => r.matches.length > 0)}
-            directIds={new Set(leaguePhaseStandings.slice(0, 8).map(t => t.clubId))}
+            directIds={directIds}
             onMatchPress={setOpenKO}
           />
         </View>
@@ -426,7 +459,6 @@ export default function CustomUclResultScreen() {
         draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
         yearStart={store.clYear ?? 2025}
       />
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={MODE_THEMES.champions_league.accent} />
       <LeagueTableModal table={openLeague} playerClubId={playerTeam.clubId} onClose={() => setOpenLeague(null)} />
       <LeaguesBrowserModal visible={browserOpen} tables={associations} playerClubId={playerTeam.clubId} onClose={() => setBrowserOpen(false)} />
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} />
@@ -504,6 +536,9 @@ function TeamModal({ team, matches, onClose, onOpenMatch }: { team: { clubId: st
   )
 }
 
+// Horizontal column-per-round bracket (Big Fixes §1 revert — restored per
+// maintainer request; only the qualifiers ladder + WC/CL live views keep the
+// list-style unification).
 type BracketRound = { key: string; label: string; sub: string; matches: CLKnockoutMatch[]; showDirect?: boolean }
 const BRACKET_ROW_H = 72
 
@@ -543,8 +578,6 @@ function BracketMatch({ match: m, directIds, showDirect, onPress }: { match: CLK
   )
 }
 
-const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-Final', sf: 'Semi-Final', final: 'Final' }
-
 function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; goals: number; direct: boolean }) {
   return (
     <View style={styles.bracketTeamRow}>
@@ -555,6 +588,8 @@ function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; go
     </View>
   )
 }
+
+const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-Final', sf: 'Semi-Final', final: 'Final' }
 
 function ordinal(n: number): string {
   if (n === 1) return 'st'; if (n === 2) return 'nd'; if (n === 3) return 'rd'; return 'th'

@@ -75,6 +75,11 @@ const FORMATIONS: FormationConfig[] = [
     label:       '3-4-2-1',
     description: 'Back three, wing-back width, and two roaming 10s behind a lone striker. Fluid and creative in the final third.',
   },
+  {
+    id:          '3-4-1-2',
+    label:       '3-4-1-2',
+    description: 'Back three, wing-back width with two wide midfielders, and one roaming 10 behind a two strikers. All out attack. PM Special.',
+  },
 ]
 
 function FormationVisual({ shape, accentColor }: {
@@ -125,7 +130,7 @@ const visualStyles = StyleSheet.create({
 })
 
 export default function FormationSelectScreen() {
-  const { mode, era, startRun, useSubstitutes, setUseSubstitutes } = useGameStore()
+  const { mode, startRun, useSubstitutes, setUseSubstitutes } = useGameStore()
   const theme = useModeTheme()
   const [selected, setSelected] = useState<Formation>('4-3-3')
 
@@ -135,7 +140,7 @@ export default function FormationSelectScreen() {
         return
     }
     console.log('[formation] starting run with mode:', mode, 'formation:', selected)
-    startRun(mode, selected, era ?? undefined)
+    startRun(mode, selected)
     router.push('/game/draft')
     }
 

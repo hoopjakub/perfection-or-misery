@@ -12,16 +12,21 @@ import { resolveDifficulty, type Difficulty, type CustomDifficulty } from '@/eng
 // screw-level here too, resolved via `mode`, rather than saving null and losing
 // the info); `difficulty_meta` carries the resolved knobs + the 0–11 hardness.
 // Both are optional columns (auto-dropped by insertRun if the DB lacks them).
-function difficultyColumns(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode?: GameMode | null) {
+function difficultyColumns(
+  difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode?: GameMode | null,
+  weightedPicksOverride?: boolean | null,
+) {
   const isFixedMode = mode === 'chaos' || mode === 'cursed'
   if (!difficulty && !isFixedMode) return { difficulty: null, difficulty_meta: null }
-  const r = resolveDifficulty(difficulty, custom, mode)
+  const r = resolveDifficulty(difficulty, custom, mode, weightedPicksOverride)
   return {
     // Chaos/Cursed store their mode name as the "difficulty" label (their level
     // is fixed, not chosen) so the run-history UI has something to badge on.
     difficulty: isFixedMode ? mode : difficulty,
     difficulty_meta: {
       rerolls: r.rerolls, ratingsShown: r.ratingsShown, screwLevel: r.screwLevel, hardness: r.hardness,
+      // CL (full) only — see Big Fixes §4. Omitted elsewhere (see DifficultyMeta).
+      ...(mode === 'champions_league_custom' ? { weightedPicks: r.weightedPicksEffective } : {}),
     },
   }
 }
@@ -98,6 +103,9 @@ export async function saveRun(params: {
       biggestWin: params.seasonResult.biggestWin,
       worstLoss:  params.seasonResult.worstLoss,
       upsets:     params.seasonResult.upsets,
+      // §10.5 phase 4 — the medical table rides along in `highlights` so it
+      // survives a history load without needing its own column.
+      absences:   params.seasonResult.absences ?? [],
     },
     stats:  params.stats,
     awards: params.awards,
@@ -246,6 +254,7 @@ export async function saveCustomUclRun(params: {
   squad: DraftedPlayer[]
   difficulty: Difficulty | null
   custom?: CustomDifficulty | null
+  weightedPicksOverride?: boolean | null   // Big Fixes §4 — CL (full) only
   stats?: unknown
   awards?: unknown
   qual?: unknown          // QualifyingResult — stored so history can rebuild the ladder
@@ -255,7 +264,10 @@ export async function saveCustomUclRun(params: {
   const pt = result.playerTeam
   const finalPosition = CUSTOM_CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 90
   const teamsInLeague = 36
-  const score = knockoutScore(CUSTOM_CL_ROUND_SCORE[result.playerFinalRound] ?? 30, params.teamOvr, pt.stats.lost, resolveDifficulty(params.difficulty, params.custom).scoreMultiplier)
+  const score = knockoutScore(
+    CUSTOM_CL_ROUND_SCORE[result.playerFinalRound] ?? 30, params.teamOvr, pt.stats.lost,
+    resolveDifficulty(params.difficulty, params.custom, 'champions_league_custom', params.weightedPicksOverride).scoreMultiplier,
+  )
 
   await insertRun({
     user_id: params.userId,
@@ -275,7 +287,7 @@ export async function saveCustomUclRun(params: {
     goals_against: pt.stats.goalsAgainst,
     score,
     squad: params.squad,
-    ...difficultyColumns(params.difficulty, params.custom),
+    ...difficultyColumns(params.difficulty, params.custom, 'champions_league_custom', params.weightedPicksOverride),
     // Full tournament + qualifying ladder + domestic tables so the result page
     // can be rebuilt IDENTICALLY from history. The qualifying ladder and the 53
     // simulated league tables are nested INSIDE cl_result (a jsonb column that

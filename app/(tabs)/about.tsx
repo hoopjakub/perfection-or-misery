@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linki
 import { router } from 'expo-router'
 import { BackButton } from '@/components/ui'
 import { useGameStore } from '@/store/gameStore'
-import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl } from '@/engine/quick-sim'
+import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl, autoDraftForTestFinal } from '@/engine/quick-sim'
 import { SpinningGlobe } from '@/components/GlobeReveal'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
@@ -18,7 +18,7 @@ export default function AboutScreen() {
     if (n >= 8) setShowTester(true)
   }
 
-  async function runQuickSim(family: 'league' | 'champions_league' | 'custom_ucl' | 'world_cup') {
+  async function runQuickSim(family: 'league' | 'champions_league' | 'custom_ucl' | 'world_cup' | 'test_final') {
     setBusy(true)
     try {
       if (family === 'league') {
@@ -33,6 +33,22 @@ export default function AboutScreen() {
         const run = await quickSimCL()
         useGameStore.setState({ mode: 'champions_league', difficulty: 'medium', formation: run.formation, draftedPlayers: run.draftedPlayers, clTeams: run.clTeams, clResult: run.clResult, accentColor: null, quickSim: true })
         router.push('/game/cl-result')
+      } else if (family === 'test_final') {
+        // Big Fixes §12 — auto-drafts, then goes through the REAL placement →
+        // group stage → knockout flow like any other World Cup run (nothing
+        // is skipped to a result screen). simulation.tsx's WC path checks the
+        // testForceWinUntilFinal flag and forces the player's own matches —
+        // every round except the final — to a clean 1-0 win, so you always
+        // reach the final; the final itself always simulates for real.
+        const run = await autoDraftForTestFinal()
+        useGameStore.setState({
+          mode: 'world_cup', difficulty: 'medium',
+          formation: run.formation, draftedPlayers: run.draftedPlayers,
+          benchPlayers: [], useSubstitutes: false,
+          wcTeams: null, wcResult: null,
+          accentColor: null, quickSim: true, testForceWinUntilFinal: true,
+        })
+        router.push('/game/placement')
       } else {
         const run = await quickSimWC()
         useGameStore.setState({ mode: 'world_cup', difficulty: 'medium', formation: run.formation, draftedPlayers: run.draftedPlayers, wcTeams: run.wcTeams, wcResult: run.wcResult, accentColor: null, quickSim: true })
@@ -80,8 +96,8 @@ export default function AboutScreen() {
             {' '}— I loved the core idea, but kept noticing things I wanted to do differently. So I
             decided to build my own take on it: deeper simulation, real competitions, and a lot more
             drama along the way. What started as "38-0 but mine" has grown into a full football
-            universe — a custom Champions League journey across all 53 UEFA leagues, a 48-team World
-            Cup, live matches on a ticking clock, and now FotMob-style deep stats with player ratings
+            universe — a custom UEFA Champions League journey across all 53 UEFA leagues, a 48-team
+            FIFA World Cup, live matches on a ticking clock, and now FotMob-style deep stats with player ratings
             for every single simulated match.
           </Text>
         </View>
@@ -98,7 +114,7 @@ export default function AboutScreen() {
             shot maps, pass numbers, duels, individual 0–10 ratings and a Player of the Match for
             every fixture — thousands of matches per run, each reproducible from a single stored seed
             so reopening a match always shows identical numbers{'\n'}
-            • Champions League and World Cup knockouts run through a full two-legged / extra-time /
+            • UEFA Champions League and FIFA World Cup knockouts run through a full two-legged / extra-time /
             penalty-shootout engine, with named takers pulled from your actual squad{'\n'}
             • The country-reveal globe — draft spins, league placement, and the one spinning above —
             is a from-scratch orthographic map projection in SVG. No map library, just spherical
@@ -128,6 +144,7 @@ export default function AboutScreen() {
             <Text style={styles.sectionTitle}>⚡ Quick Sim Tester</Text>
             <Text style={styles.content}>
               Auto-drafts a random squad, simulates a full season with no UI, and drops you on the result screen (stats included). Not saved to your account.
+              {'\n\n'}<Text style={{ fontWeight: typography.bold, color: colors.gold }}>Final</Text> only auto-drafts, then plays through the real World Cup flow (placement → groups → knockouts) — every match your team plays is forced to a clean 1-0 win except the final, which is always simulated for real. Built for testing the Deep Match/momentum/stats work without grinding a whole tournament per test.
             </Text>
             {busy ? (
               <View style={styles.testerBusy}>
@@ -147,6 +164,9 @@ export default function AboutScreen() {
                 </Pressable>
                 <Pressable style={styles.testerBtn} onPress={() => runQuickSim('world_cup')}>
                   <Text style={styles.testerBtnText}>WC</Text>
+                </Pressable>
+                <Pressable style={[styles.testerBtn, styles.testerBtnFinal]} onPress={() => runQuickSim('test_final')}>
+                  <Text style={[styles.testerBtnText, styles.testerBtnFinalText]}>Final</Text>
                 </Pressable>
               </View>
             )}
@@ -170,6 +190,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   testerBtnDisabled: { backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
+  testerBtnFinal: { backgroundColor: colors.gold },
+  testerBtnFinalText: { color: '#1A1500' },
   testerBtnText: { color: colors.textPrimary, fontWeight: typography.bold, fontSize: typography.sm },
   testerBtnTextDisabled: { color: colors.textMuted, fontWeight: typography.medium, fontSize: typography.xs },
   container: {

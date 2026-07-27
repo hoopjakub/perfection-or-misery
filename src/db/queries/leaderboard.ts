@@ -6,7 +6,12 @@ import { bestTierOf } from '@/data/tiers'
 // (leaderboard, run history, achievements). Optional columns (added after the
 // difficulty feature shipped), so every fetch below degrades gracefully if the
 // DB doesn't have them yet rather than failing the whole query.
-export type DifficultyMeta = { rerolls: number; ratingsShown: boolean; screwLevel: number; hardness: number }
+export type DifficultyMeta = {
+  rerolls: number; ratingsShown: boolean; screwLevel: number; hardness: number
+  // CL (full) only (Big Fixes §4) — omitted for every other mode's runs, not
+  // just `false`, so the badge only ever mentions it where it was a real knob.
+  weightedPicks?: boolean
+}
 export type DifficultyFields = { difficulty: string | null; difficulty_meta: DifficultyMeta | null }
 
 export type LeaderboardEntry = DifficultyFields & {
@@ -220,7 +225,6 @@ export function calculateScore(params: {
   const modeMultiplier: Record<string, number> = {
     league:   1.0,
     all_time: 1.2,
-    era:      1.1,
     chaos:    1.0,
     cursed:   1.0,
   }

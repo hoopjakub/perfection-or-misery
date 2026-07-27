@@ -18,7 +18,9 @@ import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/the
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
 
 import { WCGroupModal, WCGroupMatchdays } from '@/components/WCGroupModal'
-import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { MedicalTable } from '@/components/MedicalTable'
+import { openMatchStats } from '@/lib/matchStats'
+import type { ContextMatch } from '@/engine/match-context'
 
 const WC = MODE_THEMES.world_cup
 
@@ -31,7 +33,7 @@ const ROUND_LABELS: Record<string, string> = {
   fourth:  "Semi 'No Medal' Finalist",
   third:   '🥉 Third Place',
   final:   'Finalist',
-  winner:  'WORLD CUP CHAMPION',
+  winner:  'FIFA WORLD CUP CHAMPION',
 }
 
 const ROUND_COLORS: Record<string, string> = {
@@ -77,7 +79,6 @@ export default function WCResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [openKO, setOpenKO] = useState<WCKnockoutMatch | null>(null)
-  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
   const savedRef = useRef(false)
@@ -132,7 +133,7 @@ export default function WCResultScreen() {
   if (!wcResult) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>No World Cup result found.</Text>
+        <Text style={styles.errorText}>No FIFA World Cup result found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: spacing.lg }}>
           <Text style={{ color: WC.accent, fontWeight: '700' }}>← Back to Menu</Text>
         </Pressable>
@@ -156,26 +157,88 @@ export default function WCResultScreen() {
 
   // Deep-stats entry points — group matches + knockout ties.
   const ovrByClub = new Map(groups.flatMap(g => g.teams).map(t => [t.clubId, t.ovr]))
-  const openGroupMatchDetail = (m: WCGroupMatch) => setMatchDetail({
-    homeClubId: m.home.clubId, homeName: m.home.clubName,
-    awayClubId: m.away.clubId, awayName: m.away.clubName,
-    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
-    scorers: m.scorers, seed: m.seed, yearStart: 2026,
-    competitionLabel: `Group ${m.groupId} · Matchday ${m.matchday}`,
-    playerClubId: playerTeam.clubId,
-    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
-  })
-  const openKoDetail = (m: WCKnockoutMatch) => setMatchDetail({
-    homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
-    awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
-    homeGoals: m.result.homeGoals, awayGoals: m.result.awayGoals,
-    extraTime: m.result.extraTime,
-    pensNote: m.result.homePens !== null ? `Penalties ${m.result.homePens} – ${m.result.awayPens} · ${m.winner.clubName} advance` : undefined,
-    scorers: m.scorers, seed: m.seed, yearStart: 2026,
-    competitionLabel: KO_ROUND_NAMES[m.round] ?? m.round,
-    playerClubId: playerTeam.clubId,
-    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
-  })
+  // Both double as WCGroupModal/KOMatchModal's onOpenMatch/onStats — opened from
+  // a tap *inside* an already-open modal, so close that parent modal here too
+  // (not just set matchDetail). AppModal has no shared z-index stack, so leaving
+  // the parent "open" stacked two full-screen fixed overlays at once and could
+  // leave the page unclickable after closing the top one (Big Fixes §5.6 —
+  // PC/mouse only, touch's hit-testing masked it).
+  // §10.5 — a World Cup timeline: the three group matchdays, then each knockout
+  // round continuing the sequence. Only group games feed a table (each group is
+  // its own mini-league), but the knockouts still count as games played, so
+  // form and "next match" carry straight through into the bracket.
+  // `tableGroup` is the only group whose games feed a standings table. For a
+  // group match that's the group itself; for a knockout tie it's nobody — the
+  // two sides can come from different groups, so there IS no shared table, but
+  // EVERY group game still has to be present or the away side's form would show
+  // only knockouts.
+  const wcContext = (tableGroup: string | null): ContextMatch[] => {
+    const groupRows: ContextMatch[] = groupMatchdays.map(m => ({
+      matchday: m.matchday, label: `Group ${m.groupId} · Matchday ${m.matchday}`,
+      inTable: m.groupId === tableGroup,
+      homeClubId: m.home.clubId, homeClubName: m.home.clubName,
+      awayClubId: m.away.clubId, awayClubName: m.away.clubName,
+      homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+      scorers: m.scorers, seed: m.seed,
+      // Rotation MUST travel with the match: regenerating without it selects a
+      // different eleven than the stored scorers were attributed against.
+      homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+      absent: m.absent, standIns: m.standIns,
+    }))
+    const base = groupRows.reduce((mx, m) => Math.max(mx, m.matchday), 0)
+    const koRows: ContextMatch[] = knockoutRounds.flatMap((round, ri) =>
+      round.matches.map(m => ({
+        matchday: base + ri + 1, label: KO_ROUND_NAMES[m.round] ?? m.round, inTable: false,
+        homeClubId: m.teamA.clubId, homeClubName: m.teamA.clubName,
+        awayClubId: m.teamB.clubId, awayClubName: m.teamB.clubName,
+        homeGoals: m.result.homeGoals, awayGoals: m.result.awayGoals,
+        extraTime: m.result.extraTime, scorers: m.scorers, seed: m.seed,
+        absent: m.absent, standIns: m.standIns,
+        // So the stats screen's bracket can say who went through — a shootout
+        // leaves no trace in the goals.
+        tieWinnerClubId: m.winner.clubId,
+      })))
+    return [...groupRows, ...koRows]
+  }
+  const wcKoMatchday = (m: WCKnockoutMatch) => {
+    const base = groupMatchdays.reduce((mx, g) => Math.max(mx, g.matchday), 0)
+    const ri = knockoutRounds.findIndex(r => r.matches.some(x => x === m))
+    return ri === -1 ? undefined : base + ri + 1
+  }
+
+  const openGroupMatchDetail = (m: WCGroupMatch) => {
+    setOpenGroup(null)
+    openMatchStats({
+      homeClubId: m.home.clubId, homeName: m.home.clubName,
+      awayClubId: m.away.clubId, awayName: m.away.clubName,
+      homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+      scorers: m.scorers, seed: m.seed, yearStart: 2026,
+      homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+      absent: m.absent, standIns: m.standIns,
+      competitionLabel: `Group ${m.groupId} · Matchday ${m.matchday}`,
+      playerClubId: playerTeam.clubId,
+      drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+      playerFormation: (fromHistory ? dbRun?.formation : store.formation) ?? undefined,
+      matchday: m.matchday, contextMatches: wcContext(m.groupId),
+    }, WC.accent)
+  }
+  const openKoDetail = (m: WCKnockoutMatch) => {
+    setOpenKO(null)
+    openMatchStats({
+      homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
+      awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
+      homeGoals: m.result.homeGoals, awayGoals: m.result.awayGoals,
+      extraTime: m.result.extraTime,
+      pensNote: m.result.homePens !== null ? `Penalties ${m.result.homePens} – ${m.result.awayPens} · ${m.winner.clubName} advance` : undefined,
+      scorers: m.scorers, seed: m.seed, yearStart: 2026,
+      absent: m.absent, standIns: m.standIns,
+      competitionLabel: KO_ROUND_NAMES[m.round] ?? m.round,
+      playerClubId: playerTeam.clubId,
+      drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+      playerFormation: (fromHistory ? dbRun?.formation : store.formation) ?? undefined,
+      matchday: wcKoMatchday(m), contextMatches: wcContext(null),
+    }, WC.accent)
+  }
 
   // Best third-place ranking across all groups
   const thirdPlaceTeams = sortedGroups.map(g => g.teams[2]).filter(Boolean).sort(sortGroupTeams)
@@ -270,7 +333,11 @@ export default function WCResultScreen() {
 
       {/* Lineup + squad — live run or rehydrated from a saved one */}
       {(() => {
-        const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        // Include bench players too — SquadSummary's "Team" view looks each row
+        // up by playerId to show their real drafted club/season, and a squad
+        // limited to the starting XI left every substitute with no match, so
+        // their row rendered "—" for team (Big Fixes §5.1).
+        const squad = (fromHistory ? dbRun?.squad ?? [] : fullSquad) as any[]
         const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
         const st    = runStats?.stats ?? dbRun?.stats ?? null
@@ -317,6 +384,9 @@ export default function WCResultScreen() {
           )}
         </View>
       )}
+
+      {/* §10.5 phase 4 (R8) — the medical table. */}
+      <MedicalTable absences={wcResult.absences} accent={WC.accent} />
 
       {/* All groups */}
       <View style={styles.card}>
@@ -400,7 +470,7 @@ export default function WCResultScreen() {
       {/* Winner */}
       {winner && (
         <View style={[styles.card, styles.winnerCard]}>
-          <Text style={styles.winnerLabel}>World Cup Champion</Text>
+          <Text style={styles.winnerLabel}>FIFA World Cup Champion</Text>
           <TeamLabel clubId={winner.clubId} name={winner.clubName} textStyle={styles.winnerName} size={26} />
           <Text style={styles.winnerOvr}>OVR {winner.ovr}</Text>
         </View>
@@ -451,7 +521,6 @@ export default function WCResultScreen() {
         draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
         onStats={() => { if (openKO) openKoDetail(openKO) }}
       />
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={WC.accent} />
     </ScrollView>
   )
 }
@@ -508,45 +577,6 @@ function WCHistorySummary({ run }: { run: any }) {
   )
 }
 
-function BracketView({ knockoutRounds, onMatchPress }: { knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[]; onMatchPress: (m: WCKnockoutMatch) => void }) {
-  const maxMatches = Math.max(...knockoutRounds.map(r => r.matches.length), 1)
-  const colHeight = maxMatches * ROW_H
-
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.bracketScroll}>
-      <View style={styles.bracketRow}>
-        {knockoutRounds.map(({ round, matches }) => (
-          <View key={round} style={styles.bracketCol}>
-            <Text style={styles.bracketColLabel}>{KO_ROUND_NAMES[round] ?? round.toUpperCase()}</Text>
-            <View style={[styles.bracketColBody, { height: colHeight }]}>
-              {matches.map((m, i) => (
-                <BracketMatch key={i} match={m} onPress={() => onMatchPress(m)} />
-              ))}
-            </View>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  )
-}
-
-function BracketMatch({ match: m, onPress }: { match: WCKnockoutMatch; onPress: () => void }) {
-  const isPM = m.teamA.isPlayer || m.teamB.isPlayer
-  const aWon = m.winner.clubId === m.teamA.clubId
-  const pens = m.result.homePens !== null ? `p${m.result.homePens}-${m.result.awayPens}` : null
-  const suffix = pens ?? (m.result.extraTime ? 'AET' : null)
-
-  return (
-    <Pressable style={[styles.bracketCard, isPM && styles.bracketCardPlayer]} onPress={onPress}>
-      <BracketTeam team={m.teamA} won={aWon} goals={m.result.homeGoals} />
-      <View style={styles.bracketDivider}>
-        {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
-      </View>
-      <BracketTeam team={m.teamB} won={!aWon} goals={m.result.awayGoals} />
-    </Pressable>
-  )
-}
-
 // Tap-through detail for a WC knockout tie.
 function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers, onStats }: {
   match: WCKnockoutMatch | null; onClose: () => void
@@ -598,6 +628,45 @@ function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers, onStats
         </Pressable>
       </Pressable>
     </AppModal>
+  )
+}
+
+function BracketView({ knockoutRounds, onMatchPress }: { knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[]; onMatchPress: (m: WCKnockoutMatch) => void }) {
+  const maxMatches = Math.max(...knockoutRounds.map(r => r.matches.length), 1)
+  const colHeight = maxMatches * ROW_H
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.bracketScroll}>
+      <View style={styles.bracketRow}>
+        {knockoutRounds.map(({ round, matches }) => (
+          <View key={round} style={styles.bracketCol}>
+            <Text style={styles.bracketColLabel}>{KO_ROUND_NAMES[round] ?? round.toUpperCase()}</Text>
+            <View style={[styles.bracketColBody, { height: colHeight }]}>
+              {matches.map((m, i) => (
+                <BracketMatch key={i} match={m} onPress={() => onMatchPress(m)} />
+              ))}
+            </View>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  )
+}
+
+function BracketMatch({ match: m, onPress }: { match: WCKnockoutMatch; onPress: () => void }) {
+  const isPM = m.teamA.isPlayer || m.teamB.isPlayer
+  const aWon = m.winner.clubId === m.teamA.clubId
+  const pens = m.result.homePens !== null ? `p${m.result.homePens}-${m.result.awayPens}` : null
+  const suffix = pens ?? (m.result.extraTime ? 'AET' : null)
+
+  return (
+    <Pressable style={[styles.bracketCard, isPM && styles.bracketCardPlayer]} onPress={onPress}>
+      <BracketTeam team={m.teamA} won={aWon} goals={m.result.homeGoals} />
+      <View style={styles.bracketDivider}>
+        {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
+      </View>
+      <BracketTeam team={m.teamB} won={!aWon} goals={m.result.awayGoals} />
+    </Pressable>
   )
 }
 

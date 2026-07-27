@@ -172,6 +172,10 @@ export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compa
         {!compact && meta && (
           <Text style={diffStyles.caption}>
             {meta.rerolls} reroll{meta.rerolls === 1 ? '' : 's'} · Ratings {meta.ratingsShown ? 'on' : 'hidden'}
+            {/* CL (full) only — see Big Fixes §4. Weighted picks eases the
+                draft (see hardnessOf), so it belongs alongside the other
+                knobs that explain "why this hardness number". */}
+            {meta.weightedPicks !== undefined ? ` · Weighted picks ${meta.weightedPicks ? 'on' : 'off'}` : ''}
           </Text>
         )}
       </View>
@@ -181,9 +185,16 @@ export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compa
   // easy / medium / hard
   const color = DIFF_COLOR[difficulty] ?? colors.textSecondary
   return (
-    <View style={[diffStyles.pill, { backgroundColor: color + '22', borderColor: color }]}>
-      <Ionicons name={DIFF_ICON[difficulty] ?? 'speedometer-outline'} size={11} color={color} />
-      <Text style={[diffStyles.pillText, { color }]}>{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</Text>
+    <View>
+      <View style={[diffStyles.pill, { backgroundColor: color + '22', borderColor: color }]}>
+        <Ionicons name={DIFF_ICON[difficulty] ?? 'speedometer-outline'} size={11} color={color} />
+        <Text style={[diffStyles.pillText, { color }]}>{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</Text>
+      </View>
+      {/* CL (full) only — see Big Fixes §4 — easy/medium/hard have no other
+          knobs to caption, so this is the only line that ever shows here. */}
+      {!compact && meta?.weightedPicks !== undefined && (
+        <Text style={diffStyles.caption}>Weighted picks {meta.weightedPicks ? 'on' : 'off'}</Text>
+      )}
     </View>
   )
 }

@@ -69,6 +69,14 @@ export type ResolvedDifficulty = {
   tilt:           number
   hardness:       number    // 0..11 (see hardnessOf)
   scoreMultiplier: number
+  // CL (full) only — see Big Fixes §4. `weightedPicksDefault` is what the
+  // preset/custom difficulty implies on its own (auto ON for easy/medium and
+  // for custom, auto OFF for hard); `weightedPicksEffective` folds in the
+  // custom-path manual override (only selectable — and only meaningful — when
+  // difficulty is 'custom') and is what actually drives the draft-pool filter
+  // and the hardness/score impact below. Always `false` outside CL (full).
+  weightedPicksDefault:   boolean
+  weightedPicksEffective: boolean
 }
 
 // Chaos and Cursed have no difficulty picker in mode-select (hasDifficulty:
@@ -86,6 +94,9 @@ export function resolveDifficulty(
   difficulty: Difficulty | null,
   custom: CustomDifficulty | null | undefined,
   mode?: GameMode | null,
+  // CL (full) weighted-picks manual override — only ever settable (in the
+  // UI) when difficulty is 'custom'; ignored otherwise. null = no override.
+  weightedPicksOverride?: boolean | null,
 ): ResolvedDifficulty {
   const fixedLevel = mode ? FIXED_MODE_LEVEL[mode] : undefined
   const knobs = fixedLevel !== undefined
@@ -100,7 +111,15 @@ export function resolveDifficulty(
         rerolls: PRESET_REROLLS[difficulty ?? 'medium'],
         ratingsShown: PRESET_RATINGS_SHOWN[difficulty ?? 'medium'] }
 
-  const hardness = hardnessOf(knobs.level, knobs.rerolls, !knobs.ratingsShown)
+  // Easy/Medium default ON, Hard defaults OFF, Custom defaults ON (the
+  // custom-path toggle is the only way to turn it off) — see Big Fixes §4.
+  // Only meaningful for CL (full); every other mode resolves to `false`.
+  const weightedPicksDefault = difficulty === 'custom' ? true : knobs.level <= 4
+  const weightedPicksEffective = mode !== 'champions_league_custom' ? false
+    : difficulty === 'custom' ? (weightedPicksOverride ?? weightedPicksDefault)
+    : weightedPicksDefault
+
+  const hardness = hardnessOf(knobs.level, knobs.rerolls, !knobs.ratingsShown, weightedPicksEffective)
   return {
     screwLevel: knobs.level,
     rerolls: knobs.rerolls,
@@ -108,6 +127,8 @@ export function resolveDifficulty(
     tilt: tiltForLevel(knobs.level),
     hardness,
     scoreMultiplier: scoreMultiplierFor(hardness),
+    weightedPicksDefault,
+    weightedPicksEffective,
   }
 }
 
@@ -116,11 +137,15 @@ export function resolveDifficulty(
 // Endpoints (by design): Baby + 10 rerolls + ratings shown = 0.0 (easiest possible),
 // Absolute Misery + 0 rerolls + ratings hidden = 11.0 (the 11/10 run). Level is the
 // dominant axis (0–9); hidden ratings and zero rerolls each add up to a full point.
-export function hardnessOf(screwLevel: number, rerolls: number, ratingsHidden: boolean): number {
+// Weighted picks (CL full only, Big Fixes §4) shaves off a further point when
+// effectively on — it's the same kind of "made the draft easier" knob as
+// visible ratings or a pile of rerolls, so it earns less. Clamped at 0 since
+// it can otherwise push an already-easy run's raw total negative.
+export function hardnessOf(screwLevel: number, rerolls: number, ratingsHidden: boolean, weightedPicks = false): number {
   const level = clampInt(screwLevel, 1, 10)
   const rr    = clampInt(rerolls, 0, 10)
-  const h = (level - 1) + (ratingsHidden ? 1 : 0) + (10 - rr) / 10
-  return Math.round(h * 10) / 10
+  const h = (level - 1) + (ratingsHidden ? 1 : 0) + (10 - rr) / 10 - (weightedPicks ? 1 : 0)
+  return Math.max(0, Math.round(h * 10) / 10)
 }
 
 // Harder settings are worth more points. Anchored so a "medium" run (hardness

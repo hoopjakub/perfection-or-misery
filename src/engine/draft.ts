@@ -11,6 +11,9 @@ export type ClubSeasonRow = {
   league_id: string
   games_per_season: number
   primary_color: string
+  // UEFA association coefficient rank (cucl_% leagues only) — see
+  // db/queries/seasons.ts. Drives the weighted-picks top-leagues filter.
+  assoc_rank?: number | null
 }
 
 export function isPlayerAvailable(
@@ -21,18 +24,22 @@ export function isPlayerAvailable(
   return openSlots.some(slot => positionPenalty(primaryPos, slot.primary) !== null)
 }
 
+// Weighted picks (Big Fixes §4): in CL (full) only, restrict the spin pool to
+// clubs from the top UEFA-coefficient leagues (`assoc_rank` ≤ 6 — tuned down
+// from the original top-10, stamped via `leagues.tier`, see
+// db/queries/seasons.ts). The caller resolves whether weighted picks is
+// effectively on (difficulty default, overridden by the custom-path toggle)
+// — this just applies the pool restriction.
 export function spinClubSeason(
   pool: ClubSeasonRow[],
   alreadySpun: string[],
   mode: GameMode,
-  eraFilter?: number
+  weightedPicks = false,
 ): ClubSeasonRow {
   let eligible = pool.filter(cs => !alreadySpun.includes(cs.id))
 
-  if (mode === 'era' && eraFilter !== undefined) {
-    eligible = eligible.filter(cs =>
-      Math.floor(cs.year_start / 10) === Math.floor(eraFilter / 10)
-    )
+  if (mode === 'champions_league_custom' && weightedPicks) {
+    eligible = eligible.filter(cs => (cs.assoc_rank ?? Infinity) <= 6)
   }
 
   if (eligible.length === 0) throw new Error('POOL_EXHAUSTED')

@@ -9,11 +9,52 @@ import { computeLeagueRunStats, computeCLRunStats, computeWCRunStats, type Playe
 import { RulesModal } from '@/components/InfoBubble'
 import { fetchRunById } from '@/db/queries/runs'
 import { TeamLabel } from '@/components/TeamLabel'
-import { playerSheet } from '@/components/MatchDetailModal'
+import { playerSheet } from '@/components/MatchStatsParts'
 import { colors, spacing, typography, radius, shadows, ratingColor } from '@/theme'
 import type { CompetitionStats, SeasonAwards, AwardCandidate, PlayerStatLine } from '@/types/stats'
 
-type Tab = 'scorers' | 'assists' | 'clean' | 'rating' | 'potm'
+type Tab = string
+
+// §10.5 phase 3 — every season stat the screen can rank by, in one table so a
+// column is defined once (label, how to sort it, how to print it, who qualifies)
+// instead of five parallel ternaries that had to be edited in lockstep.
+const pct = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0
+
+type Board = {
+  key: Tab
+  label: string
+  value: (p: PlayerStatLine) => number
+  render: (p: PlayerStatLine) => string
+  /** Who appears at all — keeps 1-of-1 = 100% cameos off a rate leaderboard. */
+  eligible: (p: PlayerStatLine) => boolean
+}
+
+const BOARDS: Board[] = [
+  { key: 'scorers', label: 'Goals', value: p => p.goals, render: p => String(p.goals), eligible: p => p.goals > 0 },
+  { key: 'assists', label: 'Assists', value: p => p.assists, render: p => String(p.assists), eligible: p => p.assists > 0 },
+  { key: 'clean', label: 'CS', value: p => p.cleanSheets, render: p => String(p.cleanSheets), eligible: p => p.cleanSheets > 0 },
+  { key: 'rating', label: 'Rating', value: p => p.avgRating ?? 0, render: p => (p.avgRating ?? 0).toFixed(2), eligible: p => (p.matchesRated ?? 0) >= MIN_RATED },
+  { key: 'potm', label: '★ POTM', value: p => p.potm ?? 0, render: p => String(p.potm ?? 0), eligible: p => (p.potm ?? 0) > 0 },
+  { key: 'created', label: 'Chances', value: p => p.chancesCreated ?? 0, render: p => String(p.chancesCreated ?? 0), eligible: p => (p.chancesCreated ?? 0) > 0 },
+  { key: 'shots', label: 'Shots', value: p => p.shots ?? 0, render: p => String(p.shots ?? 0), eligible: p => (p.shots ?? 0) > 0 },
+  { key: 'sot', label: 'On target', value: p => p.shotsOnTarget ?? 0, render: p => String(p.shotsOnTarget ?? 0), eligible: p => (p.shotsOnTarget ?? 0) > 0 },
+  {
+    key: 'pass', label: 'Pass %',
+    value: p => pct(p.accuratePasses ?? 0, p.passes ?? 0),
+    render: p => `${pct(p.accuratePasses ?? 0, p.passes ?? 0)}%  (${p.accuratePasses ?? 0}/${p.passes ?? 0})`,
+    eligible: p => (p.passes ?? 0) >= 200,
+  },
+  {
+    key: 'dribbles', label: 'Dribbles',
+    value: p => p.dribbles ?? 0,
+    render: p => `${p.dribbles ?? 0}  (${pct(p.dribbles ?? 0, p.dribblesAttempted ?? 0)}%)`,
+    eligible: p => (p.dribbles ?? 0) > 0,
+  },
+  { key: 'tackles', label: 'Tackles', value: p => p.tacklesWon ?? 0, render: p => String(p.tacklesWon ?? 0), eligible: p => (p.tacklesWon ?? 0) > 0 },
+  { key: 'fouls', label: 'Fouls', value: p => p.fouls ?? 0, render: p => String(p.fouls ?? 0), eligible: p => (p.fouls ?? 0) > 0 },
+  { key: 'yellow', label: 'Yellows', value: p => p.yellowCards ?? 0, render: p => String(p.yellowCards ?? 0), eligible: p => (p.yellowCards ?? 0) > 0 },
+  { key: 'red', label: 'Reds', value: p => p.redCards ?? 0, render: p => String(p.redCards ?? 0), eligible: p => (p.redCards ?? 0) > 0 },
+]
 const YOUR_TINT = 'rgba(255,255,255,0.06)'   // light white tint for your players
 
 // Minimum matches played to appear on the average-rating leaderboard (keeps a
@@ -92,14 +133,9 @@ export default function StatsScreen() {
   )
 
   const players = stats.players
-  const lb = tab === 'scorers' ? players.filter(p => p.goals > 0)
-    : tab === 'assists' ? [...players].filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists)
-    : tab === 'clean' ? [...players].filter(p => p.cleanSheets > 0).sort((a, b) => b.cleanSheets - a.cleanSheets)
-    : tab === 'rating' ? [...players].filter(p => (p.matchesRated ?? 0) >= MIN_RATED).sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0))
-    : [...players].filter(p => (p.potm ?? 0) > 0).sort((a, b) => (b.potm ?? 0) - (a.potm ?? 0))
-  const statOf = (p: PlayerStatLine): string | number =>
-    tab === 'scorers' ? p.goals : tab === 'assists' ? p.assists : tab === 'clean' ? p.cleanSheets
-    : tab === 'rating' ? (p.avgRating ?? 0).toFixed(2) : (p.potm ?? 0)
+  const board = BOARDS.find(b => b.key === tab) ?? BOARDS[0]
+  const lb = [...players].filter(board.eligible).sort((a, b) => board.value(b) - board.value(a))
+  const statOf = (p: PlayerStatLine): string | number => board.render(p)
   const yourPlayers = players.filter(p => p.isPlayerClub).sort((a, b) => b.goals - a.goals || b.assists - a.assists)
 
   const q = query.trim().toLowerCase()
@@ -128,7 +164,7 @@ export default function StatsScreen() {
           {q.length > 0 && (searchResults.length === 0
             ? <Text style={styles.muted}>No player matches “{query}”.</Text>
             : searchResults.map(p => (
-              <Pressable key={p.playerId} onPress={matchLog ? () => setOpenPlayer(p) : undefined}
+              <Pressable key={p.playerId} onPress={() => setOpenPlayer(p)}
                 style={[styles.searchRow, p.isPlayerClub && { backgroundColor: YOUR_TINT }]}>
                 <View style={styles.nameCol}>
                   <Text style={[styles.name, p.isPlayerClub && { color: theme.accent }]} numberOfLines={1}>{p.name}</Text>
@@ -148,25 +184,27 @@ export default function StatsScreen() {
         </View>
 
         {/* Awards */}
-        <AwardCard title="🏆 Player of the Season" list={awards.playerOfTheSeason} theme={theme} total={players.length} />
-        <AwardCard title="🌟 Best U21" list={awards.bestU21} theme={theme} total={players.length} />
+        <AwardCard title="🏆 Player of the Season" list={awards.playerOfTheSeason} theme={theme} total={players.length}
+          onPressPlayer={id => { const p = players.find(x => x.playerId === id); if (p) setOpenPlayer(p) }} />
+        <AwardCard title="🌟 Best U21" list={awards.bestU21} theme={theme} total={players.length}
+          onPressPlayer={id => { const p = players.find(x => x.playerId === id); if (p) setOpenPlayer(p) }} />
 
         {/* Leaderboards */}
         <View style={styles.card}>
-          <View style={styles.tabs}>
-            {(['scorers', 'assists', 'clean', 'rating', 'potm'] as Tab[]).map(t => (
-              <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
-                <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                  {t === 'scorers' ? 'Goals' : t === 'assists' ? 'Assists' : t === 'clean' ? 'CS' : t === 'rating' ? 'Rating' : '★ POTM'}
-                </Text>
+          {/* Horizontal: fourteen boards don't fit a wrapped row without the
+              list below being pushed off the screen. */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+            {BOARDS.map(b => (
+              <Pressable key={b.key} onPress={() => setTab(b.key)} style={[styles.tab, tab === b.key && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
+                <Text style={[styles.tabText, tab === b.key && styles.tabTextActive]}>{b.label}</Text>
               </Pressable>
             ))}
-          </View>
-          {matchLog && <Text style={styles.tapHint}>Tap a player to see every one of their matches</Text>}
+          </ScrollView>
+          <Text style={styles.tapHint}>Tap a player to see every one of their matches</Text>
           {lb.length === 0 ? <Text style={styles.muted}>Nobody yet.</Text> : (
             <ScrollView style={styles.listScroll} nestedScrollEnabled showsVerticalScrollIndicator>
               {lb.map((p, i) => (
-                <Pressable key={p.playerId} onPress={matchLog ? () => setOpenPlayer(p) : undefined}
+                <Pressable key={p.playerId} onPress={() => setOpenPlayer(p)}
                   style={[styles.row, p.isPlayerClub && { backgroundColor: YOUR_TINT, borderRadius: radius.sm }]}>
                   <Text style={styles.rank}>{i + 1}</Text>
                   <View style={styles.nameCol}>
@@ -177,7 +215,7 @@ export default function StatsScreen() {
                     ? <View style={[styles.lbRatingChip, { backgroundColor: ratingColor(p.avgRating ?? 0) }]}>
                         <Text style={styles.lbRatingText}>{(p.avgRating ?? 0).toFixed(2)}</Text>
                       </View>
-                    : <Text style={[styles.statVal, { color: tab === 'potm' ? '#FFD700' : theme.accent }]}>{statOf(p)}</Text>}
+                    : <Text style={[styles.statVal, { color: tab === 'potm' ? '#FFD700' : theme.accent }]} numberOfLines={1}>{statOf(p)}</Text>}
                 </Pressable>
               ))}
             </ScrollView>
@@ -222,7 +260,7 @@ export default function StatsScreen() {
             <Text style={styles.yc}>G</Text><Text style={styles.yc}>A</Text><Text style={styles.yc}>CS</Text><Text style={styles.ycWide}>AVG</Text><Text style={styles.yc}>★</Text>
           </View>
           {yourPlayers.map(p => (
-            <Pressable key={p.playerId} onPress={matchLog ? () => setOpenPlayer(p) : undefined}
+            <Pressable key={p.playerId} onPress={() => setOpenPlayer(p)}
               style={[styles.row, { backgroundColor: YOUR_TINT, borderRadius: radius.sm }]}>
               <View style={styles.teamName}>
                 <Text style={[styles.name, { color: theme.accent }]} numberOfLines={1}>
@@ -239,7 +277,7 @@ export default function StatsScreen() {
               <Text style={[styles.yc, { color: '#FFD700', fontWeight: typography.black }]}>{p.potm || '—'}</Text>
             </Pressable>
           ))}
-          {matchLog && <Text style={styles.tapHint}>Tap a player for their match-by-match log</Text>}
+          <Text style={styles.tapHint}>Tap a player for their match-by-match log</Text>
         </View>
 
         {/* Full rulebook (custom UCL runs) */}
@@ -261,6 +299,7 @@ export default function StatsScreen() {
         players={openTeamId ? players.filter(p => p.clubId === openTeamId) : []}
         accent={theme.accent}
         onClose={() => setOpenTeamId(null)}
+        onPressPlayer={p => { setOpenTeamId(null); setOpenPlayer(p) }}
       />
     </View>
   )
@@ -297,8 +336,25 @@ function PlayerGamesModal({ player, entries, accent, onClose }: {
                   card — otherwise a long game log overflowed and the bottom rows
                   + Close button were clipped off-screen and unreachable. */}
               <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
+                {/* §10.5 phase 3 — the player's whole season, always. It used
+                    to appear only when there was no game log, but these are the
+                    numbers you open a player to see. */}
+                <View style={gameStyles.seasonGrid}>
+                  <SeasonTotal label="Matches" value={player.matchesRated ?? player.matchesPlayed ?? 0} />
+                  <SeasonTotal label="Goals" value={player.goals} />
+                  <SeasonTotal label="Assists" value={player.assists} />
+                  <SeasonTotal label="Clean sheets" value={player.cleanSheets} />
+                  <SeasonTotal label="Chances created" value={player.chancesCreated ?? 0} />
+                  <SeasonTotal label="Shots" value={player.shots ?? 0} />
+                  <SeasonTotal label="On target" value={player.shotsOnTarget ?? 0} />
+                  <SeasonTotal label="Tackles won" value={player.tacklesWon ?? 0} />
+                  <SeasonTotal label="Fouls" value={player.fouls ?? 0} />
+                  <SeasonTotal label="Pass %" text={`${pct(player.accuratePasses ?? 0, player.passes ?? 0)}%`} sub={`${player.accuratePasses ?? 0}/${player.passes ?? 0}`} />
+                  <SeasonTotal label="Dribbles" text={String(player.dribbles ?? 0)} sub={`${pct(player.dribbles ?? 0, player.dribblesAttempted ?? 0)}% of ${player.dribblesAttempted ?? 0}`} />
+                  <SeasonTotal label="Cards" text={`${player.yellowCards ?? 0}Y ${player.redCards ?? 0}R`} />
+                </View>
                 {entries.length === 0 && (
-                  <Text style={modalStyles.empty}>No match-by-match data — game logs are only available on the run where the stats were computed.</Text>
+                  <Text style={modalStyles.empty}>Match-by-match logs are only kept for the run where the stats were computed.</Text>
                 )}
                 {entries.map((e, i) => {
                   const l = e.line
@@ -355,7 +411,26 @@ function PlayerGamesModal({ player, entries, accent, onClose }: {
   )
 }
 
+/** One season number in the player's totals grid. `text`/`sub` carry the rate
+ *  stats, where the headline is a percentage and the raw split sits under it. */
+function SeasonTotal({ label, value, text, sub }: {
+  label: string; value?: number; text?: string; sub?: string
+}) {
+  return (
+    <View style={gameStyles.seasonTotal}>
+      <Text style={gameStyles.seasonTotalVal}>{text ?? value ?? 0}</Text>
+      <Text style={gameStyles.seasonTotalLbl}>{label}</Text>
+      {sub ? <Text style={gameStyles.seasonTotalSub}>{sub}</Text> : null}
+    </View>
+  )
+}
+
 const gameStyles = StyleSheet.create({
+  seasonGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: spacing.md, rowGap: spacing.md },
+  seasonTotal: { width: '25%', alignItems: 'center', gap: 1 },
+  seasonTotalVal: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary },
+  seasonTotalLbl: { fontSize: 8, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, textAlign: 'center' },
+  seasonTotalSub: { fontSize: 8, color: colors.textMuted, opacity: 0.75 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 7, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowMotm: { backgroundColor: '#FFD70015', borderRadius: radius.sm },
   opp: { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.medium },
@@ -376,11 +451,12 @@ const gameStyles = StyleSheet.create({
 // Opposing-team roster viewer — tap any team in Team Stats to see every one
 // of their players and individual stats for this run, same data source as
 // the leaderboards above (CompetitionStats.players), just filtered by club.
-function TeamRosterModal({ team, players, accent, onClose }: {
+function TeamRosterModal({ team, players, accent, onClose, onPressPlayer }: {
   team: { clubId: string; clubName: string; goalsFor: number; goalsAgainst: number; cleanSheets: number } | null
   players: PlayerStatLine[]
   accent: string
   onClose: () => void
+  onPressPlayer?: (p: PlayerStatLine) => void
 }) {
   const sorted = [...players].sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.name.localeCompare(b.name))
   return (
@@ -401,7 +477,11 @@ function TeamRosterModal({ team, players, accent, onClose }: {
                   <Text style={modalStyles.col}>G</Text><Text style={modalStyles.col}>A</Text><Text style={modalStyles.col}>CS</Text>
                 </View>
                 {sorted.map(p => (
-                  <View key={p.playerId} style={[modalStyles.row, p.isPlayerClub && { backgroundColor: accent + '15' }]}>
+                  <Pressable
+                    key={p.playerId}
+                    onPress={onPressPlayer ? () => onPressPlayer(p) : undefined}
+                    disabled={!onPressPlayer}
+                    style={[modalStyles.row, p.isPlayerClub && { backgroundColor: accent + '15' }]}>
                     <View style={modalStyles.nameCol}>
                       <Text style={[modalStyles.name, p.isPlayerClub && { color: accent }]} numberOfLines={1}>
                         {p.name}{p.isBench && <Text style={modalStyles.subTag}> SUB</Text>}
@@ -411,7 +491,7 @@ function TeamRosterModal({ team, players, accent, onClose }: {
                     <Text style={modalStyles.col}>{p.goals}</Text>
                     <Text style={modalStyles.col}>{p.assists}</Text>
                     <Text style={modalStyles.col}>{p.cleanSheets}</Text>
-                  </View>
+                  </Pressable>
                 ))}
                 {sorted.length === 0 && <Text style={modalStyles.empty}>No squad data for this club.</Text>}
               </ScrollView>
@@ -461,16 +541,23 @@ function Leader({ label, team, val, theme }: { label: string; team?: string; val
   )
 }
 
-function AwardCard({ title, list, theme, total }: { title: string; list: AwardCandidate[]; theme: { accent: string }; total: number }) {
+function AwardCard({ title, list, theme, total, onPressPlayer }: {
+  title: string; list: AwardCandidate[]; theme: { accent: string }; total: number
+  onPressPlayer?: (playerId: string) => void
+}) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
       {list.length === 0 ? <Text style={styles.muted}>No candidates.</Text> : (
         <ScrollView style={styles.listScroll} nestedScrollEnabled showsVerticalScrollIndicator>
           {list.map((c, i) => (
-            <View key={c.playerId} style={[styles.row,
-              c.isPlayerClub && { backgroundColor: YOUR_TINT, borderRadius: radius.sm },
-              i === 0 && { backgroundColor: theme.accent + '18', borderRadius: radius.sm, borderWidth: 1, borderColor: theme.accent }]}>
+            <Pressable
+              key={c.playerId}
+              onPress={onPressPlayer ? () => onPressPlayer(c.playerId) : undefined}
+              disabled={!onPressPlayer}
+              style={[styles.row,
+                c.isPlayerClub && { backgroundColor: YOUR_TINT, borderRadius: radius.sm },
+                i === 0 && { backgroundColor: theme.accent + '18', borderRadius: radius.sm, borderWidth: 1, borderColor: theme.accent }]}>
               <Text style={[styles.rank, i === 0 && { color: theme.accent }]}>{i + 1}</Text>
               <View style={styles.nameCol}>
                 <TeamLabel clubId={c.clubId} name={c.name} textStyle={[styles.name, (i === 0 || c.isPlayerClub) && { color: theme.accent, fontWeight: typography.bold }]} size={15} />
@@ -484,7 +571,7 @@ function AwardCard({ title, list, theme, total }: { title: string; list: AwardCa
                   {(c.potm ?? 0) > 0 ? ` · ★${c.potm}` : ''}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       )}

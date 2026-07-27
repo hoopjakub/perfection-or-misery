@@ -27,7 +27,7 @@ function calculateScore(params: {
   const positionScore = ((teamsInLeague - finalPosition + 1) / teamsInLeague) * 1000
   const ovrPenalty    = Math.max(0, teamOvr - 80) * 10
   const modeMultiplier: Record<string, number> = {
-    league: 1.0, all_time: 1.2, era: 1.1, chaos: 1.5, cursed: 1.3,
+    league: 1.0, all_time: 1.2, chaos: 1.5, cursed: 1.3,
   }
   const tierBonus = losses === 0 && draws === 0 ? 750
                   : losses === 0               ? 400 : 0

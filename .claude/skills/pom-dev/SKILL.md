@@ -17,7 +17,6 @@ description: >-
   over emoji-as-icon, WHY-comments). Skip only for pure prose/design-doc writing
   with no code.
 ---
-
 # Perfection or Misery — dev conventions
 
 A mobile football-management roguelike: draft an XI from random real
@@ -49,6 +48,7 @@ Modes: `league`/`all_time`/`era`/`chaos`/`cursed`, `champions_league`,
 5. **Keep AI-vs-AI fair.** Modifiers that help/hurt the player (e.g. difficulty)
    apply **only to matches where a team `isPlayer`** — never globally — so the rest
    of the table/bracket stays honest.
+6. **Documentation is like your second brother.** Always use .md files to write down what you did, what you are doing, and to get your memory a checkpoint,
 
 ## Environment & commands
 
@@ -65,16 +65,20 @@ Modes: `league`/`all_time`/`era`/`chaos`/`cursed`, `champions_league`,
 ## Verification (do this, in this order)
 
 ### 1. Typecheck — filter the noise
+
 ```bash
 npx tsc --noEmit 2>&1 | grep -v "^scripts/" | grep -v "^supabase/"
 ```
+
 `scripts/` (tsx) and `supabase/` (Deno) are separate runtimes — their errors are
 expected and ignored. Clean output from everything else is the bar.
 
 ### 2. Headless engine/stat verification — the project's testing idiom
+
 For any change to the match engine, stat generator, ratings, attribution, or
 balance, write or extend a `scripts/verify-*.ts` and run it with `npx tsx`.
 The house style (see `scripts/verify-match-detail.ts`, `verify-difficulty.ts`):
+
 - Simulate **thousands** of matches/runs.
 - A `check(cond, msg)` helper that increments a failure counter and logs `❌`.
 - **Invariant checks** (things that must always hold: possession sums to 100,
@@ -84,14 +88,16 @@ The house style (see `scripts/verify-match-detail.ts`, `verify-difficulty.ts`):
   wins comfortably, difficulty shifts the player's win-rate but not AI-vs-AI).
 - Print a summary and `process.exit(failures === 0 ? 0 : 1)`; end on
   `✅ ALL CHECKS PASSED`.
-Determinism matters: the same seed must produce byte-identical output, so these
-scripts are reproducible and diffable across runs.
+  Determinism matters: the same seed must produce byte-identical output, so these
+  scripts are reproducible and diffable across runs.
 
 ### 3. Browser walkthrough — the quick-sim tester
+
 The fastest way to exercise draft → sim → result → stats end-to-end without
 manually drafting 11 players: **About tab → tap the version number ("1.0.0") 8×**
 to reveal the hidden Quick Sim Tester, then League/UCL/UCL✦/WC. It auto-drafts,
 simulates headlessly, and lands on the result screen (stats included).
+
 - Prefer `get_page_text` / `read_page` over screenshots — screenshots tend to
   time out on this RN-web app; text tools are reliable.
 - Direct-navigating to a `/game/*` URL reloads the app and **wipes the in-memory

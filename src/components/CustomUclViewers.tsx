@@ -9,7 +9,8 @@ import { flagForCountry } from '@/data/geo-iso'
 import { InfoBubble } from '@/components/InfoBubble'
 import { PenShootout } from '@/components/PenShootout'
 import { summariseScorers, attachCLShootoutNames } from '@/engine/run-stats'
-import { MatchDetailModal, koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { koLegDetailRequest } from '@/components/MatchStatsParts'
+import { openMatchStats } from '@/lib/matchStats'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
 import type { DraftedPlayer } from '@/types/game'
@@ -48,7 +49,7 @@ export function PositionStakes({ rank, compact = false }: { rank: number; compac
     const b = berthForPosition(rank, pos)
     if (b) rows.push({ position: pos, ...b })
   }
-  if (rows.length === 0) return <Text style={styles.stakesNone}>No Champions League spots for this league — its clubs can only reach the UCL as title holders.</Text>
+  if (rows.length === 0) return <Text style={styles.stakesNone}>No UEFA Champions League spots for this league — its clubs can only reach the UCL as title holders.</Text>
   return (
     <View style={{ gap: 4 }}>
       {rows.map(r => (
@@ -58,7 +59,7 @@ export function PositionStakes({ rank, compact = false }: { rank: number; compac
           <Text style={styles.stakesLabel} numberOfLines={1}>{berthLabel(r.round, r.path)}</Text>
         </View>
       ))}
-      {!compact && <Text style={styles.stakesNote}>Finish anywhere below and there's no Champions League this season.</Text>}
+      {!compact && <Text style={styles.stakesNote}>Finish anywhere below and there's no UEFA Champions League this season.</Text>}
     </View>
   )
 }
@@ -113,7 +114,22 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
           <View key={c.clubId} style={[styles.tableRow, isPlayer && styles.tableRowPlayer]}>
             <Text style={styles.tablePos}>{i + 1}</Text>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.tableName, { flex: 0, flexShrink: 1 }, isPlayer && styles.tablePlayerText]} numberOfLines={1}>{c.clubName}</Text>
+              {/* Not spreading styles.tableName here on purpose: it sets the
+                  `flex: 1` shorthand, and mixing that with the flexGrow/
+                  flexShrink/flexBasis longhands below trips react-native-web's
+                  "don't mix shorthand and non-shorthand" warning. `flex: 0`
+                  (the shorthand) sets flex-basis: 0%, not "no basis" — that
+                  collapsed this Text to zero width on web, making every club
+                  name invisible while the badge still rendered; flexBasis:
+                  'auto' sizes to content instead, which is what "don't grow,
+                  but do shrink if tight" actually needs. */}
+              <Text
+                style={[
+                  { fontSize: typography.sm, color: colors.textPrimary, flexGrow: 0, flexShrink: 1, flexBasis: 'auto' },
+                  isPlayer && styles.tablePlayerText,
+                ]}
+                numberOfLines={1}
+              >{c.clubName}</Text>
               {showBadges && <BerthBadge rank={table.rank} position={i + 1} />}
             </View>
             <Text style={styles.tableWdl}>{c.won}-{c.drawn}-{c.lost}</Text>
@@ -216,9 +232,15 @@ export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, 
   yearStart?: number   // roster season for the deep-stats regeneration
   accent?: string
 }) {
-  const [detailReq, setDetailReq] = useState<MatchDetailRequest | null>(null)
-  const legRequest = (leg: 1 | 2): MatchDetailRequest | null =>
-    m ? koLegDetailRequest(m, leg, { label: roundLabel ?? m.round, yearStart, playerClubId, drafted: draftedPlayers }) : null
+  // Opening a leg's full stats leaves this tie modal behind — close it first,
+  // or you come back from the stats screen into a modal you didn't ask for.
+  const openLeg = (leg: 1 | 2) => {
+    if (!m) return
+    const req = koLegDetailRequest(m, leg, { label: roundLabel ?? m.round, yearStart, playerClubId, drafted: draftedPlayers })
+    if (!req) return
+    onClose()
+    openMatchStats(req, accent ?? CL.accent)
+  }
   // Penalty takers: matches carry the raw make/miss sequence; the NAMED kick
   // list is only pre-built for ties the reveal animated. Expand lazily here
   // (same shared helper the live sim uses) so EVERY shootout — qualifying
@@ -250,20 +272,19 @@ export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, 
               {kicksA && kicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={kicksA} kicksB={kicksB} />}
               {m.leg1 ? (
                 <>
-                  <KoLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} onStats={() => setDetailReq(legRequest(1))} />
-                  {m.leg2 && <KoLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} onStats={() => setDetailReq(legRequest(2))} />}
+                  <KoLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} onStats={() => openLeg(1)} />
+                  {m.leg2 && <KoLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} onStats={() => openLeg(2)} />}
                   {m.leg2ExtraTime && (m.leg2ExtraTime.aGoals > 0 || m.leg2ExtraTime.bGoals > 0) &&
                     <KoLeg label="Extra Time (leg 2)" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2ExtraTime.bGoals} ag={m.leg2ExtraTime.aGoals} scorers={m.leg2ExtraTimeScorers} />}
                 </>
               ) : (
-                <KoLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} onStats={() => setDetailReq(legRequest(1))} />
+                <KoLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} onStats={() => openLeg(1)} />
               )}
             </ScrollView>
           )}
           <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
         </Pressable>
       </Pressable>
-      <MatchDetailModal request={detailReq} onClose={() => setDetailReq(null)} accent={accent ?? CL.accent} />
     </AppModal>
   )
 }

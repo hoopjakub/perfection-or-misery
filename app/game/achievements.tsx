@@ -4,17 +4,23 @@ import { Ionicons } from '@expo/vector-icons'
 import { useUserStore } from '@/store/userStore'
 import { fetchAchievementRuns, isRunWon, type AchievementRun } from '@/db/queries/leaderboard'
 import { BackButton } from '@/components/ui'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_LABELS } from '@/theme'
+
+// Era mode is retired (Big Fixes §6) — no longer selectable from mode-select,
+// but old runs/career_stats may still carry `mode: 'era'`. Per the resolved
+// decision, historical data is never deleted/rewritten; it's just rendered
+// with this single retired label instead of offering the mode to play.
+export const ERA_RETIRED_LABEL = 'Era (retired)'
 
 // Which modes to show, in display order, with their identity + whether they have
 // a base-difficulty axis (chaos/cursed don't — they're a single conquest).
 const MODE_META: { mode: string; title: string; icon: keyof typeof Ionicons.glyphMap; accent: string; hasDifficulty: boolean; trophy: string }[] = [
-  { mode: 'world_cup',               title: 'World Cup',                 icon: 'earth',    accent: '#F5C518', hasDifficulty: true,  trophy: 'Lift the World Cup' },
-  { mode: 'champions_league_custom', title: 'Champions League',          icon: 'trophy',   accent: '#4FA9FF', hasDifficulty: true,  trophy: 'Win the full UCL journey' },
-  { mode: 'champions_league',        title: 'Champions League (Classic)',icon: 'trophy',   accent: '#4FA9FF', hasDifficulty: true,  trophy: 'Win the finals-only UCL' },
+  { mode: 'world_cup',               title: MODE_LABELS.world_cup,               icon: 'earth',    accent: '#F5C518', hasDifficulty: true,  trophy: 'Lift the FIFA World Cup' },
+  { mode: 'champions_league_custom', title: MODE_LABELS.champions_league_custom, icon: 'trophy',   accent: '#4FA9FF', hasDifficulty: true,  trophy: 'Win the full UCL journey' },
+  { mode: 'champions_league',        title: MODE_LABELS.champions_league,        icon: 'trophy',   accent: '#4FA9FF', hasDifficulty: true,  trophy: 'Win the finals-only UCL' },
   { mode: 'all_time',                title: 'All Time',                  icon: 'planet',   accent: '#10B981', hasDifficulty: true,  trophy: 'Win the league' },
   { mode: 'league',                  title: 'League Mode',               icon: 'flag',     accent: '#3B82F6', hasDifficulty: true,  trophy: 'Win the league' },
-  { mode: 'era',                     title: 'Era Mode',                  icon: 'calendar', accent: '#8B5CF6', hasDifficulty: true,  trophy: 'Win the league' },
+  { mode: 'era',                     title: ERA_RETIRED_LABEL,           icon: 'calendar', accent: '#8B5CF6', hasDifficulty: true,  trophy: 'Win the league' },
   { mode: 'chaos',                   title: 'Chaos Mode',                icon: 'skull',    accent: '#FF3B30', hasDifficulty: false, trophy: 'Win the league' },
   { mode: 'cursed',                  title: 'Cursed Mode',               icon: 'flame',    accent: '#A855F7', hasDifficulty: false, trophy: 'Win the league' },
 ]

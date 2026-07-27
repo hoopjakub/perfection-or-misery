@@ -15,6 +15,10 @@ export type ClubSeasonRow = {
   games_per_season: number
   primary_color: string
   league_format?: string
+  // UEFA association coefficient rank — only meaningful for `cucl_%` leagues
+  // (stored in `leagues.tier`, see db/queries/custom-ucl.ts); null elsewhere.
+  // Drives the weighted-picks top-10-league filter (Big Fixes §4).
+  assoc_rank?: number | null
 }
 
 export type LeagueOption = {
@@ -217,7 +221,7 @@ export async function getClubSeasonsForMode(
 
   return db.getAllAsync<ClubSeasonRow>(
     `SELECT cs.*, c.id AS club_id, c.name AS club_name, c.short_name, c.primary_color,
-            l.id AS league_id, l.name AS league_name, l.games_per_season
+            l.id AS league_id, l.name AS league_name, l.games_per_season, l.tier AS assoc_rank
      FROM club_seasons cs
      JOIN clubs c ON c.id = cs.club_id
      JOIN leagues l ON l.id = c.league_id

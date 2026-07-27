@@ -12,7 +12,7 @@ import { simulateMatch, setMatchTilt } from './match'
 import { updateForm } from './simulation'
 import { assignTier } from './tier'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from './placement'
-import { loadLeaguePools, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, attributeQualTieScorers, type LeaguePools } from './run-stats'
+import { loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, attributeQualTieScorers, type LeaguePools } from './run-stats'
 import { getClubSeasonsForMode, getAllClubSeasons } from '@/db/queries/seasons'
 import { getPlayersForClubSeason, type PlayerRow } from '@/db/queries/players'
 import {
@@ -21,8 +21,10 @@ import {
 } from './cl-sim'
 import {
   buildWCTeams, assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly,
-  type WCTeam, type WCGroup, type WCSeasonResult, type WCGroupMatch,
+  type WCTeam, type WCGroup, type WCSeasonResult, type WCGroupMatch, type WCKnockoutMatch,
 } from './world-cup-sim'
+import type { KnockoutResult } from './knockout-match'
+import { simulateKnockout } from './knockout-match'
 import type { MatchResult } from '@/types/simulation'
 import { buildCustomUclSeason } from '@/db/queries/custom-ucl'
 import { simulateCustomUclQualifying, type QualifyingResult } from './cl-qualifying'
@@ -274,7 +276,7 @@ export async function quickSimCL(): Promise<QuickCLRun> {
   const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays }
   // Attribute scorers ONCE and store them on the result (deterministic).
   const pools = await loadLeaguePools(teams, draftedPlayers, latest)
-  attributeCLResultScorers(clResult, pools.poolByClub)
+  attributeCLResultScorers(clResult, pools.poolByClub, lineupCtxOf(pools))
   return { formation, draftedPlayers, clTeams: teams, clResult }
 }
 
@@ -329,7 +331,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   const ko = simulateCLKnockoutsOnly(sorted)
   const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays }
   const pools = await loadLeaguePools(teams, draftedPlayers, 2025)   // cucl season = 2025/26
-  attributeCLResultScorers(clResult, pools.poolByClub)
+  attributeCLResultScorers(clResult, pools.poolByClub, lineupCtxOf(pools))
   // Qualifying ties get stored scorers too (they count toward stats/awards).
   try {
     const tieClubs = new Map<string, { clubId: string; clubName: string; isPlayer: boolean }>()
@@ -339,7 +341,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
     }
     if (tieClubs.size > 0) {
       const qp = await loadLeaguePools([...tieClubs.values()], draftedPlayers, 2025)
-      attributeQualTieScorers(qual.ties, qp.poolByClub)
+      attributeQualTieScorers(qual.ties, qp.poolByClub, lineupCtxOf(qp))
     }
   } catch { /* tester-only nicety */ }
   return { formation, draftedPlayers, clTeams: teams, clResult, qual, tables }
@@ -379,8 +381,113 @@ export async function quickSimWC(): Promise<QuickWCRun> {
   const wcResult: WCSeasonResult = { groups: clonedGroups, ...result, groupMatchdays }
   // Attribute scorers ONCE and store them on the result (deterministic).
   const pools = await loadLeaguePools(teams, draftedPlayers, latest)
-  attributeWCResultScorers(wcResult, pools.poolByClub)
+  attributeWCResultScorers(wcResult, pools.poolByClub, lineupCtxOf(pools))
   return { formation, draftedPlayers, wcTeams: teams, wcResult }
+}
+
+// ── "Test final game" dev tool (Big Fixes §12) ──────────────────────────────
+// For building/testing §7/§8/§10 (the Deep Match final + momentum + stats
+// screen) without grinding a whole World Cup to reach one. This does NOT skip
+// straight to a result — it auto-drafts and then the player goes through the
+// REAL placement → group stage → knockout flow exactly like any other run,
+// watching every round play out; simulation.tsx's WC group/knockout execution
+// just forces the player's own matches to a clean 1-0 win (checking the
+// store's `testForceWinUntilFinal` flag) up to but not including the final,
+// which is always genuinely simulated. `autoDraftForTestFinal` below only
+// covers the auto-draft step; the forcing itself lives in simulation.tsx (the
+// live screen) and here (`simulateWCKnockoutsForceToFinal`, used to build the
+// live knockout reveal's bracket instead of the real `simulateWCKnockoutsOnly`).
+export async function autoDraftForTestFinal(): Promise<{ formation: Formation; draftedPlayers: DraftedPlayer[] }> {
+  setMatchTilt(0)
+  const formation = pick(FORMATIONS)
+  const draftedPlayers = await autoDraftXI(formation)
+  return { formation, draftedPlayers }
+}
+
+export function forcedKnockoutResult(homeWins: boolean): KnockoutResult {
+  return {
+    homeGoals: homeWins ? 1 : 0, awayGoals: homeWins ? 0 : 1,
+    regulation: { homeGoals: homeWins ? 1 : 0, awayGoals: homeWins ? 0 : 1 },
+    extraTimeScore: null, extraTime: false, homePens: null, awayPens: null,
+    winner: homeWins ? 'home' : 'away',
+  }
+}
+
+// Near-copy of simulateWCKnockoutsOnly (world-cup-sim.ts) — kept as its own
+// function rather than adding a "force" branch to the real simulation engine.
+// Only the player's own ties are forced; every other tie in the bracket
+// (including the final) is simulated normally, same as a real run.
+export function simulateWCKnockoutsForceToFinal(groups: WCGroup[], allTeams: WCTeam[]): Omit<WCSeasonResult, 'groups'> {
+  const byStats = (a: WCTeam, b: WCTeam) => {
+    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
+    const gdA = a.stats.goalsFor - a.stats.goalsAgainst, gdB = b.stats.goalsFor - b.stats.goalsAgainst
+    if (gdB !== gdA) return gdB - gdA
+    return b.stats.goalsFor - a.stats.goalsFor
+  }
+  for (const group of groups) group.teams.sort(byStats)
+
+  const topTwo     = groups.flatMap(g => g.teams.slice(0, 2))
+  const allThirds  = groups.map(g => g.teams[2]).sort(byStats)
+  const bestThirds = allThirds.slice(0, 8)
+  const r32Teams   = [...topTwo, ...bestThirds]
+
+  const playerTeam     = allTeams.find(t => t.isPlayer)!
+  const playerGroup    = groups.find(g => g.teams.some(t => t.isPlayer))!
+  const playerGroupPos = playerGroup.teams.findIndex(t => t.isPlayer) + 1
+
+  const knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[] = []
+  const roundNames = ['r32', 'r16', 'qf', 'sf']
+  // Seed the player into the bracket first so they always have a spot, then
+  // shuffle the rest — the forced results mean the SHAPE of the bracket
+  // doesn't matter, only that the player's slot exists.
+  let current = [...r32Teams].sort(() => Math.random() - 0.5)
+  let sfLosers: WCTeam[] = []
+
+  for (const round of roundNames) {
+    const roundMatches: WCKnockoutMatch[] = []
+    const winners: WCTeam[] = []
+    const losers: WCTeam[] = []
+
+    for (let i = 0; i < current.length; i += 2) {
+      const teamA = current[i]
+      const teamB = current[i + 1]
+      const forcePlayer = teamA.isPlayer || teamB.isPlayer
+      const result = forcePlayer
+        ? forcedKnockoutResult(teamA.isPlayer)
+        : (simulateKnockout(teamA as any, teamB as any) as KnockoutResult)
+      const winner = result.winner === 'home' ? teamA : teamB
+      const loser  = winner.clubId === teamA.clubId ? teamB : teamA
+      winners.push(winner)
+      losers.push(loser)
+      roundMatches.push({ round, teamA, teamB, result, winner })
+    }
+
+    knockoutRounds.push({ round, matches: roundMatches })
+    if (round === 'sf') sfLosers = losers
+    current = winners
+  }
+
+  if (sfLosers.length === 2) {
+    const [tpA, tpB] = sfLosers
+    const tpResult = simulateKnockout(tpA as any, tpB as any) as KnockoutResult
+    const tpWinner = tpResult.winner === 'home' ? tpA : tpB
+    knockoutRounds.push({ round: 'third', matches: [{ round: 'third', teamA: tpA, teamB: tpB, result: tpResult, winner: tpWinner }] })
+  }
+
+  // The final: genuinely simulated, never forced — this is the match the
+  // whole tool exists to reach, and it should be new every time.
+  const [f1, f2] = current
+  const finalResult = simulateKnockout(f1 as any, f2 as any) as KnockoutResult
+  const champion = finalResult.winner === 'home' ? f1 : f2
+  const runnerUp = champion.clubId === f1.clubId ? f2 : f1
+  knockoutRounds.push({ round: 'final', matches: [{ round: 'final', teamA: f1, teamB: f2, result: finalResult, winner: champion }] })
+  const playerFinalRound = champion.isPlayer ? 'winner' : runnerUp.isPlayer ? 'final' : 'groups'
+
+  return {
+    r32Teams, knockoutRounds,
+    winner: champion, playerTeam, playerFinalRound,
+    playerGroup: playerGroup.id, playerGroupPos,
+  }
 }
 
 export async function quickSimLeague(): Promise<QuickLeagueRun> {

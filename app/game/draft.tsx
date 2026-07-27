@@ -12,7 +12,7 @@ import { calcTeamOvr, effectiveOvr, positionPenalty, derivedSecondaryPositions }
 import { getPlayersForClubSeason } from '@/db/queries/players'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, isPlayerAvailable } from '@/engine/draft'
-import { rerollLimitFor, ratingsHiddenFor } from '@/engine/difficulty'
+import { rerollLimitFor, ratingsHiddenFor, resolveDifficulty } from '@/engine/difficulty'
 import { getRandomFact } from '@/lib/clubFacts'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
@@ -26,13 +26,19 @@ type DraftPhase = 'idle' | 'spinning_position' | 'spinning' | 'picking' | 'done'
 
 export default function DraftScreen() {
   const {
-    mode, formation, era, difficulty, customDifficulty,
+    mode, formation, difficulty, customDifficulty,
     selectedLeague,
     draftedPlayers, spunSeasonIds,
     rerollsUsed, addPlayer, movePlayer, markSeasonSpun, useReroll,
     useSubstitutes, benchPlayers, addBenchPlayer, swapBenchAndStarter,
+    weightedPicksOverride,
   } = useGameStore()
   const theme = useModeTheme()
+
+  // Weighted picks (Big Fixes §4) — CL (full) only. Set (auto or via the
+  // custom-path toggle) back in mode-select, before drafting starts — it
+  // can't change mid-draft since it decides the spin pool itself.
+  const weightedPicksEffective = resolveDifficulty(difficulty ?? null, customDifficulty, mode ?? null, weightedPicksOverride).weightedPicksEffective
 
   // Bench draft — a separate, simpler mini-flow that runs after the main XI
   // is complete (see the 'done' phase below). Deliberately NOT wired into the
@@ -87,8 +93,7 @@ export default function DraftScreen() {
     setBenchSquad([])
     setBenchFact(null)
     try {
-      const eraYear = era ? parseInt(era.replace('s+', '').replace('s', '')) : undefined
-      const spun = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', eraYear)
+      const spun = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', weightedPicksEffective)
       markSeasonSpun(spun.id)
       runBenchSpinAnimation(spun)
     } catch {
@@ -105,8 +110,7 @@ export default function DraftScreen() {
     setBenchSquad([])
     setBenchFact(null)
     try {
-      const eraYear = era ? parseInt(era.replace('s+', '').replace('s', '')) : undefined
-      const spun = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', eraYear)
+      const spun = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', weightedPicksEffective)
       markSeasonSpun(spun.id)
       runBenchSpinAnimation(spun)
     } catch {
@@ -167,6 +171,13 @@ export default function DraftScreen() {
   const openSlots    = slots.filter(s => s.filledBy === null)
   const filledSlots  = slots.filter(s => s.filledBy !== null)
   const isDraftDone = slots.length > 0 && openSlots.length === 0
+  // In Cursed mode you're drafting blind for ONE spun position — the slot
+  // picker below already restricts assignment to just that slot, so player
+  // eligibility (list greying + the "no compatible players" skip prompt) has
+  // to match it. Using the full openSlots here was the bug: a player who
+  // fits some OTHER open slot but not the spun one showed as pickable, then
+  // hit "No compatible slots open" in the picker — a dead end.
+  const eligibleSlots = mode === 'cursed' && spunPosition ? [spunPosition] : openSlots
   // Hidden ratings: chaos/cursed always, hard preset, or a custom run with the
   // ratings toggle off (engine/difficulty.ts resolves all three).
   const ratingsHidden = ratingsHiddenFor(difficulty ?? null, customDifficulty, mode ?? null)
@@ -333,14 +344,10 @@ export default function DraftScreen() {
       setFact(null)
 
       try {
-        const eraYear = era
-          ? parseInt(era.replace('s+', '').replace('s', ''))
-          : undefined
-
         const spun = spinClubSeason(
           pool, spunSeasonIds,
           mode ?? 'league',
-          eraYear
+          weightedPicksEffective
         )
 
         markSeasonSpun(spun.id)
@@ -380,14 +387,10 @@ export default function DraftScreen() {
           setFact(null)
 
           try {
-            const eraYear = era
-              ? parseInt(era.replace('s+', '').replace('s', ''))
-              : undefined
-
             const spun = spinClubSeason(
               pool, spunSeasonIds,
               mode ?? 'league',
-              eraYear
+              weightedPicksEffective
             )
 
             markSeasonSpun(spun.id)
@@ -415,14 +418,10 @@ export default function DraftScreen() {
     // unmark the last spun season so it can be re-spun later
     // actually just spin a new one
     try {
-      const eraYear = era
-        ? parseInt(era.replace('s+', '').replace('s', ''))
-        : undefined
-
       const spun = spinClubSeason(
         pool, spunSeasonIds,
         mode ?? 'league',
-        eraYear
+        weightedPicksEffective
       )
 
       markSeasonSpun(spun.id)
@@ -436,7 +435,7 @@ export default function DraftScreen() {
     if (!isPlayerAvailable(
       player.primary_position,
       JSON.parse(player.secondary_positions ?? '[]'),
-      openSlots
+      eligibleSlots
     )) return
     setSelectedPlayer(player)
     setShowSlotPicker(true)
@@ -698,7 +697,6 @@ export default function DraftScreen() {
                       style={[
                         styles.formationDot,
                         slot.filledBy && styles.formationDotFilled,
-                        !slot.filledBy && openSlots[0]?.slotIndex === slot.slotIndex && styles.formationDotNext,
                       ]}
                     >
                       <Text style={styles.formationDotText}>
@@ -883,7 +881,7 @@ export default function DraftScreen() {
               !isPlayerAvailable(
                 p.primary_position,
                 JSON.parse(p.secondary_positions ?? '[]'),
-                openSlots
+                eligibleSlots
               )
             ) && (
               <View style={styles.noPlayersBox}>
@@ -906,8 +904,8 @@ export default function DraftScreen() {
             <View style={styles.playerList}>
                 {[...players]
                   .sort((a, b) => {
-                    const aAvail = isPlayerAvailable(a.primary_position, JSON.parse(a.secondary_positions ?? '[]'), openSlots)
-                    const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), openSlots)
+                    const aAvail = isPlayerAvailable(a.primary_position, JSON.parse(a.secondary_positions ?? '[]'), eligibleSlots)
+                    const bAvail = isPlayerAvailable(b.primary_position, JSON.parse(b.secondary_positions ?? '[]'), eligibleSlots)
                     if (aAvail && !bAvail) return -1
                     if (!aAvail && bAvail) return 1
                     // Ratings hidden (Chaos/Cursed/hard) → always order by surname
@@ -926,7 +924,7 @@ export default function DraftScreen() {
                   const available = isPlayerAvailable(
                     player.primary_position,
                     JSON.parse(player.secondary_positions ?? '[]'),
-                    openSlots
+                    eligibleSlots
                   )
 
                   return (
@@ -1045,7 +1043,13 @@ export default function DraftScreen() {
 
                 <ScrollView style={styles.benchPlayerScroll} nestedScrollEnabled showsVerticalScrollIndicator>
                 <View style={styles.playerList}>
-                  {[...benchSquad].sort((a, b) => b.ovr - a.ovr).map(player => (
+                  {[...benchSquad].sort((a, b) => ratingsHidden
+                    // Same rule as the starting-XI list: with ratings hidden, sorting
+                    // by OVR would leak it right back through list position, so fall
+                    // back to surname A–Z.
+                    ? a.name.split(' ').slice(-1)[0].localeCompare(b.name.split(' ').slice(-1)[0])
+                    : b.ovr - a.ovr
+                  ).map(player => (
                     <PressCard key={player.id} style={styles.playerCard} onPress={() => handleBenchPick(player)}>
                       <View style={styles.playerCardLeft}>
                         <View style={[styles.positionBadge, { backgroundColor: (colors.positions as any)[player.primary_position] + '33' }]}>
@@ -1186,10 +1190,6 @@ const styles = StyleSheet.create({
   formationDotFilled: {
     backgroundColor: colors.accent + '44',
     borderColor:     colors.accent,
-  },
-  formationDotNext: {
-    borderColor: colors.warning,
-    borderWidth: 2,
   },
   formationDotText: {
     fontSize:   6,

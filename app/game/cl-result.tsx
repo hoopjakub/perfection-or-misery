@@ -7,12 +7,15 @@ import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
 import { computeCLRunStats, summariseScorers, attachCLShootoutNames, koTieLegRecord } from '@/engine/run-stats'
-import { MatchDetailModal, koLegDetailRequest, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { koLegDetailRequest } from '@/components/MatchStatsParts'
+import { openMatchStats } from '@/lib/matchStats'
+import { clCompetitionMatches } from '@/engine/match-context'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
 import { PenShootout } from '@/components/PenShootout'
 import { InfoBubble, TitleWithInfo, RulesModal } from '@/components/InfoBubble'
+import { MedicalTable } from '@/components/MedicalTable'
 import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
@@ -52,7 +55,6 @@ export default function CLResultScreen() {
   const [loading, setLoading] = useState(fromHistory)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
   const [openKO, setOpenKO] = useState<CLKnockoutMatch | null>(null)
-  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
   const [rulesOpen, setRulesOpen] = useState(false)
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
@@ -119,25 +121,66 @@ export default function CLResultScreen() {
   const isChampion  = playerFinalRound === 'winner'
   const playerPos   = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
   const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
+  // 1st-8th place enter the Round of 16 directly, skipping the Playoff — the
+  // ◆ marker on the R16 rows (Big Fixes §1).
+  const directIds = new Set(leaguePhaseStandings.slice(0, 8).map(t => t.clubId))
 
   // Deep-stats entry points — league-phase matches + knockout-tie legs.
   const clYearStart = store.clYear ?? 2025
   const ovrByClub = new Map(leaguePhaseStandings.map(t => [t.clubId, t.ovr]))
-  const openLeagueMatchDetail = (m: CLLeagueMatch) => setMatchDetail({
-    homeClubId: m.home.clubId, homeName: m.home.clubName,
-    awayClubId: m.away.clubId, awayName: m.away.clubName,
-    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
-    scorers: m.scorers, seed: m.seed, yearStart: clYearStart,
-    competitionLabel: `League Phase · Matchday ${m.matchday}`,
-    playerClubId: playerTeam.clubId,
-    drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
-  })
+  // Both handlers double as TeamModal/KOTieModal's onOpenMatch/onStatsLeg — opened
+  // from a tap *inside* an already-open modal. Closing that parent modal here
+  // (not just setting matchDetail) is the fix for Big Fixes §5.6: AppModal has
+  // no shared z-index stack, so leaving the parent "open" left two full-screen
+  // fixed overlays mounted at once, and closing the top one could leave the
+  // page in a state where neither reliably received clicks (PC/mouse only —
+  // touch's more forgiving hit-testing masked it).
+  // §10 R6/R7 + §10.5 — one continuous timeline for the whole competition, so
+  // the stats screen can show the league table as it stood, five games of form
+  // (knockout legs included) and what each side played next.
+  const clContextMatches = clCompetitionMatches(leagueMatchdays, [
+    { label: CL_KO_NAMES.playoff ?? 'KO Play-off', ties: playoffRound },
+    { label: CL_KO_NAMES.r16 ?? 'Round of 16',     ties: r16 },
+    { label: CL_KO_NAMES.qf ?? 'Quarter-final',    ties: qf },
+    { label: CL_KO_NAMES.sf ?? 'Semi-final',       ties: sf },
+    { label: CL_KO_NAMES.final ?? 'Final',         ties: final ? [final] : [] },
+  ])
+  // Which timeline slot a knockout leg occupies, so its own screen knows where
+  // it sits (form before it, what came after).
+  const koMatchday = (m: CLKnockoutMatch, leg: 1 | 2) => {
+    const homeId = leg === 1 ? m.teamA.clubId : m.teamB.clubId
+    const hit = clContextMatches.find(c =>
+      c.inTable === false && c.homeClubId === homeId
+      && (c.awayClubId === (leg === 1 ? m.teamB.clubId : m.teamA.clubId))
+      && (leg === 1 ? !c.label?.includes('Leg 2') : !!c.label?.includes('Leg 2')))
+    return hit?.matchday
+  }
+
+  const openLeagueMatchDetail = (m: CLLeagueMatch) => {
+    setOpenTeam(null)
+    openMatchStats({
+      homeClubId: m.home.clubId, homeName: m.home.clubName,
+      awayClubId: m.away.clubId, awayName: m.away.clubName,
+      homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+      scorers: m.scorers, seed: m.seed, yearStart: clYearStart,
+      homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+      absent: m.absent, standIns: m.standIns,
+      competitionLabel: `League Phase · Matchday ${m.matchday}`,
+      playerClubId: playerTeam.clubId,
+      drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+      playerFormation: (fromHistory ? dbRun?.formation : formation) ?? undefined,
+      matchday: m.matchday, contextMatches: clContextMatches,
+    }, CL.accent)
+  }
   const openKoLegDetail = (m: CLKnockoutMatch, leg: 1 | 2) => {
     const req = koLegDetailRequest(m, leg, {
       label: CL_KO_NAMES[m.round] ?? m.round, yearStart: clYearStart, playerClubId: playerTeam.clubId,
       drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
     })
-    if (req) setMatchDetail(req)
+    if (req) {
+      setOpenKO(null)
+      openMatchStats({ ...req, matchday: koMatchday(m, leg), contextMatches: clContextMatches }, CL.accent)
+    }
   }
 
   // Player's knockout run summary — record is LEG-by-leg (you can win one leg
@@ -235,7 +278,11 @@ export default function CLResultScreen() {
 
       {/* Lineup + squad — live run or rehydrated from a saved one */}
       {(() => {
-        const squad = (fromHistory ? dbRun?.squad ?? [] : draftedPlayers) as any[]
+        // Include bench players too — SquadSummary's "Team" view looks each row
+        // up by playerId to show their real drafted club/season, and a squad
+        // limited to the starting XI left every substitute with no match, so
+        // their row rendered "—" for team (Big Fixes §5.1).
+        const squad = (fromHistory ? dbRun?.squad ?? [] : fullSquad) as any[]
         const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
         const st    = runStats?.stats ?? dbRun?.stats ?? null
@@ -246,6 +293,9 @@ export default function CLResultScreen() {
           </>
         )
       })()}
+
+      {/* §10.5 phase 4 (R8) — the medical table. */}
+      <MedicalTable absences={clResult.absences} accent={CL.accent} />
 
       {/* Full league phase standings — all 36, scrollable, tap a row for matchdays */}
       <View style={styles.card}>
@@ -281,7 +331,6 @@ export default function CLResultScreen() {
       {/* Knockout bracket + player's KO stat row */}
       {(playoffRound.length > 0 || r16.length > 0) && (
         <View style={styles.card}>
-          <TitleWithInfo title="Knockout Rounds" topic="knockout_bracket" style={styles.sectionTitle} />
           {playerKoTies.length > 0 && (
             <View style={styles.statsRow}>
               <StatBox label="KO Ties" value={String(playerKoTies.length)} />
@@ -290,6 +339,7 @@ export default function CLResultScreen() {
             </View>
           )}
 
+          <TitleWithInfo title="Knockout Rounds" topic="knockout_bracket" style={styles.sectionTitle} />
           <Text style={styles.phaseNote}>Scroll sideways · your ties are highlighted</Text>
           <BracketView
             rounds={[
@@ -299,7 +349,7 @@ export default function CLResultScreen() {
               { key: 'sf',      label: 'Semi-Finals',    sub: '',       matches: sf },
               { key: 'final',   label: 'Final',          sub: '',       matches: final ? [final] : [] },
             ].filter(r => r.matches.length > 0)}
-            directIds={new Set(leaguePhaseStandings.slice(0, 8).map(t => t.clubId))}
+            directIds={directIds}
             onMatchPress={setOpenKO}
           />
           <Text style={styles.phaseNote}>
@@ -349,9 +399,9 @@ export default function CLResultScreen() {
         </>
       )}
 
-      {/* How the Champions League works */}
+      {/* How the UEFA Champions League works */}
       <Pressable style={styles.rulesLink} onPress={() => setRulesOpen(true)}>
-        <Text style={[styles.rulesLinkText, { color: CL.accent }]}>📖  How the Champions League works</Text>
+        <Text style={[styles.rulesLinkText, { color: CL.accent }]}>📖  How the UEFA Champions League works</Text>
       </Pressable>
 
       {/* Team matchday modal */}
@@ -367,7 +417,6 @@ export default function CLResultScreen() {
         draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
         onStatsLeg={openKoLegDetail}
       />
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={CL.accent} />
       <RulesModal visible={rulesOpen} onClose={() => setRulesOpen(false)} accent={CL.accent} />
     </ScrollView>
   )
@@ -462,9 +511,12 @@ function TeamModal({ team, matches, onClose, onOpenMatch }: { team: { clubId: st
   )
 }
 
-// Horizontal column-per-round bracket. The Playoff is the left-most feeder
-// column (16→8); direct qualifiers (1st–8th) appear in the R16 column with a
-// ◆ marker since they skip the Playoff entirely.
+// Horizontal column-per-round bracket (Big Fixes §1 revert — restored per
+// maintainer request, the list-style unification is kept for WC/CL live and
+// for qualifiers, but the result screens' knockout sections go back to this).
+// The Playoff is the left-most feeder column (16→8); direct qualifiers
+// (1st–8th) appear in the R16 column with a ◆ marker since they skip the
+// Playoff entirely.
 type BracketRound = { key: string; label: string; sub: string; matches: CLKnockoutMatch[]; showDirect?: boolean }
 const BRACKET_ROW_H = 72
 
@@ -506,6 +558,20 @@ function BracketMatch({ match: m, directIds, showDirect, onPress }: { match: CLK
       </View>
       <BracketTeam team={m.teamB} won={!aWon} goals={m.bGoals} direct={showDirect && directIds.has(m.teamB.clubId)} />
     </Pressable>
+  )
+}
+
+function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; goals: number; direct: boolean }) {
+  return (
+    <View style={styles.bracketTeamRow}>
+      <Text
+        style={[styles.bracketTeamName, won && styles.bracketTeamWon, team.isPlayer && styles.bracketTeamPlayer]}
+        numberOfLines={1}
+      >
+        {direct && <Text style={styles.bracketDirect}>◆ </Text>}{team.clubName}
+      </Text>
+      <Text style={[styles.bracketTeamGoals, won && styles.bracketTeamWon]}>{goals}</Text>
+    </View>
   )
 }
 
@@ -575,20 +641,6 @@ function KOLeg({ label, home, away, hg, ag, scorers, homeId, onStats }: { label:
       <Text style={styles.koLegScore}>{home} {hg} – {ag} {away}</Text>
       {hs ? <Text style={styles.koLegScorer}>⚽ {home}: {hs}</Text> : null}
       {as ? <Text style={styles.koLegScorer}>⚽ {away}: {as}</Text> : null}
-    </View>
-  )
-}
-
-function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; goals: number; direct: boolean }) {
-  return (
-    <View style={styles.bracketTeamRow}>
-      <Text
-        style={[styles.bracketTeamName, won && styles.bracketTeamWon, team.isPlayer && styles.bracketTeamPlayer]}
-        numberOfLines={1}
-      >
-        {direct && <Text style={styles.bracketDirect}>◆ </Text>}{team.clubName}
-      </Text>
-      <Text style={[styles.bracketTeamGoals, won && styles.bracketTeamWon]}>{goals}</Text>
     </View>
   )
 }

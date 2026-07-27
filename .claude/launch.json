@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "expo-web",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web"],
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web"],
       "port": 8081
     },
     {
       "name": "expo-web-debug",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web", "--port", "8092"],
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web --port 8092"],
       "port": 8092
     }
   ]

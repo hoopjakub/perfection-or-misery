@@ -6,7 +6,15 @@ import type {
   RosterPlayer, GoalEvent, MatchScorers, PlayerStatLine, TeamGoalRecord,
   CompetitionStats, AwardCandidate, SeasonAwards,
 } from '@/types/stats'
-import type { Rng } from '@/lib/rng'
+import { deriveSeed, type Rng } from '@/lib/rng'
+import type { PlayerMatchLine } from '@/types/match-stats'
+import { lineupsForMatch, type MatchLineupOpts } from './lineup'
+
+// The extra-time segment of a knockout leg shares the leg's seed but must not
+// replay the same RNG stream, or ET would re-draw regulation's scorers — so it
+// gets an independently derived one. Lives here (not in run-stats) so the
+// headless verifier and engine/knockout-availability can both reach it.
+export const etSeed = (legSeed: number) => deriveSeed(legSeed, 0xE7)
 
 // ── Tunable weights ─────────────────────────────────────────────────────────
 // Scoring likelihood by position (GK never scores). Multiplied by (1+attack/100).
@@ -23,6 +31,30 @@ export const ASSIST_WEIGHT: Record<string, number> = {
 }
 export const ASSIST_RATE = 0.8     // 80% of goals get an assist
 export const CARRY_WEIGHT = 0.5    // award carry modifier (lower finish → bigger boost)
+
+// ── §9: own goals, penalties & mistakes ─────────────────────────────────────
+// Rates are per GOAL and roughly track real top-flight football, which is the
+// point: these are meant to be rare, memorable beats, not a constant drip.
+export const OWN_GOAL_RATE  = 0.022   // ~2% of goals — a genuine gut-punch when it lands
+export const PENALTY_RATE   = 0.085   // ~8.5% of goals come from the spot
+export const ERROR_RATE     = 0.07    // ~7% of goals are traced to a defensive mistake
+// Spec R1: when an own goal happens the scorer is a defender 90% of the time,
+// and any other position (goalkeeper included) the other 10%.
+export const OWN_GOAL_DEFENDER_SHARE = 0.9
+
+const DEFENDER_POS = new Set(['CB', 'LB', 'RB', 'LWB', 'RWB'])
+
+// Who draws a penalty: players who carry the ball into the box.
+const PEN_WON_WEIGHT: Record<string, number> = {
+  ST: 1.0, CF: 1.0, LW: 0.95, RW: 0.95, CAM: 0.8, LM: 0.55, RM: 0.55,
+  CM: 0.35, CDM: 0.15, LWB: 0.2, RWB: 0.2, LB: 0.15, RB: 0.15, CB: 0.12, GK: 0.01,
+}
+// Who makes the error that leads to a goal: the players actually handling the
+// ball in dangerous areas — centre-backs and the keeper above all.
+const ERROR_WEIGHT: Record<string, number> = {
+  GK: 1.0, CB: 1.0, LB: 0.7, RB: 0.7, LWB: 0.6, RWB: 0.6, CDM: 0.6, CM: 0.45,
+  CAM: 0.2, LM: 0.2, RM: 0.2, LW: 0.15, RW: 0.15, ST: 0.12, CF: 0.12,
+}
 
 // Attack multiplier — a power curve centred on "replacement level" (60), not
 // a flat +1%/point. The old linear (1 + attack/100) only spanned ~1.4x across
@@ -59,6 +91,32 @@ function assistWeight(p: RosterPlayer, minute: number): number {
   const atk  = p.attack || p.ovr || 60
   const w    = base * attackMultiplier(atk)
   return p.isBench ? w * BENCH_FACTOR : w
+}
+// Winning a penalty and gifting a goal away are about position and presence,
+// not finishing ability — so neither is scaled by the attack curve.
+function penWonWeight(p: RosterPlayer, minute: number): number {
+  if (p.isBench && minute < SUB_MIN_MINUTE) return 0
+  const w = PEN_WON_WEIGHT[p.primaryPosition] ?? 0.3
+  return p.isBench ? w * BENCH_FACTOR : w
+}
+function errorWeight(p: RosterPlayer, minute: number): number {
+  if (p.isBench && minute < SUB_MIN_MINUTE) return 0
+  const w = ERROR_WEIGHT[p.primaryPosition] ?? 0.4
+  return p.isBench ? w * BENCH_FACTOR : w
+}
+
+// The 90/10 own-goal draw (spec R1). Deliberately NOT weighted by quality — an
+// own goal is bad luck, and a world-class centre-back is every bit as likely to
+// turn a cross into his own net as a poor one.
+function pickOwnGoalScorer(pool: RosterPlayer[], minute: number, rng: Rng): RosterPlayer | null {
+  const eligible = pool.filter(p => !(p.isBench && minute < SUB_MIN_MINUTE))
+  if (eligible.length === 0) return null
+  const defenders = eligible.filter(p => DEFENDER_POS.has(p.primaryPosition))
+  const others    = eligible.filter(p => !DEFENDER_POS.has(p.primaryPosition))
+  const group = defenders.length === 0 ? others
+    : others.length === 0 ? defenders
+    : rng() < OWN_GOAL_DEFENDER_SHARE ? defenders : others
+  return group.length ? group[Math.floor(rng() * group.length)] : null
 }
 
 function weightedPick(
@@ -138,12 +196,19 @@ function buildSideMinutes(homeGoals: number, awayGoals: number, extraTime: boole
 // `rng`: pass a seeded generator (src/lib/rng.ts) to make attribution
 // reproducible — the deep match-stats pipeline stores a per-match seed and
 // re-derives identical scorers from it. Defaults to Math.random.
-export type AttributeOpts = { extraTime?: boolean; etOnly?: boolean; rng?: Rng }
+export type AttributeOpts = {
+  extraTime?: boolean; etOnly?: boolean; rng?: Rng
+  // §10.5 — when present, AI sides are cut down to the formation XI that
+  // actually lines up, so only players on the pitch can score. Passed straight
+  // through to `lineupsForMatch`, which the stat-sheet generator also calls
+  // with the same seed — the two can never pick different elevens.
+  lineups?: MatchLineupOpts
+}
 
 // Attribute goal events to a match given each side's scorer pool + the scoreline.
 export function attributeMatchScorers(
-  homePool: RosterPlayer[],
-  awayPool: RosterPlayer[],
+  homePoolIn: RosterPlayer[],
+  awayPoolIn: RosterPlayer[],
   homeGoals: number,
   awayGoals: number,
   opts: AttributeOpts = {},
@@ -151,14 +216,43 @@ export function attributeMatchScorers(
   const total = homeGoals + awayGoals
   if (total === 0) return { home: [], away: [] }
 
+  const { homePool, awayPool } = opts.lineups
+    ? lineupsForMatch(homePoolIn, awayPoolIn, opts.lineups)
+    : { homePool: homePoolIn, awayPool: awayPoolIn }
+
   const rng: Rng = opts.rng ?? Math.random
   const mins = buildSideMinutes(homeGoals, awayGoals, !!opts.extraTime, !!opts.etOnly, rng)
 
-  const buildSide = (pool: RosterPlayer[], minuteEvents: { minute: number; plus?: number }[]): GoalEvent[] => {
+  // `pool` is the side the goal counts for; `oppPool` is who conceded it — an
+  // own-goal scorer and an error-maker are drawn from THAT squad.
+  const buildSide = (
+    pool: RosterPlayer[], oppPool: RosterPlayer[], minuteEvents: { minute: number; plus?: number }[],
+  ): GoalEvent[] => {
     if (pool.length === 0) return []
     const out: GoalEvent[] = []
     for (const mm of minuteEvents) {
-      const scorer = weightedPick(pool, p => scoreWeight(p, mm.minute), undefined, rng)
+      // Flavour is rolled BEFORE the scorer draw because it decides which squad
+      // the scorer even comes from. A failed own-goal draw (e.g. an empty
+      // opposition pool) falls through to a normal goal — the scoreline was
+      // already decided upstream, so a goal can never be dropped here.
+      const ogScorer = rng() < OWN_GOAL_RATE ? pickOwnGoalScorer(oppPool, mm.minute, rng) : null
+      if (ogScorer) {
+        out.push({
+          clubId: ogScorer.clubId, scorerId: ogScorer.playerId, scorerName: ogScorer.name,
+          scorerIsBench: ogScorer.isBench, minute: mm.minute, plus: mm.plus, ownGoal: true,
+        })
+        continue
+      }
+
+      const isPenalty = rng() < PENALTY_RATE
+      // A spot-kick is struck by a designated taker, not by whoever happened to
+      // be in the box — squaring the usual weight concentrates the draw on the
+      // side's genuine forwards, which is what a penalty should look like.
+      const scorer = weightedPick(
+        pool,
+        isPenalty ? p => Math.pow(scoreWeight(p, mm.minute), 2) : p => scoreWeight(p, mm.minute),
+        undefined, rng,
+      )
       if (!scorer) continue
       const ev: GoalEvent = {
         clubId:     scorer.clubId,
@@ -168,9 +262,21 @@ export function attributeMatchScorers(
         minute:     mm.minute,
         plus:       mm.plus,
       }
-      if (rng() < ASSIST_RATE) {
+      if (isPenalty) {
+        ev.penalty = true
+        // Excluding the taker keeps "penalty won" a genuinely separate credit
+        // rather than a duplicate of the goal (spec R2).
+        const won = weightedPick(pool, p => penWonWeight(p, mm.minute), scorer.playerId, rng)
+        if (won) { ev.penWonId = won.playerId; ev.penWonName = won.name }
+      } else if (rng() < ASSIST_RATE) {
         const assister = weightedPick(pool, p => assistWeight(p, mm.minute), scorer.playerId, rng)
         if (assister) { ev.assistId = assister.playerId; ev.assistName = assister.name; ev.assistIsBench = assister.isBench }
+      }
+      // A mistake is charged to the conceding side. Penalties are skipped: the
+      // foul IS the error, and it's already recorded via the "penalty won" side.
+      if (!isPenalty && oppPool.length > 0 && rng() < ERROR_RATE) {
+        const culprit = weightedPick(oppPool, p => errorWeight(p, mm.minute), undefined, rng)
+        if (culprit) { ev.errorById = culprit.playerId; ev.errorByName = culprit.name }
       }
       out.push(ev)
     }
@@ -180,8 +286,8 @@ export function attributeMatchScorers(
   const byMinute = (a: GoalEvent, b: GoalEvent) =>
     (a.minute + (a.plus ?? 0) / 100) - (b.minute + (b.plus ?? 0) / 100)
   return {
-    home: buildSide(homePool, mins.home).sort(byMinute),
-    away: buildSide(awayPool, mins.away).sort(byMinute),
+    home: buildSide(homePool, awayPool, mins.home).sort(byMinute),
+    away: buildSide(awayPool, homePool, mins.away).sort(byMinute),
   }
 }
 
@@ -195,13 +301,22 @@ export type AccumulatorCtx = {
 
 export type MatchPlayerRating = { playerId: string; rating: number; motm?: boolean }
 
+// The PlayerStatLine keys that are plain per-season sums.
+type SeasonCounter =
+  | 'chancesCreated' | 'shots' | 'shotsOnTarget' | 'passes' | 'accuratePasses'
+  | 'dribbles' | 'dribblesAttempted' | 'tacklesWon' | 'fouls'
+  | 'yellowCards' | 'redCards'
+
 export type StatsAccumulator = {
   recordMatch: (m: {
     homeClubId: string; awayClubId: string
     homeClubName: string; awayClubName: string
     homeGoals: number; awayGoals: number
     scorers: MatchScorers
-    ratings?: MatchPlayerRating[]   // deep-stats: per-player 0–10 ratings + MOTM for this match
+    // §10.5 — the regenerated per-player lines for this match. Ratings, MOTM
+    // AND the season counters behind the statistics screen all come off these,
+    // so there's exactly one source for "what did this player do".
+    lines?: PlayerMatchLine[]
   }) => void
   build: () => CompetitionStats
 }
@@ -241,7 +356,7 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
   for (const p of ctx.rosterIndex.values()) players.set(p.playerId, blankLine(p))
 
   return {
-    recordMatch({ homeClubId, awayClubId, homeClubName, awayClubName, homeGoals, awayGoals, scorers, ratings }) {
+    recordMatch({ homeClubId, awayClubId, homeClubName, awayClubName, homeGoals, awayGoals, scorers, lines }) {
       const ht = teamFor(homeClubId, homeClubName)
       const at = teamFor(awayClubId, awayClubName)
       ht.goalsFor += homeGoals; ht.goalsAgainst += awayGoals
@@ -253,8 +368,20 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
       clubMatches.set(awayClubId, (clubMatches.get(awayClubId) ?? 0) + 1)
 
       for (const ev of [...scorers.home, ...scorers.away]) {
-        const s = lineFor(ev.scorerId); if (s) s.goals++
+        const s = lineFor(ev.scorerId)
+        if (s) {
+          // §9 — an own goal counts for the opposition's scoreline (handled by
+          // which array the event lives in) but must NEVER land on the scorer's
+          // goal tally; it's recorded against them instead.
+          if (ev.ownGoal) s.ownGoals = (s.ownGoals ?? 0) + 1
+          else {
+            s.goals++
+            if (ev.penalty) s.penaltyGoals = (s.penaltyGoals ?? 0) + 1
+          }
+        }
         if (ev.assistId) { const a = lineFor(ev.assistId); if (a) a.assists++ }
+        if (ev.penWonId) { const w = lineFor(ev.penWonId); if (w) w.penaltiesWon = (w.penaltiesWon ?? 0) + 1 }
+        if (ev.errorById) { const c = lineFor(ev.errorById); if (c) c.errorsLeadingToGoal = (c.errorsLeadingToGoal ?? 0) + 1 }
       }
 
       // Clean sheets — credit the keeper of the side that conceded zero.
@@ -262,11 +389,27 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
       if (homeGoals === 0) { const gk = ctx.clubGK.get(awayClubId); if (gk) { const l = lineFor(gk.playerId); if (l) l.cleanSheets++ } }
 
       // Deep-stats ratings — averaged in build(); MOTM counted per match.
-      if (ratings) for (const r of ratings) {
+      // Season counters are summed straight off the same lines.
+      if (lines) for (const r of lines) {
         const cur = ratingAgg.get(r.playerId) ?? { sum: 0, n: 0, potm: 0 }
         cur.sum += r.rating; cur.n++
         if (r.motm) cur.potm++
         ratingAgg.set(r.playerId, cur)
+
+        const line = lineFor(r.playerId)
+        if (!line) continue
+        const add = (k: SeasonCounter, v: number) => { if (v) line[k] = (line[k] ?? 0) + v }
+        add('chancesCreated', r.keyPasses)
+        add('shots', r.shots)
+        add('shotsOnTarget', r.shotsOnTarget)
+        add('passes', r.passes)
+        add('accuratePasses', r.accuratePasses)
+        add('dribbles', r.dribbles)
+        add('dribblesAttempted', r.dribblesAttempted)
+        add('tacklesWon', r.tacklesWon)
+        add('fouls', r.foulsCommitted)
+        add('yellowCards', r.yellowCard ? 1 : 0)
+        add('redCards', r.redCard ? 1 : 0)
       }
     },
 
@@ -312,7 +455,11 @@ export function computeAwards(stats: CompetitionStats, ctx: AwardsCtx): SeasonAw
     // average rating sustained over many matches earns real points on its own
     // (a 7.0-avg player over a full season ≈ a 12-goal striker) — so complete
     // performers, not just scoresheet regulars, can win POTS/U21.
+    // §9 events count too: winning penalties is real end-product, while own
+    // goals and errors-leading-to-goals are exactly the kind of thing that
+    // should cost a player a Player-of-the-Season vote.
     const contribution = p.goals * 4 + p.assists * 3 + p.cleanSheets * 3 + (p.potm ?? 0) * 4
+      + (p.penaltiesWon ?? 0) * 1.5 - (p.ownGoals ?? 0) * 3 - (p.errorsLeadingToGoal ?? 0) * 2
     const ratingPts = p.avgRating && p.matchesRated
       ? Math.max(0, p.avgRating - 6.3) * p.matchesRated * 2
       : 0

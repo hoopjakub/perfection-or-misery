@@ -2,6 +2,7 @@ import type { SimTeam } from '@/types/simulation'
 import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
 import { simulateKnockout, simulateTwoLegs, type PenKick } from './knockout-match'
+import type { KnockoutSimHook } from './availability'
 
 export type CLPot = 1 | 2 | 3 | 4
 
@@ -27,6 +28,13 @@ export type CLKnockoutMatch = {
   leg2ExtraTimeScorers?: MatchScorers  // leg2 extra time (teamB at home), minutes 91-120
   leg1Seed?: number            // deep-stat seeds, one per physical match (match-detail.ts)
   leg2Seed?: number
+  // §10.5 phase 4 — who was injured/suspended for each LEG (they're separate
+  // matchdays, so a leg-1 red card keeps him out of leg 2) plus the stand-ins
+  // that covered your side. Stored per leg for the same reason the seeds are.
+  leg1Absent?:   string[]
+  leg2Absent?:   string[]
+  leg1StandIns?: import('@/types/stats').RosterPlayer[]
+  leg2StandIns?: import('@/types/stats').RosterPlayer[]
   aPenKicks?: boolean[]        // raw make/miss sequence from the shootout sim
   bPenKicks?: boolean[]
   penKicksA?: PenKick[]        // names zipped on at reveal, stored for the result screen
@@ -42,6 +50,15 @@ export type CLLeagueMatch = {
   awayGoals: number
   scorers?:  MatchScorers
   seed?:     number   // deep-stat seed (match-detail.ts)
+  // §10.5 — how heavily each side rested players. Stored because that eleven
+  // decided the scoreline; regenerating without it would pick a different one.
+  homeRotation?: number
+  awayRotation?: number
+  // §10.5 phase 4 — injured/suspended players in this match, plus the stand-ins
+  // that covered your side. Travel with the match for the same reason rotation
+  // does: without them the sheet fields somebody who wasn't available.
+  absent?:   string[]
+  standIns?: import('@/types/stats').RosterPlayer[]
 }
 
 export type CLSeasonResult = {
@@ -60,6 +77,10 @@ export type CLSeasonResult = {
                        | 'q1_exit' | 'q2_exit' | 'q3_exit' | 'quali_playoff_exit'
                        | 'league_exit' | 'playoff_exit' | 'r16_exit' | 'qf_exit' | 'sf_exit' | 'finalist' | 'winner'
   playerPot:            CLPot
+  // §10.5 phase 4 (R8) — the medical table: who missed matches through injury or
+  // suspension and for how long. Sequential, so it can't be recomputed later —
+  // it travels with the result.
+  absences?:            import('@/engine/availability').Absence[]
   leagueMatchdays?:     CLLeagueMatch[]   // populated by the simulation component
 }
 
@@ -284,7 +305,13 @@ export function generateCLLeagueFixtures(
 // the whole thing playing out. Once the player loses, they simply stop showing
 // up in the winners arrays, so later rounds continue with the other teams.
 export function simulateCLKnockoutsOnly(
-  sortedLeagueStandings: CLTeam[]
+  sortedLeagueStandings: CLTeam[],
+  // §10.5 phase 4 — optional availability hook. Given one, every tie is priced
+  // with its absences and handed back the moment it's decided so the caller can
+  // attribute it and advance the ledger before the next tie is simulated: that
+  // is what makes a red card in the round of 16 cost a quarter-final. Without
+  // one this behaves exactly as it always did (quick-sim, legacy paths).
+  hook?: KnockoutSimHook<CLKnockoutMatch>,
 ): Omit<CLSeasonResult, 'leaguePhaseStandings'> {
   // The player may not be in this field at all (custom path: eliminated in
   // qualifying, or never qualified domestically) — the bracket still plays out
@@ -304,7 +331,7 @@ export function simulateCLKnockoutsOnly(
   for (let i = 0; i < shuffledPlayoff.length; i += 2) {
     const a = shuffledPlayoff[i], b = shuffledPlayoff[i + 1]
     if (!b) { playoffWinners.push(a); continue }   // odd pool (partial field) → bye
-    const m = twoLegKO('playoff', a, b)
+    const m = twoLegKO('playoff', a, b, hook)
     playoffRound.push(m); playoffWinners.push(m.winner)
   }
 
@@ -318,7 +345,7 @@ export function simulateCLKnockoutsOnly(
   for (let i = 0; i < playoffWinners.length; i++) {
     const a = directDraw[i]
     if (!a) { r16Winners.push(playoffWinners[i]); continue }   // fewer direct than PO winners → bye
-    const m = twoLegKO('r16', a, playoffWinners[i])
+    const m = twoLegKO('r16', a, playoffWinners[i], hook)
     r16.push(m); r16Winners.push(m.winner)
   }
   // Direct qualifiers not drawn against a play-off winner (partial fields only) get a bye to the QF.
@@ -330,19 +357,19 @@ export function simulateCLKnockoutsOnly(
   const qf: CLKnockoutMatch[] = []
   const qfWinners: CLTeam[] = []
   for (let i = 0; i < r16Winners.length; i += 2) {
-    const m = twoLegKO('qf', r16Winners[i], r16Winners[i + 1])
+    const m = twoLegKO('qf', r16Winners[i], r16Winners[i + 1], hook)
     qf.push(m); qfWinners.push(m.winner)
   }
 
   const sf: CLKnockoutMatch[] = []
   const sfWinners: CLTeam[] = []
   for (let i = 0; i < qfWinners.length; i += 2) {
-    const m = twoLegKO('sf', qfWinners[i], qfWinners[i + 1])
+    const m = twoLegKO('sf', qfWinners[i], qfWinners[i + 1], hook)
     sf.push(m); sfWinners.push(m.winner)
   }
 
   // Final (single leg, neutral venue)
-  const final = singleKO('final', sfWinners[0], sfWinners[1])
+  const final = singleKO('final', sfWinners[0], sfWinners[1], hook)
 
   // Where did the player bow out? Find their tie in each round in order; the
   // first round they don't win is their exit.
@@ -376,10 +403,15 @@ export function simulateCLKnockoutsOnly(
 }
 
 // Two-leg tie used for all UCL knockout rounds except the final
-function twoLegKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch {
-  const result = simulateTwoLegs(teamA, teamB)
+function twoLegKO(
+  round: string, teamA: CLTeam, teamB: CLTeam, hook?: KnockoutSimHook<CLKnockoutMatch>,
+): CLKnockoutMatch {
+  // Absences are priced in BEFORE the tie is decided — otherwise missing your
+  // best centre-half would be a cosmetic note rather than something that loses
+  // you the tie. The winner is still read off the returned scoreline.
+  const result = simulateTwoLegs(withHookOvr(teamA, hook, round), withHookOvr(teamB, hook, round))
   const winner = result.winner === 'home' ? teamA : teamB
-  return {
+  const m: CLKnockoutMatch = {
     round, teamA, teamB, winner,
     aGoals:    result.totalA,
     bGoals:    result.totalB,
@@ -396,13 +428,17 @@ function twoLegKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch 
     aPenKicks: result.homePenKicks,
     bPenKicks: result.awayPenKicks,
   }
+  hook?.onTie(m, round)
+  return m
 }
 
 // Single-leg for the final (neutral venue)
-function singleKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch {
-  const result = simulateKnockout(teamA, teamB)
+function singleKO(
+  round: string, teamA: CLTeam, teamB: CLTeam, hook?: KnockoutSimHook<CLKnockoutMatch>,
+): CLKnockoutMatch {
+  const result = simulateKnockout(withHookOvr(teamA, hook, round), withHookOvr(teamB, hook, round))
   const winner = result.winner === 'home' ? teamA : teamB
-  return {
+  const m: CLKnockoutMatch = {
     round, teamA, teamB, winner,
     aGoals:    result.homeGoals,
     bGoals:    result.awayGoals,
@@ -412,6 +448,16 @@ function singleKO(round: string, teamA: CLTeam, teamB: CLTeam): CLKnockoutMatch 
     aPenKicks: result.homePenKicks,
     bPenKicks: result.awayPenKicks,
   }
+  hook?.onTie(m, round)
+  return m
+}
+
+// The team as it plays TODAY: same object, OVR adjusted for who's unavailable.
+// A copy, because the real CLTeam carries the season's standings and must not be
+// permanently downgraded by one tie's absences.
+function withHookOvr(t: CLTeam, hook?: KnockoutSimHook<CLKnockoutMatch>, round = ''): CLTeam {
+  if (!hook) return t
+  return { ...t, ovr: hook.ovrFor(t.clubId, t.ovr, round) }
 }
 
 function shuffle<T>(arr: T[]): T[] {

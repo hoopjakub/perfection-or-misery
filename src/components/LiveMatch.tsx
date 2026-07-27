@@ -34,12 +34,19 @@ export type LivePens = { a: number; b: number; kicksA?: PenKick[]; kicksB?: PenK
 // regardless of which of teamA/teamB is currently hosting. sideIsA is kept
 // separately ONLY for the cross-leg aggregate tally, which must track a fixed
 // team identity rather than a home/away side that flips between legs.
-type Goal = { min: number; plus?: number; isHome: boolean; sideIsA: boolean; scorer: string; isBench?: boolean }
+type Goal = {
+  min: number; plus?: number; isHome: boolean; sideIsA: boolean; scorer: string; isBench?: boolean
+  isOg?: boolean; isPen?: boolean   // §9 — flavour markers for the live feed
+}
 
 function goalsForPeriod(p: LivePeriod, teamAId: string): Goal[] {
   const out: Goal[] = []
   const add = (evs: MatchScorers['home'] | undefined, isHome: boolean, sideIsA: boolean) => {
-    for (const e of evs ?? []) out.push({ min: e.minute, plus: e.plus, isHome, sideIsA, scorer: lastName(e.scorerName), isBench: e.scorerIsBench })
+    for (const e of evs ?? []) out.push({
+      min: e.minute, plus: e.plus, isHome, sideIsA,
+      scorer: lastName(e.scorerName), isBench: e.scorerIsBench,
+      isOg: e.ownGoal, isPen: e.penalty,
+    })
   }
   add(p.scorers?.home, true, p.homeId === teamAId)
   add(p.scorers?.away, false, p.awayId === teamAId)
@@ -75,6 +82,12 @@ export function LiveMatch({
   const [penTick, setPenTick] = useState(0)     // number of shootout kicks revealed so far
   const [paused, setPaused] = useState(false)   // stop-time: freezes the clock + pen reveal
   const doneRef = useRef(false)
+  // finish() is called from inside an already-fired setTimeout, so a pause
+  // click can't cancel it via the usual effect-cleanup path — check the
+  // latest paused value at fire time so a pause during that final ~1s window
+  // still holds (matches the freeze everywhere else in this component).
+  const pausedRef = useRef(paused)
+  useEffect(() => { pausedRef.current = paused }, [paused])
 
   const totalKicks = (pens?.kicksA?.length ?? 0) + (pens?.kicksB?.length ?? 0)
 
@@ -127,7 +140,11 @@ export function LiveMatch({
         if (g.isHome) setLegHome(v => v + 1); else setLegAway(v => v + 1)
         if (g.sideIsA) setAggA(v => v + 1); else setAggB(v => v + 1)
         const mm = `${g.min}${g.plus ? `+${g.plus}` : ''}'`
-        setFeed(f => [{ text: `⚽ ${g.scorer} ${mm}`, isHome: g.isHome, isBench: g.isBench }, ...f].slice(0, 6))
+        // §9 — an own goal shows on the side it counts FOR, so it needs its own
+        // icon and an explicit (OG) tag or it reads as the wrong man scoring.
+        const icon = g.isOg ? '🥅' : '⚽'
+        const mark = g.isOg ? ' (OG)' : g.isPen ? ' (pen)' : ''
+        setFeed(f => [{ text: `${icon} ${g.scorer} ${mm}${mark}`, isHome: g.isHome, isBench: g.isOg ? false : g.isBench }, ...f].slice(0, 6))
       }
       // reveal any red cards at/under the new minute (down to 10 men)
       while (cardCursor.current < cardsRef.current.length && cardsRef.current[cardCursor.current].minute <= next) {
@@ -143,7 +160,11 @@ export function LiveMatch({
   function finish(delay: number) {
     if (doneRef.current) return
     doneRef.current = true
-    setTimeout(() => onDone?.(), delay)
+    const fire = () => {
+      if (pausedRef.current) { setTimeout(fire, 200); return }   // still frozen — keep waiting
+      onDone?.()
+    }
+    setTimeout(fire, delay)
   }
 
   // Reveal the shootout one kick at a time, then finish.
@@ -280,7 +301,10 @@ export function periodsForTwoLegTie(m: {
   const periods: LivePeriod[] = []
   if (m.leg1) periods.push({ label: 'Leg 1', homeId: m.teamA.clubId, awayId: m.teamB.clubId, fromMin: 0, toMin: 90, scorers: m.leg1Scorers })
   if (m.leg2) periods.push({ label: 'Leg 2', homeId: m.teamB.clubId, awayId: m.teamA.clubId, fromMin: 0, toMin: 90, scorers: m.leg2Scorers })
-  if (m.leg2ExtraTime && (m.leg2ExtraTime.aGoals > 0 || m.leg2ExtraTime.bGoals > 0))
+  // Presence of leg2ExtraTime means ET was played (only set when level after
+  // 90'+90') — a 0-0 ET is still a real period that must play out live, not
+  // a "no extra time" skip (previously gated on goals > 0, which hid it).
+  if (m.leg2ExtraTime)
     periods.push({ label: 'Extra Time', homeId: m.teamB.clubId, awayId: m.teamA.clubId, fromMin: 90, toMin: 120, scorers: m.leg2ExtraTimeScorers })
   return periods
 }

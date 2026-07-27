@@ -12,10 +12,11 @@ import { saveRun, fetchRunById } from '@/db/queries/runs'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { getAllClubsData } from '@/db/queries/seasons'
 import { summariseScorers, computeLeagueRunStats } from '@/engine/run-stats'
-import { MatchDetailModal, type MatchDetailRequest } from '@/components/MatchDetailModal'
+import { openMatchStats } from '@/lib/matchStats'
 import { getSlotsForFormation } from '@/engine/formations'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
+import { MedicalTable } from '@/components/MedicalTable'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
@@ -168,7 +169,7 @@ const TIER_META: Record<Tier, { title: string; desc: string; emoji: string }> = 
   },
   champions_league: {
     title: 'EUROPEAN ELITE',
-    desc: 'Top 4 finish! You have qualified for the prestigious Champions League to face the best in Europe.',
+    desc: 'Top 4 finish! You have qualified for the prestigious UEFA Champions League to face the best in Europe.',
     emoji: '🇪🇺',
   },
   europa_glory: {
@@ -202,20 +203,65 @@ export default function ResultScreen() {
   const params = useLocalSearchParams<{ runId: string }>()
   const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
   const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
-  const [matchDetail, setMatchDetail] = useState<MatchDetailRequest | null>(null)
 
-  // Deep-stats entry point: any finished fixture row → the match-detail modal.
-  const openFixtureDetail = (fixture: any, mdLabel: string) => {
-    if (!fixture?.result || !placedLeague) return
-    setMatchDetail({
+  // Deep-stats entry point: any finished fixture row → the full match-stats
+  // screen. It also closes whatever modal you came from, so backing out of the
+  // stats screen doesn't drop you into a modal you never asked to reopen.
+  const openFixtureDetail = (fixture: any, mdLabel: string, matchday?: number) => {
+    if (!fixture?.result) return
+    // A run opened from history has no `placedLeague`/squad in the store (the
+    // run was reset on exit), so fall back to the saved row — without this,
+    // every fixture tap on a saved run silently did nothing.
+    const yearStart = placedLeague?.yearStart ?? dbRunData?.year_start
+    if (yearStart == null) return
+    setOpenTeam(null)
+    // §10 R6/R7 — every finished fixture of the season, so the screen can show
+    // the table as it stood and both sides' form going into this game.
+    const contextMatches = ((resultData?.matchdayHistory ?? []) as any[]).flatMap(snap =>
+      (snap.fixtures ?? []).filter((f: any) => f.result).map((f: any) => ({
+        matchday: snap.matchday, label: `Matchday ${snap.matchday}`,
+        homeClubId: f.home.clubId, homeClubName: f.home.clubName,
+        awayClubId: f.away.clubId, awayClubName: f.away.clubName,
+        homeGoals: f.result.homeGoals, awayGoals: f.result.awayGoals,
+        // Carried so form rows and the next fixture are tappable in their own right.
+        scorers: f.scorers, seed: f.seed,
+        homeRotation: f.homeRotation, awayRotation: f.awayRotation,
+        absent: f.absent, standIns: f.standIns,
+      })))
+    openMatchStats({
       homeClubId: fixture.home.clubId, homeName: fixture.home.clubName,
       awayClubId: fixture.away.clubId, awayName: fixture.away.clubName,
       homeGoals: fixture.result.homeGoals, awayGoals: fixture.result.awayGoals,
       scorers: fixture.scorers, seed: fixture.seed,
-      yearStart: placedLeague.yearStart,
+      homeRotation: fixture.homeRotation, awayRotation: fixture.awayRotation,
+      absent: fixture.absent, standIns: fixture.standIns,
+      yearStart,
       competitionLabel: mdLabel,
-      playerClubId: simResult?.table.find((t: any) => t.isPlayer)?.clubId,
-    })
+      playerClubId: resultData?.table?.find((t: any) => t.isPlayer)?.clubId,
+      // Your XI replaced a real club, so the sheet needs the drafted squad to
+      // resolve your players — the store is empty on a history load.
+      drafted: (isFreshRun ? fullSquad : dbRunData?.squad ?? []) as any,
+      playerFormation: (isFreshRun ? formation : dbRunData?.formation) ?? undefined,
+      matchday, contextMatches,
+    }, theme.accent)
+  }
+
+  // Season Highlights name a match by opponent + scoreline (player-first) rather
+  // than holding a fixture reference — resolve it back to the real fixture so
+  // those rows open the same deep-stats sheet as every other match row.
+  const findHighlightFixture = (opponent: string, score: string) => {
+    for (const snap of (resultData?.matchdayHistory ?? []) as any[]) {
+      for (const f of (snap.fixtures ?? []) as any[]) {
+        if (!f.result) continue
+        const isHome = f.home.isPlayer
+        if (!isHome && !f.away.isPlayer) continue
+        if ((isHome ? f.away.clubName : f.home.clubName) !== opponent) continue
+        const gf = isHome ? f.result.homeGoals : f.result.awayGoals
+        const ga = isHome ? f.result.awayGoals : f.result.homeGoals
+        if (`${gf}-${ga}` === score) return { fixture: f, matchday: snap.matchday }
+      }
+    }
+    return null
   }
   const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
   // Re-entry guard for the save/exit buttons — a quick double-tap (or tapping
@@ -293,7 +339,10 @@ export default function ResultScreen() {
       ? dbRunData.matchday_history[dbRunData.matchday_history.length - 1].standings 
       : [],
     // @ts-ignore - matchday_history column needs to be added to DB
-    matchdayHistory: dbRunData.matchday_history || []
+    matchdayHistory: dbRunData.matchday_history || [],
+    // §10.5 phase 4 — the medical table. Saved runs from before phase 4 simply
+    // have none, and the section drops out.
+    absences: dbRunData.highlights?.absences ?? [],
   } : simResult
 
   // Prepare graph data with memoization for performance (must be before early return)
@@ -519,7 +568,11 @@ export default function ResultScreen() {
 
         {/* Lineup + squad — from the live run, or rehydrated from a saved one */}
         {(() => {
-          const squad = (isFreshRun ? draftedPlayers : dbRunData?.squad ?? []) as any[]
+          // Include bench players too — SquadSummary's "Team" view looks each row
+          // up by playerId to show their real drafted club/season, and a squad
+          // limited to the starting XI left every substitute with no match, so
+          // their row rendered "—" for team (Big Fixes §5.1).
+          const squad = (isFreshRun ? fullSquad : dbRunData?.squad ?? []) as any[]
           const bench = (isFreshRun ? benchPlayers : (dbRunData?.squad ?? []).filter((p: any) => p.isBench)) as any[]
           const form  = (isFreshRun ? formation : dbRunData?.formation) as any
           const st    = runStats?.stats ?? dbRunData?.stats ?? null
@@ -535,26 +588,35 @@ export default function ResultScreen() {
         <View style={styles.highlightsCard}>
           <Text style={styles.sectionTitle}>Season Highlights</Text>
           <View style={styles.highlightsList}>
-            {biggestWin && (
-              <View style={styles.highlightItem}>
-                <Text style={styles.highlightLabel}>🏆 Biggest Win</Text>
-                <Text style={styles.highlightValue}>{biggestWin.score} vs {biggestWin.opponent}</Text>
-              </View>
-            )}
-            {worstLoss && (
-              <View style={styles.highlightItem}>
-                <Text style={styles.highlightLabel}>💔 Worst Loss</Text>
-                <Text style={styles.highlightValue}>{worstLoss.score} vs {worstLoss.opponent}</Text>
-              </View>
-            )}
-            {upsets.length > 0 && (
-              <View style={styles.highlightItem}>
-                <Text style={styles.highlightLabel}>⚠️ Shock Defeats</Text>
-                <Text style={styles.highlightValueBlock}>
-                  {upsets.length} upset{upsets.length > 1 ? 's' : ''} — e.g. {upsets[0].score} vs {upsets[0].opponent}
-                </Text>
-              </View>
-            )}
+            {/* Every highlight IS a match, so each one opens the same full stat
+                sheet as any other match row rather than being dead text. */}
+            {(() => {
+              const rows: { key: string; label: string; value: string; opponent: string; score: string }[] = []
+              if (biggestWin) rows.push({ key: 'win', label: '🏆 Biggest Win', value: `${biggestWin.score} vs ${biggestWin.opponent}`, opponent: biggestWin.opponent, score: biggestWin.score })
+              if (worstLoss) rows.push({ key: 'loss', label: '💔 Worst Loss', value: `${worstLoss.score} vs ${worstLoss.opponent}`, opponent: worstLoss.opponent, score: worstLoss.score })
+              if (upsets.length > 0) rows.push({
+                key: 'upset', label: '⚠️ Shock Defeats',
+                value: `${upsets.length} upset${upsets.length > 1 ? 's' : ''} — e.g. ${upsets[0].score} vs ${upsets[0].opponent}`,
+                opponent: upsets[0].opponent, score: upsets[0].score,
+              })
+              return rows.map(r => {
+                const found = findHighlightFixture(r.opponent, r.score)
+                return (
+                  <Pressable
+                    key={r.key}
+                    style={({ pressed }) => [styles.highlightItem, pressed && found ? { opacity: 0.7 } : null]}
+                    disabled={!found}
+                    onPress={found ? () => openFixtureDetail(found.fixture, `Matchday ${found.matchday}`, found.matchday) : undefined}
+                  >
+                    <Text style={styles.highlightLabel}>{r.label}</Text>
+                    <View style={styles.highlightValueRow}>
+                      <Text style={styles.highlightValueBlock}>{r.value}</Text>
+                      {found && <Text style={styles.highlightChevron}>›</Text>}
+                    </View>
+                  </Pressable>
+                )
+              })
+            })()}
           </View>
         </View>
 
@@ -600,7 +662,7 @@ export default function ResultScreen() {
                 const homeScorers = summariseScorers(fixture.scorers?.home)
                 const awayScorers = summariseScorers(fixture.scorers?.away)
                 return (
-                  <Pressable key={idx} style={styles.fixtureRowWrap} onPress={() => openFixtureDetail(fixture, `Matchday ${currentMatchday}`)}>
+                  <Pressable key={idx} style={styles.fixtureRowWrap} onPress={() => openFixtureDetail(fixture, `Matchday ${currentMatchday}`, currentMatchday)}>
                     <View style={[styles.fixtureRow, (isPlayerHome || isPlayerAway) && styles.fixtureRowPlayer]}>
                       <Text
                         style={[styles.fixtureTeam, styles.fixtureTeamHome, isPlayerHome && styles.fixtureTeamPlayer]}
@@ -708,6 +770,10 @@ export default function ResultScreen() {
           <PositionChart graphData={graphData} />
         </View>
 
+        {/* §10.5 phase 4 (R8) — the medical table, above the final table: who
+            missed what, and what it cost you. Absent for pre-phase-4 saves. */}
+        <MedicalTable absences={resultData?.absences} accent={theme.accent} />
+
         {/* Final Standings Table */}
         <View style={styles.tableCard}>
           <Text style={styles.sectionTitle}>Final Standings</Text>
@@ -775,8 +841,7 @@ export default function ResultScreen() {
       </ScrollView>
 
       <TeamMatchesModal team={openTeam} history={matchdayHistory} accent={theme.accent} onClose={() => setOpenTeam(null)}
-        onOpenMatch={(f, md) => openFixtureDetail(f, `Matchday ${md}`)} />
-      <MatchDetailModal request={matchDetail} onClose={() => setMatchDetail(null)} accent={theme.accent} />
+        onOpenMatch={(f, md) => openFixtureDetail(f, `Matchday ${md}`, md)} />
     </View>
   )
 }
@@ -980,14 +1045,23 @@ const styles = StyleSheet.create({
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
-  highlightValue: {
-    fontSize: typography.sm,
-    color: colors.textSecondary,
-  },
   highlightValueBlock: {
     fontSize: typography.sm,
     color: colors.textSecondary,
     flexWrap: 'wrap',
+    flexShrink: 1,
+  },
+  highlightValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  highlightChevron: {
+    fontSize: typography.md,
+    fontWeight: typography.bold,
+    color: colors.textMuted,
   },
   tableCard: {
     backgroundColor: colors.bgCard,

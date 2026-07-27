@@ -16,9 +16,12 @@ export type { CLTeam, CLSeasonResult, WCTeam, WCSeasonResult }
 
 type GameStore = {
   mode:           GameMode | null
-  era:            string | null
   difficulty:     Difficulty | null
   customDifficulty: CustomDifficulty   // knobs for the 'custom' difficulty (rerolls / ratings / screw-level)
+  // CL (full) weighted-picks manual override — null = follow the difficulty
+  // default (resolveDifficulty().weightedPicksDefault); true/false = the
+  // custom-path toggle wins, in either direction (Big Fixes §4).
+  weightedPicksOverride: boolean | null
   selectedLeague: string | null
   formation:      Formation | null
   draftedPlayers: DraftedPlayer[]
@@ -39,8 +42,14 @@ type GameStore = {
   customUclLeagues: SimLeagueTable[] | null   // custom UCL: simulated domestic tables (for the league viewer)
   customUclPlayerClubId: string | null        // custom UCL: which real club you took over
   quickSim:       boolean   // headless tester run — must never be saved to the DB
+  // Big Fixes §12 "Test final game" dev tool — while true, every WC match the
+  // player's team plays (group stage or knockout) is forced to a clean 1-0
+  // win EXCEPT the final, which always simulates for real. Read by
+  // simulation.tsx's WC group/knockout execution; never true outside that tool.
+  testForceWinUntilFinal: boolean
 
-  startRun:       (mode: GameMode, formation: Formation, era?: string) => void
+  setTestForceWinUntilFinal: (v: boolean) => void
+  startRun:       (mode: GameMode, formation: Formation) => void
   addPlayer:      (player: DraftedPlayer) => void
   addBenchPlayer: (player: DraftedPlayer) => void
   setUseSubstitutes: (on: boolean) => void
@@ -53,9 +62,10 @@ type GameStore = {
   markSeasonSpun: (id: string) => void
   useReroll:      () => void
   resetRun:       () => void
-  setMode:        (mode: GameMode, era?: string) => void
+  setMode:        (mode: GameMode) => void
   setDifficulty:  (difficulty: Difficulty) => void
   setCustomDifficulty: (custom: CustomDifficulty) => void
+  setWeightedPicksOverride: (v: boolean | null) => void
   setSelectedLeague: (league: string | null) => void
   setPlacement:   (league: LeagueSeason) => void
   setSimResult:   (result: SeasonResult | null) => void
@@ -73,9 +83,9 @@ type GameStore = {
 
 const initialState = {
   mode:            null,
-  era:             null,
   difficulty:      null,
   customDifficulty: DEFAULT_CUSTOM,
+  weightedPicksOverride: null,
   selectedLeague:  null,
   formation:       null,
   draftedPlayers:  [],
@@ -96,17 +106,18 @@ const initialState = {
   customUclLeagues: null,
   customUclPlayerClubId: null,
   quickSim:        false,
+  testForceWinUntilFinal: false,
 }
 
 export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
-  startRun:       (mode, formation, era) => set(s => ({
+  startRun:       (mode, formation) => set(s => ({
     ...initialState,
     mode,
     formation,
-    era: era ?? null,
     difficulty: s.difficulty, // Preserve difficulty when starting a new run
     customDifficulty: s.customDifficulty, // Preserve the custom-difficulty knobs too
+    weightedPicksOverride: s.weightedPicksOverride, // Preserve the weighted-picks override too
     selectedLeague: s.selectedLeague, // Preserve selected league
     accentColor: s.accentColor, // Preserve accent color
     useSubstitutes: s.useSubstitutes, // Preserve the substitutes toggle
@@ -154,11 +165,13 @@ export const useGameStore = create<GameStore>((set) => ({
     customUclLeagues: null,
     customUclPlayerClubId: null,
     quickSim:        false,
-    // Keep mode, era, difficulty, selectedLeague, and accentColor
+    testForceWinUntilFinal: false,
+    // Keep mode, difficulty, selectedLeague, and accentColor
   })),
-  setMode:        (mode, era) => set({ mode, era: era ?? null }),
+  setMode:        (mode) => set({ mode }),
   setDifficulty:  (difficulty) => set({ difficulty }),
   setCustomDifficulty: (customDifficulty) => set({ customDifficulty }),
+  setWeightedPicksOverride: (weightedPicksOverride) => set({ weightedPicksOverride }),
   setSelectedLeague: (league) => set({ selectedLeague: league }),
   setPlacement:   (league) => set({ placedLeague: league }),
   setSimResult:   (simResult) => set({ simResult }),
@@ -172,6 +185,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setCustomUclQual:    (customUclQual) => set({ customUclQual }),
   setCustomUclLeagues: (customUclLeagues) => set({ customUclLeagues }),
   setCustomUclPlayerClubId: (customUclPlayerClubId) => set({ customUclPlayerClubId }),
+  setTestForceWinUntilFinal: (testForceWinUntilFinal) => set({ testForceWinUntilFinal }),
 }))
 
 // add to src/types/game.ts
