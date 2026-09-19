@@ -74,7 +74,7 @@ export default function RunHub() {
   return (
     <KitScreen ground="nylon" width={wide ? 'wide' : 'column'}>
       <PageMeta title="The run" description="One run's table, bracket, season, stats, press and squad." path="/game/run" />
-      <WebKeys onKey={k => { const n = Number(k); if (n >= 1 && n <= tabs.length) pick(tabs[n - 1].id) }} />
+      <WebKeys onKey={k => { if (k === '/') { pick('stats'); return } const n = Number(k); if (n >= 1 && n <= tabs.length) pick(tabs[n - 1].id) }} />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={{ marginTop: space[2] }}>THE RUN</KitText>
       {wide ? (

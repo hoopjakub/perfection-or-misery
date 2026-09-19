@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useSizeClass, MAX_CONTENT, COLUMN } from '@/hooks/useSizeClass'
+import { WebKeys } from '@/lib/webKeys'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -109,6 +111,7 @@ export default function LeagueSeason() {
   const [done, setDone] = useState(false)
   const [speed, setSpeed] = useState<Speed>('normal')
   const [viewMD, setViewMD] = useState<number | null>(null)
+  const sizeClass = useSizeClass()
   const [tab, setTab] = useState<Tab>('table')
   const [stories, setStories] = useState<Story[]>([])
   const [flashId, setFlashId] = useState<string | null>(null)
@@ -435,9 +438,65 @@ export default function LeagueSeason() {
   const moveMs = speed === 'slow' ? 700 : speed === 'normal' ? 250 : undefined
   const season = `${placedLeague.yearStart}/${String(placedLeague.yearStart + 1).slice(-2)}`
 
+  // Expanded (≥1024, 10-ADAPT §2.2): the three tabs stand side by side as panes:
+  // your round's results on the left, the table in the centre, the press on
+  // the right. Compact keeps the one-focus-at-a-time switch.
+  const wide = sizeClass === 'expanded'
+  const tablePane = (
+    <>
+      <LeagueTable roles={roles} rows={rows} zones={tableZones} moveMs={viewMD == null ? moveMs : undefined}
+        muted={!snapshot} flashId={flashId} />
+      <ZoneLegend roles={roles} zones={tableZones} />
+    </>
+  )
+  const resultsPane = (
+    yourPending ? (
+      <KitText t="body" color={roles.textMuted} style={styles.pre}>Your match first. The rest of the round is coming in.</KitText>
+    ) : roundFixtures.length === 0 ? (
+      <KitText t="body" color={roles.textMuted} style={styles.pre}>No results yet.</KitText>
+    ) : (
+      roundFixtures.map(f => (
+        <ResultRow key={`${f.home.clubId}-${f.away.clubId}`} roles={roles}
+          homeName={f.home.clubName} awayName={f.away.clubName}
+          homeGoals={f.result!.homeGoals} awayGoals={f.result!.awayGoals}
+          youSide={null}
+          scorers={[summariseScorers(f.scorers?.home), summariseScorers(f.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+          onPress={() => openFixture(f)} />
+      ))
+    )
+  )
+  const pressPane = (
+    stories.length === 0 ? (
+      <KitText t="body" color={roles.textMuted} style={styles.pre}>
+        {`The papers wait until the season has a shape. The first stories can come from matchday ${Math.ceil(totalMatchdays / 4)}.`}
+      </KitText>
+    ) : (
+      <>
+        <SectionTag roles={roles}>Newest first</SectionTag>
+        {[...stories].reverse().map(s => <StoryItem key={s.id} roles={roles} story={s} />)}
+      </>
+    )
+  )
+  const switcher = (
+    <SegmentSwitch<Tab> roles={roles} value={tab} onChange={setTab} options={[
+      { id: 'table', label: 'Table' },
+      { id: 'results', label: shownMD > 0 ? `Results MD ${shownMD}` : 'Results' },
+      { id: 'press', label: 'Press', count: stories.length },
+    ]} />
+  )
+
   return (
     <View style={[styles.fill, { backgroundColor: roles.bg }]}>
-      <KitScreen ground="nylon" contentStyle={{ paddingBottom: space[4] }}>
+      <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+        {/* Web keys (10-ADAPT §2.3): Space/Enter play or pause, arrows scrub the strip. */}
+        <WebKeys onKey={k => {
+          if (k === ' ' || k === 'Enter') onPlate()
+          else if ((k === 'ArrowLeft' || k === 'ArrowRight') && restMD > 0) {
+            const md = Math.min(restMD, Math.max(1, (viewMD ?? restMD) + (k === 'ArrowLeft' ? -1 : 1)))
+            setIsPlaying(false)
+            setViewMD(md === restMD ? null : md)
+          }
+        }} />
         <RunHeader roles={roles} stage={6} colourway={colourway} back={false}
           skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []}
           right={
@@ -479,53 +538,32 @@ export default function LeagueSeason() {
           </KitText>
         ) : null}
 
-        <SegmentSwitch<Tab> roles={roles} value={tab} onChange={setTab} options={[
-          { id: 'table', label: 'Table' },
-          { id: 'results', label: shownMD > 0 ? `Results MD ${shownMD}` : 'Results' },
-          { id: 'press', label: 'Press', count: stories.length },
-        ]} />
 
-        {tab === 'table' && (
+        {wide ? (
+          <View style={styles.panes}>
+            <View style={styles.pane}>
+              <SectionTag roles={roles}>{shownMD > 0 ? `Results · MD ${shownMD}` : 'Results'}</SectionTag>
+              {resultsPane}
+            </View>
+            <View style={styles.paneWide}>{tablePane}</View>
+            <View style={styles.pane}>
+              <SectionTag roles={roles}>{`Press · ${stories.length}`}</SectionTag>
+              {pressPane}
+            </View>
+          </View>
+        ) : (
           <>
-            <LeagueTable roles={roles} rows={rows} zones={tableZones} moveMs={viewMD == null ? moveMs : undefined}
-              muted={!snapshot} flashId={flashId} />
-            <ZoneLegend roles={roles} zones={tableZones} />
+            {switcher}
+            {tab === 'table' && tablePane}
+            {tab === 'results' && resultsPane}
+            {tab === 'press' && pressPane}
           </>
-        )}
-
-        {tab === 'results' && (
-          yourPending ? (
-            <KitText t="body" color={roles.textMuted} style={styles.pre}>Your match first. The rest of the round is coming in.</KitText>
-          ) : roundFixtures.length === 0 ? (
-            <KitText t="body" color={roles.textMuted} style={styles.pre}>No results yet.</KitText>
-          ) : (
-            roundFixtures.map(f => (
-              <ResultRow key={`${f.home.clubId}-${f.away.clubId}`} roles={roles}
-                homeName={f.home.clubName} awayName={f.away.clubName}
-                homeGoals={f.result!.homeGoals} awayGoals={f.result!.awayGoals}
-                youSide={null}
-                scorers={[summariseScorers(f.scorers?.home), summariseScorers(f.scorers?.away)].filter(Boolean).join(' · ') || undefined}
-                onPress={() => openFixture(f)} />
-            ))
-          )
-        )}
-
-        {tab === 'press' && (
-          stories.length === 0 ? (
-            <KitText t="body" color={roles.textMuted} style={styles.pre}>
-              {`The papers wait until the season has a shape. The first stories can come from matchday ${Math.ceil(totalMatchdays / 4)}.`}
-            </KitText>
-          ) : (
-            <>
-              <SectionTag roles={roles}>Newest first</SectionTag>
-              {[...stories].reverse().map(s => <StoryItem key={s.id} roles={roles} story={s} />)}
-            </>
-          )
         )}
       </KitScreen>
 
       {/* The thumb zone: the ticker, then the controls. */}
       <View style={[styles.bar, { backgroundColor: roles.bg, borderTopColor: roles.rule, paddingBottom: insets.bottom + space[2] }]}>
+        <View style={[styles.barInner, { maxWidth: wide ? MAX_CONTENT : COLUMN }]}>
         {tab !== 'press' && <Ticker roles={roles} story={stories[stories.length - 1] ?? null} onPress={() => setTab('press')} />}
         {!done && (
           <View style={styles.controls}>
@@ -538,6 +576,7 @@ export default function LeagueSeason() {
         )}
         <Plate label={plateLabel} icon={done ? 'forward' : isPlaying ? 'pause' : 'play'} roles={roles}
           onPress={onPlate} disabled={!poolsReady} missingStep="Loading the squads" loading={finishing} />
+        </View>
       </View>
     </View>
   )
@@ -549,5 +588,9 @@ const styles = StyleSheet.create({
   live: { alignSelf: 'flex-start', borderWidth: border.thin, paddingHorizontal: space[2], minHeight: 32, justifyContent: 'center' },
   pre: { paddingVertical: space[3] },
   bar: { paddingHorizontal: space[4], paddingTop: space[1], gap: space[2], borderTopWidth: border.hair },
+  barInner: { width: '100%', alignSelf: 'center', gap: space[2] },
+  panes: { flexDirection: 'row', gap: space[5], alignItems: 'flex-start', marginTop: space[3] },
+  pane: { flex: 1, minWidth: 0, gap: space[1] },
+  paneWide: { flex: 1.4, minWidth: 0 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
 })

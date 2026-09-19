@@ -31,7 +31,12 @@ export function WebKeys({ onKey }: { onKey: (key: string) => void }) {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return
     const h = (e: KeyboardEvent) => {
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return
+      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return
+      // A focused button already answers Space and Enter itself; acting too
+      // would press it AND fire the shortcut.
+      const role = (e.target as HTMLElement | null)?.getAttribute?.('role')
+      if ((e.key === ' ' || e.key === 'Enter') && (role === 'button' || role === 'link' || role === 'tab')) return
+      if (e.key === ' ' || e.key.startsWith('Arrow') || e.key === '/') e.preventDefault()   // no page scroll, no quick-find
       cb.current(e.key)
     }
     window.addEventListener('keydown', h)

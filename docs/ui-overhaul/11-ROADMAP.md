@@ -408,13 +408,18 @@ flowchart TD
   4. Choose a domain (`EXPO_PUBLIC_SITE_URL`) and a contact address (`EXPO_PUBLIC_CONTACT_EMAIL`).
   5. Decide whether official competition marks get replaced for a public release.
   6. Capture store screenshots from the real app.
+- **Second pass (19 September 2026).**
+  - **Deployed and live.** Both edge functions are deployed and server scoring is on (`EXPO_PUBLIC_SERVER_SCORING=1`). `runs_own_insert` is dropped, so runs are saved only by `submit-run`. The maintainer confirmed a run saves afterwards.
+  - **`vercel.json`.** It sets the build (`npx expo export -p web` into `dist`), clean URLs, security headers and immutable caching for `/_expo`.
+  - **Offline strip (web).** From the browser's online/offline events: "you can still play; saving runs and Ranks need a connection". The native version needs `expo-network`, which means a new native build.
+  - **Shortcuts.** Space spins in the draft; Space or Enter plays and pauses the season; the arrows scrub the season strip; the arrows turn stories; `/` opens the hub's Stats. A focused button keeps Space and Enter for itself.
+  - **Wide layouts.** Home shows the poster and plate on the left and your record on the right. The league season has three panes: results, the table, and the press.
 - **Still to do in Phase 6.**
-  - Two- and three-pane layouts for Home, setup, draft, season, knockouts, the Deep Match and the match sheet (10-ADAPT §2.2).
-  - The remaining shortcuts: Space to pause and spin, arrows on the strip and stories, Enter for the primary plate, `/` to search.
-  - Run pages that preview their verdict in a pasted link: that needs server rendering or an edge-rendered OG image, because a static export can't know a run.
-  - The offline strip.
-  - Lighthouse and the vibecode scan against the export.
-
+  - Wide layouts for setup, the draft, placement, the cup screens (Champions League and World Cup live), knockouts, the Deep Match, the match sheet and the verdict (10-ADAPT §2.2).
+  - Run pages that preview their verdict in a pasted link (needs server rendering or an edge-rendered OG image).
+  - A domain.
+  - Lighthouse and the vibecode scan against the deployed site.
+  - Store screenshots.
 ---
 
 ## Phase 7 · The overview
@@ -728,6 +733,43 @@ This is a pass of its own, with data work first.
 - **Facts tab:** the shootout in the timeline, each kick with its taker and whether it went in.
 
 **P8-82 · The UCL league phase's infinite strip, and why it keeps happening.** The Champions League league phase has an element that stretches down forever again, like the Chaos label (P8-02) and the World Cup red card (P8-62). There have been many of these. Investigate the common cause: it's probably an unbounded ScrollView, or a flex child with no height inside a scroll. Fix it once, where every caller routes through, and add a check so it can't come back. *(Root cause found and fixed 19 September 2026: the kit's `Stripe` drew its SVG at `height="100%"` inside boxes whose height comes from their row. On Android that's a layout loop: the SVG asks for the parent's height, the parent grows to fit it, and it never settles. Every "infinite strip" (the sign-in notice, Chaos label, World Cup red card, UCL OUT rows) is a `Stripe`. The SVG is now absolutely positioned, so it fills the box and never sizes it. Still to confirm on device.)*
+
+*Added 19 September 2026:*
+
+**P8-83 · The first spin is slower than the rest.** The draft's first spin animates slower than every spin after it. Find out why before touching the timing: a first-run cost such as images, fonts or a JIT warm-up, or a duration that's only set after the first spin.
+
+**P8-84 · "Show them all" freezes the Awards Night counter.** After "show them all", the small counter in the top right stays on the last award shown before the skip. It should jump to the end (e.g. 12 / 12), or hide.
+
+**P8-85 · Ranks: find yourself, filter, and a weekly board.**
+- **You:** your runs carry the YOU tag or an orange outline, and your own place shows even when you're outside the list ("You: 214th").
+- **Filters:**
+  - by mode: All Time, League, Chaos, Cursed, and each tournament (Champions League, the full path, World Cup), plus "all tournaments";
+  - by difficulty: easy, medium, hard, or custom with a hardness range (e.g. 6.0–11).
+- **Two boards:** all time, and this week.
+  - The week runs Monday 00:00 to Sunday 23:59: a run at 23:59 on Sunday counts for the old week, and one at 00:01 on Monday starts the new one.
+  - Nothing is deleted. The weekly board is the same `runs` table filtered by `created_at` from the last Monday 00:00.
+  - Do it in the query or as a database view, not a scheduled job, so there's nothing to "reset".
+  - Decide the time zone once (Slovakia, Europe/Bratislava, is the obvious choice) and say it on the screen.
+
+**P8-86 · Tournament icons are missing.** The tournament modes have no icon where the other modes do. Give each one (Champions League, the full path, World Cup) its icon from the P8-46 icon set.
+
+**P8-87 · Delete account should be red.** The Delete account row takes the loss/Misery colour decided in P8-74 (misery red `#FF2E4D`, if that's the pick), so it reads as dangerous at a glance.
+
+**P8-88 · A real profile page, one the player shapes.** Today "You" is a name tag and a few rows. It becomes a proper profile, and each player chooses what others see.
+- **Identity:** name; profile picture, compressed on the device before upload (a must: resize to about 512px and re-encode, never the raw camera photo); real-life favourite team, shown as a small badge beside the name everywhere the name appears; favourite player.
+- **Record:** world rank, best tier, chosen runs pinned to the profile, chosen achievements on display, total playing time, runs played.
+- **Look:** a backdrop colour and effect for the profile. It's stored in its own table (colour, effect, and room for more later), so it can grow without touching `profiles`. It stays inside the palette (P8-74): the effects are Kit Drop trims (tape, stripe, rivets, stitched edge), not glows or gradients.
+- **Privacy:** a visible-to-others switch per section (runs, achievements, playing time, favourites), all readable only through RLS that honours those switches.
+- **Storage:** Supabase Storage, one avatars bucket; you can only write your own file, and everyone can read. Deleting the account (Phase 6's `delete-account`) must also remove the avatar and the look row.
+
+**P8-89 · Every run says whose it is.**
+- **Run pages:** a run opened from Ranks, a friend or a shared link shows its owner at the top: name, avatar, badges, tapping through to their profile. Today a run opened from Ranks doesn't say whose it is.
+- **Sharing:** sharing someone else's run (the run label, a story, awards) carries their name and badge on the shared card, so it's clear whose run it was. Your own share says it's yours.
+
+**P8-90 · Friends: requests and a friends list, with the UI they never had.**
+- **What exists:** `src/lib/friends.ts` and `src/lib/versus.ts` have the logic (send, accept, list, versus challenges), but no screen reaches them, so friends can't be used or tested at all.
+- **To build:** find a player by username; send, accept and decline requests; a friends list on the profile with each friend's latest run and rank; notifications for requests.
+- **The database:** `friendships` and `notifications` have no INSERT policy while `friends.ts` inserts into both on accept. The needed rules are written, not applied, at the bottom of `supabase/policies.sql`. Apply them with this work, and make `friends.ts` check its errors instead of ignoring them.
 **Done when** · every P8 entry above is fixed or explicitly declined with the maintainer; every document in this set has been re-read against the shipped app with a written verdict per file; the maintainer's playtest says the app has an identity; the globe runs smoothly on a mid-range Android phone.
 
 **Commands** · `/impeccable critique`, `/impeccable bolder`, `/impeccable delight`, `/impeccable animate`, `/impeccable colorize`.

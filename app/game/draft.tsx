@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { WebKeys } from '@/lib/webKeys'
 import { View, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native'
 import { router, useNavigation } from 'expo-router'
 import { usePreventRemove } from '@react-navigation/native'
@@ -404,6 +405,7 @@ export default function DraftScreen() {
 
   return (
     <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+      <WebKeys onKey={k => { if (k === ' ') handleSpin() }} />
       <RunHeader
         roles={roles}
         stage={4}

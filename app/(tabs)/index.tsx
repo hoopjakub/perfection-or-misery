@@ -8,6 +8,7 @@ import { fetchUserStats, fetchRunHistory, type UserStats, type RunHistoryEntry }
 import { ROLES, space, colourwayFor } from '@/theme'
 import { formatTier, verdictOf, runMeta, MODE_TAG } from '@/data/tiers'
 import { runRoute } from '@/lib/nav'
+import { useSizeClass } from '@/hooks/useSizeClass'
 import { applyMode } from '@/data/modes'
 import type { Difficulty } from '@/engine/difficulty'
 import type { GameMode } from '@/types/game'
@@ -33,6 +34,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const wide = useSizeClass() === 'expanded'
 
   // Refetch every time Home gains focus (tabs persist, so a plain mount effect
   // would go stale) — this is what makes a freshly-finished run show up.
@@ -79,15 +81,24 @@ export default function HomeScreen() {
     router.push('/game/formation-select')
   }
 
-  return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
-      <PageMeta path="/" />
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-        <Wordmark roles={roles} />
-        <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
-          Draft an XI from real seasons. Find out which one you get.
-        </KitText>
-
+  // The thumb zone: one orange plate, and the rematch beside it.
+  const actions = (
+      <View style={styles.actions}>
+        <Plate
+          label="Start a run" icon="forward" roles={roles}
+          onPress={() => router.push('/game/mode-select')}
+          style={styles.start}
+        />
+        {canAgain && last && (
+          <Plate
+            label="Again" icon="again" variant="secondary" roles={roles} onPress={again}
+            accessibilityHint={`Start another ${MODE_TAG[last.mode] ?? last.mode} run`}
+          />
+        )}
+      </View>
+  )
+  const record = (
+    <>
         {!isGuest && stats?.bestTier ? (
           <View style={styles.bestRow} accessible accessibilityLabel={`Best: ${formatTier(stats.bestTier)}, ${stats.bestScore ?? 0} points, ${stats.totalRuns} runs`}>
             <Tag roles={roles} variant="selected">BEST</Tag>
@@ -96,7 +107,6 @@ export default function HomeScreen() {
             <KitText t="tag" color={roles.textMuted} style={styles.runsCount}>{stats.totalRuns} RUNS</KitText>
           </View>
         ) : null}
-
         {!isGuest && (loading || failed || recentRuns.length > 0) && (
           <>
             <SectionTag roles={roles}>Last runs</SectionTag>
@@ -125,31 +135,55 @@ export default function HomeScreen() {
             )}
           </>
         )}
+    </>
+  )
 
+  // Expanded (≥1024, 10-ADAPT §2.2): the poster and its plate on the left
+  // third, your best and last runs on the right. Compact is the phone poster
+  // with the plate in the thumb zone.
+  if (wide) {
+    return (
+      <KitScreen ground="cotton" width="wide">
+        <PageMeta path="/" />
+        <View style={styles.wide}>
+          <View style={styles.wideLeft}>
+            <Wordmark roles={roles} />
+            <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
+              Draft an XI from real seasons. Find out which one you get.
+            </KitText>
+            <View style={styles.wideActions}>{actions}</View>
+            {isGuest && guestFinishedRun && (
+              <View style={styles.guestLine}>
+                <KitText t="body" color={roles.textMuted}>Runs aren't kept as a guest.</KitText>
+                <Plate label="Keep my runs" variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
+              </View>
+            )}
+            <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
+          </View>
+          <View style={styles.wideRight}>{record}</View>
+        </View>
+      </KitScreen>
+    )
+  }
+
+  return (
+    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+      <PageMeta path="/" />
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+        <Wordmark roles={roles} />
+        <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
+          Draft an XI from real seasons. Find out which one you get.
+        </KitText>
+        {record}
         {isGuest && guestFinishedRun && (
           <View style={styles.guestLine}>
             <KitText t="body" color={roles.textMuted}>Runs aren't kept as a guest.</KitText>
             <Plate label="Keep my runs" variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
           </View>
         )}
-
         <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
       </ScrollView>
-
-      {/* The thumb zone: one orange plate, and the rematch beside it. */}
-      <View style={styles.actions}>
-        <Plate
-          label="Start a run" icon="forward" roles={roles}
-          onPress={() => router.push('/game/mode-select')}
-          style={styles.start}
-        />
-        {canAgain && last && (
-          <Plate
-            label="Again" icon="again" variant="secondary" roles={roles} onPress={again}
-            accessibilityHint={`Start another ${MODE_TAG[last.mode] ?? last.mode} run`}
-          />
-        )}
-      </View>
+      {actions}
     </KitScreen>
   )
 }
@@ -166,4 +200,8 @@ const styles = StyleSheet.create({
   guideLink: { alignSelf: 'flex-start', marginTop: space[4], marginLeft: -space[2] },
   actions: { flexDirection: 'row', gap: space[2], alignItems: 'stretch' },
   start: { flex: 1 },
+  wide: { flexDirection: 'row', gap: space[7], marginTop: space[6], alignItems: 'flex-start' },
+  wideLeft: { flex: 1, maxWidth: 440, gap: space[2] },
+  wideRight: { flex: 1.4, minWidth: 0 },
+  wideActions: { marginTop: space[5] },
 })

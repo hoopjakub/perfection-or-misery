@@ -1,4 +1,5 @@
 import React, { useRef } from 'react'
+import { WebKeys } from '@/lib/webKeys'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border } from '@/theme'
@@ -35,6 +36,7 @@ export default function StoryScreen() {
 
   return (
     <KitScreen ground="nylon">
+      <WebKeys onKey={k => { if (k === 'ArrowLeft' && prev) go(prev.id); if (k === 'ArrowRight' && next) go(next.id) }} />
       <BackControl roles={roles} />
       <View ref={card} style={styles.article} collapsable={false}>
         <View style={styles.meta}>

@@ -9,6 +9,7 @@ import { ensureGuestSession } from '@/lib/auth'
 import { useFonts } from 'expo-font'
 import { MAX_CONTENT } from '@/hooks/useSizeClass'
 import { PageMeta } from '@/components/PageMeta'
+import { OfflineStrip } from '@/components/OfflineStrip'
 import { installEscBack } from '@/lib/webKeys'
 import { StatusBar } from 'expo-status-bar'
 import { WEB_CHROME_CSS } from '@/lib/webChrome'
@@ -113,6 +114,7 @@ export default function RootLayout() {
       {/* transparent outer layer lets +html.tsx's page ground show beside the column */}
       <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? 'transparent' : '#0A0E1A' }}>
         <View style={[{ backgroundColor: '#0A0E1A' }, webFrame]}>
+          <OfflineStrip />
           <Stack screenOptions={{
             headerShown:  false,
             contentStyle: { backgroundColor: '#0A0E1A' },
