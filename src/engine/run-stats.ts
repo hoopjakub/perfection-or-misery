@@ -144,6 +144,16 @@ export type PlayerMatchLogEntry = {
 }
 export type PlayerMatchLog = Map<string, PlayerMatchLogEntry[]>
 
+// Phase 4 — every player who played in a round, with that round's rating, so
+// Awards Night can pick a team of the matchday. Kept in memory like the game
+// log; a round is whatever the match labels say ("Matchday 12", "Quarter-final
+// · Leg 1"), which is exactly how the player reads the season.
+export type RoundLine = {
+  playerId: string; name: string; position: string; rating: number
+  clubId: string; clubName: string; isPlayerClub: boolean
+}
+export type RoundLines = { label: string; lines: RoundLine[] }[]
+
 export type ComputeRunStatsParams = {
   matches:             RunMatch[]
   rosters:             Map<string, RosterPlayer[]>  // opponent DB rosters (per club)
@@ -154,7 +164,7 @@ export type ComputeRunStatsParams = {
   benchSize?:          number   // 0 when the run has substitutes off
 }
 
-export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog } {
+export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } {
   // The player's club id maps to the original (replaced) club; use the drafted
   // XI as its pool instead of the DB roster.
   const poolByClub = new Map(p.rosters)
@@ -168,6 +178,7 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
     rosterIndex, clubGK, playerPool: p.playerPool, playerClubId: p.playerClubId,
   })
   const matchLog: PlayerMatchLog = new Map()
+  const rounds = new Map<string, RoundLine[]>()
 
   p.matches.forEach((m, idx) => {
     const homePool = poolByClub.get(m.homeClubId) ?? []
@@ -207,6 +218,17 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
       homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers,
       lines: played,
     })
+    const roundKey = m.label ?? `Match ${idx + 1}`
+    const roundArr = rounds.get(roundKey) ?? []
+    for (const l of played) {
+      const clubId = l.isHome ? m.homeClubId : m.awayClubId
+      roundArr.push({
+        playerId: l.playerId, name: l.name, position: l.position, rating: l.rating,
+        clubId, clubName: l.isHome ? m.homeClubName : m.awayClubName,
+        isPlayerClub: clubId === p.playerClubId,
+      })
+    }
+    rounds.set(roundKey, roundArr)
     for (const l of played) {
       const arr = matchLog.get(l.playerId) ?? []
       arr.push({
@@ -225,7 +247,7 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
   const awards = computeAwards(stats, {
     rosterIndex, finalPositionByClub: p.finalPositionByClub, teamsInComp: p.teamsInComp,
   })
-  return { stats, awards, matchLog }
+  return { stats, awards, matchLog, rounds: [...rounds.entries()].map(([label, lines]) => ({ label, lines })), matches: p.matches }
 }
 
 // One-call league stats: fetch rosters, reuse stored scorers, aggregate + awards.
@@ -236,7 +258,7 @@ export async function computeLeagueRunStats(
   draftedPlayers: DraftedPlayer[],
   placedLeague: LeagueSeason,
   useSubstitutes = true,
-): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog } | null> {
+): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
   const table = simResult.table
   const playerClub = table.find(t => t.isPlayer)
   if (!playerClub) return null
@@ -322,7 +344,7 @@ const CL_ROUND_LABEL: Record<string, string> = {
 
 export async function computeCLRunStats(
   result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[], useSubstitutes = true,
-): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog } | null> {
+): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
   const standings = result.leaguePhaseStandings
   if (!standings?.length) return null
   const playerClubId = result.playerTeam.clubId
@@ -373,7 +395,7 @@ const WC_ROUND_LABEL: Record<string, string> = {
 
 export async function computeWCRunStats(
   result: WCSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2026, useSubstitutes = true,
-): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog } | null> {
+): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
   const allTeams = result.groups.flatMap(g => g.teams)
   if (!allTeams.length) return null
   const playerClubId = result.playerTeam.clubId

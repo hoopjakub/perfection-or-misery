@@ -6,6 +6,12 @@ import { Asset } from 'expo-asset'
 import { getDb } from '@/db/setup'
 import { initAuthListener } from '@/store/userStore'
 import { ensureGuestSession } from '@/lib/auth'
+import { useFonts } from 'expo-font'
+import { MAX_CONTENT } from '@/hooks/useSizeClass'
+import { PageMeta } from '@/components/PageMeta'
+import { installEscBack } from '@/lib/webKeys'
+import { StatusBar } from 'expo-status-bar'
+import { WEB_CHROME_CSS } from '@/lib/webChrome'
 
 // Windows Chromium (incl. Brave) renders color emoji but not country flags —
 // the OS/browser combo just lacks the glyphs. Fixed with a unicode-range-
@@ -40,39 +46,36 @@ async function installFlagFont() {
   document.head.appendChild(style)
 }
 
-// Web chrome (scrollbars, selection, ambient backdrop, focus rings). The same
-// rules live in +html.tsx for first-paint, but that shell is only re-read on a
-// dev-server restart — injecting here too makes the styles live immediately in
-// dev and belt-and-braces in production. Guarded by id so it never doubles up.
+// Web chrome (scrollbars, selection, focus ring). The same CSS is in
+// +html.tsx for first paint, but that shell is only re-read on a dev-server
+// restart — injecting here too makes it live immediately in dev. Guarded by id
+// so it never doubles up.
 function installWebChrome() {
   if (document.getElementById('pom-web-chrome')) return
   const style = document.createElement('style')
   style.id = 'pom-web-chrome'
-  style.textContent = `
-    body {
-      background-image:
-        radial-gradient(1200px 700px at 15% -10%, rgba(59, 130, 246, 0.10), transparent 60%),
-        radial-gradient(1000px 600px at 85% 110%, rgba(239, 68, 68, 0.07), transparent 60%),
-        radial-gradient(800px 500px at 50% 50%, rgba(255, 255, 255, 0.02), transparent 70%);
-      background-attachment: fixed;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    * { scrollbar-width: thin; scrollbar-color: #374151 transparent; }
-    *::-webkit-scrollbar { width: 8px; height: 8px; }
-    *::-webkit-scrollbar-track { background: transparent; }
-    *::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-    *::-webkit-scrollbar-thumb:hover { background: #4B5563; }
-    ::selection { background: rgba(59, 130, 246, 0.45); color: #F9FAFB; }
-    :focus { outline: none; }
-    :focus-visible { outline: 2px solid #3B82F6; outline-offset: 2px; border-radius: 4px; }
-    [role="button"], [tabindex="0"], a { cursor: pointer; }
-    [role="button"] { transition: opacity 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms ease; }
-  `
+  style.textContent = WEB_CHROME_CSS
   document.head.appendChild(style)
 }
 
+// Kit Drop faces (see `font` in src/theme.ts). Required one file at a time:
+// importing a package's index would bundle every weight it ships.
+const KIT_FONTS = {
+  'Kit-Super':       require('@expo-google-fonts/barlow-condensed/900Black_Italic/BarlowCondensed_900Black_Italic.ttf'),
+  'Kit-SuperPlain':  require('@expo-google-fonts/barlow-condensed/800ExtraBold/BarlowCondensed_800ExtraBold.ttf'),
+  'Kit-Tag':         require('@expo-google-fonts/martian-mono/500Medium/MartianMono_500Medium.ttf'),
+  'Kit-TagBold':     require('@expo-google-fonts/martian-mono/700Bold/MartianMono_700Bold.ttf'),
+  'Kit-Body':        require('@expo-google-fonts/archivo/400Regular/Archivo_400Regular.ttf'),
+  'Kit-BodyMedium':  require('@expo-google-fonts/archivo/500Medium/Archivo_500Medium.ttf'),
+  'Kit-BodyBold':    require('@expo-google-fonts/archivo/700Bold/Archivo_700Bold.ttf'),
+  'Kit-BodyBlack':   require('@expo-google-fonts/archivo/800ExtraBold/Archivo_800ExtraBold.ttf'),
+}
+
 export default function RootLayout() {
+  // Fonts are local files, so this resolves in a frame or two. A load error
+  // still renders the app (on the system face) rather than a blank screen.
+  const [fontsLoaded, fontError] = useFonts(KIT_FONTS)
+
   useEffect(() => {
     async function boot() {
       // getDb() alone guarantees the bundled db is copied/opened (native) or
@@ -85,29 +88,29 @@ export default function RootLayout() {
 
       if (Platform.OS === 'web') {
         installWebChrome()
+        installEscBack()
         installFlagFont().catch(console.error)
       }
     }
     boot().catch(console.error)
   }, [])
 
-  // This is a mobile-first layout — on a wide desktop browser window it would
-  // otherwise stretch full-bleed. Cap it to a phone-like column and center it,
-  // and give the column hairline edges + a soft glow so on PC it reads as a
-  // deliberate device frame sitting on the ambient backdrop (painted by
-  // +html.tsx), not a stretched mobile site.
+  // Phase 6 (docs/ui-overhaul/10-ADAPT-OPTIMIZE-A11Y.md §2): the old 480px
+  // phone column is gone. The frame now only stops at MAX_CONTENT on very
+  // wide monitors; each screen decides its own width (KitScreen's 'column'
+  // or 'wide', WebColumn for the old screens), and from 1024px the tabs turn
+  // into the left rail, which the 480 cap made impossible.
   const webFrame = Platform.OS === 'web'
-    ? {
-        maxWidth: 480, width: '100%' as const, alignSelf: 'center' as const, flex: 1,
-        borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#1F2937',
-        // @ts-ignore — web-only CSS shadow (RN types don't know boxShadow)
-        boxShadow: '0 0 80px rgba(59, 130, 246, 0.10), 0 0 24px rgba(0, 0, 0, 0.60)',
-      }
+    ? { maxWidth: MAX_CONTENT, width: '100%' as const, alignSelf: 'center' as const, flex: 1 }
     : { flex: 1 }
+
+  if (!fontsLoaded && !fontError) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* transparent outer layer lets +html.tsx's ambient gradients show on PC */}
+      <StatusBar style="light" />
+      <PageMeta />
+      {/* transparent outer layer lets +html.tsx's page ground show beside the column */}
       <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? 'transparent' : '#0A0E1A' }}>
         <View style={[{ backgroundColor: '#0A0E1A' }, webFrame]}>
           <Stack screenOptions={{

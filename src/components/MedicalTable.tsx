@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { colors, spacing, typography, radius } from '@/theme'
+import { colors, spacing, typography, radius, prim, font } from '@/theme'
 import type { Absence } from '@/engine/availability'
 
 const COLLAPSED_ROWS = 8
@@ -49,7 +49,7 @@ export function MedicalTable({ absences, accent }: { absences?: Absence[]; accen
         >
           {/* A side bar rather than colour alone, so which club a row belongs to
               never depends on hue. */}
-          <View style={[styles.sideBar, { backgroundColor: a.isPlayerClub ? accent : colors.border }]} />
+          <View style={[styles.sideBar, { backgroundColor: a.isPlayerClub ? accent : prim.ruleNylon }]} />
           <View style={[styles.cell, styles.colPlayer]}>
             <Text style={styles.name} numberOfLines={1}>{a.playerName}</Text>
             <Text style={styles.meta} numberOfLines={1}>{a.position} · {a.clubName}</Text>
@@ -89,34 +89,34 @@ export function MedicalTable({ absences, accent }: { absences?: Absence[]; accen
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.lg,
-    borderWidth: 1, borderColor: colors.border, gap: 2,
+    backgroundColor: prim.nylonRaised, borderRadius: 0, padding: spacing.lg,
+    borderWidth: 1, borderColor: prim.ruleNylon, gap: 2,
   },
-  title: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
-  subtitle: { fontSize: typography.xs, color: colors.textMuted, marginBottom: spacing.sm },
+  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  subtitle: { fontSize: typography.xs, color: prim.cottonMuted, marginBottom: spacing.sm },
   headRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon,
   },
   headText: {
-    fontSize: 9, fontWeight: typography.black, color: colors.textMuted,
+    fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted,
     textTransform: 'uppercase', letterSpacing: 0.5,
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: colors.border,
-    borderRadius: radius.sm,
+    paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon,
+    borderRadius: 0,
   },
   sideBar: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
   cell: { justifyContent: 'center' },
   colPlayer: { flex: 1 },
   colReason: { width: 78 },
   colSpan:   { width: 74, textAlign: 'right' },
-  name: { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
-  meta: { fontSize: 10, color: colors.textMuted },
-  standIn: { fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
-  reason: { fontSize: 10, fontWeight: typography.bold },
-  span: { fontSize: 11, color: colors.textSecondary, fontWeight: typography.bold },
+  name: { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
+  meta: { fontSize: 10, color: prim.cottonMuted },
+  standIn: { fontSize: 10, color: prim.cottonMuted, },
+  reason: { fontSize: 10, fontFamily: font.bodyBold },
+  span: { fontSize: 11, color: prim.cottonMuted, fontFamily: font.bodyBold },
   more: { paddingTop: spacing.sm, alignItems: 'center' },
-  moreText: { fontSize: typography.xs, fontWeight: typography.bold },
+  moreText: { fontSize: typography.xs, fontFamily: font.bodyBold },
 })

@@ -1,94 +1,70 @@
+// Saves a finished run, scored on the server (Phase 6).
+//
+// The app sends the whole run row it would have inserted itself. This function
+// decides who it belongs to (from the caller's token, never the body), refuses
+// rows no run could produce, re-scores it with the ONE shared formula
+// (../_shared/score.ts, the same file the app scores with) and inserts it with
+// the service role. Once it's deployed and the app has EXPO_PUBLIC_SERVER_SCORING=1,
+// supabase/policies.sql takes INSERT on `runs` away from the app entirely.
+//
+// Limit, said plainly: the app simulates the season, so the server can't prove
+// a result happened. It can make every score follow the formula, stop anyone
+// posting under someone else's name, and reject impossible rows.
+//
+// Deploy: supabase functions deploy submit-run
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { scoreRun, invalidRun, type RunRow } from '../_shared/score.ts'
 
-function assignTier(
-  position: number, total: number,
-  unbeaten: boolean, perfectSeason: boolean
-): string {
-  const isFirst   = position === 1
-  const isTop4    = position <= 4
-  const isTopHalf = position <= Math.floor(total / 2)
-  const isBot3    = position > total - 3
-
-  if (isFirst && perfectSeason) return 'perfection'
-  if (isFirst && unbeaten)      return 'almost_perfection'
-  if (isFirst)                  return 'champions'
-  if (isTop4)                   return 'title_contender'
-  if (position <= 7)            return 'europa_glory'
-  if (isTopHalf)                return 'almost_matters'
-  if (!isBot3)                  return 'respectful_mediocrity'
-  return 'absolute_misery'
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+const json = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
-function calculateScore(params: {
-  mode: string, finalPosition: number, teamsInLeague: number,
-  teamOvr: number, losses: number, draws: number
-}): number {
-  const { mode, finalPosition, teamsInLeague, teamOvr, losses, draws } = params
-  const positionScore = ((teamsInLeague - finalPosition + 1) / teamsInLeague) * 1000
-  const ovrPenalty    = Math.max(0, teamOvr - 80) * 10
-  const modeMultiplier: Record<string, number> = {
-    league: 1.0, all_time: 1.2, chaos: 1.5, cursed: 1.3,
-  }
-  const tierBonus = losses === 0 && draws === 0 ? 750
-                  : losses === 0               ? 400 : 0
-  return Math.round(
-    (positionScore - ovrPenalty + tierBonus) * (modeMultiplier[mode] ?? 1.0)
-  )
-}
+// Columns the app may send. Anything else in the body is dropped, so a client
+// can't set `id`, `created_at` or anything a future migration adds.
+const ALLOWED = new Set([
+  'mode', 'formation', 'team_ovr', 'league_id', 'league_name', 'year_start', 'final_position',
+  'teams_in_league', 'tier', 'wins', 'draws', 'losses', 'goals_for', 'goals_against', 'squad',
+  'difficulty', 'difficulty_meta', 'matchday_history', 'highlights', 'stats', 'awards',
+  'wc_result', 'cl_result',
+])
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const {
-      squad, leagueId, leagueName, yearStart,
-      mode, formation, results
-    } = await req.json()
-
-    const authHeader = req.headers.get('Authorization')!
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return new Response('Unauthorized', { status: 401 })
-
-    const { finalPosition, teamsInLeague, wins, draws, losses, goalsFor, goalsAgainst } = results
-
-    // recalculate team ovr from squad server-side
-    const teamOvr = Math.round(
-      squad.reduce((sum: number, p: { ovr: number }) => sum + p.ovr, 0) / squad.length
-    )
-
-    const unbeaten      = losses === 0
-    const perfectSeason = losses === 0 && draws === 0
-    const tier  = assignTier(finalPosition, teamsInLeague, unbeaten, perfectSeason)
-    const score = calculateScore({ mode, finalPosition, teamsInLeague, teamOvr, losses, draws })
-
-    const { error } = await supabase.from('runs').insert({
-      user_id:         user.id,
-      mode,
-      formation,
-      team_ovr:        teamOvr,
-      league_id:       leagueId,
-      league_name:     leagueName,
-      year_start:      yearStart,
-      final_position:  finalPosition,
-      teams_in_league: teamsInLeague,
-      tier,
-      wins,
-      draws,
-      losses,
-      goals_for:       goalsFor,
-      goals_against:   goalsAgainst,
-      score,
-      squad,
+    const url = Deno.env.get('SUPABASE_URL')!
+    const asCaller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
     })
+    const { data: { user } } = await asCaller.auth.getUser()
+    if (!user) return json({ error: 'Unauthorized' }, 401)
+    // Guests' runs are never kept (the app says so); the server agrees.
+    if (user.is_anonymous) return json({ error: 'Guest runs are not saved' }, 403)
 
-    if (error) return new Response(JSON.stringify({ error }), { status: 400 })
-    return new Response(JSON.stringify({ score, tier }), { status: 200 })
+    const body = await req.json() as Record<string, unknown>
+    const row: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(body)) if (ALLOWED.has(k)) row[k] = v
 
+    const invalid = invalidRun(row as RunRow)
+    if (invalid) return json({ error: `Run refused: ${invalid}` }, 422)
+
+    row.user_id = user.id
+    row.score = scoreRun(row as RunRow)
+
+    // Same tolerance as the app's old insertRun: an optional column the table
+    // doesn't have yet is dropped and the insert retried, so the core run saves.
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const { error } = await admin.from('runs').insert(row)
+      if (!error) return json({ score: row.score, tier: row.tier }, 200)
+      const missing = error.code === 'PGRST204' ? error.message?.match(/Could not find the '([^']+)' column/)?.[1] : undefined
+      if (missing && missing in row && !['mode', 'tier', 'score', 'user_id'].includes(missing)) { delete row[missing]; continue }
+      return json({ error: error.message }, 400)
+    }
+    return json({ error: 'Too many missing columns' }, 400)
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500 })
+    return json({ error: String(err) }, 500)
   }
 })

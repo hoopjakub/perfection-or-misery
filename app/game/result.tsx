@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   View, Text, StyleSheet, Pressable, ScrollView, Dimensions, ActivityIndicator
 } from 'react-native'
-import { AppModal } from '@/components/AppModal'
+import { openRunHub, openClub } from '@/lib/runNav'
 import Svg, { Line, Polyline, Text as SvgText, G } from 'react-native-svg'
 import { router, useLocalSearchParams } from 'expo-router'
 import { restartToModeSelect, exitToHome } from '@/lib/nav'
@@ -18,179 +18,75 @@ import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
 import { MedicalTable } from '@/components/MedicalTable'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { colors, spacing, typography, radius, shadows, prim, font } from '@/theme'
+import { ROLES as KIT_ROLES } from '@/theme'
+const nylon = KIT_ROLES.nylon
 import { useModeTheme } from '@/hooks/useModeTheme'
+import { useRunSave } from '@/hooks/useRunSave'
+import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
+import { buildAwardsNight } from '@/engine/awards'
+import { Plate, KitScreen, KitText, SectionTag, Tag, ListRow, EmptyState } from '@/components/kit'
+import { SeasonStrip, PositionGraph, ResultRow, LeagueTable, ZoneLegend, leagueTableZones, type Mark, type TableRowVM } from '@/components/season/SeasonParts'
+import { zonesFor } from '@/data/qualification-bands'
+import { ResultFigures, ResultActions } from '@/components/season/ResultParts'
+import { space } from '@/theme'
+import { VerdictBlock, PunditsTable } from '@/components/season/VerdictBlock'
+import { predictTable } from '@/engine/predictions'
+import { calculateScore } from '@/db/queries/leaderboard'
+import { resolveDifficulty } from '@/engine/difficulty'
+import { SaveStatusLine } from '@/components/ui'
 import type { Tier } from '@/types/simulation'
+import { TIER_LABEL, formatTier, verdictOf } from '@/data/tiers'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 // Custom SVG position chart — position 1 at top, scrollable horizontally
-function PositionChart({ graphData }: { graphData: any }) {
-  const TEAM_COUNT = graphData.teamsInLeague || 1
-  const MATCH_COUNT = graphData.labels?.length ?? 0
-
-  if (MATCH_COUNT === 0 || graphData.datasets?.length === 0) {
-    return (
-      <View style={styles.graphEmpty}>
-        <Text style={styles.graphEmptyText}>No matchday data available.</Text>
-      </View>
-    )
-  }
-
-  const PAD_LEFT   = 28
-  const PAD_RIGHT  = 46
-  const PAD_TOP    = 14
-  const PAD_BOTTOM = 26
-  const CHART_H    = 300
-  const cardPad    = spacing.lg * 2
-  const MIN_COL_W  = 36
-  const COL_W = Math.max(MIN_COL_W, (SCREEN_WIDTH - cardPad - PAD_LEFT - PAD_RIGHT) / MATCH_COUNT)
-  const CHART_W = COL_W * MATCH_COUNT
-  const SVG_W   = PAD_LEFT + CHART_W + PAD_RIGHT
-  const SVG_H   = PAD_TOP + CHART_H + PAD_BOTTOM
-
-  const yForPos = (pos: number) =>
-    PAD_TOP + ((pos - 1) / Math.max(TEAM_COUNT - 1, 1)) * CHART_H
-  const xForMD = (mi: number) => PAD_LEFT + mi * COL_W + COL_W / 2
-
-  // Y-axis ticks
-  const yTicks: number[] = []
-  for (let p = 1; p <= TEAM_COUNT; p++) {
-    if (p === 1 || p % 5 === 0 || p === TEAM_COUNT) yTicks.push(p)
-  }
-
-  // X-axis ticks (first, every 5, last)
-  const xTicks = graphData.labels
-    .map((lbl: string, i: number) => ({ i, lbl }))
-    .filter(({ i }: { i: number }) => i === 0 || (i + 1) % 5 === 0 || i === MATCH_COUNT - 1)
-
-  // Build team lines — convert inverted position back to actual position
-  type TeamLine = { pts: string; color: string; isPlayer: boolean; acronym: string; lastPos: number }
-  const lines: TeamLine[] = graphData.datasets.map((ds: any, idx: number) => {
-    const isPlayer = graphData.isPlayerFlags?.[idx] ?? ds.isPlayer ?? false
-    const color = graphData.teamColors?.[idx] ?? '#666'
-    const positions = (ds.data as number[]).map(inv => TEAM_COUNT - inv + 1)
-    const pts = positions.map((pos, mi) => `${xForMD(mi)},${yForPos(pos)}`).join(' ')
-    const lastPos = positions[positions.length - 1] ?? 1
-    return { pts, color, isPlayer, acronym: graphData.teamAcronyms?.[idx] ?? '', lastPos }
-  })
-
-  const nonPlayers = lines.filter(l => !l.isPlayer)
-  const playerLine  = lines.find(l => l.isPlayer)
-
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.graphScrollH}>
-      <Svg width={SVG_W} height={SVG_H}>
-        {/* Horizontal grid lines + Y labels */}
-        {yTicks.map(pos => (
-          <G key={pos}>
-            <Line
-              x1={PAD_LEFT} y1={yForPos(pos)}
-              x2={PAD_LEFT + CHART_W} y2={yForPos(pos)}
-              stroke={colors.border} strokeWidth={0.5}
-            />
-            <SvgText
-              x={PAD_LEFT - 4} y={yForPos(pos) + 4}
-              fontSize={9} fill={colors.textMuted} textAnchor="end"
-            >
-              {pos}
-            </SvgText>
-          </G>
-        ))}
-
-        {/* X axis baseline */}
-        <Line
-          x1={PAD_LEFT} y1={PAD_TOP + CHART_H}
-          x2={PAD_LEFT + CHART_W} y2={PAD_TOP + CHART_H}
-          stroke={colors.border} strokeWidth={1}
-        />
-
-        {/* X labels */}
-        {xTicks.map(({ i, lbl }: { i: number; lbl: string }) => (
-          <SvgText key={i} x={xForMD(i)} y={SVG_H - 5} fontSize={8} fill={colors.textMuted} textAnchor="middle">
-            {lbl}
-          </SvgText>
-        ))}
-
-        {/* Non-player team lines (drawn first, behind player) */}
-        {nonPlayers.map((l, idx) => (
-          <Polyline
-            key={idx} points={l.pts}
-            stroke={l.color} strokeWidth={1.2} fill="none" strokeOpacity={0.55}
-          />
-        ))}
-
-        {/* Player line on top */}
-        {playerLine && (
-          <Polyline
-            points={playerLine.pts}
-            stroke={playerLine.color} strokeWidth={3} fill="none"
-          />
-        )}
-
-        {/* Right-side team acronym labels */}
-        {lines.map((l, idx) => (
-          <SvgText
-            key={idx}
-            x={PAD_LEFT + CHART_W + 4}
-            y={yForPos(l.lastPos) + 4}
-            fontSize={l.isPlayer ? 10 : 7}
-            fontWeight={l.isPlayer ? 'bold' : 'normal'}
-            fill={l.color}
-          >
-            {l.acronym}
-          </SvgText>
-        ))}
-      </Svg>
-    </ScrollView>
-  )
-}
-
+const T = (tier: Tier) => TIER_LABEL[tier].toUpperCase()
 const TIER_META: Record<Tier, { title: string; desc: string; emoji: string }> = {
   perfection: {
-    title: 'ULTIMATE PERFECTION',
-    desc: 'You won the league with a perfect 100% win record. A legendary achievement that will never be forgotten!',
-    emoji: '👑',
+    title: T('perfection'),
+    desc: 'You won the league and won every match.',
+    emoji: '',
   },
   almost_perfection: {
-    title: 'ALMOST PERFECTION',
-    desc: 'You went completely unbeaten throughout the season to lift the trophy. Simply sensational!',
-    emoji: '🌟',
+    title: T('almost_perfection'),
+    desc: 'You won the league without losing a match.',
+    emoji: '',
   },
   champions: {
-    title: 'LEAGUE CHAMPIONS',
-    desc: 'You won the league! Your name is etched in glory and your fans will celebrate for decades.',
-    emoji: '🏆',
+    title: T('champions'),
+    desc: 'You won the league.',
+    emoji: '',
   },
   title_contender: {
-    title: 'TITLE CONTENDERS',
-    desc: 'A podium finish! You pushed the champions to the absolute limit and proved you belong at the top.',
-    emoji: '🥈',
+    title: T('title_contender'),
+    desc: 'A podium finish, pushing the champions all the way.',
+    emoji: '',
   },
   champions_league: {
-    title: 'EUROPEAN ELITE',
-    desc: 'Top 4 finish! You have qualified for the prestigious UEFA Champions League to face the best in Europe.',
-    emoji: '🇪🇺',
+    title: T('champions_league'),
+    desc: 'A top-four finish and a place in the Champions League.',
+    emoji: '',
   },
   europa_glory: {
-    title: 'EUROPA LEAGUE GLORY',
-    desc: 'You secured European football! A strong season finishing in the top 7. Continental nights await.',
-    emoji: '🎫',
+    title: T('europa_glory'),
+    desc: 'A top-seven finish and European football.',
+    emoji: '',
   },
   almost_matters: {
-    title: 'MID-TABLE COMFORT',
-    desc: 'A comfortable mid-table finish in the top half. Safe, respectable, but maybe a bit forgettable.',
-    emoji: '📈',
+    title: T('almost_matters'),
+    desc: 'Top half, comfortably mid-table. Safe, respectable, a bit forgettable.',
+    emoji: '',
   },
   respectful_mediocrity: {
-    title: 'RESPECTABLY MEDIOCRE',
-    desc: 'You survived relegation, but only just. A season of scraping by. You need to recruit better next time.',
-    emoji: '🥱',
+    title: T('respectful_mediocrity'),
+    desc: 'You stayed up, only just, after a season of scraping by. Recruit better next time.',
+    emoji: '',
   },
   absolute_misery: {
-    title: 'ABSOLUTE MISERY',
-    desc: 'Relegation! A disastrous campaign finishing in the bottom 3. The board is furious. Total heartbreak.',
-    emoji: '💀',
+    title: T('absolute_misery'),
+    desc: 'Relegated, bottom three, after a disastrous season.',
+    emoji: '',
   },
 }
 
@@ -202,7 +98,6 @@ export default function ResultScreen() {
   const theme = useModeTheme()
   const params = useLocalSearchParams<{ runId: string }>()
   const [selectedMatchday, setSelectedMatchday] = useState<number | null>(null)
-  const [openTeam, setOpenTeam] = useState<{ clubId: string; clubName: string } | null>(null)
 
   // Deep-stats entry point: any finished fixture row → the full match-stats
   // screen. It also closes whatever modal you came from, so backing out of the
@@ -214,7 +109,6 @@ export default function ResultScreen() {
     // every fixture tap on a saved run silently did nothing.
     const yearStart = placedLeague?.yearStart ?? dbRunData?.year_start
     if (yearStart == null) return
-    setOpenTeam(null)
     // §10 R6/R7 — every finished fixture of the season, so the screen can show
     // the table as it stood and both sides' form going into this game.
     const contextMatches = ((resultData?.matchdayHistory ?? []) as any[]).flatMap(snap =>
@@ -243,7 +137,7 @@ export default function ResultScreen() {
       drafted: (isFreshRun ? fullSquad : dbRunData?.squad ?? []) as any,
       playerFormation: (isFreshRun ? formation : dbRunData?.formation) ?? undefined,
       matchday, contextMatches,
-    }, theme.accent)
+    }, prim.cotton)
   }
 
   // Season Highlights name a match by opponent + scoreline (player-first) rather
@@ -263,7 +157,7 @@ export default function ResultScreen() {
     }
     return null
   }
-  const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
+  const [runStats, setRunStats] = useState<RunStats | null>(null)
   // Re-entry guard for the save/exit buttons — a quick double-tap (or tapping
   // both buttons) used to fire saveRun twice. Declared up here so it sits above
   // the early returns and never violates the rules of hooks.
@@ -275,9 +169,19 @@ export default function ResultScreen() {
   // Preload the squad stats up-front so the whole result page lands ready (a
   // slightly longer first load, but nothing pops in afterwards).
   const [preloading, setPreloading] = useState(isFreshRun)
+  // Saves on its own once the stats are in — see useRunSave for why.
+  const runSave = useRunSave({
+    applies: isFreshRun && !quickSim && !params.runId,
+    signedIn: !!user && !isGuest,
+    ready: !preloading,
+  })
 
   useEffect(() => {
     if (!isFreshRun) return
+    // Awards Night already paid for these (src/lib/awardsNight.ts): reading
+    // them back saves regenerating every match sheet a second time.
+    const ready = takeRunStats()
+    if (ready) { setRunStats(ready); setPreloading(false); return }
     computeLeagueRunStats(simResult!, fullSquad, placedLeague!, store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[result] stats compute failed:', e))
@@ -285,17 +189,14 @@ export default function ResultScreen() {
   }, [])
   const [loadingRun, setLoadingRun] = useState(false)
   const [dbRunData, setDbRunData] = useState<any>(null)
-  const [teamDataMap, setTeamDataMap] = useState<Record<string, { color: string; acronym: string }>>({})
 
   // Load run from database if runId is provided
   useEffect(() => {
     async function loadRun() {
       if (params.runId) {
-        console.log('[result] Loading run from database, runId:', params.runId)
         setLoadingRun(true)
         try {
           const run = await fetchRunById(params.runId)
-          console.log('[result] Successfully loaded run data:', run)
           setDbRunData(run)
         } catch (error) {
           console.error('[result] Failed to load run:', error)
@@ -306,19 +207,6 @@ export default function ResultScreen() {
     }
     loadRun()
   }, [params.runId])
-
-  // Load team data from database
-  useEffect(() => {
-    async function loadTeamData() {
-      try {
-        const clubsData = await getAllClubsData()
-        setTeamDataMap(clubsData)
-      } catch (error) {
-        console.error('[result] Failed to load team data:', error)
-      }
-    }
-    loadTeamData()
-  }, [])
 
   // Use simResult from store or dbRunData from database
   const resultData = dbRunData ? {
@@ -345,76 +233,20 @@ export default function ResultScreen() {
     absences: dbRunData.highlights?.absences ?? [],
   } : simResult
 
-  // Prepare graph data with memoization for performance (must be before early return)
-  const graphData = useMemo(() => {
-    if (!resultData || !resultData.matchdayHistory || resultData.matchdayHistory.length === 0) {
-      return { labels: [], datasets: [], teamAcronyms: [], teamColors: [], teamsInLeague: 20 }
-    }
-    const currentMatchday = selectedMatchday ?? resultData.matchdayHistory.length
-    
-    // Generate team acronyms and colors from dynamic team data mapping
-    // Use final standings order for acronyms
-    const finalStandings = resultData.table || resultData.matchdayHistory[resultData.matchdayHistory.length - 1]?.standings || []
-    const teamAcronyms = finalStandings.map((team: any) => {
-      const teamData = teamDataMap[team.clubName]
-      return teamData?.acronym || team.clubName.substring(0, 3).toUpperCase()
-    }) || []
-
-    // Generate team colors from dynamic team data mapping
-    // Use final standings order for colors
-    const teamColors = finalStandings.map((team: any) => {
-      if (team.isPlayer) return colors.accent
-      const teamData = teamDataMap[team.clubName]
-      if (teamData?.color) return teamData.color
-      // Fallback to hash-based color if not in mapping
-      const hash = team.clubId.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
-      const hue = hash % 360
-      return `hsl(${hue}, 70%, 50%)`
-    }) || []
-
-    // Y-axis: position 1 at top, teamsInLeague at bottom
-    // Chart displays higher values at top, so invert position values
-    const teamsInLeague = resultData.matchdayHistory[0]?.standings.length || 20
-    return {
-      labels: resultData.matchdayHistory.slice(0, currentMatchday).map((_: any, idx: number) => `MD${idx + 1}`),
-      datasets: finalStandings.map((team: any, idx: number) => {
-        const positions = resultData.matchdayHistory.slice(0, currentMatchday).map((snapshot: any) => {
-          const position = snapshot.standings.findIndex((s: any) => s.clubId === team.clubId) + 1
-          // Invert so position 1 appears at top (higher value in chart)
-          return teamsInLeague - position + 1
-        })
-        return {
-          data: positions,
-          color: (opacity = 1) => teamColors[idx],
-          strokeWidth: team.isPlayer ? 3 : 1,
-          isPlayer: team.isPlayer,
-        }
-      }) || [],
-      teamAcronyms,
-      teamColors,
-      isPlayerFlags: finalStandings.map((team: any) => !!team.isPlayer),
-      teamsInLeague,
-    }
-  }, [resultData, selectedMatchday, teamDataMap, colors])
-
   if (loadingRun || preloading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={theme.accent} size="large" />
-        <Text style={styles.loadingText}>{preloading ? 'Tallying the season…' : 'Loading run...'}</Text>
-      </View>
+      <KitScreen ground="nylon">
+        <KitText t="bodyL" color={nylon.textMuted} style={{ marginTop: space[6] }}>{preloading ? 'Tallying the season.' : 'Loading the run.'}</KitText>
+      </KitScreen>
     )
   }
 
   if (!resultData) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
-        <Text style={styles.loadingText}>No simulation result found.</Text>
-        <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back to Modes</Text>
-        </Pressable>
-      </View>
+      <KitScreen ground="nylon">
+        <EmptyState roles={nylon} title="No season here" body="This run has ended or the page was reloaded." />
+        <Plate label="Back to modes" roles={nylon} variant="secondary" onPress={() => router.replace('/game/mode-select')} />
+      </KitScreen>
     )
   }
 
@@ -438,12 +270,40 @@ export default function ResultScreen() {
   // Fall back gracefully for non-league tiers (e.g. World Cup / UCL runs loaded
   // from history store a round name like "winner" or "sf" as their tier).
   const meta = TIER_META[tier as Tier] ?? {
-    title: String(tier ?? 'Result').replace(/_/g, ' ').toUpperCase(),
+    title: formatTier(tier).toUpperCase(),
     desc: '',
-    emoji: '🏆',
+    emoji: '',
   }
-  const tierColor = (colors.tiers as any)[tier as Tier] ?? colors.accent
+  const tierColor = (colors.tiers as any)[tier as Tier] ?? prim.cotton
   const gd = goalsFor - goalsAgainst
+
+  // The verdict's own lines: where you played, what the run scored, and how it
+  // compares with the pundits' pre-season call (they're seeded on the run, so
+  // the same table is rebuilt here rather than stored twice).
+  const takeoverLine = (() => {
+    const lg = placedLeague?.leagueName ?? dbRunData?.league_name ?? dbRunData?.leagueName
+    const ys = placedLeague?.yearStart ?? dbRunData?.year_start ?? dbRunData?.yearStart
+    const season = ys ? `${ys}/${String(ys + 1).slice(-2)}` : null
+    const rawClub = (playerTeam as any)?.clubName
+    const club = placedLeague?.replacedTeamName ?? dbRunData?.replaced_team_name
+      ?? (rawClub && rawClub !== 'Your XI' ? rawClub : null)
+    if (!lg && !club) return null
+    return `${[lg, season].filter(Boolean).join(' ')}${club ? ` · You took over ${club}` : ''}`
+  })()
+  // Plain consts, NOT hooks: everything from here down sits below the "no
+  // result" early return, so a hook here changes the hook order between
+  // renders (React: "Rendered more hooks than during the previous render").
+  // Both are cheap — arithmetic, and one seeded sort of the league.
+  const difficultyMultiplier = resolveDifficulty(difficulty, customDifficulty, mode ?? undefined).scoreMultiplier
+  const runScore = calculateScore({
+    mode: mode ?? 'league', finalPosition, teamsInLeague, teamOvr: playerTeam.ovr,
+    losses, draws, difficultyMultiplier,
+  })
+  const punditCheck = (() => {
+    if (store.predictionSeed == null || !placedLeague) return null
+    const you = predictTable(placedLeague.teams, store.predictionSeed).player
+    return you ? { predicted: you.predicted, actual: finalPosition, field: teamsInLeague } : null
+  })()
 
   // Default to final matchday if not selected
   const currentMatchday = selectedMatchday ?? matchdayHistory.length
@@ -462,36 +322,34 @@ export default function ResultScreen() {
     }).catch(e => console.warn('[career] merge failed:', e))
   }
 
-  // Save once, guarded so it can never run twice for the same result.
+  // Handed to useRunSave, which guarantees it runs once. It throws on failure so
+  // the screen can show "couldn't save" instead of pretending it worked.
   async function saveCurrentRun() {
     if (user && !isGuest && !quickSim && mode && formation && placedLeague && simResult) {
-      try {
-        await saveRun({
-          userId: user.id,
-          mode,
-          formation,
-          teamOvr: playerTeam.ovr,
-          leagueId: placedLeague.leagueId,
-          leagueName: placedLeague.leagueName,
-          yearStart: placedLeague.yearStart,
-          seasonResult: simResult,
-          squad: fullSquad,
-          matchdayHistory: simResult.matchdayHistory,
-          difficulty, custom: customDifficulty,
-          stats: runStats?.stats,
-          awards: runStats?.awards,
-        })
-      } catch (error) {
-        console.error('Failed to save run:', error)
-      }
+      await saveRun({
+        userId: user.id,
+        mode,
+        formation,
+        teamOvr: playerTeam.ovr,
+        leagueId: placedLeague.leagueId,
+        leagueName: placedLeague.leagueName,
+        yearStart: placedLeague.yearStart,
+        seasonResult: simResult,
+        squad: fullSquad,
+        matchdayHistory: simResult.matchdayHistory,
+        difficulty, custom: customDifficulty,
+        stats: runStats?.stats,
+        awards: runStats?.awards,
+      })
     }
     persistCareer()
   }
+  runSave.setTask(saveCurrentRun)
 
   async function handlePlayAgain() {
     if (submittingRef.current) return
     submittingRef.current = true; setSubmitting(true)
-    await saveCurrentRun()
+    await runSave.flush()
     resetRun()
     restartToModeSelect()
   }
@@ -499,410 +357,169 @@ export default function ResultScreen() {
   async function handleReturnToHome() {
     if (submittingRef.current) return
     submittingRef.current = true; setSubmitting(true)
-    await saveCurrentRun()
+    await runSave.flush()
     resetRun()
     exitToHome()
   }
 
+  // ── P8-54: the result screen, rebuilt ─────────────────────────────────────
+  // The verdict first, then the season told with the SAME pieces the live
+  // season used (the strip, result rows, the zoned table), so the result reads
+  // as the end of that screen rather than a different app. The deep stuff
+  // (every club, every player, the press) lives on the run hub, one plate away.
+  const history = (matchdayHistory ?? []) as any[]
+  const youId = (table as any[])?.find((t: any) => t.isPlayer)?.clubId as string | undefined
+  const marks: Mark[] = history.map(snap => {
+    const f = (snap.fixtures ?? []).find((x: any) => x.result && (x.home.isPlayer || x.away.isPlayer))
+    if (!f) return 'D'
+    const d = f.home.isPlayer ? f.result.homeGoals - f.result.awayGoals : f.result.awayGoals - f.result.homeGoals
+    return d > 0 ? 'W' : d < 0 ? 'L' : 'D'
+  })
+  const viewMD = selectedMatchday ?? history.length
+  const snap = history[viewMD - 1]
+  const prevSnap = history[viewMD - 2]
+  const leagueId = placedLeague?.leagueId ?? dbRunData?.league_id
+  const yearStart = placedLeague?.yearStart ?? dbRunData?.year_start
+  const standings = ((snap?.standings ?? table) as any[])
+  const tableZones = leagueId && yearStart ? leagueTableZones(zonesFor(leagueId, yearStart, standings.length)) : standings.map(() => null)
+  const rows: TableRowVM[] = standings.map((t: any) => ({
+    clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer,
+    played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
+  }))
+  const positions = youId ? history.map(h => h.standings.findIndex((t: any) => t.clubId === youId) + 1) : []
+  const move = snap && prevSnap && youId ? prevSnap.standings.findIndex((t: any) => t.clubId === youId) - snap.standings.findIndex((t: any) => t.clubId === youId) : null
+  const hasHub = isFreshRun || !!(params.runId && dbRunData?.stats)
+  const highlights = [
+    biggestWin && { key: 'win', label: 'Biggest win', opponent: biggestWin.opponent, score: biggestWin.score },
+    worstLoss && { key: 'loss', label: 'Worst defeat', opponent: worstLoss.opponent, score: worstLoss.score },
+    upsets.length > 0 && { key: 'upset', label: `Shock defeats · ${upsets.length}`, opponent: upsets[0].opponent, score: upsets[0].score },
+  ].filter(Boolean) as { key: string; label: string; opponent: string; score: string }[]
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.bgTint }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Season Summary</Text>
-        <View style={styles.placeholder} />
+    <KitScreen ground="nylon">
+      <VerdictBlock
+        tone={verdictOf(tier)}
+        title={meta.title}
+        line={`${meta.desc} Finished ${finalPosition} of ${teamsInLeague}.`}
+        meta={takeoverLine ?? undefined}
+        score={runScore ?? undefined}
+        multiplier={difficultyMultiplier}
+        pundits={punditCheck ?? undefined}
+        shareText={`${meta.title} — ${finalPosition} of ${teamsInLeague}${takeoverLine ? `, ${takeoverLine}` : ''}. Perfection or Misery.`}
+      />
+
+      <ResultFigures items={[['Pts', playerTeam.stats.points], ['W', wins], ['D', draws], ['L', losses], ['GD', gd > 0 ? `+${gd}` : gd], ['For', goalsFor], ['Ag', goalsAgainst]]} />
+
+      {/* P8-24 — the pundits' whole table beside the real one. */}
+      {(() => {
+        if (store.predictionSeed == null || !placedLeague || !table?.length) return null
+        const predicted = new Map(predictTable(placedLeague.teams, store.predictionSeed).table.map(r => [r.clubId, r.predicted]))
+        return (
+          <PunditsTable rows={(table as any[]).map((t, i) => ({
+            clubId: t.clubId, clubName: t.clubName, finalPosition: i + 1,
+            predicted: predicted.get(t.clubId) ?? i + 1, isPlayer: !!t.isPlayer,
+          }))} />
+        )
+      })()}
+
+      <View style={styles.kitPlates}>
+        {(() => {
+          const src = runStats ?? (dbRunData?.stats && dbRunData?.awards ? { stats: dbRunData.stats, awards: dbRunData.awards } : null)
+          if (!src) return null
+          const night = buildAwardsNight({
+            awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
+            clubs: clubsForManagerAward(placedLeague?.teams, simResult?.table, store.predictionSeed), playerClubId: youId,
+          })
+          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={nylon} onPress={() => openAwardsView(night, params.runId)} />
+        })()}
+        {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={nylon} onPress={() => openRunHub(undefined, params.runId)} accessibilityHint="Every club, player, match and story" />}
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Tier Card */}
-        <View style={[styles.tierCard, { borderColor: tierColor }]}>
-          <Text style={styles.tierEmoji}>{meta.emoji}</Text>
-          <Text style={[styles.tierTitle, { color: tierColor }]}>{meta.title}</Text>
-          <Text style={styles.positionText}>Finished #{finalPosition} out of {teamsInLeague} teams</Text>
-          <Text style={styles.tierDesc}>{meta.desc}</Text>
-          {(() => {
-            const lg = placedLeague?.leagueName ?? dbRunData?.league_name ?? dbRunData?.leagueName
-            const ys = placedLeague?.yearStart ?? dbRunData?.year_start ?? dbRunData?.yearStart
-            const season = ys ? `${ys}/${String(ys + 1).slice(-2)}` : null
-            // The club you REPLACED — the player team itself is renamed "Your XI"
-            // in the table, so its clubName is useless here.
-            const rawClub = (playerTeam as any)?.clubName
-            const club = placedLeague?.replacedTeamName
-              ?? dbRunData?.replaced_team_name
-              ?? (rawClub && rawClub !== 'Your XI' ? rawClub : null)
-            if (!lg && !club) return null
+      {history.length > 0 && (
+        <View style={styles.kitSection}>
+          <SectionTag roles={nylon}>Your season</SectionTag>
+          <SeasonStrip roles={nylon} marks={marks} total={history.length} viewing={selectedMatchday} onPick={setSelectedMatchday} />
+          {positions.length > 1 && <PositionGraph roles={nylon} values={positions.slice(0, viewMD)} clubs={standings.length} />}
+        </View>
+      )}
+
+      {snap && (
+        <View style={styles.kitSection}>
+          <SectionTag roles={nylon}>{`Matchday ${viewMD}${viewMD === history.length ? ' · the last day' : ''}`}</SectionTag>
+          {(snap.fixtures ?? []).filter((f: any) => f.result).map((f: any, k: number) => (
+            <ResultRow key={k} roles={nylon} homeName={f.home.clubName} awayName={f.away.clubName}
+              homeGoals={f.result.homeGoals} awayGoals={f.result.awayGoals}
+              youSide={f.home.isPlayer ? 'home' : f.away.isPlayer ? 'away' : null}
+              scorers={[summariseScorers(f.scorers?.home), summariseScorers(f.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+              onPress={() => openFixtureDetail(f, `Matchday ${viewMD}`, viewMD)} />
+          ))}
+        </View>
+      )}
+
+      <View style={styles.kitSection}>
+        <View style={styles.kitHeadRow}>
+          <SectionTag roles={nylon}>{viewMD === history.length || !snap ? 'Final table' : `Table after matchday ${viewMD}`}</SectionTag>
+          {move ? <Tag roles={nylon} variant={move > 0 ? 'win' : 'loss'}>{move > 0 ? `UP ${move}` : `DOWN ${-move}`}</Tag> : null}
+        </View>
+        <LeagueTable roles={nylon} rows={rows} zones={tableZones} onRowPress={hasHub ? id => openClub(id, params.runId) : undefined} />
+        <ZoneLegend roles={nylon} zones={tableZones} />
+      </View>
+
+      {highlights.length > 0 && (
+        <View style={styles.kitSection}>
+          <SectionTag roles={nylon}>Highlights</SectionTag>
+          {highlights.map(h => {
+            const found = findHighlightFixture(h.opponent, h.score)
             return (
-              <Text style={styles.takeoverText}>
-                {[lg, season].filter(Boolean).join(' ')}{club ? `  ·  You took over ${club}` : ''}
-              </Text>
-            )
-          })()}
-        </View>
-
-        {/* Stats Grid */}
-        <View style={styles.statsCard}>
-          <Text style={styles.sectionTitle}>Campaign Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Text style={styles.statVal}>{playerTeam.stats.points}</Text>
-              <Text style={styles.statLbl}>Points</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: colors.success }]}>{wins}</Text>
-              <Text style={styles.statLbl}>Wins</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: colors.warning }]}>{draws}</Text>
-              <Text style={styles.statLbl}>Draws</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, { color: '#DC2626' }]}>{losses}</Text>
-              <Text style={styles.statLbl}>Losses</Text>
-            </View>
-          </View>
-          <View style={styles.statsRow}>
-            <Text style={styles.rowStatText}>Goal Diff: <Text style={{ color: gd >= 0 ? colors.success : colors.danger }}>{gd > 0 ? `+${gd}` : gd}</Text></Text>
-            <Text style={styles.rowStatText}>Goals Scored: <Text style={{ color: colors.textPrimary }}>{goalsFor}</Text></Text>
-            <Text style={styles.rowStatText}>Goals Conceded: <Text style={{ color: colors.textPrimary }}>{goalsAgainst}</Text></Text>
-          </View>
-        </View>
-
-        {/* Lineup + squad — from the live run, or rehydrated from a saved one */}
-        {(() => {
-          // Include bench players too — SquadSummary's "Team" view looks each row
-          // up by playerId to show their real drafted club/season, and a squad
-          // limited to the starting XI left every substitute with no match, so
-          // their row rendered "—" for team (Big Fixes §5.1).
-          const squad = (isFreshRun ? fullSquad : dbRunData?.squad ?? []) as any[]
-          const bench = (isFreshRun ? benchPlayers : (dbRunData?.squad ?? []).filter((p: any) => p.isBench)) as any[]
-          const form  = (isFreshRun ? formation : dbRunData?.formation) as any
-          const st    = runStats?.stats ?? dbRunData?.stats ?? null
-          return (
-            <>
-              {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
-              {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={theme.accent} runId={params.runId} />}
-            </>
-          )
-        })()}
-
-        {/* Highlights */}
-        <View style={styles.highlightsCard}>
-          <Text style={styles.sectionTitle}>Season Highlights</Text>
-          <View style={styles.highlightsList}>
-            {/* Every highlight IS a match, so each one opens the same full stat
-                sheet as any other match row rather than being dead text. */}
-            {(() => {
-              const rows: { key: string; label: string; value: string; opponent: string; score: string }[] = []
-              if (biggestWin) rows.push({ key: 'win', label: '🏆 Biggest Win', value: `${biggestWin.score} vs ${biggestWin.opponent}`, opponent: biggestWin.opponent, score: biggestWin.score })
-              if (worstLoss) rows.push({ key: 'loss', label: '💔 Worst Loss', value: `${worstLoss.score} vs ${worstLoss.opponent}`, opponent: worstLoss.opponent, score: worstLoss.score })
-              if (upsets.length > 0) rows.push({
-                key: 'upset', label: '⚠️ Shock Defeats',
-                value: `${upsets.length} upset${upsets.length > 1 ? 's' : ''} — e.g. ${upsets[0].score} vs ${upsets[0].opponent}`,
-                opponent: upsets[0].opponent, score: upsets[0].score,
-              })
-              return rows.map(r => {
-                const found = findHighlightFixture(r.opponent, r.score)
-                return (
-                  <Pressable
-                    key={r.key}
-                    style={({ pressed }) => [styles.highlightItem, pressed && found ? { opacity: 0.7 } : null]}
-                    disabled={!found}
-                    onPress={found ? () => openFixtureDetail(found.fixture, `Matchday ${found.matchday}`, found.matchday) : undefined}
-                  >
-                    <Text style={styles.highlightLabel}>{r.label}</Text>
-                    <View style={styles.highlightValueRow}>
-                      <Text style={styles.highlightValueBlock}>{r.value}</Text>
-                      {found && <Text style={styles.highlightChevron}>›</Text>}
-                    </View>
-                  </Pressable>
-                )
-              })
-            })()}
-          </View>
-        </View>
-
-        {/* Matchday History */}
-        <View style={styles.matchdayCard}>
-          <Text style={styles.sectionTitle}>Matchday History</Text>
-
-          {/* Matchday Selector */}
-          <View style={styles.matchdaySelector}>
-            <Text style={styles.matchdaySelectorLabel}>Matchday {currentMatchday}/{matchdayHistory.length}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.matchdayScroll}>
-              {matchdayHistory.map((_: any, idx: number) => (
-                <Pressable
-                  key={idx}
-                  style={[
-                    styles.matchdayChip,
-                    currentMatchday === idx + 1 && styles.matchdayChipActive,
-                  ]}
-                  onPress={() => setSelectedMatchday(idx + 1)}
-                >
-                  <Text style={[
-                    styles.matchdayChipText,
-                    currentMatchday === idx + 1 && styles.matchdayChipTextActive,
-                  ]}>
-                    {idx + 1}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Matchday Fixtures */}
-          {currentSnapshot && (
-            <View style={styles.matchdayFixtures}>
-              <Text style={styles.matchdaySectionTitle}>Matchday {currentMatchday} Results</Text>
-              {currentSnapshot.fixtures.map((fixture: any, idx: number) => {
-                const result = fixture.result
-                if (!result) return null
-
-                const isPlayerHome = fixture.home.isPlayer
-                const isPlayerAway = fixture.away.isPlayer
-
-                const homeScorers = summariseScorers(fixture.scorers?.home)
-                const awayScorers = summariseScorers(fixture.scorers?.away)
-                return (
-                  <Pressable key={idx} style={styles.fixtureRowWrap} onPress={() => openFixtureDetail(fixture, `Matchday ${currentMatchday}`, currentMatchday)}>
-                    <View style={[styles.fixtureRow, (isPlayerHome || isPlayerAway) && styles.fixtureRowPlayer]}>
-                      <Text
-                        style={[styles.fixtureTeam, styles.fixtureTeamHome, isPlayerHome && styles.fixtureTeamPlayer]}
-                        numberOfLines={1}
-                      >
-                        {fixture.home.clubName}
-                      </Text>
-                      <View style={styles.fixtureScore}>
-                        <Text style={[styles.fixtureScoreText, result.outcome === 'home' && styles.fixtureScoreWinner, isPlayerHome && styles.fixtureScorePlayer]}>
-                          {result.homeGoals}
-                        </Text>
-                        <Text style={styles.fixtureScoreDivider}>-</Text>
-                        <Text style={[styles.fixtureScoreText, result.outcome === 'away' && styles.fixtureScoreWinner, isPlayerAway && styles.fixtureScorePlayer]}>
-                          {result.awayGoals}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[styles.fixtureTeam, styles.fixtureTeamAway, isPlayerAway && styles.fixtureTeamPlayer]}
-                        numberOfLines={1}
-                      >
-                        {fixture.away.clubName}
-                      </Text>
-                    </View>
-                    {!!(homeScorers || awayScorers) && (
-                      <View style={styles.fixtureScorers}>
-                        <Text style={[styles.fixtureScorerHalf, { textAlign: 'right' }]} numberOfLines={2}>{homeScorers ? `⚽ ${homeScorers}` : ''}</Text>
-                        <Text style={styles.fixtureScorerHalf} numberOfLines={2}>{awayScorers ? `${awayScorers} ⚽` : ''}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                )
-              })}
-            </View>
-          )}
-
-          {/* Matchday Standings */}
-          {currentSnapshot && (
-            <View style={styles.matchdayStandings}>
-              <Text style={styles.matchdaySectionTitle}>Standings after Matchday {currentMatchday}</Text>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-                <Text style={[styles.tableCol, styles.colName]}>Club</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-                <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
-              </View>
-              {currentSnapshot.standings.map((team: any, idx: number) => {
-                const teamGd = team.stats.goalsFor - team.stats.goalsAgainst
-                
-                // Calculate position change from previous matchday
-                let positionChange = null
-                if (currentMatchday > 1) {
-                  const prevSnapshot = matchdayHistory[currentMatchday - 2]
-                  if (prevSnapshot) {
-                    const prevPosition = prevSnapshot.standings.findIndex((s: any) => s.clubId === team.clubId) + 1
-                    positionChange = prevPosition - (idx + 1)
-                  }
-                }
-                
-                return (
-                  <View
-                    key={team.clubId}
-                    style={[
-                      styles.tableRow,
-                      team.isPlayer && styles.tableRowPlayer,
-                    ]}
-                  >
-                    <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center' }]}>
-                      <Text style={[styles.tableColData, team.isPlayer && styles.playerRowText]}>{idx + 1}</Text>
-                      {positionChange !== null && positionChange !== 0 && (
-                        <Text style={[
-                          styles.positionChangeIndicator,
-                          positionChange > 0 ? styles.positionUp : styles.positionDown
-                        ]}>
-                          {positionChange > 0 ? ` ↑${Math.abs(positionChange)}` : ` ↓${Math.abs(positionChange)}`}
-                        </Text>
-                      )}
-                    </View>
-                    <Text
-                      style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]}
-                      numberOfLines={1}
-                    >
-                      {team.clubName}
-                    </Text>
-                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
-                      {team.stats.played}
-                    </Text>
-                    <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
-                      {teamGd > 0 ? `+${teamGd}` : teamGd}
-                    </Text>
-                    <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>
-                      {team.stats.points}
-                    </Text>
-                  </View>
-                )
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* Position Tracking Graph */}
-        <View style={styles.graphCard}>
-          <Text style={styles.sectionTitle}>Position Tracking</Text>
-          <Text style={styles.graphSubtitle}>Position {currentMatchday > 0 ? `after MD ${currentMatchday}` : 'throughout season'} — position 1 at top</Text>
-          <PositionChart graphData={graphData} />
-        </View>
-
-        {/* §10.5 phase 4 (R8) — the medical table, above the final table: who
-            missed what, and what it cost you. Absent for pre-phase-4 saves. */}
-        <MedicalTable absences={resultData?.absences} accent={theme.accent} />
-
-        {/* Final Standings Table */}
-        <View style={styles.tableCard}>
-          <Text style={styles.sectionTitle}>Final Standings</Text>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-            <Text style={[styles.tableCol, styles.colName]}>Club</Text>
-            <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-            <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-            <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>PTS</Text>
-          </View>
-          {table.map((team: any, idx: number) => {
-            const teamGd = team.stats.goalsFor - team.stats.goalsAgainst
-            return (
-              <Pressable
-                key={team.clubId}
-                onPress={() => matchdayHistory.length > 0 && setOpenTeam({ clubId: team.clubId, clubName: team.clubName })}
-                style={[
-                  styles.tableRow,
-                  team.isPlayer && styles.tableRowPlayer
-                ]}
-              >
-                <Text style={[styles.tableColData, styles.colPos, team.isPlayer && styles.playerRowText]}>
-                  {idx + 1}
-                </Text>
-                <Text
-                  style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerRowText]}
-                  numberOfLines={1}
-                >
-                  {team.clubName}
-                </Text>
-                <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
-                  {team.stats.played}
-                </Text>
-                <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerRowText]}>
-                  {teamGd > 0 ? `+${teamGd}` : teamGd}
-                </Text>
-                <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerRowText]}>
-                  {team.stats.points}
-                </Text>
-              </Pressable>
+              <ListRow key={h.key} roles={nylon} label={h.label} value={`${h.score} v ${h.opponent}`}
+                onPress={found ? () => openFixtureDetail(found.fixture, `Matchday ${found.matchday}`, found.matchday) : undefined} />
             )
           })}
-          {matchdayHistory.length > 0 && <Text style={styles.tapHint}>Tap a club to see all its matches</Text>}
         </View>
+      )}
 
-        {/* Player statistics — fresh run (compute from store) or a saved snapshot (by runId) */}
-        {(isFreshRun || (params.runId && dbRunData?.stats)) ? (
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, { backgroundColor: theme.accent, marginTop: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-            onPress={() => router.push(params.runId ? { pathname: '/game/stats', params: { runId: params.runId } } : '/game/stats')}
-          >
-            <Text style={styles.actionBtnText}>📊 View Stats</Text>
-          </Pressable>
-        ) : null}
+      {/* §10.5 phase 4 (R8) — the medical table: who missed what. Absent for pre-phase-4 saves. */}
+      <MedicalTable absences={resultData?.absences} accent={prim.cotton} />
 
-        {/* Play Again Button */}
-        <View style={styles.buttonRow}>
-          <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleReturnToHome}>
-            <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
-          </Pressable>
-          <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, { backgroundColor: theme.accent }, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handlePlayAgain}>
-            <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+      {/* Lineup + squad — from the live run, or rehydrated from a saved one. Bench
+          players included so SquadSummary can resolve every row (Big Fixes §5.1). */}
+      {(() => {
+        const squad = (isFreshRun ? fullSquad : dbRunData?.squad ?? []) as any[]
+        const bench = (isFreshRun ? benchPlayers : (dbRunData?.squad ?? []).filter((p: any) => p.isBench)) as any[]
+        const form  = (isFreshRun ? formation : dbRunData?.formation) as any
+        const st    = runStats?.stats ?? dbRunData?.stats ?? null
+        return (
+          <>
+            {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={prim.cotton} runId={params.runId} />}
+          </>
+        )
+      })()}
 
-      <TeamMatchesModal team={openTeam} history={matchdayHistory} accent={theme.accent} onClose={() => setOpenTeam(null)}
-        onOpenMatch={(f, md) => openFixtureDetail(f, `Matchday ${md}`, md)} />
-    </View>
-  )
-}
-
-// Every match a club played, in a scrollable modal (tap a club in the table).
-function TeamMatchesModal({ team, history, accent, onClose, onOpenMatch }: {
-  team: { clubId: string; clubName: string } | null
-  history: any[]
-  accent: string
-  onClose: () => void
-  onOpenMatch?: (fixture: any, matchday: number) => void
-}) {
-  const matches = team
-    ? history.flatMap((s: any) => s.fixtures
-        .filter((f: any) => f.result && (f.home.clubId === team.clubId || f.away.clubId === team.clubId))
-        .map((f: any) => ({ md: s.matchday, ...f })))
-    : []
-  return (
-    <AppModal visible={team !== null} onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
-          <Text style={[styles.modalTitle, { color: accent }]} numberOfLines={1}>{team?.clubName}</Text>
-          <ScrollView showsVerticalScrollIndicator>
-            {matches.map((m: any, i: number) => {
-              const isHome = m.home.clubId === team?.clubId
-              const gf = isHome ? m.result.homeGoals : m.result.awayGoals
-              const ga = isHome ? m.result.awayGoals : m.result.homeGoals
-              const res = gf > ga ? 'W' : gf < ga ? 'L' : 'D'
-              const resColor = res === 'W' ? colors.success : res === 'L' ? colors.danger : colors.warning
-              const opp = isHome ? m.away.clubName : m.home.clubName
-              return (
-                <Pressable key={i} style={styles.mmRow} onPress={onOpenMatch ? () => onOpenMatch(m, m.md) : undefined}>
-                  <Text style={styles.mmMd}>MD{m.md}</Text>
-                  <View style={[styles.mmRes, { backgroundColor: resColor + '22' }]}><Text style={[styles.mmResText, { color: resColor }]}>{res}</Text></View>
-                  <Text style={styles.mmOpp} numberOfLines={1}>{isHome ? 'vs' : '@'} {opp}</Text>
-                  <Text style={styles.mmScore}>{gf}-{ga}</Text>
-                </Pressable>
-              )
-            })}
-          </ScrollView>
-          <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
-        </Pressable>
-      </Pressable>
-    </AppModal>
+      <ResultActions fromHistory={!!params.runId} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
+    </KitScreen>
   )
 }
 
 const styles = StyleSheet.create({
+  kitFigures: { flexDirection: 'row', flexWrap: 'wrap', gap: space[4], marginTop: space[5] },
+  kitFigure: { minWidth: 44 },
+  kitPlates: { gap: space[3], marginTop: space[5] },
+  kitSection: { gap: space[2], marginTop: space[6] },
+  kitHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: prim.nylon,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: prim.nylon,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: prim.cottonMuted,
     fontSize: typography.md,
   },
   header: {
@@ -913,12 +530,12 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: prim.ruleNylon,
   },
   headerTitle: {
     fontSize: typography.lg,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBlack,
+    color: prim.cotton,
   },
   placeholder: {
     width: 32,
@@ -932,8 +549,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   tierCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: prim.nylonRaised,
+    borderRadius: 0,
     padding: spacing.xl,
     alignItems: 'center',
     borderWidth: 2,
@@ -945,41 +562,41 @@ const styles = StyleSheet.create({
   },
   tierTitle: {
     fontSize: typography.xl,
-    fontWeight: typography.black,
+    fontFamily: font.bodyBlack,
     textAlign: 'center',
     letterSpacing: 1,
   },
   positionText: {
     fontSize: typography.md,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBold,
+    color: prim.cotton,
   },
   tierDesc: {
     fontSize: typography.sm,
-    color: colors.textSecondary,
+    color: prim.cottonMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginTop: spacing.xs,
   },
   takeoverText: {
     fontSize: typography.xs,
-    color: colors.textMuted,
+    color: prim.cottonMuted,
     textAlign: 'center',
     marginTop: spacing.sm,
-    fontWeight: typography.bold,
+    fontFamily: font.bodyBold,
   },
   sectionTitle: {
     fontSize: typography.md,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBold,
+    color: prim.cotton,
     marginBottom: spacing.xs,
   },
   statsCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: prim.nylonRaised,
+    borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
     gap: spacing.md,
   },
   statsGrid: {
@@ -989,21 +606,21 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
+    backgroundColor: prim.nylonSunken,
+    borderRadius: 0,
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
   },
   statVal: {
     fontSize: typography.lg,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBlack,
+    color: prim.cotton,
   },
   statLbl: {
     fontSize: typography.xs,
-    color: colors.textSecondary,
+    color: prim.cottonMuted,
     textTransform: 'uppercase',
     marginTop: 2,
   },
@@ -1011,20 +628,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: prim.ruleNylon,
     paddingTop: spacing.md,
   },
   rowStatText: {
     fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: typography.medium,
+    color: prim.cottonMuted,
+    fontFamily: font.bodyMedium,
   },
   highlightsCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: prim.nylonRaised,
+    borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
     gap: spacing.sm,
   },
   highlightsList: {
@@ -1034,20 +651,20 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: 4,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
   },
   highlightLabel: {
     fontSize: typography.sm,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBold,
+    color: prim.cotton,
   },
   highlightValueBlock: {
     fontSize: typography.sm,
-    color: colors.textSecondary,
+    color: prim.cottonMuted,
     flexWrap: 'wrap',
     flexShrink: 1,
   },
@@ -1060,49 +677,49 @@ const styles = StyleSheet.create({
   },
   highlightChevron: {
     fontSize: typography.md,
-    fontWeight: typography.bold,
-    color: colors.textMuted,
+    fontFamily: font.bodyBold,
+    color: prim.cottonMuted,
   },
   tableCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: prim.nylonRaised,
+    borderRadius: 0,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
     gap: spacing.xs,
   },
   tableHeader: {
     flexDirection: 'row',
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: prim.ruleNylon,
     marginBottom: spacing.xs,
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: prim.ruleNylon,
     alignItems: 'center',
   },
   tableRowPlayer: {
-    backgroundColor: colors.accent + '11',
-    borderColor: colors.accent,
+    backgroundColor: prim.cotton + '11',
+    borderColor: prim.cotton,
     borderWidth: 1,
-    borderRadius: radius.sm,
+    borderRadius: 0,
   },
   playerRowText: {
-    color: colors.accent,
-    fontWeight: typography.bold,
+    color: prim.cotton,
+    fontFamily: font.bodyBold,
   },
   tableCol: {
     fontSize: 10,
-    fontWeight: typography.bold,
-    color: colors.textMuted,
+    fontFamily: font.bodyBold,
+    color: prim.cottonMuted,
   },
   tableColData: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: prim.cottonMuted,
   },
   colPos: {
     width: 20,
@@ -1118,11 +735,11 @@ const styles = StyleSheet.create({
   },
   colPts: {
     width: 32,
-    fontWeight: typography.bold,
+    fontFamily: font.bodyBold,
   },
   actionBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
+    backgroundColor: prim.cotton,
+    borderRadius: 0,
     paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: spacing.md,
@@ -1130,14 +747,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionBtnSecondary: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
   },
   actionBtnText: {
     fontSize: typography.md,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBlack,
+    color: prim.cotton,
     letterSpacing: 1.5,
   },
   buttonRow: {
@@ -1145,11 +762,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   matchdayCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: prim.nylonRaised,
+    borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
     gap: spacing.md,
   },
   matchdaySelector: {
@@ -1157,70 +774,70 @@ const styles = StyleSheet.create({
   },
   matchdaySelectorLabel: {
     fontSize: typography.sm,
-    color: colors.textSecondary,
-    fontWeight: typography.medium,
+    color: prim.cottonMuted,
+    fontFamily: font.bodyMedium,
   },
   matchdayScroll: {
     flexDirection: 'row',
   },
   matchdayChip: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.full,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
     marginRight: spacing.sm,
   },
   matchdayChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: prim.cotton,
+    borderColor: prim.cotton,
   },
   matchdayChipText: {
     fontSize: typography.sm,
-    color: colors.textSecondary,
-    fontWeight: typography.bold,
+    color: prim.cottonMuted,
+    fontFamily: font.bodyBold,
   },
   matchdayChipTextActive: {
-    color: colors.textPrimary,
+    color: prim.cotton,
   },
   matchdayFixtures: {
     gap: spacing.sm,
   },
   matchdaySectionTitle: {
     fontSize: typography.sm,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBold,
+    color: prim.cotton,
     marginBottom: spacing.xs,
   },
-  squadStatRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: colors.border },
-  squadPos: { width: 36, fontSize: 10, color: colors.textMuted, fontWeight: typography.bold },
-  squadName: { flex: 1, fontSize: typography.sm, color: colors.textPrimary },
-  squadLine: { fontSize: typography.xs, color: colors.textSecondary },
-  squadNotable: { fontSize: 10, fontWeight: typography.bold },
-  squadMore: { fontSize: typography.sm, fontWeight: typography.bold, textAlign: 'center' },
+  squadStatRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  squadPos: { width: 36, fontSize: 10, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  squadName: { flex: 1, fontSize: typography.sm, color: prim.cotton },
+  squadLine: { fontSize: typography.xs, color: prim.cottonMuted },
+  squadNotable: { fontSize: 10, fontFamily: font.bodyBold },
+  squadMore: { fontSize: typography.sm, fontFamily: font.bodyBold, textAlign: 'center' },
   fixtureRowWrap: { marginBottom: spacing.sm },
   fixtureScorers: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.xs, marginTop: 3 },
-  fixtureScorerHalf: { flex: 1, fontSize: 10, color: colors.textMuted },
+  fixtureScorerHalf: { flex: 1, fontSize: 10, color: prim.cottonMuted },
   fixtureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
   },
   fixtureRowPlayer: {
-    backgroundColor: colors.accent + '11',
-    borderColor: colors.accent,
+    backgroundColor: prim.cotton + '11',
+    borderColor: prim.cotton,
   },
   fixtureTeam: {
     flex: 1,
     fontSize: typography.sm,
-    color: colors.textSecondary,
-    fontWeight: typography.medium,
+    color: prim.cottonMuted,
+    fontFamily: font.bodyMedium,
   },
   fixtureTeamHome: {
     textAlign: 'right',
@@ -1229,8 +846,8 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   fixtureTeamPlayer: {
-    color: colors.accent,
-    fontWeight: typography.bold,
+    color: prim.cotton,
+    fontFamily: font.bodyBold,
   },
   fixtureScore: {
     flexDirection: 'row',
@@ -1239,34 +856,34 @@ const styles = StyleSheet.create({
   },
   fixtureScoreText: {
     fontSize: typography.md,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
+    fontFamily: font.bodyBlack,
+    color: prim.cotton,
   },
   fixtureScoreWinner: {
-    color: colors.success,
+    color: prim.volt,
   },
   fixtureScorePlayer: {
-    color: colors.accent,
+    color: prim.cotton,
   },
   fixtureScoreDivider: {
     fontSize: typography.md,
-    color: colors.textMuted,
+    color: prim.cottonMuted,
     marginHorizontal: spacing.xs,
   },
   matchdayStandings: {
     gap: spacing.sm,
   },
   graphCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: prim.nylonRaised,
+    borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: prim.ruleNylon,
     gap: spacing.md,
   },
   graphSubtitle: {
     fontSize: typography.sm,
-    color: colors.textSecondary,
+    color: prim.cottonMuted,
   },
   graphScrollH: {
     marginHorizontal: -spacing.xs,
@@ -1278,28 +895,27 @@ const styles = StyleSheet.create({
   },
   graphEmptyText: {
     fontSize: typography.sm,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
+    color: prim.cottonMuted,
+      },
   positionChangeIndicator: {
     fontSize: 10,
-    fontWeight: typography.bold,
+    fontFamily: font.bodyBold,
     marginLeft: 4,
   },
-  tapHint: { fontSize: 10, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic', paddingTop: spacing.sm },
+  tapHint: { fontSize: 10, color: prim.cottonMuted, textAlign: 'center', paddingTop: spacing.sm },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  modalCard: { width: '100%', maxHeight: '80%', backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  modalTitle: { fontSize: typography.lg, fontWeight: typography.black, marginBottom: spacing.xs },
-  modalClose: { marginTop: spacing.sm, backgroundColor: colors.bgElevated, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  modalCloseText: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
-  mmRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  mmMd: { width: 38, fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.bold },
-  mmRes: { width: 24, height: 20, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  mmResText: { fontSize: typography.xs, fontWeight: typography.black },
-  mmOpp: { flex: 1, fontSize: typography.sm, color: colors.textSecondary },
-  mmScore: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, minWidth: 34, textAlign: 'right' },
+  modalCard: { width: '100%', maxHeight: '80%', backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.lg, gap: spacing.sm },
+  modalTitle: { fontSize: typography.lg, fontFamily: font.bodyBlack, marginBottom: spacing.xs },
+  modalClose: { marginTop: spacing.sm, backgroundColor: prim.nylonSunken, borderRadius: 0, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: prim.ruleNylon },
+  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  mmRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  mmMd: { width: 38, fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  mmRes: { width: 24, height: 20, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  mmResText: { fontSize: typography.xs, fontFamily: font.bodyBlack },
+  mmOpp: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted },
+  mmScore: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton, minWidth: 34, textAlign: 'right' },
   positionUp: {
-    color: colors.success,
+    color: prim.volt,
   },
   positionDown: {
     color: '#DC2626',

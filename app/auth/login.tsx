@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import {
-  View, Text, StyleSheet, TextInput,
-  Pressable, ActivityIndicator, KeyboardAvoidingView, Platform
-} from 'react-native'
+import { PageMeta } from '@/components/PageMeta'
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { loginWithUsername } from '@/lib/auth'
 import { useUserStore } from '@/store/userStore'
-import { colors, spacing, typography, radius } from '@/theme'
+import { ROLES, space } from '@/theme'
+import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl } from '@/components/kit'
+
+// Sign in — docs/ui-overhaul/07a A3.
+const roles = ROLES.cotton
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('')
@@ -24,181 +26,62 @@ export default function LoginScreen() {
   }, [session, isGuest])
 
   async function handleLogin() {
-    if (!username.trim() || !password.trim()) {
-      setError('Fill in both fields.')
-      return
-    }
     setLoading(true)
     setError(null)
     try {
       await loginWithUsername(username.trim(), password)
       // don't navigate here — useEffect above handles it
-    } catch (e: any) {
+    } catch {
       setError('Wrong username or password.')
       setLoading(false)
     }
   }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.inner}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
-        </Pressable>
+  // The plate names the missing step instead of silently doing nothing.
+  const missing = !username.trim() ? 'Enter your username' : !password ? 'Enter your password' : undefined
 
-        <Text style={styles.title}>Welcome back.</Text>
-        <Text style={styles.subtitle}>Sign in to your account.</Text>
+  return (
+    // Both platforms lift the form over the keyboard (the old layout only
+    // adjusted on iOS, so Android hid the button).
+    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KitScreen ground="cotton" keyboardShouldPersistTaps="handled">
+        <PageMeta title="Sign in" path="/auth/login" />
+        <BackControl roles={roles} />
+        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>WELCOME BACK.</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>Sign in with your username.</KitText>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Username</Text>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="your_username"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
+          <Field
+            label="Username" roles={roles} value={username} onChangeText={setUsername}
+            placeholder="your_username" autoCapitalize="none" autoCorrect={false}
+            autoComplete="username" textContentType="username"
           />
-
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
+          <Field
+            label="Password" roles={roles} value={password} onChangeText={setPassword}
+            secure autoComplete="password" textContentType="password"
+            error={error} onSubmitEditing={() => { if (!missing) handleLogin() }}
           />
+          <StripedNotice roles={roles}>
+            There's no password recovery. Forget your password and the account is gone.
+          </StripedNotice>
 
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <Pressable
-            style={[styles.btn, loading && styles.btnDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color={colors.textPrimary} />
-              : <Text style={styles.btnText}>SIGN IN</Text>
-            }
-          </Pressable>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>No account? </Text>
-            <Pressable onPress={() => router.replace('/auth/register')}>
-              <Text style={styles.switchLink}>Create one</Text>
-            </Pressable>
-          </View>
+          <Plate
+            label="No account? Create one" variant="quiet" roles={roles}
+            onPress={() => router.replace('/auth/register')} style={styles.switch}
+          />
+          <Plate
+            label="Sign in" icon="signIn" roles={roles} onPress={handleLogin}
+            disabled={!!missing} missingStep={missing} loading={loading}
+          />
         </View>
-
-        <View style={styles.warning}>
-          <Text style={styles.warningText}>
-            ⚠️ There is no password recovery. If you forget your password, your account is gone.
-          </Text>
-        </View>
-      </View>
+      </KitScreen>
     </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex:            1,
-    backgroundColor: colors.bg,
-  },
-  inner: {
-    flex:              1,
-    paddingHorizontal: spacing.lg,
-    paddingTop:        64,
-  },
-  back: {
-    marginBottom: spacing.xl,
-  },
-  backText: {
-    color:    colors.textSecondary,
-    fontSize: typography.md,
-  },
-  title: {
-    fontSize:     typography.xxl,
-    fontWeight:   typography.black,
-    color:        colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize:     typography.md,
-    color:        colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  form: {
-    gap: spacing.sm,
-  },
-  label: {
-    fontSize:     typography.sm,
-    color:        colors.textSecondary,
-    fontWeight:   typography.medium,
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor:   colors.bgCard,
-    borderWidth:       1,
-    borderColor:       colors.border,
-    borderRadius:      radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical:   spacing.md,
-    color:             colors.textPrimary,
-    fontSize:          typography.md,
-    marginBottom:      spacing.sm,
-  },
-  error: {
-    color:        colors.danger,
-    fontSize:     typography.sm,
-    marginBottom: spacing.sm,
-  },
-  btn: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.md,
-    borderRadius:    radius.md,
-    alignItems:      'center',
-    marginTop:       spacing.sm,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  btnText: {
-    color:         colors.textPrimary,
-    fontSize:      typography.md,
-    fontWeight:    typography.black,
-    letterSpacing: 2,
-  },
-  switchRow: {
-    flexDirection:  'row',
-    justifyContent: 'center',
-    marginTop:      spacing.lg,
-  },
-  switchText: {
-    color:    colors.textSecondary,
-    fontSize: typography.sm,
-  },
-  switchLink: {
-    color:      colors.accent,
-    fontSize:   typography.sm,
-    fontWeight: typography.bold,
-  },
-  warning: {
-    marginTop:       spacing.xl,
-    backgroundColor: colors.bgCard,
-    borderRadius:    radius.md,
-    borderWidth:     1,
-    borderColor:     colors.warning,
-    padding:         spacing.md,
-  },
-  warningText: {
-    color:    colors.warning,
-    fontSize: typography.sm,
-    lineHeight: 20,
-  },
+  fill: { flex: 1 },
+  title: { marginTop: space[3], marginBottom: space[2] },
+  form: { gap: space[4], marginTop: space[6] },
+  switch: { alignSelf: 'flex-start', marginLeft: -space[2] },
 })

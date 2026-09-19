@@ -79,6 +79,17 @@ export type PlayerStatLine = {
   dribbles?:         number      // successful
   dribblesAttempted?: number     // with dribbles → dribble success rate
   tacklesWon?:       number
+  // Phase 4 (awards) — the rest of the defensive and goalkeeping columns the
+  // match sheets already generate, summed so an award can be earned by
+  // defending or keeping, not only by goals.
+  interceptions?:    number
+  clearances?:       number
+  minutes?:          number      // minutes on the pitch across the run: per-90 figures divide by it
+  blocks?:           number
+  duelsWon?:         number      // ground + aerial
+  bigChancesCreated?: number
+  saves?:            number      // keepers only
+  penaltiesSaved?:   number      // keepers only
   fouls?:            number      // committed, card or not
   yellowCards?:      number
   redCards?:         number
@@ -121,7 +132,17 @@ export type AwardCandidate = {
   finalPosition: number          // their club's final standing (drives carry modifier)
   score:         number
   isPlayerClub?: boolean         // one of YOUR drafted players
+  // The numbers the score was built from, biggest share first — shown under an
+  // award so a winner can be argued with the evidence, not a bare total.
+  breakdown?:    AwardPart[]
+  // Deep columns carried for the awards that are decided on them.
+  chancesCreated?: number
+  tacklesWon?:     number
+  interceptions?:  number
+  saves?:          number
+  shotsOnTarget?:  number
 }
+export type AwardPart = { label: string; value: number; points: number }
 export type SeasonAwards = {
   playerOfTheSeason: AwardCandidate[]   // top 5, [0] = winner
   bestU21:           AwardCandidate[]   // top 5 aged <= 21, [0] = winner

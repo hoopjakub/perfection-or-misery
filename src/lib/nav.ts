@@ -19,6 +19,14 @@ export function restartToModeSelect() {
   router.replace('/game/mode-select')
 }
 
+// Which result screen rebuilds a saved run of this mode.
+export function runRoute(mode: string): '/game/wc-result' | '/game/custom-ucl-result' | '/game/cl-result' | '/game/result' {
+  return mode === 'world_cup' ? '/game/wc-result'
+    : mode === 'champions_league_custom' ? '/game/custom-ucl-result'
+    : mode === 'champions_league' ? '/game/cl-result'
+    : '/game/result'
+}
+
 export function exitToHome() {
   if (router.canDismiss()) router.dismissAll()
   router.replace('/(tabs)')

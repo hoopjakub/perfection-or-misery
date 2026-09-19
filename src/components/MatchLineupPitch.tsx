@@ -12,17 +12,17 @@
 
 import React from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { colors, spacing, typography, radius, ratingColor } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
 import { getFormationRows } from '@/engine/formations'
 import type { Formation } from '@/types/game'
 import type { LineupShape, PlayerMatchLine } from '@/types/match-stats'
 
 const lastName = (n: string) => n.split(' ').slice(-1)[0]
 
-const GOAL = '⚽'          // football
-const OWN_GOAL = '🥅' // goal net
-const INJURY = '🩹'   // adhesive bandage — §10.5 phase 4
-const ASSIST = '🎯'   // target
+const GOAL = 'G'          // football
+const OWN_GOAL = 'OG' // goal net
+const INJURY = 'INJ'   // adhesive bandage — §10.5 phase 4
+const ASSIST = 'A'   // target
 
 /**
  * Goals, assists and cards — shown identically wherever a player appears,
@@ -34,13 +34,13 @@ function Contributions({ l, compact }: { l: PlayerMatchLine; compact?: boolean }
   const size = compact ? 9 : 10
   const parts: React.ReactNode[] = []
   if (l.goals > 0) {
-    parts.push(<Text key="g" style={{ fontSize: size }}>{GOAL}{l.goals > 1 && (<Text style={{ color: colors.textPrimary }}> {l.goals}</Text>)}</Text>)
+    parts.push(<Text key="g" style={{ fontSize: size }}>{GOAL}{l.goals > 1 && (<Text style={{ color: prim.cotton }}> {l.goals}</Text>)}</Text>)
   }
   if (l.ownGoals > 0) {
-    parts.push(<Text key="og" style={{ fontSize: size }}>{OWN_GOAL}{l.ownGoals > 1 && (<Text style={{ color: colors.textPrimary }}> {l.ownGoals}</Text>)}</Text>)
+    parts.push(<Text key="og" style={{ fontSize: size }}>{OWN_GOAL}{l.ownGoals > 1 && (<Text style={{ color: prim.cotton }}> {l.ownGoals}</Text>)}</Text>)
   }
   if (l.assists > 0) {
-    parts.push(<Text key="a" style={{ fontSize: size - 1 }}>{ASSIST}{l.assists > 1 && (<Text style={{ color: colors.textPrimary }}> {l.assists}</Text>)}</Text>)
+    parts.push(<Text key="a" style={{ fontSize: size - 1 }}>{ASSIST}{l.assists > 1 && (<Text style={{ color: prim.cotton }}> {l.assists}</Text>)}</Text>)
   }
   if (l.yellowCard && !l.redCard) parts.push(<View key="y" style={styles.pipYellow} />)
   if (l.redCard) parts.push(<View key="r" style={styles.pipRed} />)
@@ -122,7 +122,7 @@ function PitchPlayer({ label, line, accent, onPress, showRatings = true }: {
       </View>
       <Text style={styles.name} numberOfLines={1}>{line ? lastName(line.name) : '—'}</Text>
       {line?.subOffMinute !== undefined && (
-        <Text style={[styles.subOff, line.injured && { fontWeight: typography.bold }]} numberOfLines={1}>
+        <Text style={[styles.subOff, line.injured && { fontFamily: font.bodyBold }]} numberOfLines={1}>
           {'▼'} {line.subOffMinute}&#39;{line.injured ? ` · out ${line.matchdaysOut}` : ''}
         </Text>
       )}
@@ -154,7 +154,7 @@ export function MatchBench({ players, accent, onPressPlayer, showRatings = true,
           <Text style={styles.benchName} numberOfLines={1}>{lastName(l.name)}</Text>
           <Contributions l={l} />
           {l.subOnMinute !== undefined
-            ? <Text style={[styles.benchOn, { color: colors.success }]}>{'▲'} {l.subOnMinute}&#39;</Text>
+            ? <Text style={[styles.benchOn, { color: prim.volt }]}>{'▲'} {l.subOnMinute}&#39;</Text>
             : <Text style={styles.benchUnused}>{unusedLabel}</Text>}
           {showRatings && l.minutes > 0 && (
             <View style={[styles.ratingDotSm, { backgroundColor: ratingColor(l.rating) }]}>
@@ -169,8 +169,8 @@ export function MatchBench({ players, accent, onPressPlayer, showRatings = true,
 
 const styles = StyleSheet.create({
   pitch: {
-    backgroundColor: colors.bgElevated, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: prim.nylonSunken, borderRadius: 0,
+    borderWidth: 1, borderColor: prim.ruleNylon,
     paddingVertical: spacing.md, paddingHorizontal: spacing.xs, gap: spacing.md,
   },
   row: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'flex-start' },
@@ -178,29 +178,29 @@ const styles = StyleSheet.create({
   shirtWrap: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   shirt: {
     width: 34, height: 34, borderRadius: 17, borderWidth: 1.5,
-    backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: prim.nylonRaised, alignItems: 'center', justifyContent: 'center',
   },
-  shirtLabel: { fontSize: 8, fontWeight: typography.black, color: colors.textSecondary },
+  shirtLabel: { fontSize: 8, fontFamily: font.bodyBlack, color: prim.cottonMuted },
   ratingDot: {
     position: 'absolute', right: -4, bottom: -2,
-    minWidth: 22, paddingHorizontal: 3, paddingVertical: 1, borderRadius: radius.sm, alignItems: 'center',
+    minWidth: 22, paddingHorizontal: 3, paddingVertical: 1, borderRadius: 0, alignItems: 'center',
   },
-  ratingDotSm: { minWidth: 22, paddingHorizontal: 3, paddingVertical: 1, borderRadius: radius.sm, alignItems: 'center' },
-  ratingDotText: { fontSize: 8, fontWeight: typography.black, color: '#0B1220' },
+  ratingDotSm: { minWidth: 22, paddingHorizontal: 3, paddingVertical: 1, borderRadius: 0, alignItems: 'center' },
+  ratingDotText: { fontSize: 8, fontFamily: font.bodyBlack, color: '#0B1220' },
   pips: { position: 'absolute', left: -8, top: -2, gap: 1, alignItems: 'center' },
   benchPips: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pipYellow: { width: 6, height: 8, borderRadius: 1, backgroundColor: colors.warning },
   pipRed: { width: 6, height: 8, borderRadius: 1, backgroundColor: colors.danger },
-  name: { fontSize: 9, color: colors.textPrimary, fontWeight: typography.bold, textAlign: 'center' },
+  name: { fontSize: 9, color: prim.cotton, fontFamily: font.bodyBold, textAlign: 'center' },
   subOff: { fontSize: 8, color: colors.danger },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm },
-  formationText: { fontSize: 10, fontWeight: typography.black, color: colors.textMuted, letterSpacing: 1 },
-  rotatedText: { fontSize: 9, color: colors.warning, fontStyle: 'italic' },
+  formationText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, letterSpacing: 1 },
+  rotatedText: { fontSize: 9, color: colors.warning, },
 
   bench: { marginTop: spacing.sm, gap: 3 },
   benchItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
-  benchPos: { width: 30, fontSize: 9, fontWeight: typography.black, color: colors.textMuted },
-  benchName: { flex: 1, fontSize: 11, color: colors.textSecondary },
-  benchOn: { fontSize: 9, fontWeight: typography.bold },
-  benchUnused: { fontSize: 9, color: colors.textMuted, fontStyle: 'italic' },
+  benchPos: { width: 30, fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted },
+  benchName: { flex: 1, fontSize: 11, color: prim.cottonMuted },
+  benchOn: { fontSize: 9, fontFamily: font.bodyBold },
+  benchUnused: { fontSize: 9, color: prim.cottonMuted, },
 })

@@ -224,5 +224,4 @@ export async function seedPremierLeague2025() {
     )
   }
 
-  console.log('seeded 2025/26 premier league — 20 clubs, 100 players')
 }

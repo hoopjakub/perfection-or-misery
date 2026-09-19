@@ -21,9 +21,16 @@
 // note) — the trophy, the colour and the words carry it on their own.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing, Pressable, AccessibilityInfo, useWindowDimensions } from 'react-native'
+import { View, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions } from 'react-native'
 import Svg, { Path, Circle, Rect, Ellipse, G, Defs, LinearGradient, Stop } from 'react-native-svg'
-import { colors, spacing, typography, radius } from '@/theme'
+import { ROLES, prim, space, border } from '@/theme'
+import { KitText, Plate, Stripe, Rivets } from '@/components/kit'
+
+// C6 move 5 (docs/ui-overhaul/07c) — the verdict is STITCHED ON. A win is a
+// one-frame cotton flash, then a volt label with the title on it; a loss is a
+// silver medal on the same black nylon with the hazard stripe pulled across
+// the label. The trophies stay original drawings (no licensed silhouettes).
+const roles = ROLES.nylon
 
 const GOLD = '#F5C518'
 const GOLD_DEEP = '#B98900'
@@ -108,7 +115,8 @@ function SilverMedal({ size = 150 }: { size?: number }) {
 
 // ── Confetti ────────────────────────────────────────────────────────────────
 
-const CONFETTI_COLORS = [GOLD, '#FF4D4D', '#4FA9FF', '#3CDE7C', '#FFFFFF', '#B57BFF']
+// Kit Drop's own colours: volt for the win, orange for you, cotton and gold.
+const CONFETTI_COLORS = [prim.volt, prim.orange, prim.cotton, GOLD]
 const CONFETTI_COUNT = 44
 
 function ConfettiPiece({ index, width, height }: { index: number; width: number; height: number }) {
@@ -150,7 +158,6 @@ function ConfettiPiece({ index, width, height }: { index: number; width: number;
       style={{
         position: 'absolute', top: 0, left: startX,
         width: size, height: size * 0.6, backgroundColor: colour,
-        borderRadius: 1,
         transform: [{ translateY }, { translateX }, { rotate }],
         opacity,
       }}
@@ -198,59 +205,65 @@ export function Ceremony({ won, kind, title, subtitle, accent, onContinue }: {
 
   const rise = enter.interpolate({ inputRange: [0, 1], outputRange: [40, 0] })
 
+  // The cut: one flash of cotton on a win, gone in a fifth of a second.
+  const flash = useRef(new Animated.Value(won && !reduceMotion ? 1 : 0)).current
+  useEffect(() => {
+    if (!won || reduceMotion) return
+    Animated.timing(flash, { toValue: 0, duration: 180, useNativeDriver: true }).start()
+  }, [won, reduceMotion])
+
+  // The stripe pulled across the runners-up label, left to right.
+  const pull = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current
+  useEffect(() => {
+    if (won) return
+    Animated.timing(pull, { toValue: 1, duration: reduceMotion ? 0 : 500, delay: reduceMotion ? 0 : 700, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start()
+  }, [won, reduceMotion])
+  const pullWidth = pull.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
+
   const Trophy = kind === 'globe' ? GlobeTrophy : CupTrophy
 
   return (
-    <View style={[styles.container, { backgroundColor: won ? colors.bg : MOODY_BG }]}>
-      {/* A soft wash behind the trophy — warm gold on a win, cold and flat on a
-          loss. It's the single biggest carrier of the mood difference. */}
-      <View style={[styles.wash, { backgroundColor: won ? GOLD : MOODY_TINT, opacity: won ? 0.16 : 0.5 }]} />
-
+    <View style={[styles.container, { backgroundColor: roles.bg }]}>
       {won && !reduceMotion && <Confetti />}
 
       <Animated.View style={[styles.body, { opacity: enter, transform: [{ translateY: rise }] }]}>
         {won ? <Trophy tone="gold" /> : <SilverMedal />}
 
-        <Text style={[styles.title, { color: won ? GOLD : SILVER }]}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <View style={[styles.label, { backgroundColor: won ? roles.perfection : roles.surface, borderColor: roles.line }]}
+          accessible accessibilityRole="header" accessibilityLabel={`${title}. ${subtitle}`}>
+          <Rivets color={won ? roles.onFill : roles.line} />
+          <KitText t="superL" color={won ? roles.onFill : roles.text} style={styles.title}>{`"${title.toUpperCase()}"`}</KitText>
+          {!won && (
+            <Animated.View style={[styles.pulled, { width: pullWidth }]} pointerEvents="none">
+              <Stripe roles={roles} band={6} style={StyleSheet.absoluteFill} />
+            </Animated.View>
+          )}
+        </View>
+        <KitText t="title" color={roles.text} style={styles.centre}>{subtitle}</KitText>
 
         {!won && (
-          <Text style={styles.consolation}>
+          <KitText t="body" color={roles.textMuted} style={[styles.centre, styles.consolation]}>
             One match away. The medal round your neck is the one nobody wants.
-          </Text>
+          </KitText>
         )}
       </Animated.View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.cta,
-          { backgroundColor: won ? accent : colors.bgElevated, borderColor: won ? accent : colors.border },
-          pressed && { opacity: 0.85, transform: [{ scale: 0.985 }] },
-        ]}
-        onPress={onContinue}
-      >
-        <Text style={styles.ctaText}>Final Results →</Text>
-      </Pressable>
+      <Plate label="On to awards night" icon="forward" roles={roles} onPress={onContinue} style={styles.cta} />
+
+      {won && (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: prim.cotton, opacity: flash }]} />
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.xl },
-  wash: { ...StyleSheet.absoluteFillObject },
-  body: { alignItems: 'center', gap: spacing.md },
-  title: {
-    fontSize: 26, fontWeight: typography.black, textAlign: 'center',
-    letterSpacing: 2, textTransform: 'uppercase',
-  },
-  subtitle: { fontSize: typography.md, color: colors.textSecondary, textAlign: 'center', fontWeight: typography.bold },
-  consolation: {
-    fontSize: typography.sm, color: colors.textMuted, textAlign: 'center',
-    fontStyle: 'italic', maxWidth: 300, marginTop: spacing.sm,
-  },
-  cta: {
-    borderRadius: radius.md, borderWidth: 1,
-    paddingVertical: spacing.md, paddingHorizontal: spacing.xl * 2,
-  },
-  ctaText: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space[5], gap: space[6] },
+  body: { alignItems: 'center', gap: space[3], alignSelf: 'stretch' },
+  label: { alignSelf: 'stretch', borderWidth: border.plate, paddingVertical: space[4], paddingHorizontal: space[5], overflow: 'hidden' },
+  title: { textAlign: 'center' },
+  pulled: { position: 'absolute', left: 0, bottom: 0, height: 12, overflow: 'hidden' },
+  centre: { textAlign: 'center' },
+  consolation: { maxWidth: 300 },
+  cta: { alignSelf: 'stretch' },
 })

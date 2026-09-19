@@ -1,273 +1,128 @@
 import { useState } from 'react'
-import {
-  View, Text, StyleSheet, TextInput,
-  Pressable, ActivityIndicator, KeyboardAvoidingView,
-  Platform, ScrollView
-} from 'react-native'
+import { PageMeta } from '@/components/PageMeta'
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { upgradeGuestAccount } from '@/lib/auth'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { ROLES, space } from '@/theme'
+import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl } from '@/components/kit'
+
+// Create an account — docs/ui-overhaul/07a A3. Errors sit under the field they
+// belong to; anything we can't pin to a field goes in a notice above the plate.
+const roles = ROLES.cotton
+
+type Errors = { username?: string; password?: string; confirm?: string; form?: string }
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirm,  setConfirm]  = useState('')
   const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
+  const [errors,   setErrors]   = useState<Errors>({})
   const [accepted, setAccepted] = useState(false)
 
+  function validate(): Errors {
+    const name = username.trim()
+    if (name.length < 3) return { username: 'Usernames need at least 3 characters.' }
+    if (!/^[a-zA-Z0-9_]+$/.test(name)) return { username: 'Letters, numbers and underscores only.' }
+    if (password.length < 6) return { password: 'Passwords need at least 6 characters.' }
+    if (password !== confirm) return { confirm: "The passwords don't match." }
+    return {}
+  }
+
   async function handleRegister() {
-    if (!username.trim()) {
-      setError('Choose a username.')
-      return
-    }
-    if (username.trim().length < 3) {
-      setError('Username must be at least 3 characters.')
-      return
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
-      setError('Username can only contain letters, numbers, and underscores.')
-      return
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
-      return
-    }
-    if (password !== confirm) {
-      setError('Passwords do not match.')
-      return
-    }
-    if (!accepted) {
-      setError('You must accept the no-recovery warning.')
-      return
-    }
+    const found = validate()
+    setErrors(found)
+    if (Object.keys(found).length) return
 
     setLoading(true)
-    setError(null)
-
     try {
       await upgradeGuestAccount({ username: username.trim(), password })
       router.replace('/(tabs)')
     } catch (e: any) {
-      console.log('register error:', e.message, e)
-      if (e.message === 'USERNAME_TAKEN') {
-        setError('That username is already taken.')
-      } else {
-        setError(e.message) // show real error for now
+      // The spinner used to stay up forever after any error — loading was only
+      // ever set, never cleared — so the button looked busy and couldn't be
+      // pressed again. Raw backend messages were shown too; they mean nothing
+      // to a player, so only the cases we can explain get their own line.
+      console.warn('[register] failed:', e)
+      setLoading(false)
+      if (e?.message === 'SIGNIN_AFTER_UPGRADE') {
+        // The account was made; only the automatic sign-in failed.
+        router.replace('/auth/login')
+        return
       }
+      setErrors(e?.message === 'USERNAME_TAKEN'
+        ? { username: "That username's taken." }
+        : { form: "That didn't work. Check your connection and try again." })
     }
   }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.inner}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* back */}
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
-        </Pressable>
+  // The plate names the next missing step instead of silently doing nothing.
+  const missing =
+    !username.trim() ? 'Enter a username'
+    : !password ? 'Enter a password'
+    : !confirm ? 'Repeat the password'
+    : !accepted ? 'Tick the box above'
+    : undefined
 
-        <Text style={styles.title}>Create account.</Text>
-        <Text style={styles.subtitle}>
-          Your guest runs stay. We just add a username.
-        </Text>
+  return (
+    // Both platforms lift the form over the keyboard (the old layout only
+    // adjusted on iOS, so Android hid the button).
+    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KitScreen ground="cotton" keyboardShouldPersistTaps="handled">
+        <PageMeta title="Create an account" path="/auth/register" />
+        <BackControl roles={roles} />
+        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>"KEEP YOUR RUNS"</KitText>
+        {/* Was "Your guest runs stay." — false: guest runs are never saved. */}
+        <KitText t="bodyL" color={roles.textMuted}>Pick a username and a password.</KitText>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Username</Text>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="your_username"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
+          <Field
+            label="Username" roles={roles} value={username} onChangeText={setUsername}
+            placeholder="your_username" autoCapitalize="none" autoCorrect={false}
+            autoComplete="username-new" textContentType="username" error={errors.username}
+          />
+          <Field
+            label="Password" roles={roles} value={password} onChangeText={setPassword}
+            secure autoComplete="password-new" textContentType="newPassword" error={errors.password}
+          />
+          <Field
+            label="Repeat password" roles={roles} value={confirm} onChangeText={setConfirm}
+            secure autoComplete="password-new" textContentType="newPassword" error={errors.confirm}
           />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
+          <StripedNotice roles={roles}>
+            There's no password recovery. Lose the password and the account goes with it.
+          </StripedNotice>
+          <Checkbox checked={accepted} onChange={setAccepted} roles={roles}>I'll remember it</Checkbox>
+
+          {errors.form ? <StripedNotice roles={roles}>{errors.form}</StripedNotice> : null}
+
+          <Plate
+            label="Already have one? Sign in" variant="quiet" roles={roles}
+            onPress={() => router.replace('/auth/login')} style={styles.switch}
           />
-
-          <Text style={styles.label}>Confirm Password</Text>
-          <TextInput
-            style={styles.input}
-            value={confirm}
-            onChangeText={setConfirm}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
+          <Plate
+            label="Create account" icon="keep" roles={roles} onPress={handleRegister}
+            disabled={!!missing} missingStep={missing} loading={loading}
           />
-
-          {/* no recovery warning — must accept */}
-          <Pressable
-            style={styles.warningBox}
-            onPress={() => setAccepted(a => !a)}
-          >
-            <View style={[styles.checkbox, accepted && styles.checkboxChecked]}>
-              {accepted && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.warningText}>
-              I understand there is{' '}
-              <Text style={styles.warningBold}>no password recovery</Text>.
-              If I forget my password, my account is gone forever.
-            </Text>
-          </Pressable>
-
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <Pressable
-            style={[styles.btn, (loading || !accepted) && styles.btnDisabled]}
-            onPress={handleRegister}
-            disabled={loading || !accepted}
-          >
-            {loading
-              ? <ActivityIndicator color={colors.textPrimary} />
-              : <Text style={styles.btnText}>CREATE ACCOUNT</Text>
-            }
-          </Pressable>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>Already have an account? </Text>
-            <Pressable onPress={() => router.replace('/auth/login')}>
-              <Text style={styles.switchLink}>Sign in</Text>
-            </Pressable>
-          </View>
+          {/* Store policy: the terms and privacy are one tap from sign-up. */}
+          <KitText t="body" color={roles.textMuted}>
+            {'Creating an account means you accept the '}
+            <KitText t="body" color={roles.text} style={styles.link} accessibilityRole="link" onPress={() => router.push('/terms')}>Terms</KitText>
+            {' and the '}
+            <KitText t="body" color={roles.text} style={styles.link} accessibilityRole="link" onPress={() => router.push('/privacy')}>Privacy</KitText>
+            {' page.'}
+          </KitText>
         </View>
-      </ScrollView>
+      </KitScreen>
     </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex:            1,
-    backgroundColor: colors.bg,
-  },
-  inner: {
-    paddingHorizontal: spacing.lg,
-    paddingTop:        64,
-    paddingBottom:     spacing.xxl,
-  },
-  back: {
-    marginBottom: spacing.xl,
-  },
-  backText: {
-    color:    colors.textSecondary,
-    fontSize: typography.md,
-  },
-  title: {
-    fontSize:     typography.xxl,
-    fontWeight:   typography.black,
-    color:        colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize:     typography.md,
-    color:        colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  form: {
-    gap: spacing.sm,
-  },
-  label: {
-    fontSize:     typography.sm,
-    color:        colors.textSecondary,
-    fontWeight:   typography.medium,
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor:   colors.bgCard,
-    borderWidth:       1,
-    borderColor:       colors.border,
-    borderRadius:      radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical:   spacing.md,
-    color:             colors.textPrimary,
-    fontSize:          typography.md,
-    marginBottom:      spacing.sm,
-  },
-  warningBox: {
-    flexDirection:   'row',
-    backgroundColor: colors.bgCard,
-    borderRadius:    radius.md,
-    borderWidth:     1,
-    borderColor:     colors.warning,
-    padding:         spacing.md,
-    gap:             spacing.sm,
-    marginVertical:  spacing.md,
-    alignItems:      'flex-start',
-  },
-  checkbox: {
-    width:           22,
-    height:          22,
-    borderRadius:    radius.sm,
-    borderWidth:     2,
-    borderColor:     colors.warning,
-    alignItems:      'center',
-    justifyContent:  'center',
-    flexShrink:      0,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.warning,
-  },
-  checkmark: {
-    color:      colors.bg,
-    fontSize:   12,
-    fontWeight: typography.black,
-  },
-  warningText: {
-    color:      colors.warning,
-    fontSize:   typography.sm,
-    lineHeight: 20,
-    flex:       1,
-  },
-  warningBold: {
-    fontWeight: typography.black,
-  },
-  error: {
-    color:        colors.danger,
-    fontSize:     typography.sm,
-    marginBottom: spacing.sm,
-  },
-  btn: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.md,
-    borderRadius:    radius.md,
-    alignItems:      'center',
-    marginTop:       spacing.sm,
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-  btnText: {
-    color:         colors.textPrimary,
-    fontSize:      typography.md,
-    fontWeight:    typography.black,
-    letterSpacing: 2,
-  },
-  switchRow: {
-    flexDirection:  'row',
-    justifyContent: 'center',
-    marginTop:      spacing.lg,
-  },
-  switchText: {
-    color:    colors.textSecondary,
-    fontSize: typography.sm,
-  },
-  switchLink: {
-    color:      colors.accent,
-    fontSize:   typography.sm,
-    fontWeight: typography.bold,
-  },
+  fill: { flex: 1 },
+  title: { marginTop: space[3], marginBottom: space[2] },
+  form: { gap: space[4], marginTop: space[6] },
+  switch: { alignSelf: 'flex-start', marginLeft: -space[2] },
+  link: { textDecorationLine: 'underline' },
 })

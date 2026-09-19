@@ -1,10 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native'
-import { AppModal } from '@/components/AppModal'
 import { router, useLocalSearchParams } from 'expo-router'
 import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
 import { useUserStore } from '@/store/userStore'
+import { formatTier, verdictOf } from '@/data/tiers'
+import { useRunSave } from '@/hooks/useRunSave'
+import { VerdictBlock, PunditsRoundTable } from '@/components/season/VerdictBlock'
+import { worldCupCalls } from '@/engine/cup-calls'
+import { predictTable, predictWorldCupRound } from '@/engine/predictions'
+import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
+import { buildAwardsNight } from '@/engine/awards'
+import { Plate, KitScreen, KitText, Tag, ListRow, RoundFlag } from '@/components/kit'
+import { openClub, openRunHub } from '@/lib/runNav'
+import { getFlag } from '@/lib/flagMap'
+import { LeagueTable, ZoneLegend, GroupWall, WC_GROUP_ZONES, WC_THIRD_ZONES, type TableRowVM, type MiniGroup } from '@/components/season/SeasonParts'
+import { ResultFigures, ResultSection, ResultActions, YourMatches } from '@/components/season/ResultParts'
+import { KnockoutRoundsView, clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { space } from '@/theme'
+import { SaveStatusLine } from '@/components/ui'
 import { saveWCRun, fetchRunById } from '@/db/queries/runs'
 import { computeWCRunStats, summariseScorers, attachWCShootoutNames } from '@/engine/run-stats'
 import { mergeCareerFromRun } from '@/db/queries/career'
@@ -14,27 +28,19 @@ import { PenShootout } from '@/components/PenShootout'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { DraftedPlayer } from '@/types/game'
 import { TeamLabel } from '@/components/TeamLabel'
-import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_THEMES, prim, font } from '@/theme'
+import { ROLES as KIT_ROLES } from '@/theme'
 import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } from '@/engine/world-cup-sim'
 
-import { WCGroupModal, WCGroupMatchdays } from '@/components/WCGroupModal'
+import { openWCGroup, WCGroupMatchdays } from '@/components/WCGroupModal'
 import { MedicalTable } from '@/components/MedicalTable'
 import { openMatchStats } from '@/lib/matchStats'
 import type { ContextMatch } from '@/engine/match-context'
 
 const WC = MODE_THEMES.world_cup
 
-const ROUND_LABELS: Record<string, string> = {
-  groups:  'Eliminated in Group Stage',
-  r32:     'Round of 32 Exit',
-  r16:     'Round of 16 Exit',
-  qf:      'Quarter-Final Exit',
-  sf:      'Semi-Final Exit',
-  fourth:  "Semi 'No Medal' Finalist",
-  third:   '🥉 Third Place',
-  final:   'Finalist',
-  winner:  'FIFA WORLD CUP CHAMPION',
-}
+// Verdict names come from the shared registry (src/data/tiers.ts) so this
+// banner, Home and Runs always agree. The competition is named above it.
 
 const ROUND_COLORS: Record<string, string> = {
   groups:  '#DC2626',
@@ -77,12 +83,18 @@ export default function WCResultScreen() {
 
   const [dbRun, setDbRun] = useState<any>(null)
   const [loading, setLoading] = useState(fromHistory)
-  const [openGroup, setOpenGroup] = useState<string | null>(null)
-  const [openKO, setOpenKO] = useState<WCKnockoutMatch | null>(null)
-  const [runStats, setRunStats] = useState<{ stats: CompetitionStats; awards: SeasonAwards } | null>(null)
+  const [runStats, setRunStats] = useState<RunStats | null>(null)
   // Re-entry guards for save/exit — kept above the early returns (rules of hooks).
-  const savedRef = useRef(false)
   const submittingRef = useRef(false)
+  // The run saves itself once its stats are computed (useRunSave). A run with
+  // nothing to compute — history, or an empty squad — is ready straight away.
+  const freshRun = !fromHistory && !!store.wcResult && draftedPlayers.length > 0
+  const [statsDone, setStatsDone] = useState(!freshRun)
+  const runSave = useRunSave({
+    applies: !fromHistory && !quickSim && !!store.wcResult,
+    signedIn: !!user && !isGuest,
+    ready: statsDone,
+  })
   const [submitting, setSubmitting] = useState(false)
 
   // Hero entrance — fade + rise the banner in once the result is on screen.
@@ -111,15 +123,20 @@ export default function WCResultScreen() {
   // Squad stats (fresh runs only — needs the live drafted XI).
   useEffect(() => {
     if (fromHistory || !store.wcResult || draftedPlayers.length === 0) return
+    // Awards Night already paid for these (src/lib/awardsNight.ts): reading
+    // them back saves regenerating every match sheet a second time.
+    const ready = takeRunStats()
+    if (ready) { setRunStats(ready); setStatsDone(true); return }
     computeWCRunStats(store.wcResult, fullSquad, undefined, store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[wc-result] stats failed:', e))
+      .finally(() => setStatsDone(true))
   }, [])
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={WC.accent} size="large" />
+        <ActivityIndicator color={prim.cotton} size="large" />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -135,7 +152,7 @@ export default function WCResultScreen() {
       <View style={styles.center}>
         <Text style={styles.errorText}>No FIFA World Cup result found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: spacing.lg }}>
-          <Text style={{ color: WC.accent, fontWeight: '700' }}>← Back to Menu</Text>
+          <Text style={{ color: prim.cotton, fontFamily: font.bodyBold }}>← Back to Menu</Text>
         </Pressable>
       </View>
     )
@@ -146,9 +163,21 @@ export default function WCResultScreen() {
     playerTeam, playerFinalRound, playerGroup, playerGroupPos,
   } = wcResult
 
-  const resultColor = ROUND_COLORS[playerFinalRound] ?? WC.accent
-  const resultLabel = ROUND_LABELS[playerFinalRound] ?? playerFinalRound
+  const resultColor = ROUND_COLORS[playerFinalRound] ?? prim.cotton
+  const resultLabel = formatTier(playerFinalRound)
   const isChampion  = playerFinalRound === 'winner'
+
+  // D1 — the verdict, in the shared treatment. The pundits' pre-season call is
+  // rebuilt from the seed stored on the run, so the two can be compared.
+  const punditsText = (() => {
+    const seed = store.predictionSeed
+    const field = store.wcTeams
+    if (seed == null || !field) return undefined
+    const pred = predictTable(field.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), seed)
+    if (!pred.player) return undefined
+    const said = predictWorldCupRound(pred.player.predicted)
+    return `They said ${said.label.toLowerCase()}. You finished as ${formatTier(playerFinalRound).toLowerCase()}.`
+  })()
 
   // Pre-sort every group once
   const sortedGroups: WCGroup[] = groups.map(g => ({ id: g.id, teams: [...g.teams].sort(sortGroupTeams) }))
@@ -207,7 +236,6 @@ export default function WCResultScreen() {
   }
 
   const openGroupMatchDetail = (m: WCGroupMatch) => {
-    setOpenGroup(null)
     openMatchStats({
       homeClubId: m.home.clubId, homeName: m.home.clubName,
       awayClubId: m.away.clubId, awayName: m.away.clubName,
@@ -220,10 +248,9 @@ export default function WCResultScreen() {
       drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
       playerFormation: (fromHistory ? dbRun?.formation : store.formation) ?? undefined,
       matchday: m.matchday, contextMatches: wcContext(m.groupId),
-    }, WC.accent)
+    }, prim.cotton)
   }
   const openKoDetail = (m: WCKnockoutMatch) => {
-    setOpenKO(null)
     openMatchStats({
       homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
       awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
@@ -237,7 +264,7 @@ export default function WCResultScreen() {
       drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
       playerFormation: (fromHistory ? dbRun?.formation : store.formation) ?? undefined,
       matchday: wcKoMatchday(m), contextMatches: wcContext(null),
-    }, WC.accent)
+    }, prim.cotton)
   }
 
   // Best third-place ranking across all groups
@@ -261,21 +288,17 @@ export default function WCResultScreen() {
   // otherwise Home re-fetches recent runs before the save lands.
   async function persistRun() {
     if (fromHistory || quickSim) return
-    if (savedRef.current) return       // never persist the same run twice
-    savedRef.current = true
     if (user && !isGuest && formation) {
-      try {
-        await saveWCRun({
-          userId: user.id,
-          formation,
-          teamOvr: playerTeam.ovr,
-          result: wcResult!,
-          squad: fullSquad,
-          difficulty, custom: customDifficulty,
-          stats: runStats?.stats,
-          awards: runStats?.awards,
-        })
-      } catch (error) { console.error('Failed to save WC run:', error) }
+      await saveWCRun({
+        userId: user.id,
+        formation,
+        teamOvr: playerTeam.ovr,
+        result: wcResult!,
+        squad: fullSquad,
+        difficulty, custom: customDifficulty,
+        stats: runStats?.stats,
+        awards: runStats?.awards,
+      })
     }
     if (user && !isGuest && runStats) {
       const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
@@ -289,10 +312,12 @@ export default function WCResultScreen() {
     }
   }
 
+  runSave.setTask(persistRun)
+
   async function handlePlayAgain() {
     if (submittingRef.current) return
     submittingRef.current = true; setSubmitting(true)
-    await persistRun()
+    await runSave.flush()
     resetRun()
     restartToModeSelect()
   }
@@ -300,43 +325,110 @@ export default function WCResultScreen() {
   async function handleReturnToHome() {
     if (submittingRef.current) return
     submittingRef.current = true; setSubmitting(true)
-    await persistRun()
+    await runSave.flush()
     resetRun()
     exitToHome()
   }
 
-  return (
-    <ScrollView style={[styles.container, { backgroundColor: WC.bgTint }]} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <Animated.View style={[
-        styles.header,
-        { opacity: heroAnim, transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] },
-      ]}>
-        <Text style={styles.competitionLabel}>FIFA WORLD CUP</Text>
-        <Text style={[styles.resultBanner, { color: resultColor }]}>{resultLabel.toUpperCase()}</Text>
-        {isChampion && <Text style={styles.trophy}>🏆</Text>}
-      </Animated.View>
+  // P8-54 — the World Cup's result as the end of the live tournament: the same
+  // flagged, zoned group tables, the group wall and the shared knockout list.
+  const nylon = KIT_ROLES.nylon
+  const flagRow = (t: WCTeam, note?: string): TableRowVM => ({
+    clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, flag: getFlag(t.clubId), note,
+    played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
+  })
+  const wall: MiniGroup[] = sortedGroups.map(g => ({
+    id: g.id, you: g.teams.some(t => t.isPlayer),
+    rows: g.teams.map(t => ({ clubId: t.clubId, clubName: t.clubName, flag: getFlag(t.clubId), points: t.stats.points, isPlayer: !!t.isPlayer })),
+  }))
+  const koRounds: KoRoundVM[] = knockoutRounds.map(r => ({
+    key: r.round, label: KO_ROUND_NAMES[r.round] ?? r.round,
+    ties: r.matches.map(m => wcKoMatchToRow(m, { onPress: () => openKoDetail(m) })),
+  }))
+  const hubRunId = fromHistory ? params.runId : undefined
+  const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
 
-      {/* Player team summary */}
-      <View style={[styles.card, { borderColor: resultColor }]}>
-        <TeamLabel clubId={playerTeam.clubId} name={playerTeam.clubName} textStyle={styles.playerTeamName} size={24} />
-        <Text style={styles.playerTeamMeta}>
-          OVR {playerTeam.ovr} · Group {playerGroup} · Finished {playerGroupPos}{ordinal(playerGroupPos)} in group
-        </Text>
-        <View style={styles.statsRow}>
-          <StatBox label="Games" value={String(playerTeam.stats.played)} />
-          <StatBox label="Record" value={`${playerTeam.stats.won}W ${playerTeam.stats.drawn}D ${playerTeam.stats.lost}L`} />
-          <StatBox label="Goals" value={`${playerTeam.stats.goalsFor}-${playerTeam.stats.goalsAgainst}`} />
-          <StatBox label="Points" value={String(playerTeam.stats.points)} />
-        </View>
+  return (
+    <KitScreen ground="nylon">
+      <VerdictBlock
+        tone={verdictOf(playerFinalRound)}
+        title={resultLabel}
+        meta={`FIFA World Cup 2026 · ` + `${playerTeam.clubName} · Group ${playerGroup}, ${playerGroupPos}${ordinal(playerGroupPos)}`}
+        punditsText={punditsText}
+        shareText={`${resultLabel} — FIFA World Cup 2026. Perfection or Misery.`}
+      />
+      <ResultFigures items={[
+        ['Group', `${playerGroupPos}${ordinal(playerGroupPos)}`], ['Games', playerTeam.stats.played],
+        ['W', playerTeam.stats.won], ['D', playerTeam.stats.drawn], ['L', playerTeam.stats.lost],
+        ['Goals', `${playerTeam.stats.goalsFor}–${playerTeam.stats.goalsAgainst}`],
+        ...(playerKoMatches.length > 0 ? [['KO', `${koW}-${koL}`] as [string, string]] : []),
+      ]} />
+      {/* P8-24 for the cups — every side's call, checked against how far it got. */}
+      {store.predictionSeed != null && store.wcTeams && store.wcResult && (
+        <PunditsRoundTable rows={worldCupCalls(store.wcResult as any, store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+      )}
+
+      <View style={styles.kitPlates}>
+        {(() => {
+          const src = runStats ?? (dbRun?.stats && dbRun?.awards ? { stats: dbRun.stats, awards: dbRun.awards } : null)
+          if (!src) return null
+          const night = buildAwardsNight({
+            awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
+            clubs: [], playerClubId: playerTeam?.clubId,
+          })
+          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={nylon} onPress={() => openAwardsView(night, params.runId)} />
+        })()}
+        {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={nylon} onPress={() => openRunHub(undefined, hubRunId)} />}
       </View>
 
-      {/* Lineup + squad — live run or rehydrated from a saved one */}
+      {winner && (
+        <ResultSection title="World champions">
+          <View style={styles.kitWinner}>
+            <RoundFlag emoji={getFlag(winner.clubId)} code={winner.clubName.slice(0, 3)} size={24} roles={nylon} />
+            <KitText t="superM" color={nylon.text}>{winner.clubName.toUpperCase()}</KitText>
+            {winner.clubId === playerTeam.clubId && <Tag roles={nylon} variant="you">YOU</Tag>}
+          </View>
+        </ResultSection>
+      )}
+
+      {koRounds.length > 0 && (
+        <ResultSection title="Knockouts">
+          <KnockoutRoundsView title="" rounds={koRounds} maxHeight={100000} />
+        </ResultSection>
+      )}
+
+      {myGroupSorted.length > 0 && (
+        <ResultSection title={`Group ${playerGroup}`}>
+          <LeagueTable roles={nylon} rows={myGroupSorted.map(t => flagRow(t))} zones={WC_GROUP_ZONES}
+            onRowPress={hasHub ? id => openClub(id, hubRunId) : undefined} />
+          <ZoneLegend roles={nylon} zones={WC_GROUP_ZONES} />
+          {groupMatchdays.length > 0 && (
+            <YourMatches matches={groupMatchdays.filter(m => m.groupId === playerGroup)} onOpen={openGroupMatchDetail} />
+          )}
+        </ResultSection>
+      )}
+
+      {thirdPlaceTeams.length > 0 && (
+        <ResultSection title="The best thirds">
+          <LeagueTable roles={nylon} rows={thirdPlaceTeams.map(t => flagRow(t, (t as any).groupId))} zones={WC_THIRD_ZONES}
+            onRowPress={hasHub ? id => openClub(id, hubRunId) : undefined} />
+          <ZoneLegend roles={nylon} zones={WC_THIRD_ZONES} />
+        </ResultSection>
+      )}
+
+      <ResultSection title="Every group">
+        <GroupWall roles={nylon} groups={wall} onOpen={id => {
+          const g = sortedGroups.find(x => x.id === id)
+          if (g) openWCGroup(g, groupMatchdays.filter(m => m.groupId === id), openGroupMatchDetail)
+        }} />
+      </ResultSection>
+
+      {/* §10.5 phase 4 (R8) — the medical table. */}
+      <MedicalTable absences={wcResult.absences} accent={prim.cotton} />
+
+      {/* Lineup + squad — live run or rehydrated from a saved one. Bench players
+          included so SquadSummary resolves every row (Big Fixes §5.1). */}
       {(() => {
-        // Include bench players too — SquadSummary's "Team" view looks each row
-        // up by playerId to show their real drafted club/season, and a squad
-        // limited to the starting XI left every substitute with no match, so
-        // their row rendered "—" for team (Big Fixes §5.1).
         const squad = (fromHistory ? dbRun?.squad ?? [] : fullSquad) as any[]
         const bench = (fromHistory ? (dbRun?.squad ?? []).filter((p: any) => p.isBench) : benchPlayers) as any[]
         const form  = (fromHistory ? dbRun?.formation : formation) as any
@@ -344,184 +436,13 @@ export default function WCResultScreen() {
         return (
           <>
             {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
-            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={WC.accent} runId={params.runId} />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={prim.cotton} runId={params.runId} />}
           </>
         )
       })()}
 
-      {/* Player group standings */}
-      {myGroupSorted.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Group {playerGroup} Final Standings</Text>
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-            <Text style={[styles.tableCol, styles.colName]}>Team</Text>
-            <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-            <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-            <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>Pts</Text>
-          </View>
-          {myGroupSorted.map((team, idx) => {
-            const gd = team.stats.goalsFor - team.stats.goalsAgainst
-            const qualified = idx < 2
-            return (
-              <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, qualified && styles.tableRowQ]}>
-                <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{idx + 1}</Text>
-                <TeamLabel
-                  clubId={team.clubId}
-                  name={team.clubName}
-                  containerStyle={styles.colName}
-                  textStyle={[styles.tableColData, team.isPlayer && styles.playerText]}
-                />
-                <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{team.stats.played}</Text>
-                <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerText]}>{team.stats.points}</Text>
-              </View>
-            )
-          })}
-          <Text style={styles.phaseNote}>Top 2 qualify · Best 8 third-place teams also qualify</Text>
-          {groupMatchdays.length > 0 && (
-            <WCGroupMatchdays matches={groupMatchdays.filter(m => m.groupId === playerGroup)} onOpenMatch={openGroupMatchDetail} />
-          )}
-        </View>
-      )}
-
-      {/* §10.5 phase 4 (R8) — the medical table. */}
-      <MedicalTable absences={wcResult.absences} accent={WC.accent} />
-
-      {/* All groups */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>All Groups</Text>
-        <Text style={styles.phaseNote}>Tap a group to see its results</Text>
-        <View style={styles.groupsGrid}>
-          {sortedGroups.map(group => {
-            const playerInGroup = group.teams.some(t => t.isPlayer)
-            return (
-              <Pressable
-                key={group.id}
-                style={[styles.groupCard, playerInGroup && styles.groupCardPlayer]}
-                onPress={() => setOpenGroup(group.id)}
-              >
-                <Text style={styles.groupCardTitle}>Group {group.id}</Text>
-                {group.teams.map((team, idx) => {
-                  const qualified = idx < 2
-                  return (
-                    <View key={team.clubId} style={[styles.groupTeamRow, qualified && styles.groupTeamRowQ, team.isPlayer && styles.groupTeamRowSelf]}>
-                      <Text style={styles.groupTeamRank}>{idx + 1}</Text>
-                      <TeamLabel
-                        clubId={team.clubId}
-                        name={team.clubName}
-                        size={11}
-                        gap={3}
-                        containerStyle={styles.groupTeamName}
-                        textStyle={[styles.groupTeamNameText, team.isPlayer && styles.groupTeamNameSelf]}
-                      />
-                      <Text style={styles.groupTeamPts}>{team.stats.points}</Text>
-                    </View>
-                  )
-                })}
-              </Pressable>
-            )
-          })}
-        </View>
-      </View>
-
-      {/* Best third-place teams */}
-      {thirdPlaceTeams.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Best Third-Place Teams</Text>
-          <Text style={styles.phaseNote}>Top {q3Count} advanced to the Round of 32</Text>
-          {thirdPlaceTeams.map((team, idx) => {
-            const advances = idx < q3Count
-            return (
-              <View key={team.clubId} style={[styles.tableRow, advances && styles.tableRowQ, team.isPlayer && styles.tableRowPlayer]}>
-                <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{idx + 1}</Text>
-                <TeamLabel
-                  clubId={team.clubId}
-                  name={team.clubName}
-                  containerStyle={styles.colName}
-                  textStyle={[styles.tableColData, team.isPlayer && styles.playerText]}
-                />
-                {(() => { const gd = team.stats.goalsFor - team.stats.goalsAgainst
-                  return <Text style={[styles.tableColData, styles.colStat]}>{gd >= 0 ? `+${gd}` : gd}</Text> })()}
-                <Text style={[styles.tableColData, styles.colStat, styles.colPts, advances && { color: colors.success }]}>{team.stats.points}</Text>
-              </View>
-            )
-          })}
-        </View>
-      )}
-
-      {/* Knockout bracket */}
-      {knockoutRounds.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Knockout Bracket</Text>
-          {playerKoMatches.length > 0 && (
-            <View style={styles.statsRow}>
-              <StatBox label="KO Games" value={String(playerKoMatches.length)} />
-              <StatBox label="Record" value={`${koW}W ${koL}L`} />
-              <StatBox label="Goals" value={`${koGF}-${koGA}`} />
-            </View>
-          )}
-          <Text style={styles.phaseNote}>Scroll sideways · your matches are highlighted</Text>
-          <Text style={styles.phaseNote}>Tap a tie to see the match detail</Text>
-          <BracketView knockoutRounds={knockoutRounds} onMatchPress={setOpenKO} />
-        </View>
-      )}
-
-      {/* Winner */}
-      {winner && (
-        <View style={[styles.card, styles.winnerCard]}>
-          <Text style={styles.winnerLabel}>FIFA World Cup Champion</Text>
-          <TeamLabel clubId={winner.clubId} name={winner.clubName} textStyle={styles.winnerName} size={26} />
-          <Text style={styles.winnerOvr}>OVR {winner.ovr}</Text>
-        </View>
-      )}
-
-      {/* Buttons */}
-      {fromHistory ? (
-        <>
-          {dbRun?.stats && (
-            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push({ pathname: '/game/stats', params: { runId: params.runId! } })}>
-              <Text style={styles.actionBtnText}>📊 View Stats</Text>
-            </Pressable>
-          )}
-          <View style={styles.buttonRow}>
-            <Pressable style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.back()}>
-              <Text style={styles.actionBtnText}>Back</Text>
-            </Pressable>
-          </View>
-        </>
-      ) : (
-        <>
-          {draftedPlayers.length > 0 && (
-            <Pressable style={({ pressed }) => [styles.actionBtn, { backgroundColor: WC.accent, marginBottom: spacing.md }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={() => router.push('/game/stats')}>
-              <Text style={styles.actionBtnText}>📊 View Stats</Text>
-            </Pressable>
-          )}
-          <View style={styles.buttonRow}>
-            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, styles.actionBtnSecondary, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handleReturnToHome}>
-              <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Return to Home'}</Text>
-            </Pressable>
-            <Pressable disabled={submitting} style={({ pressed }) => [styles.actionBtn, submitting && { opacity: 0.5 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]} onPress={handlePlayAgain}>
-              <Text style={styles.actionBtnText}>{submitting ? 'Saving…' : 'Play Again'}</Text>
-            </Pressable>
-          </View>
-        </>
-      )}
-
-      {/* Group detail modal (shared with the live simulation) */}
-      <WCGroupModal
-        group={openGroup ? sortedGroups.find(g => g.id === openGroup) ?? null : null}
-        matches={openGroup ? groupMatchdays.filter(m => m.groupId === openGroup) : []}
-        onClose={() => setOpenGroup(null)}
-        onOpenMatch={openGroupMatchDetail}
-      />
-      <KOMatchModal
-        match={openKO} onClose={() => setOpenKO(null)}
-        playerClubId={playerTeam.clubId}
-        draftedPlayers={(fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[]}
-        onStats={() => { if (openKO) openKoDetail(openKO) }}
-      />
-    </ScrollView>
+      <ResultActions fromHistory={fromHistory} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
+    </KitScreen>
   )
 }
 
@@ -539,16 +460,16 @@ function StatBox({ label, value }: { label: string; value: string }) {
 // Degraded view for older WC runs saved before the full tournament was stored.
 function WCHistorySummary({ run }: { run: any }) {
   const round = String(run.tier ?? '')
-  const color = ROUND_COLORS[round] ?? WC.accent
-  const label = ROUND_LABELS[round] ?? round
+  const color = ROUND_COLORS[round] ?? prim.cotton
+  const label = formatTier(round)
   const games = (run.wins ?? 0) + (run.draws ?? 0) + (run.losses ?? 0)
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: WC.bgTint }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: prim.nylon }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.competitionLabel}>FIFA WORLD CUP</Text>
         <Text style={[styles.resultBanner, { color }]}>{label.toUpperCase()}</Text>
-        {round === 'winner' && <Text style={styles.trophy}>🏆</Text>}
+        {round === 'winner' && <Text style={styles.trophy}>CHAMPIONS</Text>}
       </View>
 
       <View style={[styles.card, { borderColor: color }]}>
@@ -578,97 +499,8 @@ function WCHistorySummary({ run }: { run: any }) {
 }
 
 // Tap-through detail for a WC knockout tie.
-function KOMatchModal({ match: m, onClose, playerClubId, draftedPlayers, onStats }: {
-  match: WCKnockoutMatch | null; onClose: () => void
-  playerClubId?: string; draftedPlayers?: DraftedPlayer[]
-  onStats?: () => void   // opens the deep-stats match-detail modal
-}) {
-  const hs = summariseScorers(m?.scorers?.home)
-  const as = summariseScorers(m?.scorers?.away)
-  // Named penalty takers are only pre-built for the tie the reveal animated —
-  // expand lazily here (same shared helper the live sim uses) so a shootout
-  // reopened from history still shows its real takers. Your own nation's
-  // takers come from YOUR drafted squad, not the DB's historical roster.
-  const [, forceTick] = useState(0)
-  useEffect(() => {
-    if (!m || m.penKicksA || !m.result.homePenKicks || !m.result.awayPenKicks) return
-    let active = true
-    attachWCShootoutNames([m], playerClubId, draftedPlayers).then(() => { if (active) forceTick(x => x + 1) }).catch(() => { /* fall back to no list */ })
-    return () => { active = false }
-  }, [m])
-  return (
-    <AppModal visible={m !== null} onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
-          {m && (
-            <>
-              <Text style={styles.modalTitle}>{KO_ROUND_NAMES[m.round] ?? m.round.toUpperCase()}</Text>
-              <View style={styles.koModalScore}>
-                <TeamLabel clubId={m.teamA.clubId} name={m.teamA.clubName} size={16} containerStyle={{ flex: 1, justifyContent: 'flex-end' }} textStyle={styles.koModalTeam} />
-                <Text style={styles.koModalGoals}>{m.result.homeGoals} - {m.result.awayGoals}</Text>
-                <TeamLabel clubId={m.teamB.clubId} name={m.teamB.clubName} size={16} containerStyle={{ flex: 1 }} textStyle={styles.koModalTeam} />
-              </View>
-              {m.result.extraTime && <Text style={styles.koModalNote}>After extra time</Text>}
-              {m.result.homePens !== null && <Text style={styles.koModalPens}>Penalties: {m.result.homePens} – {m.result.awayPens} · {m.winner.clubName} advance</Text>}
-              {!!(hs || as) && (
-                <View style={styles.koModalScorers}>
-                  {hs ? <Text style={styles.koModalScorerLine}>⚽ {m.teamA.clubName}: {hs}</Text> : null}
-                  {as ? <Text style={styles.koModalScorerLine}>⚽ {m.teamB.clubName}: {as}</Text> : null}
-                </View>
-              )}
-              {m.penKicksA && m.penKicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={m.penKicksA} kicksB={m.penKicksB} />}
-              {onStats && (
-                <Pressable style={styles.koStatsBtn} onPress={onStats}>
-                  <Text style={styles.koStatsBtnText}>📊 Full match stats & ratings ›</Text>
-                </Pressable>
-              )}
-            </>
-          )}
-          <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
-        </Pressable>
-      </Pressable>
-    </AppModal>
-  )
-}
 
-function BracketView({ knockoutRounds, onMatchPress }: { knockoutRounds: { round: string; matches: WCKnockoutMatch[] }[]; onMatchPress: (m: WCKnockoutMatch) => void }) {
-  const maxMatches = Math.max(...knockoutRounds.map(r => r.matches.length), 1)
-  const colHeight = maxMatches * ROW_H
 
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.bracketScroll}>
-      <View style={styles.bracketRow}>
-        {knockoutRounds.map(({ round, matches }) => (
-          <View key={round} style={styles.bracketCol}>
-            <Text style={styles.bracketColLabel}>{KO_ROUND_NAMES[round] ?? round.toUpperCase()}</Text>
-            <View style={[styles.bracketColBody, { height: colHeight }]}>
-              {matches.map((m, i) => (
-                <BracketMatch key={i} match={m} onPress={() => onMatchPress(m)} />
-              ))}
-            </View>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  )
-}
-
-function BracketMatch({ match: m, onPress }: { match: WCKnockoutMatch; onPress: () => void }) {
-  const isPM = m.teamA.isPlayer || m.teamB.isPlayer
-  const aWon = m.winner.clubId === m.teamA.clubId
-  const pens = m.result.homePens !== null ? `p${m.result.homePens}-${m.result.awayPens}` : null
-  const suffix = pens ?? (m.result.extraTime ? 'AET' : null)
-
-  return (
-    <Pressable style={[styles.bracketCard, isPM && styles.bracketCardPlayer]} onPress={onPress}>
-      <BracketTeam team={m.teamA} won={aWon} goals={m.result.homeGoals} />
-      <View style={styles.bracketDivider}>
-        {suffix && <Text style={styles.bracketSuffix}>{suffix}</Text>}
-      </View>
-      <BracketTeam team={m.teamB} won={!aWon} goals={m.result.awayGoals} />
-    </Pressable>
-  )
-}
 
 function BracketTeam({ team, won, goals }: { team: WCTeam; won: boolean; goals: number }) {
   return (
@@ -696,10 +528,12 @@ function ordinal(n: number): string {
 // ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  kitPlates: { gap: space[3], marginTop: space[5] },
+  kitWinner: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
+  container: { flex: 1, backgroundColor: prim.nylon },
   content:   { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
-  center:    { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  errorText: { fontSize: typography.md, color: colors.textSecondary },
+  center:    { flex: 1, backgroundColor: prim.nylon, alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontSize: typography.md, color: prim.cottonMuted },
 
   header: {
     alignItems:    'center',
@@ -710,7 +544,7 @@ const styles = StyleSheet.create({
   competitionLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         WC.accent,
+    color:         prim.cotton,
     letterSpacing: 3,
     textTransform: 'uppercase',
   },
@@ -723,62 +557,62 @@ const styles = StyleSheet.create({
   trophy: { fontSize: 56 },
 
   card: {
-    backgroundColor: colors.bgCard,
+    backgroundColor: prim.nylonRaised,
     borderRadius:    radius.lg,
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     prim.ruleNylon,
     padding:         spacing.lg,
     gap:             spacing.md,
     ...shadows.sm,
   },
 
-  playerTeamName: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
-  playerTeamMeta: { fontSize: typography.sm, color: colors.textSecondary },
+  playerTeamName: { fontSize: typography.xl, fontFamily: font.bodyBlack, color: prim.cotton },
+  playerTeamMeta: { fontSize: typography.sm, color: prim.cottonMuted },
 
   statsRow: {
     flexDirection:  'row',
     gap:            spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: prim.ruleNylon,
     paddingTop:     spacing.md,
   },
   statBox:   { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary },
-  statLabel: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
+  statValue: { fontSize: typography.md, fontFamily: font.bodyBlack, color: prim.cotton },
+  statLabel: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center' },
 
-  sectionTitle: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
+  sectionTitle: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
 
   tableHeaderRow: {
     flexDirection:     'row',
     paddingBottom:     spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: prim.ruleNylon,
   },
   tableRow: {
     flexDirection:     'row',
     paddingVertical:   spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: prim.ruleNylon,
     alignItems:        'center',
   },
   tableRowPlayer: {
-    backgroundColor: WC.accent + '11',
-    borderColor:     WC.accent,
+    backgroundColor: prim.cotton + '11',
+    borderColor:     prim.cotton,
     borderWidth:     1,
     borderRadius:    radius.sm,
   },
-  tableRowQ: { borderLeftWidth: 3, borderLeftColor: colors.success },
-  tableCol:     { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
-  tableColData: { fontSize: 11, color: colors.textSecondary },
-  playerText:   { color: WC.accent, fontWeight: typography.bold },
+  tableRowQ: { borderLeftWidth: 3, borderLeftColor: prim.volt },
+  tableCol:     { fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
+  tableColData: { fontSize: 11, color: prim.cottonMuted },
+  playerText:   { color: prim.cotton, fontFamily: font.bodyBold },
   colPos:  { width: 24, textAlign: 'center' as any },
   colName: { flex: 1,  paddingLeft: spacing.xs },
   colStat: { width: 28, textAlign: 'center' as any },
-  colPts:  { width: 32, fontWeight: typography.bold },
+  colPts:  { width: 32, fontFamily: font.bodyBold },
 
   phaseNote: {
     fontSize:  typography.xs,
-    color:     colors.textMuted,
+    color:     prim.cottonMuted,
     textAlign: 'center',
     marginTop: spacing.xs,
   },
@@ -791,20 +625,20 @@ const styles = StyleSheet.create({
   },
   groupCard: {
     width:           '48%',
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     borderRadius:    radius.md,
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     prim.ruleNylon,
     padding:         spacing.sm,
     gap:             2,
   },
   groupCardPlayer: {
-    borderColor: WC.accent,
+    borderColor: prim.cotton,
   },
   groupCardTitle: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         colors.textPrimary,
+    color:         prim.cotton,
     marginBottom:  2,
   },
   groupTeamRow: {
@@ -815,18 +649,18 @@ const styles = StyleSheet.create({
   },
   groupTeamRowQ: {
     borderLeftWidth: 2,
-    borderLeftColor: colors.success,
+    borderLeftColor: prim.volt,
     paddingLeft:     4,
   },
   groupTeamRowSelf: {
-    backgroundColor: WC.accent + '15',
+    backgroundColor: prim.cotton + '15',
     borderRadius:    radius.sm,
   },
-  groupTeamRank: { fontSize: 9, color: colors.textMuted, width: 12 },
+  groupTeamRank: { fontSize: 9, color: prim.cottonMuted, width: 12 },
   groupTeamName: { flex: 1 },
-  groupTeamNameText: { fontSize: 10, color: colors.textSecondary },
-  groupTeamNameSelf: { color: WC.accent, fontWeight: typography.bold },
-  groupTeamPts: { fontSize: 10, fontWeight: typography.bold, color: colors.textPrimary, width: 18, textAlign: 'right' },
+  groupTeamNameText: { fontSize: 10, color: prim.cottonMuted },
+  groupTeamNameSelf: { color: prim.cotton, fontFamily: font.bodyBold },
+  groupTeamPts: { fontSize: 10, fontFamily: font.bodyBold, color: prim.cotton, width: 18, textAlign: 'right' },
 
   // bracket
   bracketScroll: { marginHorizontal: -spacing.xs },
@@ -835,7 +669,7 @@ const styles = StyleSheet.create({
   bracketColLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         colors.textMuted,
+    color:         prim.cottonMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     textAlign:     'center',
@@ -844,16 +678,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   bracketCard: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     borderRadius:    radius.md,
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     prim.ruleNylon,
     paddingVertical: 4,
     paddingHorizontal: spacing.sm,
   },
   bracketCardPlayer: {
-    borderColor:     WC.accent,
-    backgroundColor: WC.accent + '11',
+    borderColor:     prim.cotton,
+    backgroundColor: prim.cotton + '11',
   },
   bracketTeamRow: {
     flexDirection:  'row',
@@ -862,39 +696,39 @@ const styles = StyleSheet.create({
     gap:            4,
   },
   bracketTeamLabel:  { flex: 1 },
-  bracketTeamName:   { fontSize: 10, color: colors.textMuted },
-  bracketTeamWon:    { color: colors.textPrimary, fontWeight: typography.black },
-  bracketTeamPlayer: { color: WC.accent },
-  bracketTeamGoals:  { fontSize: 11, fontWeight: typography.bold, color: colors.textSecondary, width: 14, textAlign: 'right' },
+  bracketTeamName:   { fontSize: 10, color: prim.cottonMuted },
+  bracketTeamWon:    { color: prim.cotton, fontFamily: font.bodyBlack },
+  bracketTeamPlayer: { color: prim.cotton },
+  bracketTeamGoals:  { fontSize: 11, fontFamily: font.bodyBold, color: prim.cottonMuted, width: 14, textAlign: 'right' },
   bracketDivider: {
     height: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bracketSuffix: { fontSize: 8, color: colors.warning, fontWeight: typography.bold },
+  bracketSuffix: { fontSize: 8, color: colors.warning, fontFamily: font.bodyBold },
 
   winnerCard: {
     alignItems:      'center',
     backgroundColor: colors.tiers.perfection + '11',
     borderColor:     colors.tiers.perfection,
   },
-  winnerLabel: { fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 1 },
-  winnerName:  { fontSize: typography.xxl, fontWeight: typography.black, color: colors.tiers.perfection },
-  winnerOvr:   { fontSize: typography.sm, color: colors.textSecondary },
+  winnerLabel: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
+  winnerName:  { fontSize: typography.xxl, fontFamily: font.bodyBlack, color: colors.tiers.perfection },
+  winnerOvr:   { fontSize: typography.sm, color: prim.cottonMuted },
 
   // matchday list
   mdSection: {
     gap:           spacing.sm,
     marginTop:     spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: prim.ruleNylon,
     paddingTop:    spacing.sm,
   },
   mdBlock: { gap: 4 },
   mdLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.bold,
-    color:         colors.textMuted,
+    color:         prim.cottonMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -906,23 +740,23 @@ const styles = StyleSheet.create({
   },
   mdTeam:       { flex: 1 },
   mdTeamRight:  { justifyContent: 'flex-end' },
-  mdTeamText:   { fontSize: 11, color: colors.textSecondary },
-  mdTeamPlayer: { color: WC.accent, fontWeight: typography.bold },
+  mdTeamText:   { fontSize: 11, color: prim.cottonMuted },
+  mdTeamPlayer: { color: prim.cotton, fontFamily: font.bodyBold },
   mdScorers:    { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.xs, marginBottom: 4 },
-  mdScorerHalf: { flex: 1, fontSize: 9, color: colors.textMuted },
+  mdScorerHalf: { flex: 1, fontSize: 9, color: prim.cottonMuted },
   koModalScore: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.sm },
-  koModalTeam:  { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
-  koModalGoals: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
+  koModalTeam:  { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
+  koModalGoals: { fontSize: typography.xl, fontFamily: font.bodyBlack, color: prim.cotton },
   koModalNote:  { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
-  koModalPens:  { fontSize: typography.sm, color: WC.accent, fontWeight: typography.bold, textAlign: 'center', marginTop: 2 },
-  koStatsBtn: { marginTop: spacing.sm, borderWidth: 1, borderColor: WC.accent, borderRadius: radius.md, paddingVertical: spacing.sm, alignItems: 'center', backgroundColor: WC.accent + '15' },
-  koStatsBtnText: { fontSize: typography.sm, fontWeight: typography.bold, color: WC.accent },
-  koModalScorers: { marginTop: spacing.sm, gap: 4, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
-  koModalScorerLine: { fontSize: typography.xs, color: colors.textSecondary },
+  koModalPens:  { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold, textAlign: 'center', marginTop: 2 },
+  koStatsBtn: { marginTop: spacing.sm, borderWidth: 1, borderColor: prim.cotton, borderRadius: 0, paddingVertical: spacing.sm, alignItems: 'center', backgroundColor: prim.cotton + '15' },
+  koStatsBtnText: { fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cotton },
+  koModalScorers: { marginTop: spacing.sm, gap: 4, borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.sm },
+  koModalScorerLine: { fontSize: typography.xs, color: prim.cottonMuted },
   mdScore: {
     fontSize:   12,
-    fontWeight: typography.black,
-    color:      colors.textPrimary,
+    fontFamily: font.bodyBlack,
+    color:      prim.cotton,
     minWidth:   42,
     textAlign:  'center',
   },
@@ -938,32 +772,32 @@ const styles = StyleSheet.create({
   modalCard: {
     width:           '100%',
     maxHeight:       '80%',
-    backgroundColor: colors.bgCard,
+    backgroundColor: prim.nylonRaised,
     borderRadius:    radius.lg,
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     prim.ruleNylon,
     padding:         spacing.lg,
     gap:             spacing.sm,
   },
   modalTitle: {
     fontSize:     typography.lg,
     fontWeight:   typography.black,
-    color:        colors.textPrimary,
+    color:        prim.cotton,
     marginBottom: spacing.sm,
   },
   modalClose: {
     marginTop:       spacing.md,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     borderRadius:    radius.md,
     paddingVertical: spacing.md,
     alignItems:      'center',
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     prim.ruleNylon,
   },
   modalCloseText: {
     fontSize:   typography.md,
-    fontWeight: typography.bold,
-    color:      colors.textPrimary,
+    fontFamily: font.bodyBold,
+    color:      prim.cotton,
   },
 
   buttonRow: {
@@ -973,21 +807,21 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex:            1,
-    backgroundColor: WC.accent,
+    backgroundColor: prim.cotton,
     borderRadius:    radius.md,
     paddingVertical: spacing.lg,
     alignItems:      'center',
     ...shadows.md,
   },
   actionBtnSecondary: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: prim.nylonSunken,
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     prim.ruleNylon,
   },
   actionBtnText: {
     fontSize:      typography.md,
     fontWeight:    typography.black,
-    color:         colors.textPrimary,
+    color:         prim.cotton,
     letterSpacing: 1.5,
   },
 })

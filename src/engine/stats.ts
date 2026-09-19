@@ -2,7 +2,7 @@
 // Scorers are ATTRIBUTED after a scoreline is decided (the match engine has no
 // individual-player sim). See docs/"Major Overhaul + Bug fixes.md".
 
-import type {
+import type { AwardPart,
   RosterPlayer, GoalEvent, MatchScorers, PlayerStatLine, TeamGoalRecord,
   CompetitionStats, AwardCandidate, SeasonAwards,
 } from '@/types/stats'
@@ -306,6 +306,8 @@ type SeasonCounter =
   | 'chancesCreated' | 'shots' | 'shotsOnTarget' | 'passes' | 'accuratePasses'
   | 'dribbles' | 'dribblesAttempted' | 'tacklesWon' | 'fouls'
   | 'yellowCards' | 'redCards'
+  | 'interceptions' | 'clearances' | 'blocks' | 'duelsWon' | 'bigChancesCreated'
+  | 'saves' | 'penaltiesSaved' | 'minutes'
 
 export type StatsAccumulator = {
   recordMatch: (m: {
@@ -410,6 +412,16 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
         add('fouls', r.foulsCommitted)
         add('yellowCards', r.yellowCard ? 1 : 0)
         add('redCards', r.redCard ? 1 : 0)
+        add('minutes', r.minutes)
+        add('interceptions', r.interceptions)
+        add('clearances', r.clearances)
+        add('blocks', r.blocks)
+        add('duelsWon', r.groundDuelsWon + r.aerialDuelsWon)
+        add('bigChancesCreated', r.bigChancesCreated)
+        if (r.gk) {
+          add('saves', r.gk.saves)
+          add('penaltiesSaved', r.gk.penaltiesSaved)
+        }
       }
     },
 
@@ -458,12 +470,40 @@ export function computeAwards(stats: CompetitionStats, ctx: AwardsCtx): SeasonAw
     // §9 events count too: winning penalties is real end-product, while own
     // goals and errors-leading-to-goals are exactly the kind of thing that
     // should cost a player a Player-of-the-Season vote.
-    const contribution = p.goals * 4 + p.assists * 3 + p.cleanSheets * 3 + (p.potm ?? 0) * 4
-      + (p.penaltiesWon ?? 0) * 1.5 - (p.ownGoals ?? 0) * 3 - (p.errorsLeadingToGoal ?? 0) * 2
+    //
+    // Phase 4 — the deep columns join the same sum at deliberately small
+    // weights. The scoring model decides Player of the Season (the maintainer
+    // rejected a pundit vote for it: an award is earned, measured, not voted),
+    // and these terms let a defender, a playmaker or a keeper earn it through
+    // their own work instead of only through goals. They are small on purpose:
+    // a season of 35 interceptions is worth about three goals, not ten.
+    const parts: AwardPart[] = [
+      { label: 'Goals', value: p.goals, points: p.goals * 4 },
+      { label: 'Assists', value: p.assists, points: p.assists * 3 },
+      { label: 'Clean sheets', value: p.cleanSheets, points: p.cleanSheets * 3 },
+      { label: 'Man of the match', value: p.potm ?? 0, points: (p.potm ?? 0) * 4 },
+      { label: 'Penalties won', value: p.penaltiesWon ?? 0, points: (p.penaltiesWon ?? 0) * 1.5 },
+      { label: 'Chances created', value: p.chancesCreated ?? 0, points: (p.chancesCreated ?? 0) * 0.5 },
+      { label: 'Shots on target', value: p.shotsOnTarget ?? 0, points: (p.shotsOnTarget ?? 0) * 0.25 },
+      { label: 'Dribbles', value: p.dribbles ?? 0, points: (p.dribbles ?? 0) * 0.15 },
+      { label: 'Tackles won', value: p.tacklesWon ?? 0, points: (p.tacklesWon ?? 0) * 0.3 },
+      { label: 'Interceptions', value: p.interceptions ?? 0, points: (p.interceptions ?? 0) * 0.3 },
+      { label: 'Clearances and blocks', value: (p.clearances ?? 0) + (p.blocks ?? 0), points: ((p.clearances ?? 0) + (p.blocks ?? 0)) * 0.1 },
+      { label: 'Saves', value: p.saves ?? 0, points: (p.saves ?? 0) * 0.35 },
+      { label: 'Penalties saved', value: p.penaltiesSaved ?? 0, points: (p.penaltiesSaved ?? 0) * 3 },
+      { label: 'Own goals', value: p.ownGoals ?? 0, points: -(p.ownGoals ?? 0) * 3 },
+      { label: 'Errors leading to goals', value: p.errorsLeadingToGoal ?? 0, points: -(p.errorsLeadingToGoal ?? 0) * 2 },
+    ]
     const ratingPts = p.avgRating && p.matchesRated
       ? Math.max(0, p.avgRating - 6.3) * p.matchesRated * 2
       : 0
+    if (ratingPts) parts.push({ label: `Rating ${p.avgRating!.toFixed(2)} over ${p.matchesRated} games`, value: p.avgRating!, points: ratingPts })
+    const contribution = parts.reduce((s, x) => s + x.points, 0) - ratingPts
     const posFactor = 1 + ((finalPosition - 1) / denom) * carry
+    const breakdown = parts
+      .filter(x => x.points !== 0)
+      .map(x => ({ ...x, points: Math.round(x.points * posFactor * 10) / 10 }))
+      .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
     return {
       playerId: p.playerId, name: p.name, seasonLabel: p.seasonLabel,
       clubId: p.clubId, clubName: p.clubName, position: p.position,
@@ -471,6 +511,9 @@ export function computeAwards(stats: CompetitionStats, ctx: AwardsCtx): SeasonAw
       avgRating: p.avgRating, potm: p.potm, matchesRated: p.matchesRated,
       finalPosition, score: Math.round((contribution + ratingPts) * posFactor * 10) / 10,
       isPlayerClub: p.isPlayerClub,
+      breakdown,
+      chancesCreated: p.chancesCreated, tacklesWon: p.tacklesWon, interceptions: p.interceptions,
+      saves: p.saves, shotsOnTarget: p.shotsOnTarget,
     }
   }).filter(c => c.score > 0)
 

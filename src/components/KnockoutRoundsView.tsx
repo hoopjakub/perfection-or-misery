@@ -1,8 +1,14 @@
 import React from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
-import { PressCard } from '@/components/ui'
+import { View, StyleSheet, ScrollView } from 'react-native'
 import { TitleWithInfo, InfoBubble } from '@/components/InfoBubble'
-import { colors, spacing, typography, radius } from '@/theme'
+import { ROLES, space } from '@/theme'
+import { KitText, SectionTag } from '@/components/kit'
+import { TieRow, type TieVM } from '@/components/season/SeasonParts'
+
+// Every knockout, qualifying and result list renders through the shared tie
+// row (src/components/season/SeasonParts.tsx), so a tie reads the same
+// everywhere. These screens are all nylon.
+const roles = ROLES.nylon
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
 import type { WCKnockoutMatch } from '@/engine/world-cup-sim'
 import type { QualTie } from '@/engine/cl-qualifying'
@@ -49,11 +55,11 @@ export type KoRoundVM = {
 }
 
 export function KnockoutRoundsView({
-  title, infoTopic, accent, rounds, maxHeight = 480, headerRight, footer,
+  title, infoTopic, rounds, maxHeight = 480, headerRight, footer,
 }: {
   title: string
   infoTopic?: string
-  accent: string
+  accent?: string          // no longer drawn; kept so callers needn't change
   rounds: KoRoundVM[]
   maxHeight?: number
   headerRight?: React.ReactNode
@@ -61,21 +67,21 @@ export function KnockoutRoundsView({
 }) {
   return (
     <View>
-      <View style={styles.header}>
+      {(title || headerRight) ? <View style={styles.header}>
         {infoTopic
-          ? <TitleWithInfo title={title} topic={infoTopic} style={[styles.title, { color: accent }]} accent={accent} />
-          : <Text style={[styles.title, { color: accent }]}>{title}</Text>}
+          ? <TitleWithInfo title={title} topic={infoTopic} style={styles.title} accent={roles.text} />
+          : <KitText t="superS" color={roles.text}>{title.toUpperCase()}</KitText>}
         {headerRight}
-      </View>
-      <ScrollView style={{ maxHeight }} nestedScrollEnabled showsVerticalScrollIndicator contentContainerStyle={styles.scrollContent}>
+      </View> : null}
+      <ScrollView style={{ maxHeight }} nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {rounds.map(r => (
           <View key={r.key} style={styles.roundBlock}>
             <View style={styles.roundHeaderRow}>
-              <Text style={styles.roundLabel}>{r.label}</Text>
-              {r.infoTopic && <InfoBubble topic={r.infoTopic} accent={accent} size={15} />}
+              <SectionTag roles={roles}>{r.label}</SectionTag>
+              {r.infoTopic && <InfoBubble topic={r.infoTopic} size={15} />}
             </View>
-            {!!r.sub && <Text style={styles.roundSub}>{r.sub}</Text>}
-            {r.ties.map(t => <KnockoutTieRow key={t.id} tie={t} accent={accent} />)}
+            {!!r.sub && <KitText t="body" color={roles.textMuted}>{r.sub}</KitText>}
+            {r.ties.map(t => <KnockoutTieRow key={t.id} tie={t} />)}
           </View>
         ))}
       </ScrollView>
@@ -84,102 +90,32 @@ export function KnockoutRoundsView({
   )
 }
 
-// Exported so QualifyingLadder (round → path sub-grouping is qualifying-
-// specific and doesn't fit KnockoutRoundsView's flatter round list) can reuse
-// the exact same row look instead of its own — one row component, everywhere.
-export function KnockoutTieRow({ tie, accent }: { tie: KoTieVM; accent: string }) {
-  if (tie.bye) {
-    return (
-      <View style={[styles.row, tie.isPlayerTie && { borderColor: accent, borderWidth: 2 }]}>
-        <View style={styles.teamsRow}>
-          <View style={styles.teamCell}>
-            {tie.teamAFlag && <Text style={styles.flag}>{tie.teamAFlag}</Text>}
-            <Text style={[styles.teamName, styles.won]} numberOfLines={1}>{tie.teamAName}</Text>
-          </View>
-          <Text style={styles.byeText}>bye — advances without playing</Text>
-        </View>
-      </View>
-    )
+// Exported so QualifyingLadder (its round → path grouping is qualifying-
+// specific) renders the exact same row as every other screen.
+export function KnockoutTieRow({ tie }: { tie: KoTieVM; accent?: string }) {
+  return <TieRow roles={roles} tie={koTieToVM(tie)} />
+}
+
+function koTieToVM(t: KoTieVM): TieVM {
+  return {
+    id: t.id, aName: t.teamAName, bName: t.teamBName,
+    aFlag: t.teamAFlag, bFlag: t.teamBFlag,
+    score: t.scoreLabel?.replace(/\s*–\s*/, '–'),
+    detail: [t.subLine, t.inlineSuffix?.replace(/[()]/g, '')].filter(Boolean).join(' · ') || undefined,
+    winnerIsA: t.winnerIsA, isPlayerTie: t.isPlayerTie, bye: t.bye,
+    directA: t.directA, directB: t.directB,
+    scorers: t.justDecided?.scorersLine,
+    note: t.justDecided?.outcomeLine,
+    onPress: t.onPress,
   }
-  const expanded = tie.justDecided
-  return (
-    <PressCard
-      style={[
-        styles.row,
-        tie.isPlayerTie && !expanded && { borderColor: accent, borderWidth: 2 },
-        !!expanded && [styles.rowExpanded, { borderColor: expanded!.outcomeColor }],
-      ]}
-      onPress={tie.onPress}
-      disabled={!tie.onPress}
-    >
-      <View style={styles.teamsRow}>
-        <View style={styles.teamCell}>
-          {tie.teamAFlag && <Text style={styles.flag}>{tie.teamAFlag}</Text>}
-          <Text style={[styles.teamName, tie.winnerIsA ? styles.won : styles.lost]} numberOfLines={1}>
-            {tie.directA && <Text style={styles.directMarker}>◆ </Text>}{tie.teamAName}
-          </Text>
-        </View>
-        <View style={styles.scoreCell}>
-          <Text style={styles.scoreText} numberOfLines={1}>
-            {tie.scoreLabel}{tie.inlineSuffix ? <Text style={styles.suffixText}> {tie.inlineSuffix}</Text> : null}
-          </Text>
-          {!!tie.subLine && <Text style={styles.subLineText}>{tie.subLine}</Text>}
-        </View>
-        <View style={[styles.teamCell, styles.teamCellRight]}>
-          <Text style={[styles.teamName, styles.teamNameRight, !tie.winnerIsA ? styles.won : styles.lost]} numberOfLines={1}>
-            {tie.directB && <Text style={styles.directMarker}>◆ </Text>}{tie.teamBName}
-          </Text>
-          {tie.teamBFlag && <Text style={styles.flag}>{tie.teamBFlag}</Text>}
-        </View>
-      </View>
-      {expanded && (
-        <View style={styles.expandedBlock}>
-          {!!expanded.scorersLine && <Text style={styles.expandedScorers} numberOfLines={2}>{expanded.scorersLine}</Text>}
-          <Text style={[styles.expandedOutcome, { color: expanded.outcomeColor }]}>{expanded.outcomeLine}</Text>
-        </View>
-      )}
-    </PressCard>
-  )
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
-  title: { fontSize: typography.lg, fontWeight: typography.black },
-  scrollContent: { paddingBottom: spacing.xs },
-
-  roundBlock: { marginBottom: spacing.md },
-  roundHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 2 },
-  roundLabel: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary },
-  roundSub: { fontSize: 10, color: colors.textMuted, marginBottom: spacing.xs },
-
-  row: {
-    backgroundColor: colors.bgElevated, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
-    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
-    marginBottom: spacing.xs, minHeight: 44,
-  },
-  rowExpanded: { borderWidth: 1.5, paddingVertical: spacing.md },
-
-  teamsRow: { flexDirection: 'row', alignItems: 'center' },
-  teamCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  teamCellRight: { justifyContent: 'flex-end' },
-  flag: { fontSize: 16 },
-  teamName: { fontSize: typography.sm, flexShrink: 1 },
-  teamNameRight: { textAlign: 'right' },
-  won: { color: colors.textPrimary, fontWeight: typography.bold },
-  lost: { color: colors.textMuted, fontWeight: typography.medium },
-  directMarker: { color: colors.tiers.perfection },
-
-  scoreCell: { alignItems: 'center', paddingHorizontal: spacing.sm, minWidth: 64 },
-  scoreText: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary },
-  suffixText: { fontSize: 10, fontWeight: typography.medium, color: colors.textMuted },
-  subLineText: { fontSize: 9, color: colors.textMuted, marginTop: 1 },
-
-  byeText: { flex: 2, fontSize: 9, color: colors.warning, fontWeight: typography.bold, textAlign: 'right', lineHeight: 12 },
-
-  expandedBlock: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, gap: 2 },
-  expandedScorers: { fontSize: 11, color: colors.textSecondary },
-  expandedOutcome: { fontSize: typography.xs, fontWeight: typography.black, letterSpacing: 0.5 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] },
+  title: { fontSize: 22, color: roles.text },
+  scrollContent: { paddingBottom: space[2] },
+  roundBlock: { marginBottom: space[3] },
+  roundHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
 })
 
 // ── Adapters: mode tie shape → KoTieVM ───────────────────────────────────────

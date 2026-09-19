@@ -1,15 +1,21 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
+import { WebColumn } from '@/components/kit'
+import { PageMeta } from '@/components/PageMeta'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { BackButton } from '@/components/ui'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
 export default function HowToPlayScreen() {
+  const insets = useSafeAreaInsets()
   return (
+    <WebColumn background={colors.bg}>
+      <PageMeta title="Guide" path="/guide" />
     <View style={styles.container}>
       {/* header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <BackButton />
-        <Text style={styles.title}>How to Play</Text>
+        <Text style={styles.title}>Guide</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -21,7 +27,7 @@ export default function HowToPlayScreen() {
             random real club-seasons, get dropped into a competition somewhere on the planet, and watch
             it play out — match by match on a scoreboard, or live on a ticking clock. At the end you're
             graded on a tier ladder from <Text style={styles.bold}>ABSOLUTE MISERY</Text> to{' '}
-            <Text style={styles.bold}>ULTIMATE PERFECTION</Text>. No two runs are ever the same: the
+            <Text style={styles.bold}>PERFECTION</Text>. No two runs are ever the same: the
             clubs you spin, the league you land in, and every simulated match are fresh each time.
           </Text>
         </View>
@@ -29,7 +35,7 @@ export default function HowToPlayScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Drafting Your Squad</Text>
           <Text style={styles.content}>
-            1. <Text style={styles.bold}>Pick a formation</Text> — 11 real shapes (see below). This
+            1. <Text style={styles.bold}>Pick a formation</Text> — 12 real shapes (see below). This
             decides which position slots you must fill.{'\n'}
             2. <Text style={styles.bold}>Spin the wheel</Text> — each spin lands on a random real club
             season (e.g. 2011/12 Ajax) and shows you its squad.{'\n'}
@@ -228,16 +234,18 @@ export default function HowToPlayScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Scoring & Tiers</Text>
           <Text style={styles.content}>
-            Your score is based on your final position, team OVR, and bonus points for unbeaten or
-            perfect seasons. Higher tiers give better scores — win the league unbeaten for{' '}
+            Your score is based on your final position, team OVR (a weaker squad scores more), bonus
+            points for unbeaten or perfect seasons, and the difficulty multiplier above. Higher tiers
+            give better scores — win the league unbeaten for{' '}
             <Text style={styles.bold}>ALMOST PERFECTION</Text>, win every single match for{' '}
-            <Text style={styles.bold}>ULTIMATE PERFECTION</Text>; get relegated and it's{' '}
+            <Text style={styles.bold}>PERFECTION</Text>; get relegated and it's{' '}
             <Text style={styles.bold}>ABSOLUTE MISERY</Text>. Cup modes grade you on how deep your run
             went, from group-stage exit to lifting the trophy.
           </Text>
         </View>
       </ScrollView>
     </View>
+    </WebColumn>
   )
 }
 
@@ -251,7 +259,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: 56,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,

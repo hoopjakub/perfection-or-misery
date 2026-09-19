@@ -4,6 +4,7 @@ import { generateFixtures } from './fixtures'
 import { simulateMatch } from './match'
 import { clamp } from '@/lib/math'
 import { assignTier } from './tier'
+import { zoneAt } from '@/data/qualification-bands'
 
 export function simulateSeason(league: LeagueSeason): SeasonResult {
   const teams: SimTeam[] = league.teams.map(t => ({
@@ -83,7 +84,7 @@ export function simulateSeason(league: LeagueSeason): SeasonResult {
     upsets,
     unbeaten,
     perfectSeason,
-    tier: assignTier(finalPosition, teams.length, unbeaten, perfectSeason),
+    tier: assignTier(finalPosition, teams.length, unbeaten, perfectSeason, zoneAt(league.leagueId, league.yearStart, teams.length, finalPosition)),
     matchdayHistory: [],
   }
 }

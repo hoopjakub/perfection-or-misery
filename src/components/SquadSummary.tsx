@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSlotsForFormation } from '@/engine/formations'
 import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, ratingColor } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
 import type { CompetitionStats } from '@/types/stats'
 import type { DraftedPlayer, Formation } from '@/types/game'
 
@@ -51,9 +51,9 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
       {yours.map(p => {
         const gr = gR.get(p.playerId), ar = aR.get(p.playerId), cr = cR.get(p.playerId)
         const notable: string[] = []
-        if (gr && gr <= 3) notable.push(`⚽#${gr}`)
+        if (gr && gr <= 3) notable.push(`#${gr}`)
         if (ar && ar <= 3) notable.push(`🅰#${ar}`)
-        if (cr && cr <= 3) notable.push(`🧤#${cr}`)
+        if (cr && cr <= 3) notable.push(`#${cr}`)
         const dp = draftedById.get(p.playerId)
         return (
           <View key={p.playerId} style={styles.row}>
@@ -69,7 +69,7 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
                     <Text style={styles.ratingChipText}>{p.avgRating.toFixed(2)}</Text>
                   </View>
                 )}
-                {(p.potm ?? 0) > 0 && <Text style={styles.potm}>★{p.potm}</Text>}
+                {(p.potm ?? 0) > 0 && <Text style={styles.potm}>{p.potm}</Text>}
                 {notable.length > 0 && <Text style={[styles.notable, { color: accent }]}>{notable.join(' ')}</Text>}
               </>
             ) : (
@@ -79,7 +79,7 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
         )
       })}
       <PressCard
-        onPress={() => router.push(runId ? { pathname: '/game/stats', params: { runId } } : '/game/stats')}
+        onPress={() => router.push({ pathname: '/game/run', params: runId ? { runId, tab: 'stats' } : { tab: 'stats' } })}
         style={{ paddingTop: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}
       >
         <Text style={[styles.more, { color: accent }]}>Full stats</Text>
@@ -90,21 +90,21 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.xs },
+  card: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.md, gap: spacing.xs },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
-  title: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
-  toggle: { flexDirection: 'row', backgroundColor: colors.bgElevated, borderRadius: radius.full, padding: 2, gap: 2 },
-  toggleBtn: { paddingHorizontal: spacing.md, paddingVertical: 3, borderRadius: radius.full },
-  toggleText: { fontSize: typography.xs, fontWeight: typography.bold, color: colors.textMuted },
-  toggleTextActive: { color: colors.textPrimary },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: colors.border },
-  pos: { width: 36, fontSize: 10, color: colors.textMuted, fontWeight: typography.bold },
-  name: { flex: 1, fontSize: typography.sm, color: colors.textPrimary },
-  line: { fontSize: typography.xs, color: colors.textSecondary },
-  notable: { fontSize: 10, fontWeight: typography.bold },
-  ratingChip: { borderRadius: radius.sm, paddingHorizontal: 4, paddingVertical: 1, minWidth: 32, alignItems: 'center' },
-  ratingChipText: { fontSize: 10, fontWeight: typography.black, color: '#0A0E1A' },
-  potm: { fontSize: 10, fontWeight: typography.black, color: '#FFD700' },
-  subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
-  more: { fontSize: typography.sm, fontWeight: typography.bold, textAlign: 'center' },
+  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  toggle: { flexDirection: 'row', backgroundColor: prim.nylonSunken, borderRadius: 0, padding: 2, gap: 2 },
+  toggleBtn: { paddingHorizontal: spacing.md, paddingVertical: 3, borderRadius: 0 },
+  toggleText: { fontSize: typography.xs, fontFamily: font.bodyBold, color: prim.cottonMuted },
+  toggleTextActive: { color: prim.cotton },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  pos: { width: 36, fontSize: 10, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  name: { flex: 1, fontSize: typography.sm, color: prim.cotton },
+  line: { fontSize: typography.xs, color: prim.cottonMuted },
+  notable: { fontSize: 10, fontFamily: font.bodyBold },
+  ratingChip: { borderRadius: 0, paddingHorizontal: 4, paddingVertical: 1, minWidth: 32, alignItems: 'center' },
+  ratingChipText: { fontSize: 10, fontFamily: font.bodyBlack, color: '#0A0E1A' },
+  potm: { fontSize: 10, fontFamily: font.bodyBlack, color: '#FFD700' },
+  subTag: { fontSize: 9, fontFamily: font.bodyBlack, color: colors.warning },
+  more: { fontSize: typography.sm, fontFamily: font.bodyBold, textAlign: 'center' },
 })

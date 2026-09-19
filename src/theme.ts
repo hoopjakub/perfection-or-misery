@@ -1,3 +1,5 @@
+import { StyleSheet, type TextStyle } from 'react-native'
+
 export const colors = {
   // base
   bg:           '#0A0E1A',
@@ -6,11 +8,12 @@ export const colors = {
   border:       '#1F2937',
   borderLight:  '#374151',
 
-  // text — muted must stay ≥4.5:1 on bgCard (#111827); the old #4B5563 sat
-  // around 3:1 and made every meta line borderline unreadable on real screens.
+  // text — muted must stay ≥4.5:1 on every dark surface. #6B7280 claimed to
+  // and didn't (3.67:1 on bgCard, 3.25 on bgElevated). #8A92A0 measures
+  // bg 6.14 · bgCard 5.66 · bgElevated 5.01 · hover 5.09.
   textPrimary:   '#F9FAFB',
   textSecondary: '#9CA3AF',
-  textMuted:     '#6B7280',
+  textMuted:     '#8A92A0',
 
   // shared accents that were hardcoded ad hoc around the app
   gold: '#FFD700',
@@ -228,3 +231,150 @@ export const shadows = {
     elevation: 12,
   },
 }
+// ════════════════════════════════════════════════════════════════════════════
+// KIT DROP — the redesign's system (docs/ui-overhaul/05-STYLE-GUIDE.md, DESIGN.md)
+//
+// Everything above this line is the old dark palette, kept only so screens
+// that haven't been rebuilt yet still render. New and rebuilt screens read
+// from here and never from `colors`.
+//
+// Three layers: PRIMITIVES (raw values with material names) → ROLES (what a
+// value means, resolved per ground) → components. A screen declares which
+// ground it stands on and asks for roles; it never picks a primitive itself.
+// ════════════════════════════════════════════════════════════════════════════
+
+export const prim = {
+  cotton:      '#F3F3F0',  // white cotton twill, a touch cool of cream on purpose
+  label:       '#E2E2DE',  // a printed care label; the sunken surface on cotton
+  ruleCotton:  '#CFCFCA',
+  ink:         '#0C0C0D',  // screen-print ink
+  inkMuted:    '#5A5A60',
+  inkFaint:    '#8A8A90',
+  nylon:       '#141416',  // black nylon; the floodlight ground
+  nylonRaised: '#1F1F22',
+  nylonSunken: '#0B0B0C',
+  ruleNylon:   '#34343A',
+  cottonMuted: '#A4A4AB',
+  nylonFaint:  '#6C6C73',
+  orange:      '#FF5A00',  // safety orange — the zip-tie tag, always "you"
+  volt:        '#D5FF3F',  // boot volt — the good end, Perfection
+  draw:        '#6E6E74',
+  black:       '#000000',
+} as const
+
+export type Ground = 'cotton' | 'nylon'
+
+export type Roles = {
+  ground: Ground
+  bg: string
+  surface: string
+  sunken: string
+  text: string          // body text
+  textMuted: string     // secondary text
+  textFaint: string     // placeholders, disabled; large text only on cotton
+  rule: string          // hairlines between rows (decorative)
+  line: string          // 1–2px borders that must be seen: tags, plates, fields
+  offset: string        // the 2px pressed-label depth
+  onFill: string        // text on orange / volt fills (always ink)
+  you: string           // orange FILL
+  youText: string | null     // orange as TEXT — null on cotton (2.81:1 fails)
+  perfection: string    // volt FILL
+  perfectionText: string | null  // volt as TEXT — null on cotton (1.04:1)
+  draw: string
+  stripe: [string, string]  // hazard stripe bands
+  focus: string
+}
+
+// Contrast (computed): text 17.59 / 16.55 · textMuted 6.16 / 7.43 ·
+// ink on orange 6.25 · ink on volt 16.95 · orange on nylon 5.88 ·
+// volt on nylon 15.95 · draw 4.56 on cotton.
+export const ROLES: Record<Ground, Roles> = {
+  cotton: {
+    ground: 'cotton',
+    bg: prim.cotton, surface: prim.cotton, sunken: prim.label,
+    text: prim.ink, textMuted: prim.inkMuted, textFaint: prim.inkFaint,
+    rule: prim.ruleCotton, line: prim.ink, offset: prim.ink, onFill: prim.ink,
+    you: prim.orange, youText: null,
+    perfection: prim.volt, perfectionText: null,
+    draw: prim.draw,
+    stripe: [prim.ink, prim.cotton],
+    focus: prim.ink,
+  },
+  nylon: {
+    ground: 'nylon',
+    bg: prim.nylon, surface: prim.nylonRaised, sunken: prim.nylonSunken,
+    text: prim.cotton, textMuted: prim.cottonMuted, textFaint: prim.nylonFaint,
+    rule: prim.ruleNylon, line: prim.cotton, offset: prim.black, onFill: prim.ink,
+    you: prim.orange, youText: prim.orange,
+    perfection: prim.volt, perfectionText: prim.volt,
+    draw: prim.cottonMuted,
+    stripe: [prim.cotton, prim.nylon],
+    focus: prim.cotton,
+  },
+}
+
+// Colourways: the woven tape that says WHERE you are. Location, never meaning.
+// League runs use the replaced club's colour instead (see colourwayFor).
+export const COLOURWAYS: Record<string, string[]> = {
+  world_cup:               ['#3CAC3B', '#2A398D', '#E61D25'],  // set by the maintainer
+  world_cup_full:          ['#3CAC3B', '#2A398D', '#E61D25'],
+  champions_league:        ['#2F4BFF'],
+  champions_league_custom: ['#2F4BFF'],
+  chaos:                   ['#C8261B'],  // darkened from #FF3B30 so cotton text passes
+  cursed:                  ['#7234F0'],  // darkened from #A855F7 for the same reason
+}
+
+export function colourwayFor(mode: string | null | undefined, clubColour?: string | null): string[] {
+  if (mode && COLOURWAYS[mode]) return COLOURWAYS[mode]
+  return [clubColour ?? prim.ink]
+}
+
+// Font family keys, registered once in app/_layout.tsx. Each weight/style is
+// its own family and `fontWeight` is never set on kit text: Android resolves
+// custom fonts by family name and silently falls back when a weight is asked for.
+//
+// SUPER: the plan named Archivo ExtraCondensed Black Italic, but the static
+// Google Fonts builds only ship Archivo at normal width. The style guide's
+// fallback rule ("an extra-condensed grotesque with a true italic") picks
+// Barlow Condensed Black Italic — a real drawn italic, not a slanted roman.
+export const font = {
+  super:       'Kit-Super',        // Barlow Condensed 900 Italic
+  superPlain:  'Kit-SuperPlain',   // Barlow Condensed 800 (upright; tags on plates)
+  tag:         'Kit-Tag',          // Martian Mono 500
+  tagBold:     'Kit-TagBold',      // Martian Mono 700
+  body:        'Kit-Body',         // Archivo 400
+  bodyMedium:  'Kit-BodyMedium',   // Archivo 500
+  bodyBold:    'Kit-BodyBold',     // Archivo 700
+  bodyBlack:   'Kit-BodyBlack',    // Archivo 800
+} as const
+
+// Type scale (style guide §3.2). Supers use lineHeight = size: the guide's
+// tighter 72/64 clips the italic's ascenders on Android.
+export const type = {
+  superXl:  { fontFamily: font.super, fontSize: 72, lineHeight: 72 },
+  superL:   { fontFamily: font.super, fontSize: 48, lineHeight: 48 },
+  superM:   { fontFamily: font.super, fontSize: 32, lineHeight: 32 },
+  superS:   { fontFamily: font.super, fontSize: 22, lineHeight: 24 },
+  title:    { fontFamily: font.bodyBold, fontSize: 18, lineHeight: 24 },
+  bodyL:    { fontFamily: font.body, fontSize: 15, lineHeight: 22 },
+  body:     { fontFamily: font.body, fontSize: 13, lineHeight: 18 },
+  figureL:  { fontFamily: font.bodyBold, fontSize: 28, lineHeight: 30, fontVariant: ['tabular-nums' as const] },
+  figure:   { fontFamily: font.bodyMedium, fontSize: 13, lineHeight: 18, fontVariant: ['tabular-nums' as const] },
+  tag:      { fontFamily: font.tag, fontSize: 11, lineHeight: 14, letterSpacing: 0.44, textTransform: 'uppercase' as const },
+  button:   { fontFamily: font.bodyBlack, fontSize: 15, lineHeight: 18, letterSpacing: 0.3, textTransform: 'uppercase' as const },
+} satisfies Record<string, TextStyle>
+
+export type TypeToken = keyof typeof type
+
+// Spacing and density (style guide §4).
+export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 24, 6: 32, 7: 48, 8: 64 } as const
+export const density = {
+  t1: { row: 56 },
+  t2: { row: 48 },
+  t3: { row: 36, hit: 48 },
+} as const
+
+// Borders and depth (style guide §5). Radius is 0 everywhere except the short
+// list in the guide (rivets, flags, the zip tag's head).
+export const border = { hair: StyleSheet.hairlineWidth, thin: 1, plate: 2, tape: 4 } as const
+export const OFFSET = 2

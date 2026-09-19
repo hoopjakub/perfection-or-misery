@@ -22,11 +22,11 @@ export type CustomDifficulty = {
 // The 10-level "screw-you-er". easy/medium/hard live at 2/4/6 so the familiar
 // names still mean something; the taglines rib the player a bit.
 export const SCREW_LEVELS: { level: number; name: string; tagline: string }[] = [
-  { level: 1,  name: 'Baby Mode',       tagline: 'Trophies made of foam. You literally cannot lose.' },
+  { level: 1,  name: 'Baby Mode',       tagline: 'Trophies made of foam. Losing takes real effort.' },
   { level: 2,  name: 'Easy',            tagline: 'Training wheels bolted on. Minimal shame.' },
   { level: 3,  name: 'Casual',          tagline: "You're 'not really trying.' Sure you aren't." },
   { level: 4,  name: 'Medium',          tagline: "The honest gamer's choice. Allegedly." },
-  { level: 5,  name: 'Sweaty',          tagline: 'Palms are sweaty, knees weak, arms heavy.' },
+  { level: 5,  name: 'Sweaty',          tagline: 'Your hands have started to get involved.' },
   { level: 6,  name: 'Hard',            tagline: 'Okay — now you actually mean it.' },
   { level: 7,  name: 'Brutal',          tagline: 'This one leaves a mark.' },
   { level: 8,  name: 'Nightmare',       tagline: 'Sleep is for people on easier settings.' },
@@ -148,14 +148,10 @@ export function hardnessOf(screwLevel: number, rerolls: number, ratingsHidden: b
   return Math.max(0, Math.round(h * 10) / 10)
 }
 
-// Harder settings are worth more points. Anchored so a "medium" run (hardness
-// ~3.9) is neutral (1.0×); easier runs are penalised, harder ones rewarded. The
-// reroll slider therefore has real bite: going from 0 → 10 rerolls drops hardness
-// by a full point ≈ a 12% score cut, so extra rerolls are a genuine trade.
-export function scoreMultiplierFor(hardness: number): number {
-  const MEDIUM_HARDNESS = 3.9
-  return clamp(1 + (hardness - MEDIUM_HARDNESS) * 0.12, 0.45, 1.9)
-}
+// The multiplier lives with the rest of the scoring formula, shared with the
+// server (supabase/functions/_shared/score.ts), so the two can never disagree.
+import { scoreMultiplierFor } from '../../supabase/functions/_shared/score'
+export { scoreMultiplierFor }
 
 // ── Reroll allowance + hidden ratings (replaces engine/draft.ts helpers) ─────
 // Both just read the resolved knobs — the chaos/cursed override lives ONLY in

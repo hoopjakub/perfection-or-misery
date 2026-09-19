@@ -49,7 +49,6 @@ async function initBundledDbWeb(): Promise<void> {
   const res = await fetch(uri)
   const bytes = new Uint8Array(await res.arrayBuffer())
   _db = await SQLite.deserializeDatabaseAsync(bytes)
-  console.log('[db] web: bundled db loaded into memory')
 }
 
 // Public entry point some callers (RootLayout's boot effect) use explicitly.
@@ -77,8 +76,6 @@ async function initBundledDbNative(): Promise<void> {
   const dbInfo = await FileSystem.getInfoAsync(dbPath)
 
   if (!dbInfo.exists || existingVersion < DB_VERSION) {
-    console.log(`[db] version ${existingVersion} < ${DB_VERSION} (or db missing), replacing db...`)
-
     // Reset singleton connection in JS if it exists
     _db = null
 
@@ -99,12 +96,9 @@ async function initBundledDbNative(): Promise<void> {
       await FileSystem.copyAsync({ from: asset.localUri, to: dbPath })
       // Write version file
       await FileSystem.writeAsStringAsync(verPath, String(DB_VERSION))
-      console.log(`[db] db replaced successfully, version = ${DB_VERSION}`)
     } else {
       throw new Error('[db] asset has no localUri')
     }
-  } else {
-    console.log(`[db] db version ${existingVersion} is current — skipping re-copy`)
   }
 
   // Open the database connection

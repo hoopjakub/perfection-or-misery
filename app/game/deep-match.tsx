@@ -19,11 +19,15 @@
 // a tick re-renders numbers, never structure.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native'
+import { WebColumn } from '@/components/kit'
+import { View, StyleSheet, ScrollView } from 'react-native'
 import { router } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
-import { colors, spacing, typography, radius, ratingColor } from '@/theme'
+import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated'
+import { ROLES, space, border, prim, ratingColor } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
+import { KitText, Plate, Tag, SectionTag, RoundFlag } from '@/components/kit'
+import { ThumbBar } from '@/components/season/RunChrome'
+import { lineForEvent, quietLine, type CommentaryLine } from '@/engine/commentary'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { takeDeepMatchRequest, type DeepMatchRequest } from '@/lib/deepMatch'
 import {
@@ -45,6 +49,15 @@ const WHISTLE_PAUSE_MS = 1400
 
 type Phase = 'lineups' | 'live' | 'ceremony' | 'exiting'
 
+// C6 (docs/ui-overhaul/07c) — the finale on nylon. The shell is Kit Drop: the
+// scoreline as a super with the clock as a tag and a line of commentary under
+// it, sections instead of cards, the controls in the thumb zone, and the final
+// whistle as a cut to silence before the ceremony. The panels inside (the
+// pitch, the momentum graph, the stat bars, the timeline) are the ones the
+// match screen shares, and they're restyled in that screen's own pass (P4-H),
+// so nothing on them is lost in the meantime.
+const roles = ROLES.nylon
+
 // How long the hand-off spinner sits between the ceremony and the result
 // screen. Long enough to read as a deliberate transition rather than a stutter.
 const EXIT_SPINNER_MS = 900
@@ -64,10 +77,9 @@ export default function DeepMatchScreen() {
   if (!request) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <Text style={styles.muted}>No final to play.</Text>
-        <Pressable style={styles.textBtn} onPress={() => router.back()}>
-          <Text style={[styles.textBtnLabel, { color: colors.accent }]}>Go back</Text>
-        </Pressable>
+        <KitText t="superM" color={roles.text}>"NO FINAL"</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>There's no final waiting to be played.</KitText>
+        <Plate label="Go back" roles={roles} onPress={() => router.back()} />
       </View>
     )
   }
@@ -75,8 +87,8 @@ export default function DeepMatchScreen() {
   if (loading || !detail) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <ActivityIndicator color={request.accent} size="large" />
-        <Text style={styles.muted}>Walking out…</Text>
+        <KitText t="superL" color={roles.text}>"WALKING OUT"</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>The tunnel. The noise. The lights.</KitText>
       </View>
     )
   }
@@ -105,10 +117,12 @@ export default function DeepMatchScreen() {
   }
 
   return (
+    <WebColumn background={ROLES.nylon.bg}>
     <MatchBeats
       request={request} detail={detail} phase={phase}
       onStart={() => setPhase('live')} onFinished={() => setPhase('ceremony')}
     />
+    </WebColumn>
   )
 }
 
@@ -145,8 +159,8 @@ function ExitToResults({ request }: { request: DeepMatchRequest }) {
   }, [])
   return (
     <View style={[styles.container, styles.centred]}>
-      <ActivityIndicator color={request.accent} size="large" />
-      <Text style={styles.muted}>Wrapping up the tournament…</Text>
+      <KitText t="superM" color={roles.text}>"AWARDS NIGHT"</KitText>
+      <KitText t="bodyL" color={roles.textMuted}>The season, counted up.</KitText>
     </View>
   )
 }
@@ -169,14 +183,15 @@ function LineupsStep({ request, detail, timeline, onStart }: {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollBody}>
-        <Text style={[styles.kicker, { color: accent, paddingTop: 28 }]}>{request.competitionLabel}</Text>
-        <Text style={styles.bigTitle}>{request.roundLabel}</Text>
-        <Text style={styles.tagline}>One match. Everything on it.</Text>
-
+        <View style={styles.sheetHead}>
+          <SectionTag roles={roles}>{request.competitionLabel}</SectionTag>
+          <KitText t="superXl" color={roles.text} style={styles.centreText}>{request.roundLabel.toUpperCase()}</KitText>
+          <KitText t="bodyL" color={roles.textMuted} style={styles.centreText}>One match. Everything on it.</KitText>
+        </View>
         <View style={styles.finalistRow}>
-          <Text style={[styles.finalist, { textAlign: 'right' }]} numberOfLines={2}>{withFlag(request.detail.homeName)}</Text>
-          <Text style={[styles.vs, { color: accent }]}>vs</Text>
-          <Text style={styles.finalist} numberOfLines={2}>{withFlag(request.detail.awayName)}</Text>
+          <Finalist name={request.detail.homeName} align="right" />
+          <KitText t="tag" color={roles.textMuted}>V</KitText>
+          <Finalist name={request.detail.awayName} align="left" />
         </View>
 
         {sides.map(s => (
@@ -187,15 +202,19 @@ function LineupsStep({ request, detail, timeline, onStart }: {
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: accent }, pressed && { opacity: 0.85, transform: [{ scale: 0.985 }] }]}
-          onPress={onStart}
-        >
-          <Ionicons name="play" size={16} color={colors.textPrimary} />
-          <Text style={styles.primaryBtnText}>START FINAL</Text>
-        </Pressable>
-      </View>
+      <ThumbBar>
+        <Plate label="Kick off the final" icon="play" roles={roles} onPress={onStart} />
+      </ThumbBar>
+    </View>
+  )
+}
+
+function Finalist({ name, align }: { name: string; align: 'left' | 'right' }) {
+  const flag = flagForCountry(name)
+  return (
+    <View style={[styles.finalist, { alignItems: align === 'right' ? 'flex-end' : 'flex-start' }]}>
+      {flag ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={24} roles={roles} /> : null}
+      <KitText t="superS" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{name.toUpperCase()}</KitText>
     </View>
   )
 }
@@ -205,6 +224,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
   request: DeepMatchRequest; detail: MatchStats; timeline: DeepMatchTimeline; onFinished: () => void
 }) {
   const { accent } = request
+  const reduced = useReducedMotion()
 
   const [minute, setMinute] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -220,10 +240,14 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
     return () => clearInterval(id)
   }, [paused, timeline.duration])
 
-  // Full time — whether we got here on the clock or by skipping.
+  // Full time — whether we got here on the clock or by skipping. The whistle
+  // is a cut to silence (C6 move 4): everything stops, the ground holds for a
+  // beat, and only then does the ceremony start.
+  const [silence, setSilence] = useState(false)
   useEffect(() => {
     if (minute < timeline.duration || finishedRef.current) return
     finishedRef.current = true
+    setSilence(true)
     const t = setTimeout(onFinished, WHISTLE_PAUSE_MS)
     return () => clearTimeout(t)
   }, [minute, timeline.duration])
@@ -246,20 +270,31 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
   // goals land on the scorer's shirt as they're scored, ratings are live.
   const livePlayers = useMemo(() => timeline.playersAt(minute), [timeline, minute])
 
+  // Commentary: every event as a line, newest first, with a quiet line read
+  // from the state of play whenever nothing has happened for a while.
+  const home = request.detail.homeName, away = request.detail.awayName
+  const commentary = useMemo<CommentaryLine[]>(() => {
+    const said = shownEvents.map(e => lineForEvent(e, home, away)).reverse()
+    const lastEvent = shownEvents[shownEvents.length - 1]
+    const quiet = !lastEvent || minute - lastEvent.minute >= 8
+    const state = frame ? { homePossession: frame.home.possession, homeShots: frame.home.shots, awayShots: frame.away.shots } : null
+    return quiet && minute < timeline.duration ? [quietLine(minute, state, home, away), ...said] : said
+  }, [shownEvents, minute, frame, home, away, timeline.duration])
+
   return (
     <View style={styles.container}>
-      {/* Scoreboard — pinned, because it's the only thing you can't miss. */}
-      <View style={[styles.board, { borderBottomColor: accent }]}>
-        <Text style={[styles.kicker, { color: accent }]}>{request.roundLabel}</Text>
+      {/* The scoreboard, pinned: the score as a super, the clock as a tag, the
+          latest line of commentary under it. */}
+      <View style={[styles.board, { borderBottomColor: roles.line }]}>
+        <View style={styles.boardTop}>
+          <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{request.roundLabel}</KitText>
+          <Tag roles={roles} variant="selected">{`${minute}'`}</Tag>
+          <KitText t="tag" color={roles.textMuted}>{status}</KitText>
+        </View>
         <View style={styles.boardRow}>
-          <Text style={[styles.boardTeam, { textAlign: 'right' }]} numberOfLines={2}>{withFlag(request.detail.homeName)}</Text>
-          <View style={styles.boardScoreCol}>
-            <Text style={[styles.boardScore, { color: accent }]}>
-              {frame?.homeGoals ?? 0} – {frame?.awayGoals ?? 0}
-            </Text>
-            <Text style={styles.boardClock}>{minute}'</Text>
-          </View>
-          <Text style={styles.boardTeam} numberOfLines={2}>{withFlag(request.detail.awayName)}</Text>
+          <KitText t="title" color={roles.text} numberOfLines={2} style={[styles.boardTeam, { textAlign: 'right' }]}>{home}</KitText>
+          <KitText t="superXl" color={roles.text} style={styles.boardScore}>{`${frame?.homeGoals ?? 0}–${frame?.awayGoals ?? 0}`}</KitText>
+          <KitText t="title" color={roles.text} numberOfLines={2} style={styles.boardTeam}>{away}</KitText>
         </View>
         {/* Who scored, right under the score — the same block the stats screen
             puts there, so a goal reads identically live and afterwards. */}
@@ -269,24 +304,31 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
             <ScorerList events={shownEvents} isHome={false} align="left" />
           </View>
         )}
-        <Text style={styles.boardStatus}>{status}</Text>
+        {commentary[0] && (
+          <Animated.View key={commentary[0].minute + commentary[0].text} entering={reduced ? undefined : FadeInDown.duration(200)}
+            style={styles.commentary} accessibilityLiveRegion="polite">
+            <KitText t="tag" color={roles.textMuted}>{commentary[0].minute}</KitText>
+            <KitText t={commentary[0].big ? 'title' : 'body'} color={roles.text} style={{ flex: 1 }}>{commentary[0].text}</KitText>
+          </Animated.View>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollBody}>
-        <View style={styles.card}>
+        <View style={styles.section}>
+          <SectionTag roles={roles}>Momentum</SectionTag>
           <MomentumGraph
             series={detail.momentum.slice(0, shownDuration)} duration={shownDuration}
             markers={momentumMarkers(shownEvents)}
             revealUpTo={minute}
             accentHome={accent}
-            homeName={request.detail.homeName} awayName={request.detail.awayName}
+            homeName={home} awayName={away}
           />
         </View>
 
         {frame && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Match stats</Text>
-            <StatSideHeader homeName={request.detail.homeName} awayName={request.detail.awayName} accent={accent} />
+          <View style={styles.section}>
+            <SectionTag roles={roles}>Match stats</SectionTag>
+            <StatSideHeader homeName={home} awayName={away} accent={accent} />
             <StatBar label="Ball possession" home={frame.home.possession} away={frame.away.possession} accent={accent} pct />
             <StatBar label="Expected goals (xG)" home={frame.home.xg} away={frame.away.xg} accent={accent} />
             <StatBar label="Total shots" home={frame.home.shots} away={frame.away.shots} accent={accent} />
@@ -298,22 +340,32 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
             <StatBar label="Corners" home={frame.home.corners} away={frame.away.corners} accent={accent} />
             <View style={styles.teamRatingRow}>
               <RatingPill value={frame.homeRating} />
-              <Text style={styles.teamRatingLabel}>TEAM RATING</Text>
+              <KitText t="tag" color={roles.textMuted}>Team rating</KitText>
               <RatingPill value={frame.awayRating} />
             </View>
           </View>
         )}
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Timeline</Text>
+        <View style={styles.section}>
+          <SectionTag roles={roles}>Commentary</SectionTag>
+          {commentary.length === 0
+            ? <KitText t="body" color={roles.textMuted}>Nothing yet. They're feeling each other out.</KitText>
+            : commentary.slice(0, 12).map((c, i) => (
+                <View key={`${c.minute}${i}`} style={[styles.feedRow, { borderBottomColor: roles.rule }]}>
+                  <KitText t="tag" color={roles.textMuted} style={styles.feedMin}>{c.minute}</KitText>
+                  <KitText t={c.big ? 'title' : 'body'} color={c.big ? roles.text : roles.textMuted} style={{ flex: 1 }}>{c.text}</KitText>
+                </View>
+              ))}
+        </View>
+
+        <View style={styles.section}>
+          <SectionTag roles={roles}>Timeline</SectionTag>
           {shownEvents.length === 0
-            ? <Text style={styles.muted}>Nothing yet — they're feeling each other out.</Text>
+            ? <KitText t="body" color={roles.textMuted}>No events yet.</KitText>
             : (
               // The SAME timeline the stats screen draws, so the live match and
               // the sheet you open afterwards tell the story the same way.
-              // `revealUpTo` keeps the period breaks from appearing early —
-              // a "Full-time · +4'" line in the 20th minute both looks wrong
-              // and gives away the stoppage time.
+              // `revealUpTo` keeps the period breaks from appearing early.
               <Timeline
                 events={shownEvents} addedTime={detail.addedTime}
                 duration={shownDuration} revealUpTo={minute}
@@ -324,7 +376,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
         {([true, false] as const).map(isHome => (
           <SideLineup
             key={String(isHome)}
-            name={isHome ? request.detail.homeName : request.detail.awayName}
+            name={isHome ? home : away}
             shape={isHome ? detail.homeShape : detail.awayShape}
             isHome={isHome} players={livePlayers} sheet={detail.players} accent={accent}
           />
@@ -332,23 +384,22 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
       </ScrollView>
 
       {/* §7 R4 — both controls are pure UI: everything already happened. */}
-      <View style={styles.footer}>
-        <Pressable
-          style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.7 }]}
-          onPress={() => setPaused(p => !p)}
-          disabled={minute >= timeline.duration}
-        >
-          <Ionicons name={paused ? 'play' : 'pause'} size={15} color={colors.textPrimary} />
-          <Text style={styles.ghostBtnText}>{paused ? 'Resume' : 'Pause'}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, { flex: 1, backgroundColor: accent }, pressed && { opacity: 0.85 }]}
-          onPress={() => setMinute(timeline.duration)}
-        >
-          <Ionicons name="play-skip-forward" size={15} color={colors.textPrimary} />
-          <Text style={styles.primaryBtnText}>SKIP TO THE WHISTLE</Text>
-        </Pressable>
-      </View>
+      <ThumbBar>
+        <View style={styles.controls}>
+          <Plate label={paused ? 'Resume' : 'Pause'} icon={paused ? 'play' : 'pause'} variant="secondary" roles={roles}
+            onPress={() => setPaused(p => !p)} disabled={minute >= timeline.duration} style={{ flex: 1 }} />
+          <Plate label="Skip to the whistle" icon="skip" roles={roles} onPress={() => setMinute(timeline.duration)} style={{ flex: 1 }} />
+        </View>
+      </ThumbBar>
+
+      {silence && (
+        <Animated.View entering={reduced ? undefined : FadeIn.duration(120)} style={[StyleSheet.absoluteFill, styles.silence]}
+          accessibilityLiveRegion="assertive" accessibilityLabel={`Full time. ${home} ${frame?.homeGoals ?? 0}, ${away} ${frame?.awayGoals ?? 0}`}>
+          <KitText t="tag" color={roles.textMuted}>Full time</KitText>
+          <KitText t="superXl" color={roles.text}>{`${frame?.homeGoals ?? 0}–${frame?.awayGoals ?? 0}`}</KitText>
+          <KitText t="bodyL" color={roles.textMuted} style={styles.centreText}>{`${home} v ${away}`}</KitText>
+        </Animated.View>
+      )}
     </View>
   )
 }
@@ -388,8 +439,8 @@ function SideLineup({ name, shape, isHome, players, sheet, accent, showRatings =
     .sort((a, b) => (a.subOnMinute ?? 999) - (b.subOnMinute ?? 999))
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{withFlag(name)}</Text>
+    <View style={styles.section}>
+      <SectionTag roles={roles}>{name}</SectionTag>
       {shape ? (
         <MatchLineupPitch shape={shape} players={side} accent={accent} showRatings={showRatings} />
       ) : (
@@ -398,15 +449,15 @@ function SideLineup({ name, shape, isHome, players, sheet, accent, showRatings =
         <View style={{ gap: 2 }}>
           {starters.map(p => (
             <View key={p.playerId} style={styles.nameRow}>
-              <Text style={styles.namePos}>{p.position}</Text>
-              <Text style={styles.nameText} numberOfLines={1}>{p.name}</Text>
+              <KitText t="tag" color={roles.textMuted} style={styles.namePos}>{p.position}</KitText>
+              <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{p.name}</KitText>
             </View>
           ))}
         </View>
       )}
       {bench.length > 0 && (
         <>
-          <Text style={styles.benchLabel}>Bench</Text>
+          <KitText t="tag" color={roles.textMuted}>Bench</KitText>
           <MatchBench
             players={bench} accent={accent} showRatings={showRatings}
             // "unused" is a full-time verdict; before kickoff and mid-match he's
@@ -422,82 +473,38 @@ function SideLineup({ name, shape, isHome, players, sheet, accent, showRatings =
 function RatingPill({ value }: { value: number }) {
   return (
     <View style={[styles.ratingPill, { backgroundColor: ratingColor(value) }]}>
-      <Text style={styles.ratingPillText}>{value.toFixed(1)}</Text>
+      <KitText t="figure" color={prim.ink}>{value.toFixed(1)}</KitText>
     </View>
   )
 }
 
-// National sides are far easier to tell apart by flag than by name.
-function withFlag(name: string) {
-  const f = flagForCountry(name)
-  return f ? `${f} ${name}` : name
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  centred: { alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  scrollBody: { padding: spacing.md, paddingBottom: spacing.xl * 2, gap: spacing.md },
+  container: { flex: 1, backgroundColor: roles.bg },
+  centred: { alignItems: 'center', justifyContent: 'center', gap: space[4], padding: space[4] },
+  centreText: { textAlign: 'center' },
+  scrollBody: { padding: space[4], paddingBottom: space[7], gap: space[5] },
 
-  kicker: { fontSize: typography.xs, fontWeight: typography.black, textTransform: 'uppercase', letterSpacing: 1.5, textAlign: 'center', },
-  bigTitle: { fontSize: typography.xxl, fontWeight: typography.black, color: colors.textPrimary, textAlign: 'center' },
-  tagline: { fontSize: typography.sm, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
-  finalistRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.md },
-  finalist: { flex: 1, fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary },
-  vs: { fontSize: typography.sm, fontWeight: typography.black, textTransform: 'uppercase' },
+  sheetHead: { alignItems: 'center', gap: space[2], paddingTop: space[7] },
+  finalistRow: { flexDirection: 'row', alignItems: 'center', gap: space[3] },
+  finalist: { flex: 1, gap: space[1] },
 
-  board: {
-    backgroundColor: colors.bgCard, paddingTop: 52, paddingBottom: spacing.md,
-    paddingHorizontal: spacing.lg, gap: 4, borderBottomWidth: 2,
-  },
-  boardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  boardTeam: { flex: 1, fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
-  boardScoreCol: { alignItems: 'center', minWidth: 90 },
-  boardScore: { fontSize: 34, fontWeight: typography.black },
-  boardClock: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textSecondary },
-  boardScorers: { flexDirection: 'row', gap: spacing.md, marginTop: 2 },
-  benchLabel: {
-    fontSize: 9, color: colors.textMuted, fontWeight: typography.bold,
-    textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xs,
-  },
-  boardStatus: { fontSize: 9, color: colors.textMuted, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: typography.bold },
+  board: { paddingTop: space[7], paddingBottom: space[3], paddingHorizontal: space[4], gap: space[2], borderBottomWidth: border.plate, backgroundColor: roles.bg },
+  boardTop: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  boardRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  boardTeam: { flex: 1 },
+  boardScore: { minWidth: 120, textAlign: 'center' },
+  boardScorers: { flexDirection: 'row', gap: space[3] },
+  commentary: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2], minHeight: 36 },
 
-  card: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  cardTitle: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, textTransform: 'uppercase', letterSpacing: 1 },
+  section: { gap: space[2] },
+  feedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2], paddingVertical: space[1], borderBottomWidth: border.hair },
+  feedMin: { width: 44, paddingTop: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 2 },
+  namePos: { width: 36 },
 
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
-  namePos: { width: 30, fontSize: 9, fontWeight: typography.black, color: colors.textMuted },
-  nameText: { flex: 1, fontSize: typography.xs, color: colors.textSecondary },
-  offMark: { fontSize: 9, color: colors.danger, fontWeight: typography.bold },
+  teamRatingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[3], marginTop: space[2] },
+  ratingPill: { minWidth: 40, paddingHorizontal: 6, paddingVertical: 3, alignItems: 'center' },
 
-  teamRatingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md, marginTop: spacing.sm },
-  teamRatingLabel: { fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, letterSpacing: 1 },
-  ratingPill: { minWidth: 34, paddingHorizontal: 6, paddingVertical: 3, borderRadius: radius.sm, alignItems: 'center' },
-  ratingPillText: { fontSize: typography.xs, fontWeight: typography.black, color: '#0B1220' },
-
-  eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
-  eventMin: { width: 34, fontSize: 10, fontWeight: typography.black, color: colors.textMuted },
-  eventText: { flex: 1, fontSize: typography.xs, color: colors.textPrimary },
-  eventTextAway: { textAlign: 'right' },
-  eventDetail: { fontSize: 10, color: colors.textMuted, fontWeight: typography.regular },
-
-  footer: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl,
-    borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg,
-  },
-  primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-  },
-  primaryBtnText: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1 },
-  ghostBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.bgElevated, paddingVertical: spacing.md, paddingHorizontal: spacing.md,
-  },
-  ghostBtnText: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
-
-  muted: { fontSize: typography.sm, color: colors.textMuted, fontStyle: 'italic' },
-  textBtn: { padding: spacing.md },
-  textBtnLabel: { fontSize: typography.md, fontWeight: typography.bold },
+  controls: { flexDirection: 'row', gap: space[2] },
+  silence: { backgroundColor: prim.black, alignItems: 'center', justifyContent: 'center', gap: space[3], padding: space[4] },
 })

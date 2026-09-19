@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { colors, spacing, typography, MODE_THEMES } from '@/theme'
+import { colors, spacing, typography, MODE_THEMES, prim, font } from '@/theme'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
 import { KnockoutTieRow, qualTieToKoRow } from '@/components/KnockoutRoundsView'
 import type { QualTie } from '@/engine/cl-qualifying'
@@ -63,7 +63,7 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
                         accent={CL.accent}
                         tie={qualTieToKoRow(t, onTiePress ? () => onTiePress(t) : undefined, decided ? {
                           outcomeLine: winnerIsPlayer ? 'YOU ADVANCE' : "YOU'RE ELIMINATED",
-                          outcomeColor: winnerIsPlayer ? colors.success : colors.danger,
+                          outcomeColor: winnerIsPlayer ? prim.volt : colors.danger,
                         } : undefined)}
                       />
                     )
@@ -80,8 +80,8 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
 
 const styles = StyleSheet.create({
   qualRoundBlock: { gap: spacing.xs },
-  qualRoundLabel: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary },
-  qualRoundDetail: { fontSize: 9, color: colors.textMuted, lineHeight: 13 },
+  qualRoundLabel: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton },
+  qualRoundDetail: { fontSize: 9, color: prim.cottonMuted, lineHeight: 13 },
   qualPathBlock: { gap: 3, paddingLeft: spacing.xs, marginTop: 2 },
-  qualPathLabel: { fontSize: 9, fontWeight: typography.bold, color: CL.accent, textTransform: 'uppercase', letterSpacing: 1 },
+  qualPathLabel: { fontSize: 9, fontFamily: font.bodyBold, color: CL.accent, textTransform: 'uppercase', letterSpacing: 1 },
 })

@@ -5,40 +5,47 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "scheme": "pom",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#141416",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.yolotime4564.perfectionormisery"
+      "package": "com.yolotime4564.perfectionormisery",
+      "backgroundColor": "#141416"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "static",
+      "name": "Perfection or Misery",
+      "shortName": "PoM",
+      "themeColor": "#141416",
+      "backgroundColor": "#141416",
+      "description": "Draft an XI from random real club-seasons, get dropped into a league or cup, and find out: Perfection or Misery."
     },
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#141416"
+        }
+      ]
     ],
     "androidNavigationBar": {
       "visible": "immersive"
-    },
-    "expo": {
-      "assets": [
-        "assets/db/players_v4.db"
-      ],
-      "backgroundColor": "#0A0E1A",
-      "android": {
-        "backgroundColor": "#0A0E1A"
-      }
     },
     "extra": {
       "router": {},
@@ -46,6 +53,7 @@
         "projectId": "eebf5b96-e62d-478e-89d9-955e71192983"
       }
     },
-    "owner": "yolotime4564"
+    "owner": "yolotime4564",
+    "backgroundColor": "#141416"
   }
 }

@@ -102,6 +102,7 @@ export type RunHistoryEntry = DifficultyFields & {
   tier: string
   mode: string
   league_name: string
+  year_start: number | null
   final_position: number
   created_at: string
   wins: number
@@ -109,7 +110,7 @@ export type RunHistoryEntry = DifficultyFields & {
   losses: number
 }
 
-const RUN_HISTORY_COLS = 'id, score, tier, mode, league_name, final_position, created_at, wins, draws, losses'
+const RUN_HISTORY_COLS = 'id, score, tier, mode, league_name, year_start, final_position, created_at, wins, draws, losses'
 const RUN_HISTORY_COLS_WITH_DIFFICULTY = `${RUN_HISTORY_COLS}, difficulty, difficulty_meta`
 
 export async function fetchRunHistory(userId: string, limit = 20): Promise<RunHistoryEntry[]> {
@@ -199,44 +200,6 @@ export function isRunWon(run: { mode: string; tier: string | null; final_positio
   return run.final_position === 1
 }
 
-export function calculateScore(params: {
-  mode: string
-  finalPosition: number
-  teamsInLeague: number
-  teamOvr: number
-  losses: number
-  draws: number
-  difficultyMultiplier?: number   // from engine/difficulty scoreMultiplierFor (1 = neutral)
-}): number {
-  const { mode, finalPosition, teamsInLeague, teamOvr, losses, draws } = params
-
-  const positionScore = ((teamsInLeague - finalPosition + 1) / teamsInLeague) * 1000
-  const ovrPenalty    = Math.max(0, teamOvr - 80) * 10
-
-  // Chaos/Cursed used to carry a flat 1.5×/1.3× bonus here to reward their
-  // inherent unfairness — back when they had no real difficulty concept at all.
-  // Now that they resolve to a FIXED screw-level (Chaos = Brutal/7, Cursed =
-  // Masochist/9 — see engine/difficulty.ts) that flows into difficultyMultiplier
-  // below, keeping the flat bonus on top would double-count the same "this mode
-  // is nastier" reasoning. Dropped to 1.0 so the real, calculated hardness
-  // multiplier does that job — and it does it more honestly: the old constants
-  // actually scored Cursed LOWER than Chaos (1.3 vs 1.5) despite Cursed being the
-  // harder mode; the hardness-derived multiplier gets that ordering right.
-  const modeMultiplier: Record<string, number> = {
-    league:   1.0,
-    all_time: 1.2,
-    chaos:    1.0,
-    cursed:   1.0,
-  }
-
-  const tierBonus = losses === 0 && draws === 0 ? 750
-                  : losses === 0               ? 400 : 0
-
-  // Difficulty (rerolls / hidden ratings / screw-level) scales the whole score —
-  // an easy run with a fistful of rerolls is worth a fraction of a hard blind one.
-  return Math.round(
-    (positionScore - ovrPenalty + tierBonus)
-    * (modeMultiplier[mode] ?? 1.0)
-    * (params.difficultyMultiplier ?? 1.0)
-  )
-}
+// The league formula moved to supabase/functions/_shared/score.ts in Phase 6,
+// so the server scores runs with exactly the code the app shows.
+export { leagueScore as calculateScore } from '../../../supabase/functions/_shared/score'

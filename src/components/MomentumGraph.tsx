@@ -18,7 +18,7 @@
 import React, { useId, useMemo, useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import Svg, { Path, Rect, Circle, Line, G, Defs, ClipPath } from 'react-native-svg'
-import { colors, spacing, typography, radius } from '@/theme'
+import { colors, spacing, typography, radius, prim, font } from '@/theme'
 import type { MatchEvent } from '@/types/match-stats'
 
 export type MomentumMarker = {
@@ -62,7 +62,7 @@ function smoothPath(pts: { x: number; y: number }[]): string {
 }
 
 export function MomentumGraph({
-  series, duration, markers = [], accentHome, accentAway = colors.danger,
+  series, duration, markers = [], accentHome, accentAway = prim.orange,
   homeName, awayName, revealUpTo, title = 'Momentum',
 }: {
   series: number[]                 // signed −100…100, one per minute
@@ -140,7 +140,7 @@ export function MomentumGraph({
           {breaks.map(b => (
             <Line
               key={b} x1={xOf(b)} y1={MARKER_H * 0.2} x2={xOf(b)} y2={H - MARKER_H * 0.2}
-              stroke={colors.textMuted} strokeWidth={1} strokeDasharray="2 5" opacity={0.55}
+              stroke={prim.cottonMuted} strokeWidth={1} strokeDasharray="2 5" opacity={0.55}
             />
           ))}
 
@@ -152,7 +152,7 @@ export function MomentumGraph({
           ) : null}
 
           {/* Centreline sits ON TOP of the fill so the split stays crisp. */}
-          <Line x1={0} y1={mid} x2={VIEW_W} y2={mid} stroke={colors.textPrimary} strokeWidth={0.8} opacity={0.75} />
+          <Line x1={0} y1={mid} x2={VIEW_W} y2={mid} stroke={prim.cotton} strokeWidth={0.8} opacity={0.75} />
 
           {/* Markers — in their own rows, never floating in the fill. */}
           <G>
@@ -168,9 +168,9 @@ export function MomentumGraph({
               // is unmistakable next to a normal goal (§9).
               return (
                 <G key={i}>
-                  <Circle cx={cx} cy={cy} r={4.4} fill={colors.textPrimary} />
+                  <Circle cx={cx} cy={cy} r={4.4} fill={prim.cotton} />
                   {m.kind === 'ownGoal' && <Circle cx={cx} cy={cy} r={5.8} stroke={colors.danger} strokeWidth={1.6} fill="none" />}
-                  <Circle cx={cx} cy={cy} r={1.5} fill={colors.bg} />
+                  <Circle cx={cx} cy={cy} r={1.5} fill={prim.nylon} />
                 </G>
               )
             })}
@@ -212,16 +212,16 @@ export function MomentumGraph({
 }
 
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: colors.bgElevated, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
-  title: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, textAlign: 'center' },
+  wrap: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.md, gap: spacing.xs },
+  title: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton, textAlign: 'center' },
   plot: { width: '100%' },
   axis: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  axisLabel: { fontSize: 10, fontWeight: typography.black, color: colors.textSecondary },
+  axisLabel: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted },
   axisTicks: { flex: 1, flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center' },
-  axisTick: { width: 2, height: 2, borderRadius: 1, backgroundColor: colors.textMuted, opacity: 0.6 },
+  axisTick: { width: 2, height: 2, borderRadius: 1, backgroundColor: prim.cottonMuted, opacity: 0.6 },
   legend: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginTop: 2 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
   legendSwatch: { width: 8, height: 8, borderRadius: 2 },
-  legendText: { fontSize: 9, color: colors.textSecondary, flexShrink: 1 },
-  legendHint: { color: colors.textMuted },
+  legendText: { fontSize: 9, color: prim.cottonMuted, flexShrink: 1 },
+  legendHint: { color: prim.cottonMuted },
 })

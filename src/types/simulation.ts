@@ -70,6 +70,8 @@ export type SeasonResult = {
   // availability ledger during the sim; it cannot be recomputed afterwards
   // because availability is sequential, so it travels with the result.
   absences?: import('@/engine/availability').Absence[]
+  // The run's press (engine/press.ts), written once as each matchday landed.
+  press?: import('@/engine/press').Story[]
 }
 
 export type Tier =

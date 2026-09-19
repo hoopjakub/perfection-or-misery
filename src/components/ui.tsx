@@ -5,6 +5,7 @@ import { router } from 'expo-router'
 import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
 import { screwLevelInfo } from '@/engine/difficulty'
 import type { DifficultyFields } from '@/db/queries/leaderboard'
+import type { RunSaveStatus } from '@/hooks/useRunSave'
 
 // ── PressCard ────────────────────────────────────────────────────────────────
 // The one interaction primitive every tappable card/row should use: gentle
@@ -62,70 +63,6 @@ const backStyles = StyleSheet.create({
 })
 const defaultPressed: ViewStyle = { opacity: 0.85, transform: [{ scale: 0.985 }] }
 
-// ── StepSlider ───────────────────────────────────────────────────────────────
-// A discrete slider over integer steps [min..max]. Looks like a slider (filled
-// track + thumb) but the interaction is a row of transparent tap segments plus
-// −/+ steppers — deliberately Pressable-based rather than a PanResponder drag,
-// because Pressable onPress fires reliably on BOTH web and native (a PanResponder
-// gesture doesn't reliably plumb through react-native-web's responder system).
-// Tap anywhere on the bar to jump straight to that value; nudge with the buttons.
-export function StepSlider({
-  min, max, value, onChange, accent = colors.accent, disabled,
-}: {
-  min: number; max: number; value: number
-  onChange: (v: number) => void
-  accent?: string
-  disabled?: boolean
-}) {
-  const steps = []
-  for (let v = min; v <= max; v++) steps.push(v)
-  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0
-  const set = (v: number) => { if (!disabled) onChange(Math.max(min, Math.min(max, v))) }
-
-  return (
-    <View style={[sliderStyles.row, disabled && { opacity: 0.4 }]}>
-      <Pressable style={sliderStyles.stepBtn} onPress={() => set(value - 1)} hitSlop={6} disabled={disabled}>
-        <Ionicons name="remove" size={16} color={colors.textPrimary} />
-      </Pressable>
-
-      <View style={sliderStyles.trackWrap}>
-        {/* visual bar + fill + thumb (never intercepts touches) */}
-        <View style={sliderStyles.bar} pointerEvents="none">
-          <View style={[sliderStyles.fill, { width: `${pct}%`, backgroundColor: accent }]} />
-        </View>
-        <View style={[sliderStyles.thumb, { left: `${pct}%`, borderColor: accent }]} pointerEvents="none" />
-        {/* tap layer — one segment per value, fills the track evenly */}
-        <View style={sliderStyles.tapLayer}>
-          {steps.map(v => (
-            <Pressable key={v} style={sliderStyles.tapSeg} onPress={() => set(v)} disabled={disabled} />
-          ))}
-        </View>
-      </View>
-
-      <Pressable style={sliderStyles.stepBtn} onPress={() => set(value + 1)} hitSlop={6} disabled={disabled}>
-        <Ionicons name="add" size={16} color={colors.textPrimary} />
-      </Pressable>
-    </View>
-  )
-}
-
-const sliderStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  stepBtn: {
-    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border,
-  },
-  trackWrap: { flex: 1, height: 30, justifyContent: 'center' },
-  bar:     { height: 5, borderRadius: 3, backgroundColor: colors.bgElevated, overflow: 'hidden' },
-  fill:    { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 3 },
-  thumb: {
-    position: 'absolute', width: 18, height: 18, borderRadius: 9, marginLeft: -9,
-    backgroundColor: colors.textPrimary, borderWidth: 3,
-  },
-  tapLayer: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
-  tapSeg: { flex: 1 },
-})
-
 // ── DifficultyBadge ──────────────────────────────────────────────────────────
 // Every screen that lists a saved run (My Runs, Leaderboard, Achievements) needs
 // to show "how hard was this run" — but that means something different per
@@ -164,7 +101,7 @@ export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compa
         <View style={[diffStyles.pill, { backgroundColor: colors.gold + '22', borderColor: colors.gold }]}>
           <Ionicons name="construct" size={11} color={colors.gold} />
           <Text style={[diffStyles.pillText, { color: colors.gold }]}>
-            {info ? info.name : 'Custom'}{meta ? ` · ${meta.hardness.toFixed(1)}/10` : ''}
+            {info ? info.name : 'Custom'}{meta ? ` · ${meta.hardness.toFixed(1)}/11` : ''}
           </Text>
         </View>
         {/* the actual knobs — what made it that hard — only worth the extra
@@ -198,6 +135,73 @@ export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compa
     </View>
   )
 }
+
+// ── LoadFailed ───────────────────────────────────────────────────────────────
+// A list whose fetch failed used to fall through to its empty state ("No runs
+// yet"), which told the player something false. This is the honest version.
+export function LoadFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <View style={loadStyles.wrap}>
+      <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} />
+      <Text style={loadStyles.text}>Couldn't load this.</Text>
+      <PressCard style={loadStyles.retry} onPress={onRetry} accessibilityRole="button">
+        <Text style={loadStyles.retryText}>Retry</Text>
+      </PressCard>
+    </View>
+  )
+}
+
+const loadStyles = StyleSheet.create({
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  text: { fontSize: typography.md, color: colors.textSecondary },
+  retry: {
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard,
+  },
+  retryText: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
+})
+
+// ── SaveStatusLine ───────────────────────────────────────────────────────────
+// The one visible trace of useRunSave on every result screen. Saving used to be
+// invisible, so a failed save looked exactly like a saved one — and guests were
+// never told their run wouldn't be kept. Renders nothing for history views and
+// tester runs, where there's nothing to say.
+const SAVE_LINE: Record<Exclude<RunSaveStatus, 'off'>, { icon: keyof typeof Ionicons.glyphMap; text: string; color: string }> = {
+  guest:   { icon: 'person-outline',        text: "Playing as a guest — this run won't be kept. Create an account to save your runs.", color: colors.textSecondary },
+  waiting: { icon: 'time-outline',          text: 'Preparing to save…',               color: colors.textSecondary },
+  saving:  { icon: 'cloud-upload-outline',  text: 'Saving your run…',                 color: colors.textSecondary },
+  saved:   { icon: 'checkmark-circle',      text: 'Saved to your runs',               color: colors.success },
+  failed:  { icon: 'alert-circle',          text: "Couldn't save this run.",          color: colors.warning },
+}
+
+export function SaveStatusLine({ status, onRetry }: { status: RunSaveStatus; onRetry: () => void }) {
+  if (status === 'off') return null
+  const line = SAVE_LINE[status]
+  return (
+    <View style={saveStyles.row} accessibilityLiveRegion="polite">
+      <Ionicons name={line.icon} size={15} color={line.color} />
+      <Text style={[saveStyles.text, { color: line.color }]}>{line.text}</Text>
+      {status === 'failed' && (
+        <PressCard style={saveStyles.retry} onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry saving this run">
+          <Text style={saveStyles.retryText}>Retry</Text>
+        </PressCard>
+      )}
+    </View>
+  )
+}
+
+const saveStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
+    gap: spacing.xs, marginBottom: spacing.sm, paddingHorizontal: spacing.sm,
+  },
+  text: { fontSize: typography.xs, fontWeight: typography.medium, textAlign: 'center', flexShrink: 1 },
+  retry: {
+    paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.full,
+    borderWidth: 1, borderColor: colors.warning,
+  },
+  retryText: { fontSize: typography.xs, fontWeight: typography.bold, color: colors.warning },
+})
 
 const diffStyles = StyleSheet.create({
   pill: {

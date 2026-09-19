@@ -24,6 +24,7 @@ type GameStore = {
   weightedPicksOverride: boolean | null
   selectedLeague: string | null
   formation:      Formation | null
+  lastFormation:  Formation | null   // survives resetRun, so "Your shape" can offer it again
   draftedPlayers: DraftedPlayer[]
   useSubstitutes: boolean          // if off, NOBODY (you or the AI) uses a bench this run
   benchPlayers:   DraftedPlayer[]  // your subs, drafted separately from the starting XI
@@ -42,6 +43,15 @@ type GameStore = {
   customUclLeagues: SimLeagueTable[] | null   // custom UCL: simulated domestic tables (for the league viewer)
   customUclPlayerClubId: string | null        // custom UCL: which real club you took over
   quickSim:       boolean   // headless tester run — must never be saved to the DB
+  // The pundits' preview (src/engine/predictions.ts) is pure and seeded, so the
+  // seed alone brings it back; the verdict (Phase 4) checks the run against it.
+  predictionSeed: number | null
+  // The pundits' three names (Player of the Season, top scorer, best under-21),
+  // read back on Awards Night. Live runs only; not saved with the run.
+  punditPicks:    import('@/engine/predictions').PunditPicks | null
+  // Phase 5 — the run's stats, computed once (on Awards Night or the first
+  // page that needs them) and read by every run page after. Cleared with the run.
+  runData:        import('@/lib/runData').RunData | null
   // Big Fixes §12 "Test final game" dev tool — while true, every WC match the
   // player's team plays (group stage or knockout) is forced to a clean 1-0
   // win EXCEPT the final, which always simulates for real. Read by
@@ -88,6 +98,7 @@ const initialState = {
   weightedPicksOverride: null,
   selectedLeague:  null,
   formation:       null,
+  lastFormation:   null,
   draftedPlayers:  [],
   useSubstitutes:  true,
   benchPlayers:    [],
@@ -106,6 +117,9 @@ const initialState = {
   customUclLeagues: null,
   customUclPlayerClubId: null,
   quickSim:        false,
+  predictionSeed:  null,
+  punditPicks:     null,
+  runData:         null,
   testForceWinUntilFinal: false,
 }
 
@@ -115,6 +129,7 @@ export const useGameStore = create<GameStore>((set) => ({
     ...initialState,
     mode,
     formation,
+    lastFormation: formation,
     difficulty: s.difficulty, // Preserve difficulty when starting a new run
     customDifficulty: s.customDifficulty, // Preserve the custom-difficulty knobs too
     weightedPicksOverride: s.weightedPicksOverride, // Preserve the weighted-picks override too
@@ -165,6 +180,9 @@ export const useGameStore = create<GameStore>((set) => ({
     customUclLeagues: null,
     customUclPlayerClubId: null,
     quickSim:        false,
+    predictionSeed:  null,
+  punditPicks:     null,
+  runData:         null,
     testForceWinUntilFinal: false,
     // Keep mode, difficulty, selectedLeague, and accentColor
   })),

@@ -1,0 +1,80 @@
+﻿===== C:\Users\9tjsh\Downloads\Vzorové zadanie PČOZ MS_PDT_2026 2027.docx
+PRAKTICKÁ ČASŤ ODBORNEJ ZLOŽKY MATURITNEJ SKÚŠKY
+Študijný odbor: 2573 M programovanie digitálnych technológií
+<table>
+Žiak: |  | Trieda: |  | Školský rok: | 2026/2027
+Forma: | obhajoba vlastného projektu | Konzultant: | 
+Termín zadania projektu: | 15. október  2026 | Termín odovzdania projektu: | 22. marec 2027
+Dĺžka trvania obhajoby: | 20 minút | 
+</table>
+Téma č. : 
+Zadanie:
+Pokyny:
+Postupujte podľa zadania.
+Využite digitálnu techniku.
+Dokumentáciu napíšte na počítači pri splnení jazykových a administratívnych požiadaviek na písanie záverečných prác v minimálnom rozsahu 20 strán bez príloh v predpísanej šablóne.
+Spolupracujte s Vaším konzultantom, využite konzultácie v termínoch dohodnutých so svojím konzultantom a riaďte sa jeho radami.
+Pripravte si prezentáciu v elektronickej forme podľa pravidiel tvorby prezentácie.
+Spolu s dokumentáciou zviazanou vhodným spôsobom odovzdajte CD s textom práce a ďalšími príslušnými súbormi.
+Termín odovzdania maturitného projektu konzultantovi - do 22. marca 2027 do 13.00 h, pričom žiak odovzdá:
+[Normal (Web)] zviazanú písomnú časť projektu, ktorej súčasťou je zadanie. 
+[Normal (Web)] produkt (výrobok, DVD, USB a pod.).
+
+
+
+
+Nedodržanie pokynov pri odovzdaní vlastného projektu sa považuje za neúspešné absolvovanie PČOZ MS.
+Pomôcky: digitálna technika, STN 01 6910 Pravidlá písania a úpravy písomností.
+Bratislava 15. 10. 2026
+	Mgr. et Mgr. Jozef Lukianov
+	riaditeľ
+<table>
+ | 
+</table>
+[caption] kritériá hodnotenia
+[caption] praktickej časti odbornej zložky maturitnej skúšky
+formou obhajoby vlastného projektu
+<table>
+Študijný odbor: | 2573 M programovanie digitálnych technológií
+Školský rok: | 2026/2027
+</table>
+<table>
+1. | Grafická úroveň projektu, využitie odbornej literatúry a zdrojov | počet bodov
+a) | formálna úroveň dokumentácie | 0  -  5 | 
+b) | kvalita spracovania tabuliek, obrázkov, grafov a schém | 0  -  5 | 
+c) | prehľadnosť a logické členenie textu | 0 - 10 | 
+d) | správnosť citácií a zoznamu použitej literatúry | 0  -  5 | 
+Počet bodov spolu | 0 - 25 | 
+</table>
+<table>
+2. | Odborná úroveň projektu | počet bodov
+a) | splnenie cieľov a zadania projektu | 0 - 10 | 
+b) | samostatnosť pri riešení problému | 0 - 10 | 
+c) | praktická využiteľnosť výsledkov | 0 - 10 | 
+d) | kreativita a prínos navrhnutého riešenia | 0 - 10 | 
+Počet bodov spolu | 0 - 40 | 
+</table>
+<table>
+3. | vlastná obhajoba autora – úroveň prezentácie, používanie odbornej terminológie | počet bodov
+a) | vecnosť a zrozumiteľnosť prezentácie | 0 - 10 | 
+b) | schopnosť reagovať na otázky komisie | 0 - 10 | 
+c) | kultúra prejavu a vystupovania | 0  -  5 | 
+d) | schopnosť vysvetliť odborné pojmy a súvislosti | 0 - 10 | 
+Počet bodov spolu | 0 - 35 | 
+</table>
+<table>
+Počet bodov: | Celkové hodnotenie |  | Získaný počet bodov | Výsledná známka
+90 až 100 | výborný |  |  | 
+73 až 89 | chválitebný |  |  | 
+56 až 72 | dobrý |  |  | 
+45 až 55 | dostatočný |  |  | 
+0 až 44 | nedostatočný |  |  | 
+</table>
+Hodnotenie projektu vykoná maturitná komisia počas praktickej časti OZ MS podľa kritérií z hodnotiaceho listu. Výkonové kritériá pre hodnotenie projektov sú v súlade s charakteristikou foriem výkonu praktickej časti odbornej zložky maturitnej skúšky v zmysle platnej legislatívy.
+Bratislava 15. októbra 2026
+<table>
+. . . . . . . . . . . . . . . . . . . . . . . . . | . . . . . . . . . . . . . . . . . . . . . . . . . | . . . . . . . . . . . . . . . . . . . . . . . . .
+Ing. Mária Poláková |  | Mgr. et Mgr. Jozef Lukianov
+vedúci PK odboru PDT | žiak | riaditeľ
+</table>
+

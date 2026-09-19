@@ -18,14 +18,16 @@
 - `react-native-svg`, `react-native-mmkv` (+ `react-native-nitro-modules`), `react-native-reanimated` 4 (+ `react-native-worklets`, mostly unused by app code).
 - **Run dev:** `npx expo start --dev-client --clear` then open the **development build** (NOT Expo Go — the app uses native modules Expo Go lacks). Connect via LAN IP or `--tunnel`.
 - **Typecheck:** `npx tsc --noEmit` (ignore `supabase/functions` + `scripts/` noise).
-- **Builds:** EAS (`eas build`). EAS builds **from git** — uncommitted work won't be in a build.
+- **Builds:** EAS (`eas build --profile development --platform android`). With `requireCommit` off (the default here) the CLI uploads the **working tree**, uncommitted changes included, minus `.gitignore`d files. `android/` is ignored, so EAS regenerates it from `app.json` every build.
 
 ## 3. Core layout
 
 ```
 app/                      expo-router screens
-  (tabs)/                 index(home, shows best tier/score), leaderboard, profile, runs, how-to-play, about
-  game/                   mode-select, formation-select, draft, placement, simulation, result, cl-result, wc-result, stats, career
+  (tabs)/                 the four destinations: index (Play), runs, leaderboard (Ranks), profile (You)
+  guide, about, confirm   ordinary routes (guide/about moved out of the tab bar; confirm = ConfirmScreen)
+  game/                   setup: mode-select → difficulty (+ difficulty-custom) → formation-select → draft → reveal (blind runs) → placement → pundits → simulation;
+                          then awards (Awards Night) → result, cl-result, wc-result, stats, career
 src/
   engine/                 pure sim/game logic (no RN)
     match.ts              simulateMatch (the core 1 match → score)
@@ -35,14 +37,23 @@ src/
     world-cup-sim.ts      World Cup (48-team groups → R32… + 3rd-place playoff)
     knockout-match.ts     KO ties, extra time, simulateShootout (penalties w/ early stop)
     rating.ts             effectiveOvr, positionPenalty (flat ±0/-2 fit), calcTeamOvr (no chemistry)
+    predictions.ts        the pundits' seeded, deliberately noisy predicted table (verify-predictions.ts)
+    press.ts              the run's press: stories from the table, frozen rows, cooldowns (verify-press.ts)
+    awards.ts             Awards Night: every award measured, teams picked in their best-fitting shape (verify-awards.ts)
+    commentary.ts         match commentary built from stored events (verify-commentary.ts)
+    match-geometry.ts     shot map, average positions, heat maps from the sheet's own counts (verify-match-geometry.ts)
+    cup-calls.ts          the pundits' round calls for a cup, checked against the bracket (verify-cup-calls.ts)
     draft.ts              isPlayerAvailable, spinClubSeason, reroll/ratings-hidden rules
     stats.ts              scorer/assist/clean-sheet ATTRIBUTION + awards (POTS/U21)
     run-stats.ts          aggregate a finished run → CompetitionStats + awards; loadLeaguePools
-    quick-sim.ts          headless tester (About → tap version 8×); quickSim flag suppresses saves
+    quick-sim.ts          headless tester (About → tap version 8×, dev/preview builds only); quickSim flag suppresses saves
   components/             TeamLabel, LineupPitch, SquadSummary, PenShootout, GlobeReveal, WCGroupModal
+  components/kit/         the Kit Drop component set (see DESIGN.md)
+  components/season/      LeagueSeason, SeasonParts (tables with zones, strip, ticker, ties), RunChrome, VerdictBlock
   db/queries/             runs.ts (save + score), leaderboard.ts (stats/best tier), career.ts, seasons.ts
   store/gameStore.ts      run state (mode, draftedPlayers, clTeams/clYear, wcTeams, results, quickSim…)
-  data/                   tiers.ts (unified tier rank/label registry), geo-iso.ts (id→ISO for globe)
+  data/                   tiers.ts (unified tier rank/label registry), geo-iso.ts (id→ISO for globe),
+                          qualification-bands.ts (zones per league-season; the tier ladder reads them — verify-zones.ts)
   lib/                    globe-geo.ts (hand-rolled orthographic projection), math.ts
   types/                  game.ts, simulation.ts, stats.ts
 scripts/                  build-db.ts + scrapers (run with tsx, NOT bundled into the app)
@@ -92,11 +103,16 @@ Transfermarkt scrapers → `scripts/seed/<comp>.json` → `npm run build-db` (be
 - **Dependencies:** `.npmrc` has `legacy-peer-deps=true` (needed for EAS `npm ci`). Because of that, peers aren't auto-installed, so **`react-native-nitro-modules` must stay an explicit dependency** (mmkv's peer) or the Android build fails. `react-native-reanimated@~4.1` requires **`react-native-worklets`**. `typescript` pinned `~5.9.2` (devDep only).
 - **`babel.config.js`** = `babel-preset-expo` only. The preset **auto-adds** the worklets plugin — do NOT add `react-native-worklets/plugin` again (double-apply → Hermes "invalid expression").
 - **`scripts/club_facts.json` must never be empty/invalid** — it's `import`ed into the app bundle (`src/lib/clubFacts.ts`); an empty file makes Hermes fail to compile the whole app.
-- **EAS builds from git** — commit before building. **Supabase** needs `runs.stats`/`runs.awards` jsonb columns and the `career_stats` table (RLS: own-row).
+- **EAS uploads the working tree** (see §2), so uncommitted changes ship too. **Supabase** needs `runs.stats`/`runs.awards` jsonb columns and the `career_stats` table (RLS: own-row).
 - **Scrapers are slow** (~minutes/league/season; full multi-league runs are 30–60+ min) and `fetch` has no timeout — a hung TM request can stall a run.
 
 ## 8. Pointers
 
+- `DESIGN.md` (project root) — **the Kit Drop design system as built**: tokens, type, components, and where the build differs from the plan. Read before any UI work.
+- `PRODUCT.md` (project root) — product truth: audience, platform (Android and web equal), scope, brand commitments, principles. Read before any UI work.
+- `docs/ui-overhaul/` — **the UI/UX overhaul plan (Sept 2026), direction locked: Kit Drop, "Winner Stays" cut.** Start at `00-README.md`. Critique, vibecode audit, The Dugout comparison, direction, style guide (becomes `DESIGN.md`), motion, screen-by-screen plans, components, copy deck, adapt/optimize/a11y, and a seven-phase roadmap.
+- `docs/maturita/` — **the maturita (PČOZ MS) project plan (Sept 2026).** The school's template and assignment sheet (in `zdroje/`), requirements and marking, a chapter-by-chapter thesis map, the game design / digital media / web / economics viewpoints, licensing and release issues, and the timeline to the 22 March 2027 handover. Start at `00-README.md`.
+- `docs/diagnostics/` — **the Diagnostics screen plan (Sept 2026, not built).** How The Dugout's version works and where it fails, budgets with exact call sites, the self-test and engine fingerprint, the screen in Kit Drop, the report format, and a five-step build order. Start at `00-README.md`.
 - `docs/Major Overhaul + Bug fixes.md` — the stats/awards/career/penalty/globe systems, as built.
 - `docs/More Competitions & Modes.md` — available leagues (TM codes), league-format quirks needing code (Belgium/Scotland/split-season), UCL/WC **format-era** handling (old groups vs Swiss; 32 vs 48), cup/EURO roadmap, the UCL-globe idea, and known caveats.
 - Persistent cross-session memory lives in the Claude memory dir (`MEMORY.md` index) — covers build/deps traps, DB versioning, mode theming, scorer attribution, globe, scrapers.

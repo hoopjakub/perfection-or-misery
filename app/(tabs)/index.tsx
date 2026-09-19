@@ -1,20 +1,38 @@
 import React, { useCallback, useState } from 'react'
-import { View, Text, StyleSheet, Pressable, StatusBar, ScrollView, ActivityIndicator } from 'react-native'
+import { PageMeta } from '@/components/PageMeta'
+import { View, ScrollView, StyleSheet } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
 import { useUserStore } from '@/store/userStore'
-import { fetchUserStats, fetchRunHistory, type UserStats } from '@/db/queries/leaderboard'
-import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
-import { formatTier } from '@/data/tiers'
+import { useGameStore } from '@/store/gameStore'
+import { fetchUserStats, fetchRunHistory, type UserStats, type RunHistoryEntry } from '@/db/queries/leaderboard'
+import { ROLES, space, colourwayFor } from '@/theme'
+import { formatTier, verdictOf, runMeta, MODE_TAG } from '@/data/tiers'
+import { runRoute } from '@/lib/nav'
+import { applyMode } from '@/data/modes'
+import type { Difficulty } from '@/engine/difficulty'
+import type { GameMode } from '@/types/game'
+import {
+  KitScreen, KitText, Wordmark, Plate, RunLabel, RunLabelSkeleton, SectionTag, Tag, InlineError,
+} from '@/components/kit'
 
-const TIER_COLORS: Record<string, string> = colors.tiers
+// Home (Play) — docs/ui-overhaul/07a A2. The poster, your last three
+// verdicts as garment labels, and one orange plate in the thumb zone.
+const roles = ROLES.cotton
+
+// Modes "AGAIN" can restart straight at the shape screen. A league run also
+// needs its league picked, and a custom difficulty's knobs aren't stored on
+// the run, so those two go through setup the normal way. ('era' is retired.)
+const AGAIN_MODES = new Set(['all_time', 'chaos', 'cursed', 'champions_league', 'champions_league_custom', 'world_cup'])
+const PRESETS = new Set(['easy', 'medium', 'hard'])
+
 
 export default function HomeScreen() {
-  const { profile, isGuest, user } = useUserStore()
+  const { isGuest, user, guestFinishedRun } = useUserStore()
   const [stats, setStats] = useState<UserStats | null>(null)
-  const [recentRuns, setRecentRuns] = useState<any[]>([])
+  const [recentRuns, setRecentRuns] = useState<RunHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // Refetch every time Home gains focus (tabs persist, so a plain mount effect
   // would go stale) — this is what makes a freshly-finished run show up.
@@ -31,354 +49,121 @@ export default function HomeScreen() {
           if (!active) return
           setStats(userStats)
           setRecentRuns(runs)
+          setFailed(false)
         } catch (error) {
-          console.error('Failed to load user data:', error)
+          console.warn('[home] load failed:', error)
+          if (active) setFailed(true)
         } finally {
           if (active) setLoading(false)
         }
       }
       loadData()
       return () => { active = false }
-    }, [user, isGuest])
+    }, [user, isGuest, reloadKey])
   )
 
-  function formatDate(dateString: string): string {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const last = recentRuns[0]
+  const canAgain = !!last && AGAIN_MODES.has(last.mode)
+    && (!last.difficulty || PRESETS.has(last.difficulty) || last.difficulty === last.mode)
+
+  function again() {
+    if (!last) return
+    // Same mode and difficulty as the last run, straight to the shape — the
+    // two choices it skips are exactly the ones being repeated.
+    const store = useGameStore.getState()
+    applyMode(store, last.mode as GameMode)
+    if (last.difficulty && PRESETS.has(last.difficulty)) {
+      store.setDifficulty(last.difficulty as Difficulty)
+      store.setUseSubstitutes(true)
+    }
+    router.push('/game/formation-select')
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+      <PageMeta path="/" />
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+        <Wordmark roles={roles} />
+        <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
+          Draft an XI from real seasons. Find out which one you get.
+        </KitText>
 
-      {/* header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>
-            {isGuest ? 'Playing as Guest' : `Hey, ${profile?.username}`}
-          </Text>
-          <Text style={styles.subtitle}>
-            {isGuest ? 'Create an account to save your runs' : 'Ready to suffer?'}
-          </Text>
-        </View>
-        {isGuest && (
-          <Pressable
-            style={styles.signInBtn}
-            onPress={() => router.push('/auth/register')}
-          >
-            <Text style={styles.signInBtnText}>Sign Up</Text>
-          </Pressable>
+        {!isGuest && stats?.bestTier ? (
+          <View style={styles.bestRow} accessible accessibilityLabel={`Best: ${formatTier(stats.bestTier)}, ${stats.bestScore ?? 0} points, ${stats.totalRuns} runs`}>
+            <Tag roles={roles} variant="selected">BEST</Tag>
+            <KitText t="tag" color={roles.text}>{formatTier(stats.bestTier).toUpperCase()}</KitText>
+            <KitText t="figure" color={roles.text}>{(stats.bestScore ?? 0).toLocaleString('en-US')}</KitText>
+            <KitText t="tag" color={roles.textMuted} style={styles.runsCount}>{stats.totalRuns} RUNS</KitText>
+          </View>
+        ) : null}
+
+        {!isGuest && (loading || failed || recentRuns.length > 0) && (
+          <>
+            <SectionTag roles={roles}>Last runs</SectionTag>
+            {failed && recentRuns.length === 0 ? (
+              <InlineError roles={roles} message="Couldn't load your runs." onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+            ) : loading && recentRuns.length === 0 ? (
+              <View style={styles.labels}>
+                <RunLabelSkeleton roles={roles} />
+                <RunLabelSkeleton roles={roles} />
+              </View>
+            ) : (
+              <View style={styles.labels}>
+                {recentRuns.map(run => (
+                  <RunLabel
+                    key={run.id}
+                    roles={roles}
+                    colourway={colourwayFor(run.mode)}
+                    title={formatTier(run.tier)}
+                    meta={runMeta(run)}
+                    score={run.score.toLocaleString('en-US')}
+                    verdict={verdictOf(run.tier)}
+                    onPress={() => router.push({ pathname: runRoute(run.mode), params: { runId: run.id } })}
+                  />
+                ))}
+              </View>
+            )}
+          </>
         )}
-      </View>
 
-      {/* hero */}
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>PERFECTION</Text>
-        <View style={styles.heroOrRow}>
-          <View style={styles.heroOrLine} />
-          <Text style={styles.heroOr}>or</Text>
-          <View style={styles.heroOrLine} />
-        </View>
-        <Text style={styles.heroMisery}>MISERY</Text>
-        <Text style={styles.heroTagline}>
-          Draft your XI. Face the consequences.
-        </Text>
-      </View>
+        {isGuest && guestFinishedRun && (
+          <View style={styles.guestLine}>
+            <KitText t="body" color={roles.textMuted}>Runs aren't kept as a guest.</KitText>
+            <Plate label="Keep my runs" variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
+          </View>
+        )}
 
-      {/* start button */}
+        <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
+      </ScrollView>
+
+      {/* The thumb zone: one orange plate, and the rematch beside it. */}
       <View style={styles.actions}>
-        <Pressable
-          style={({ pressed }) => [styles.startBtn, pressed && styles.startBtnPressed]}
+        <Plate
+          label="Start a run" icon="forward" roles={roles}
           onPress={() => router.push('/game/mode-select')}
-        >
-          <Text style={styles.startBtnText}>START RUN</Text>
-          <Ionicons name="arrow-forward" size={18} color={colors.textPrimary} />
-        </Pressable>
-
-        <Pressable onPress={() => router.push('/(tabs)/how-to-play')} style={styles.howToPlayLink}>
-          <Ionicons name="book-outline" size={12} color={colors.textSecondary} />
-          <Text style={styles.howToPlayLinkText}>New here? Read how to play</Text>
-        </Pressable>
-
-        {/* best run teaser */}
-        {loading ? (
-          <View style={styles.statsRow}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : (
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{stats?.bestScore ?? '—'}</Text>
-              <Text style={styles.statLabel}>Best Score</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{formatTier(stats?.bestTier)}</Text>
-              <Text style={styles.statLabel}>Best Tier</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{stats?.totalRuns ?? 0}</Text>
-              <Text style={styles.statLabel}>Total Runs</Text>
-            </View>
-          </View>
+          style={styles.start}
+        />
+        {canAgain && last && (
+          <Plate
+            label="Again" icon="again" variant="secondary" roles={roles} onPress={again}
+            accessibilityHint={`Start another ${MODE_TAG[last.mode] ?? last.mode} run`}
+          />
         )}
       </View>
-
-      {/* recent runs */}
-      <View style={styles.recentSection}>
-        <Text style={styles.sectionTitle}>Recent Runs</Text>
-        {loading ? (
-          <View style={styles.emptyState}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : recentRuns.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>😬</Text>
-            <Text style={styles.emptyText}>No runs yet. Start suffering.</Text>
-          </View>
-        ) : (
-          <ScrollView style={styles.recentScroll} showsVerticalScrollIndicator={false}>
-            {recentRuns.map((run) => {
-              const tierColor = TIER_COLORS[run.tier] ?? colors.accent
-              return (
-                <PressCard
-                  key={run.id}
-                  style={[styles.runCard, { borderLeftColor: tierColor, borderLeftWidth: 3 }]}
-                  onPress={() => router.push('/(tabs)/runs')}
-                >
-                  <View style={styles.runCardHeader}>
-                    <Text style={[styles.runTier, { color: tierColor }]}>{formatTier(run.tier)}</Text>
-                    <Text style={styles.runDate}>{formatDate(run.created_at)}</Text>
-                  </View>
-                  <Text style={styles.runLeague}>{run.league_name}</Text>
-                  <View style={styles.runStats}>
-                    <Text style={styles.runStat}>Score: <Text style={styles.runStatStrong}>{run.score}</Text></Text>
-                    <Text style={styles.runStat}>Finished <Text style={styles.runStatStrong}>#{run.final_position}</Text></Text>
-                    <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-                  </View>
-                </PressCard>
-              )
-            })}
-          </ScrollView>
-        )}
-      </View>
-    </View>
+    </KitScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex:            1,
-    backgroundColor: colors.bg,
-    paddingTop:      56,
-  },
-  header: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom:   spacing.xl,
-  },
-  greeting: {
-    fontSize:   typography.md,
-    color:      colors.textPrimary,
-    fontWeight: typography.bold,
-  },
-  subtitle: {
-    fontSize:  typography.sm,
-    color:     colors.textSecondary,
-    marginTop: 2,
-  },
-  signInBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.md,
-    paddingVertical:   spacing.sm,
-    borderRadius:      radius.full,
-  },
-  signInBtnText: {
-    color:      colors.textPrimary,
-    fontSize:   typography.sm,
-    fontWeight: typography.bold,
-  },
-  hero: {
-    alignItems:        'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom:      spacing.xl,
-  },
-  heroTitle: {
-    fontSize:      typography.hero,
-    fontWeight:    typography.black,
-    color:         colors.textPrimary,
-    letterSpacing: 6,
-    textShadowColor:  'rgba(59, 130, 246, 0.45)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 24,
-  },
-  heroOrRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           spacing.md,
-    marginVertical: 4,
-    alignSelf:     'stretch',
-    paddingHorizontal: spacing.xxl,
-  },
-  heroOrLine: {
-    flex:            1,
-    height:          1,
-    backgroundColor: colors.border,
-  },
-  heroOr: {
-    fontSize:   typography.md,
-    color:      colors.textMuted,
-    fontWeight: typography.regular,
-    fontStyle:  'italic',
-  },
-  heroMisery: {
-    fontSize:      typography.hero,
-    fontWeight:    typography.black,
-    color:         colors.danger,
-    letterSpacing: 6,
-    textShadowColor:  'rgba(239, 68, 68, 0.45)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 24,
-  },
-  heroTagline: {
-    fontSize:   typography.sm,
-    color:      colors.textSecondary,
-    marginTop:  spacing.md,
-    letterSpacing: 1,
-  },
-  actions: {
-    paddingHorizontal: spacing.lg,
-    marginBottom:      spacing.xl,
-  },
-  startBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.lg,
-    borderRadius:    radius.md,
-    alignItems:      'center',
-    justifyContent:  'center',
-    flexDirection:   'row',
-    gap:             spacing.sm,
-    marginBottom:    spacing.md,
-    ...shadows.md,
-  },
-  startBtnPressed: {
-    backgroundColor: colors.accentDim,
-    transform:       [{ scale: 0.98 }],
-  },
-  startBtnText: {
-    fontSize:      typography.lg,
-    fontWeight:    typography.black,
-    color:         colors.textPrimary,
-    letterSpacing: 3,
-  },
-  howToPlayLink: {
-    alignSelf:     'center',
-    marginBottom:  spacing.md,
-    paddingVertical: 4,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           6,
-  },
-  howToPlayLinkText: {
-    fontSize: typography.xs,
-    color:    colors.textSecondary,
-  },
-  statsRow: {
-    flexDirection:     'row',
-    backgroundColor:   colors.bgCard,
-    borderRadius:      radius.md,
-    borderWidth:       1,
-    borderColor:       colors.border,
-    paddingVertical:   spacing.md,
-  },
-  statBox: {
-    flex:       1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width:           1,
-    backgroundColor: colors.border,
-  },
-  statValue: {
-    fontSize:   typography.xl,
-    fontWeight: typography.black,
-    color:      colors.textPrimary,
-    textAlign:   'center',
-  },
-  statLabel: {
-    fontSize:  typography.xs,
-    color:     colors.textSecondary,
-    marginTop: 2,
-  },
-  recentSection: {
-    flex:              1,
-    paddingHorizontal: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize:     typography.md,
-    fontWeight:   typography.bold,
-    color:        colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  recentScroll: {
-    flex: 1,
-  },
-  runCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius:    radius.md,
-    borderWidth:     1,
-    borderColor:     colors.border,
-    padding:         spacing.md,
-    marginBottom:    spacing.sm,
-  },
-  runCardHeader: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    marginBottom:    spacing.xs,
-  },
-  runTier: {
-    fontSize:   typography.sm,
-    fontWeight: typography.bold,
-    color:      colors.accent,
-  },
-  runDate: {
-    fontSize:  typography.xs,
-    color:     colors.textMuted,
-  },
-  runLeague: {
-    fontSize:   typography.md,
-    fontWeight: typography.bold,
-    color:      colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  runStats: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           spacing.md,
-  },
-  runStat: {
-    fontSize: typography.sm,
-    color:    colors.textSecondary,
-  },
-  runStatStrong: {
-    color:      colors.textPrimary,
-    fontWeight: typography.bold,
-  },
-  emptyState: {
-    alignItems:  'center',
-    paddingTop:  spacing.xxl,
-  },
-  emptyEmoji: {
-    fontSize:     40,
-    marginBottom: spacing.md,
-  },
-  emptyText: {
-    fontSize: typography.sm,
-    color:    colors.textMuted,
-  },
+  screen: { flex: 1, paddingBottom: space[3] },
+  body: { flex: 1 },
+  bodyContent: { paddingBottom: space[5] },
+  pitch: { marginTop: space[4], maxWidth: 320 },
+  bestRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space[2], marginTop: space[5] },
+  runsCount: { marginLeft: 'auto' },
+  labels: { gap: space[3] },
+  guestLine: { marginTop: space[5], gap: space[1], alignItems: 'flex-start' },
+  guideLink: { alignSelf: 'flex-start', marginTop: space[4], marginLeft: -space[2] },
+  actions: { flexDirection: 'row', gap: space[2], alignItems: 'stretch' },
+  start: { flex: 1 },
 })

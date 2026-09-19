@@ -11,16 +11,22 @@
 // into the top bar, so the score is never off-screen.
 
 import React, { useMemo, useRef, useState } from 'react'
+import { WebColumn } from '@/components/kit'
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, Animated, ScrollView } from 'react-native'
+import { openPlayer, openClub } from '@/lib/runNav'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { colors, spacing, typography, radius, ratingColor } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
 import { openMatchStats, takeMatchStatsRequest } from '@/lib/matchStats'
 import {
-  useMatchDetail, StatBar, PlayerRow, Timeline, splitLineup, ScorerList, StatSideHeader,
+  useMatchDetail, StatBar, PlayerRow, Timeline, splitLineup, ScorerList, StatSideHeader, effectiveSeed,
   type MatchDetailRequest,
 } from '@/components/MatchStatsParts'
+import { buildShotMap, averagePositions, heatMap } from '@/engine/match-geometry'
+import { ShotMap, AveragePositions, HeatMap } from '@/components/match/PitchViews'
+import { ROLES } from '@/theme'
+import { KitText, Chips, SectionTag } from '@/components/kit'
 import { MomentumGraph, momentumMarkers } from '@/components/MomentumGraph'
 import { MatchLineupPitch, MatchBench } from '@/components/MatchLineupPitch'
 import {
@@ -29,8 +35,9 @@ import {
   type BracketRound, type BracketTie,
 } from '@/engine/match-context'
 import type { MatchEvent, PlayerMatchLine, MatchStats } from '@/types/match-stats'
+import { lineForEvent } from '@/engine/commentary'
 
-type Tab = 'facts' | 'lineup' | 'stats'
+type Tab = 'facts' | 'commentary' | 'lineup' | 'map' | 'stats'
 
 // Scroll distance over which the compact score fades into the top bar — timed
 // so it has arrived by the time the tall header has scrolled out of sight.
@@ -46,7 +53,9 @@ export default function MatchStatsScreen() {
   const [tab, setTab] = useState<Tab>('facts')
   const scrollY = useRef(new Animated.Value(0)).current
 
-  const accent = request?.accent ?? colors.accent
+  // P4-H — on nylon the sheet reads in cotton; a competition's colour is
+  // location, never meaning, so it doesn't tint numbers here.
+  const accent = prim.cotton
   const r = request
 
   const lineups = useMemo(
@@ -95,7 +104,7 @@ export default function MatchStatsScreen() {
       yearStart: r.yearStart,
       competitionLabel: m.label,
       playerClubId: r.playerClubId, drafted: r.drafted,
-      matchday: m.matchday, contextMatches: r.contextMatches,
+      matchday: m.matchday, contextMatches: r.contextMatches, linkPages: r.linkPages,
     }, accent)
   }
 
@@ -121,11 +130,12 @@ export default function MatchStatsScreen() {
   })
 
   return (
+    <WebColumn background={prim.nylon}>
     <View style={styles.container}>
       {/* Top bar — always present. The score fades into it as you scroll. */}
       <View style={styles.topBar}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          <Ionicons name="chevron-back" size={22} color={prim.cotton} />
         </Pressable>
         <Animated.View style={[styles.topBarScore, { opacity: barOpacity }]} pointerEvents="none">
           {/* Flags stay with the names once collapsed — national sides are far
@@ -156,14 +166,14 @@ export default function MatchStatsScreen() {
         <View style={styles.headerCollapse}>
           {r.competitionLabel ? <Text style={styles.compLabel} numberOfLines={1}>{r.competitionLabel}</Text> : null}
           <View style={styles.headerRow}>
-            <Text style={[styles.headerTeam, { textAlign: 'right' }]} numberOfLines={2}>{withFlag(r.homeName)}</Text>
+            <Text style={[[styles.headerTeam, { textAlign: 'right' }], r.linkPages && styles.linked]} numberOfLines={2} onPress={r.linkPages ? () => openClub(r.homeClubId) : undefined} accessibilityRole={r.linkPages ? 'link' : undefined}>{withFlag(r.homeName)}</Text>
             <View style={styles.headerScoreCol}>
-              <Text style={[styles.headerScore, { color: accent }]}>{r.homeGoals} – {r.awayGoals}</Text>
+              <Text style={[styles.headerScore, { color: accent }]} numberOfLines={1}>{r.homeGoals} – {r.awayGoals}</Text>
               <Text style={styles.headerStatus}>
                 {status === 'FT' ? 'Full time' : status === 'AET' ? 'After extra time' : 'Penalties'}
               </Text>
             </View>
-            <Text style={styles.headerTeam} numberOfLines={2}>{withFlag(r.awayName)}</Text>
+            <Text style={[styles.headerTeam, r.linkPages && styles.linked]} numberOfLines={2} onPress={r.linkPages ? () => openClub(r.awayClubId) : undefined} accessibilityRole={r.linkPages ? 'link' : undefined}>{withFlag(r.awayName)}</Text>
           </View>
           {r.pensNote ? <Text style={[styles.pensNote, { color: accent }]}>{r.pensNote}</Text> : null}
           {detail && (
@@ -174,15 +184,27 @@ export default function MatchStatsScreen() {
           )}
         </View>
 
+        {/* Two views on purpose. On native, ScrollViewStickyHeader MOVES the
+            sticky child's style onto its own wrapper and replaces it with a
+            plain `flex: 1` — so `flexDirection: 'row'` on this outer view would
+            be lost and the tabs stacked vertically on Android (a fifth of the
+            screen). The outer view only carries what's safe to move; the row
+            lives one level down, where nothing rewrites it. Web uses CSS
+            position: sticky and never had the bug. */}
         <View style={styles.tabBar}>
-          {(['facts', 'lineup', 'stats'] as Tab[]).map(t => (
-            <Pressable key={t} style={styles.tabBtn} onPress={() => setTab(t)}>
-              <Text style={[styles.tabText, tab === t && { color: colors.textPrimary }]}>
-                {t === 'facts' ? 'Facts' : t === 'lineup' ? 'Lineup' : 'Stats'}
-              </Text>
-              <View style={[styles.tabUnderline, tab === t && { backgroundColor: accent }]} />
-            </Pressable>
-          ))}
+          <View style={styles.tabRow}>
+            {(['facts', 'commentary', 'lineup', 'map', 'stats'] as Tab[]).map(t => (
+              <Pressable
+                key={t} style={styles.tabBtn} onPress={() => setTab(t)}
+                accessibilityRole="tab" accessibilityState={{ selected: tab === t }}
+              >
+                <Text style={[styles.tabText, tab === t && { color: prim.cotton }]}>
+                  {t === 'facts' ? 'Facts' : t === 'commentary' ? 'Comms' : t === 'lineup' ? 'Lineup' : t === 'map' ? 'Map' : 'Stats'}
+                </Text>
+                <View style={[styles.tabUnderline, tab === t && { backgroundColor: accent }]} />
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         <View style={styles.body}>
@@ -229,22 +251,36 @@ export default function MatchStatsScreen() {
             ))}
 
           <Section title="Lineups & ratings">
-            <Text style={styles.hint}>Tap a player for their full match stats · ★ = player of the match</Text>
+            <Text style={styles.hint}>Tap a player for their full match stats · POTM = player of the match</Text>
             {([['home', r.homeName], ['away', r.awayName]] as const).map(([side, name]) => {
               const lu = lineups[side]
               return (
                 <View key={side} style={{ marginTop: spacing.md }}>
                   <Text style={[styles.lineupTeam, { color: accent }]}>{withFlag(name)}</Text>
                   {lu.starters.map(l => (
-                    <PlayerRow key={l.playerId} l={l} accent={accent}
+                    <React.Fragment key={l.playerId}>
+                    <PlayerRow l={l} accent={accent}
                       expanded={expandedId === l.playerId}
                       onPress={() => setExpandedId(id => id === l.playerId ? null : l.playerId)} />
+                    {r.linkPages && expandedId === l.playerId && (
+                      <Pressable onPress={() => openPlayer(l.playerId)} accessibilityRole="link" style={({ pressed }) => [styles.seasonLink, pressed && { opacity: 0.6 }]}>
+                        <Text style={[styles.seasonLinkText, { color: accent }]}>Their whole season ›</Text>
+                      </Pressable>
+                    )}
+                    </React.Fragment>
                   ))}
                   {lu.cameOn.length > 0 && <Text style={styles.benchLabel}>Came on</Text>}
                   {lu.cameOn.map(l => (
-                    <PlayerRow key={l.playerId} l={l} accent={accent}
+                    <React.Fragment key={l.playerId}>
+                    <PlayerRow l={l} accent={accent}
                       expanded={expandedId === l.playerId}
                       onPress={() => setExpandedId(id => id === l.playerId ? null : l.playerId)} />
+                    {r.linkPages && expandedId === l.playerId && (
+                      <Pressable onPress={() => openPlayer(l.playerId)} accessibilityRole="link" style={({ pressed }) => [styles.seasonLink, pressed && { opacity: 0.6 }]}>
+                        <Text style={[styles.seasonLinkText, { color: accent }]}>Their whole season ›</Text>
+                      </Pressable>
+                    )}
+                    </React.Fragment>
                   ))}
                   {lu.unused.length > 0 && <Text style={styles.benchLabel}>Unused subs</Text>}
                   {lu.unused.map(l => (
@@ -257,10 +293,103 @@ export default function MatchStatsScreen() {
           </>
         )}
 
-        {detail && tab === 'stats' && <StatsTab detail={detail} accent={accent} homeName={r.homeName} awayName={r.awayName} />}
+        {detail && tab === 'map' && <MapTab detail={detail} seed={effectiveSeed(r)} homeName={r.homeName} awayName={r.awayName} />}
+
+        {detail && tab === 'commentary' && <CommentaryTab detail={detail} homeName={r.homeName} awayName={r.awayName} status={status} />}
+
+        {detail && tab === 'stats' && <StatsTab detail={detail} accent={accent} homeName={r.homeName} awayName={r.awayName} onOpenPlayer={r.linkPages ? openPlayer : undefined} />}
         </View>
       </Animated.ScrollView>
     </View>
+    </WebColumn>
+  )
+}
+
+// ── Map (P4-H) ───────────────────────────────────────────────────────────────
+// Where the match happened: every shot where it was taken (sized by its xG),
+// each player's average position, and — tap a player — their heat map. Drawn
+// from the match's own seed on a separate stream (src/engine/match-geometry.ts),
+// so it can never disagree with the numbers elsewhere on the sheet.
+function MapTab({ detail, seed, homeName, awayName }: { detail: MatchStats; seed: number; homeName: string; awayName: string }) {
+  const kit = ROLES.nylon
+  const [side, setSide] = useState<'home' | 'away'>('home')
+  const shots = useMemo(() => buildShotMap(detail, seed), [detail, seed])
+  const spots = useMemo(() => averagePositions(detail, seed), [detail, seed])
+  const isHome = side === 'home'
+  const sideSpots = spots.filter(s => s.isHome === isHome)
+  const [picked, setPicked] = useState<string | null>(null)
+  const chosen = picked && sideSpots.some(s => s.playerId === picked) ? picked : sideSpots[0]?.playerId ?? null
+  const chosenLine = detail.players.find(p => p.playerId === chosen)
+  return (
+    <View style={{ gap: spacing.lg }}>
+      <Chips<'home' | 'away'> roles={kit} value={side} onChange={setSide}
+        options={[{ id: 'home', label: homeName }, { id: 'away', label: awayName }]} />
+      <View style={{ gap: spacing.sm }}>
+        <SectionTag roles={kit}>Shot map</SectionTag>
+        <ShotMap shots={shots.filter(s => s.isHome === isHome)} />
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <SectionTag roles={kit}>Average positions</SectionTag>
+        {sideSpots.length > 0
+          ? <AveragePositions spots={sideSpots} selected={chosen} onPlayer={setPicked} />
+          : <KitText t="body" color={kit.textMuted}>No formation recorded for this side.</KitText>}
+      </View>
+      {chosenLine && (
+        <View style={{ gap: spacing.sm }}>
+          <SectionTag roles={kit}>Heat map</SectionTag>
+          <HeatMap name={chosenLine.name} grid={heatMap(chosenLine, spots.find(s => s.playerId === chosen), seed)} />
+        </View>
+      )}
+    </View>
+  )
+}
+
+// ── Commentary (P4-H) ────────────────────────────────────────────────────────
+// The match told as a broadcast would: every stored event as a line (built from
+// its own fields by src/engine/commentary.ts, so it reads the same live in the
+// Deep Match and here afterwards), with kick-off, half-time and full-time
+// marking the breaks. Newest first, the way a live feed reads.
+function CommentaryTab({ detail, homeName, awayName, status }: {
+  detail: MatchStats; homeName: string; awayName: string; status: string
+}) {
+  const events = [...detail.events].sort((a, b) => (a.minute + (a.plus ?? 0) / 100) - (b.minute + (b.plus ?? 0) / 100))
+  const scoreAt = (minute: number) => events
+    .filter(e => e.type === 'goal' && e.minute <= minute)
+    .reduce((acc, e) => (e.isHome ? { ...acc, h: acc.h + 1 } : { ...acc, a: acc.a + 1 }), { h: 0, a: 0 })
+  type Row = { minute: string; text: string; big: boolean; marker?: boolean }
+  const rows: Row[] = [{ minute: "1'", text: `Kick-off. ${homeName} v ${awayName}.`, big: false, marker: true }]
+  let halfDone = false, ninetyDone = false
+  for (const e of events) {
+    if (!halfDone && e.minute > 45) {
+      const ht = scoreAt(45); halfDone = true
+      rows.push({ minute: 'HT', text: `Half-time. ${homeName} ${ht.h}–${ht.a} ${awayName}.`, big: false, marker: true })
+    }
+    if (!ninetyDone && e.minute > 90) {
+      const ft = scoreAt(90); ninetyDone = true
+      rows.push({ minute: "90'", text: `Level after 90 minutes at ${ft.h}–${ft.a}. Extra time.`, big: false, marker: true })
+    }
+    const l = lineForEvent(e, homeName, awayName)
+    rows.push({ minute: l.minute, text: l.text, big: l.big })
+  }
+  if (!halfDone) {
+    const ht = scoreAt(45)
+    rows.push({ minute: 'HT', text: `Half-time. ${homeName} ${ht.h}–${ht.a} ${awayName}.`, big: false, marker: true })
+  }
+  const end = scoreAt(999)
+  rows.push({
+    minute: status,
+    text: status === 'PENS' ? `Still level at ${end.h}–${end.a}. Penalties decide it.` : `Full time. ${homeName} ${end.h}–${end.a} ${awayName}.`,
+    big: true, marker: true,
+  })
+  return (
+    <Section title="Commentary">
+      {rows.reverse().map((row, i) => (
+        <View key={i} style={[styles.commentRow, row.marker && styles.commentMarker]}>
+          <Text style={styles.commentMin}>{row.minute}</Text>
+          <Text style={[styles.commentText, row.big && styles.commentBig]}>{row.text}</Text>
+        </View>
+      ))}
+    </Section>
   )
 }
 
@@ -284,8 +413,8 @@ function FactsTab({ r, detail, accent, motm, context, onOpenMatch }: {
       {/* Player of the match sits at the very top — who was best is the first
           thing you want, and it used to be buried under the whole stat grid. */}
       {motm && (
-        <View style={styles.motmCard}>
-          <Text style={styles.motmStar}>★</Text>
+        <Pressable style={({ pressed }) => [styles.motmCard, pressed && { opacity: 0.8 }]} disabled={!r.linkPages} onPress={() => openPlayer(motm.playerId)} accessibilityRole={r.linkPages ? 'link' : undefined}>
+          <Text style={styles.motmStar}>POTM</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.motmLabel}>PLAYER OF THE MATCH</Text>
             <Text style={styles.motmName} numberOfLines={1}>
@@ -294,7 +423,7 @@ function FactsTab({ r, detail, accent, motm, context, onOpenMatch }: {
             </Text>
           </View>
           <RatingChip value={motm.rating} />
-        </View>
+        </Pressable>
       )}
 
       <Section title="Momentum & key stats">
@@ -407,7 +536,8 @@ const PLAYER_COLS: PlayerCol[] = [
   { key: 'touches', label: 'Touches', short: 'Touches', value: l => l.touches, render: l => String(l.touches) },
 ]
 
-function PlayerStatsTable({ detail, accent, homeName, awayName }: {
+function PlayerStatsTable({ detail, accent, homeName, awayName, onOpenPlayer }: {
+  onOpenPlayer?: (id: string) => void
   detail: MatchStats; accent: string; homeName: string; awayName: string
 }) {
   const [sort, setSort] = useState('rating')
@@ -427,27 +557,27 @@ function PlayerStatsTable({ detail, accent, homeName, awayName }: {
             style={[styles.sortChip, sort === c.key && { backgroundColor: accent + '2E', borderColor: accent }]}
             onPress={() => setSort(c.key)}
           >
-            <Text style={[styles.sortChipText, sort === c.key && { color: colors.textPrimary }]}>{c.short}</Text>
+            <Text style={[styles.sortChipText, sort === c.key && { color: prim.cotton }]}>{c.short}</Text>
           </Pressable>
         ))}
       </View>
       <Text style={styles.hint}>Sorted by {col.label.toLowerCase()} · tap a column above to re-rank</Text>
       
       {rows.map(l => (
-        <View key={l.playerId} style={styles.psRow}>
-          <View style={[styles.psSide, { backgroundColor: l.isHome ? accent : colors.textMuted }]} />
+        <Pressable key={l.playerId} style={({ pressed }) => [styles.psRow, pressed && { opacity: 0.6 }]} disabled={!onOpenPlayer} onPress={() => onOpenPlayer?.(l.playerId)}>
+          <View style={[styles.psSide, { backgroundColor: l.isHome ? accent : prim.cottonMuted }]} />
           <Text style={styles.psPos}>{l.position}</Text>
           <Text style={styles.psName} numberOfLines={1}>{l.name}</Text>
           <Text style={styles.psTeam} numberOfLines={1}>{l.isHome ? homeName : awayName}</Text>
           <Text style={[styles.psValue, { color: accent }]} numberOfLines={1}>{col.render(l)}</Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   )
 }
 
-function StatsTab({ detail, accent, homeName, awayName }: {
-  detail: MatchStats; accent: string; homeName: string; awayName: string
+function StatsTab({ detail, accent, homeName, awayName, onOpenPlayer }: {
+  detail: MatchStats; accent: string; homeName: string; awayName: string; onOpenPlayer?: (id: string) => void
 }) {
   return (
     <>
@@ -500,7 +630,7 @@ function StatsTab({ detail, accent, homeName, awayName }: {
       </Section>
 
       <Section title="Player stats">
-        <PlayerStatsTable detail={detail} accent={accent} homeName={homeName} awayName={awayName} />
+        <PlayerStatsTable detail={detail} accent={accent} homeName={homeName} awayName={awayName} onOpenPlayer={onOpenPlayer} />
       </Section>
     </>
   )
@@ -564,8 +694,8 @@ function MiniTable({ rows, highlight, accent }: { rows: ContextRow[]; highlight:
         const on = highlight.includes(t.clubId)
         return (
           <View key={t.clubId} style={[styles.tableRow, on && { backgroundColor: accent + '1F' }]}>
-            <Text style={[styles.tdPos, on && { color: accent, fontWeight: typography.black }]}>{i + 1}</Text>
-            <Text style={[styles.tdClub, on && { color: colors.textPrimary, fontWeight: typography.bold }]} numberOfLines={1}>{t.clubName}</Text>
+            <Text style={[styles.tdPos, on && { color: accent, fontFamily: font.bodyBlack }]}>{i + 1}</Text>
+            <Text style={[styles.tdClub, on && { color: prim.cotton, fontFamily: font.bodyBold }]} numberOfLines={1}>{t.clubName}</Text>
             <Text style={styles.tdNum}>{t.played}</Text>
             <Text style={styles.tdNum}>{t.won}</Text>
             <Text style={styles.tdNum}>{t.drawn}</Text>
@@ -628,7 +758,7 @@ function BracketTieCard({ tie, focus, accent, onOpenMatch }: {
   const on = focus.includes(tie.teamAId) || focus.includes(tie.teamBId)
   const sideStyle = (clubId: string) => [
     styles.tieTeam,
-    tie.winnerId === clubId && { color: colors.textPrimary, fontWeight: typography.black },
+    tie.winnerId === clubId && { color: prim.cotton, fontFamily: font.bodyBlack },
     focus.includes(clubId) && { color: accent },
   ]
   // A two-legged tie is two real matches; each leg opens its own sheet, so the
@@ -734,7 +864,7 @@ function NextMatch({ name, clubId, match, accent, onOpenMatch }: {
             {match.label ? <Text style={styles.nextLabel} numberOfLines={1}>{match.label}</Text> : null}
             <Text style={styles.nextTeams} numberOfLines={1}>
               {match.homeClubId === clubId ? 'vs ' : '@ '}
-              <Text style={{ color: colors.textPrimary, fontWeight: typography.bold }}>
+              <Text style={{ color: prim.cotton, fontFamily: font.bodyBold }}>
                 {match.homeClubId === clubId ? match.awayClubName : match.homeClubName}
               </Text>
             </Text>
@@ -750,128 +880,139 @@ function NextMatch({ name, clubId, match, accent, onOpenMatch }: {
 }
 
 const outcomeColor = (o: 'W' | 'D' | 'L') =>
-  o === 'W' ? colors.success : o === 'L' ? colors.danger : colors.warning
+  o === 'W' ? prim.volt : o === 'L' ? colors.danger : colors.warning
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: prim.nylon },
   centred: { alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   backLink: { padding: spacing.md },
-  backLinkText: { fontSize: typography.md, fontWeight: typography.bold },
+  backLinkText: { fontSize: typography.md, fontFamily: font.bodyBold },
 
   topBar: {
     flexDirection: 'row', alignItems: 'center',
     paddingTop: 52, paddingBottom: spacing.sm, paddingHorizontal: spacing.md,
-    backgroundColor: colors.bgCard,
+    backgroundColor: prim.nylonRaised,
   },
   backBtn: { width: 26, alignItems: 'flex-start' },
   topBarScore: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  topBarTeam: { flex: 1, fontSize: typography.xs, color: colors.textSecondary, fontWeight: typography.bold },
-  topBarNums: { fontSize: typography.lg, fontWeight: typography.black },
-  topBarStatus: { fontSize: 9, color: colors.textMuted, fontWeight: typography.black, letterSpacing: 0.5 },
+  topBarTeam: { flex: 1, fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  topBarNums: { fontSize: 22, lineHeight: 24, fontFamily: font.super },
+  topBarStatus: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBlack, letterSpacing: 0.5 },
 
-  headerCollapse: { backgroundColor: colors.bgCard, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: 4 },
-  compLabel: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1, fontWeight: typography.bold },
+  headerCollapse: { backgroundColor: prim.nylonRaised, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: 4 },
+  compLabel: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1, fontFamily: font.bodyBold },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerTeam: { flex: 1, fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
-  headerScoreCol: { alignItems: 'center', minWidth: 92 },
-  headerScore: { fontSize: 30, fontWeight: typography.black },
-  headerStatus: { fontSize: 9, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: typography.bold },
-  pensNote: { fontSize: typography.xs, fontWeight: typography.bold, textAlign: 'center' },
+  headerTeam: { flex: 1, fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  // flexShrink 0: at 48px the score is wider than 92, and a shrinking column wrapped
+  // "2 – 1" so one side's goals were clipped off (seen from the run hub).
+  headerScoreCol: { alignItems: 'center', minWidth: 92, flexShrink: 0, paddingHorizontal: 8 },
+  headerScore: { fontSize: 48, lineHeight: 48, fontFamily: font.super },
+  headerStatus: { fontSize: 9, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: font.bodyBold },
+  pensNote: { fontSize: typography.xs, fontFamily: font.bodyBold, textAlign: 'center' },
   scorerRow: { flexDirection: 'row', gap: spacing.md, marginTop: 2 },
-  scorerLine: { fontSize: 10, color: colors.textSecondary },
-  scorerMark: { color: colors.textMuted, fontWeight: typography.bold },
+  scorerLine: { fontSize: 10, color: prim.cottonMuted },
+  scorerMark: { color: prim.cottonMuted, fontFamily: font.bodyBold },
 
-  tabBar: { flexDirection: 'row', backgroundColor: colors.bgCard, borderBottomWidth: 1, borderBottomColor: colors.border },
+  // The sticky tab bar scrolls over content, so it must be fully opaque.
+  tabBar: { backgroundColor: prim.nylonRaised, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  tabRow: { flexDirection: 'row' },
   tabBtn: { flex: 1, alignItems: 'center', paddingTop: spacing.sm, gap: spacing.sm },
-  tabText: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textMuted },
+  tabText: { fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cottonMuted },
   tabUnderline: { height: 3, width: '55%', borderRadius: 2, backgroundColor: 'transparent' },
 
   body: { padding: spacing.md, paddingBottom: spacing.xl * 2, gap: spacing.md },
-  // The sticky tab bar scrolls over content, so it must be fully opaque.
 
   loadingBlock: { paddingVertical: spacing.xl, alignItems: 'center' },
-  loadingText: { fontSize: typography.xs, color: colors.textMuted, marginTop: spacing.sm },
-  noData: { fontSize: typography.sm, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.xl },
+  loadingText: { fontSize: typography.xs, color: prim.cottonMuted, marginTop: spacing.sm },
+  noData: { fontSize: typography.sm, color: prim.cottonMuted, textAlign: 'center', paddingVertical: spacing.xl },
 
-  section: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
-  sectionTitle: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
-  subHead: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textSecondary, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.6 },
-  subHeadSmall: { fontSize: 10, fontWeight: typography.black, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  hint: { fontSize: 10, color: colors.textMuted, fontStyle: 'italic' },
+  section: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.lg },
+  sectionTitle: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
+  subHead: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.6 },
+  subHeadSmall: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  hint: { fontSize: 10, color: prim.cottonMuted, },
+  commentRow: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: prim.ruleNylon },
+  commentMarker: { backgroundColor: prim.nylonSunken },
+  commentMin: { width: 44, fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted },
+  commentText: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted, lineHeight: 19 },
+  commentBig: { color: prim.cotton, fontFamily: font.bodyBold },
   twoCol: { flexDirection: 'row', gap: spacing.lg },
 
   motmCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon,
     padding: spacing.lg,
   },
   motmStar: { fontSize: 20, color: colors.warning },
-  motmLabel: { fontSize: 9, color: colors.textMuted, fontWeight: typography.black, letterSpacing: 1 },
-  motmName: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
-  motmTeam: { fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.regular },
+  motmLabel: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBlack, letterSpacing: 1 },
+  motmName: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  motmTeam: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.body },
 
   teamRatings: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md, marginTop: spacing.md },
-  teamRatingLabel: { fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, letterSpacing: 1 },
-  ratingChip: { minWidth: 34, paddingHorizontal: 6, paddingVertical: 3, borderRadius: radius.sm, alignItems: 'center' },
-  ratingChipText: { fontSize: typography.xs, fontWeight: typography.black, color: '#0B1220' },
-  ratingChipSm: { minWidth: 28, paddingHorizontal: 5, paddingVertical: 2, borderRadius: radius.sm, alignItems: 'center' },
-  ratingChipSmText: { fontSize: 9, fontWeight: typography.black, color: '#0B1220' },
+  teamRatingLabel: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, letterSpacing: 1 },
+  ratingChip: { minWidth: 34, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 0, alignItems: 'center' },
+  ratingChipText: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: '#0B1220' },
+  ratingChipSm: { minWidth: 28, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 0, alignItems: 'center' },
+  ratingChipSmText: { fontSize: 9, fontFamily: font.bodyBlack, color: '#0B1220' },
 
-  lineupTeam: { fontSize: typography.sm, fontWeight: typography.black, marginBottom: 4 },
-  benchLabel: { fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.sm },
+  lineupTeam: { fontSize: typography.sm, fontFamily: font.bodyBlack, marginBottom: 4 },
+  benchLabel: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.sm },
 
   topRatedItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'space-between' },
-  topRatedName: { fontSize: 11, color: colors.textSecondary, flexShrink: 1 },
+  topRatedName: { fontSize: 11, color: prim.cottonMuted, flexShrink: 1 },
 
-  table: { borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  tableHead: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgElevated, paddingVertical: 5, paddingHorizontal: spacing.sm, gap: 4 },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: spacing.sm, gap: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  thPos: { width: 18, fontSize: 9, color: colors.textMuted, fontWeight: typography.bold },
-  thClub: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 9, color: colors.textMuted, fontWeight: typography.bold },
-  thNum: { width: 22, fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, textAlign: 'center' },
+  table: { borderRadius: 0, overflow: 'hidden', borderWidth: 1, borderColor: prim.ruleNylon },
+  tableHead: { flexDirection: 'row', alignItems: 'center', backgroundColor: prim.nylonSunken, paddingVertical: 5, paddingHorizontal: spacing.sm, gap: 4 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: spacing.sm, gap: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: prim.ruleNylon },
+  thPos: { width: 18, fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  thClub: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  thNum: { width: 22, fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, textAlign: 'center' },
   thPts: { width: 26 },
-  tdPos: { width: 18, fontSize: 10, color: colors.textMuted },
-  tdClub: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 10, color: colors.textSecondary },
-  tdNum: { width: 22, fontSize: 10, color: colors.textSecondary, textAlign: 'center' },
-  tdPts: { width: 26, fontWeight: typography.black, color: colors.textPrimary },
+  tdPos: { width: 18, fontSize: 10, color: prim.cottonMuted },
+  tdClub: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 10, color: prim.cottonMuted },
+  tdNum: { width: 22, fontSize: 10, color: prim.cottonMuted, textAlign: 'center' },
+  tdPts: { width: 26, fontFamily: font.bodyBlack, color: prim.cotton },
 
-  tieCard: { backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: spacing.sm },
+  tieCard: { backgroundColor: prim.nylonSunken, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, paddingVertical: 6, paddingHorizontal: spacing.sm },
   tieHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  tieTeam: { flex: 1, fontSize: 11, color: colors.textSecondary },
-  tieScore: { fontSize: typography.xs, fontWeight: typography.black, minWidth: 44, textAlign: 'center' },
-  tiePens: { fontSize: 8, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
-  tieLegs: { marginTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 2 },
+  tieTeam: { flex: 1, fontSize: 11, color: prim.cottonMuted },
+  tieScore: { fontSize: typography.xs, fontFamily: font.bodyBlack, minWidth: 44, textAlign: 'center' },
+  tiePens: { fontSize: 8, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tieLegs: { marginTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: prim.ruleNylon, paddingTop: 2 },
   tieLeg: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
-  tieLegText: { flex: 1, fontSize: 10, color: colors.textMuted },
+  tieLegText: { flex: 1, fontSize: 10, color: prim.cottonMuted },
   bracketToggle: { alignSelf: 'flex-start', paddingVertical: 4 },
-  bracketToggleText: { fontSize: 10, fontWeight: typography.black, textTransform: 'uppercase', letterSpacing: 0.5 },
+  bracketToggleText: { fontSize: 10, fontFamily: font.bodyBlack, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   formBlock: { marginTop: spacing.sm, gap: 4 },
-  formTeam: { fontSize: 10, fontWeight: typography.black, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  formTeam: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   formItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
-  formPill: { width: 20, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, paddingVertical: 1 },
-  formPillText: { fontSize: 9, fontWeight: typography.black },
-  formText: { fontSize: 10, color: colors.textSecondary, flex: 1 },
-  formChevron: { fontSize: typography.md, color: colors.textMuted, fontWeight: typography.bold },
+  formPill: { width: 20, alignItems: 'center', borderRadius: 0, borderWidth: 1, paddingVertical: 1 },
+  formPillText: { fontSize: 9, fontFamily: font.bodyBlack },
+  formText: { fontSize: 10, color: prim.cottonMuted, flex: 1 },
+  formChevron: { fontSize: typography.md, color: prim.cottonMuted, fontFamily: font.bodyBold },
 
-  nextRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.bgElevated, borderRadius: radius.md, padding: spacing.sm },
-  nextLabel: { fontSize: 9, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: typography.bold },
-  nextTeams: { fontSize: typography.xs, color: colors.textSecondary },
-  nextScore: { fontSize: typography.sm, fontWeight: typography.black },
-  nextPending: { fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  nextRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.sm },
+  nextLabel: { fontSize: 9, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: font.bodyBold },
+  nextTeams: { fontSize: typography.xs, color: prim.cottonMuted },
+  nextScore: { fontSize: typography.sm, fontFamily: font.bodyBlack },
+  nextPending: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   sortChip: {
-    paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.sm,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgElevated,
+    paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 0,
+    borderWidth: 1, borderColor: prim.ruleNylon, backgroundColor: prim.nylonSunken,
   },
-  sortChipText: { fontSize: 9, fontWeight: typography.black, color: colors.textMuted },
-  psRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  sortChipText: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted },
+  linked: { textDecorationLine: 'underline' },
+  seasonLink: { alignSelf: 'flex-start', paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, marginBottom: spacing.xs },
+  seasonLinkText: { fontSize: typography.sm, fontFamily: font.bodyBold },
+  psRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: prim.ruleNylon },
   // A colour bar rather than colour alone — which side a player is on stays
   // legible without relying on hue.
   psSide: { width: 3, height: 16, borderRadius: 2 },
-  psPos: { width: 28, fontSize: 9, fontWeight: typography.black, color: colors.textMuted },
-  psName: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 11, color: colors.textPrimary },
-  psTeam: { width: 72, fontSize: 9, color: colors.textMuted, textAlign: 'right' },
-  psValue: { minWidth: 92, fontSize: 11, fontWeight: typography.black, textAlign: 'right' },
+  psPos: { width: 28, fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted },
+  psName: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', fontSize: 11, color: prim.cotton },
+  psTeam: { width: 72, fontSize: 9, color: prim.cottonMuted, textAlign: 'right' },
+  psValue: { minWidth: 92, fontSize: 11, fontFamily: font.bodyBlack, textAlign: 'right' },
 })

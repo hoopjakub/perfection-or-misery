@@ -4,13 +4,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 export async function ensureGuestSession(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
-    console.log('[auth] existing session found:', session.user.id, 'anon:', session.user.is_anonymous)
     return
   }
-  console.log('[auth] no session, creating anonymous...')
   const { error } = await supabase.auth.signInAnonymously()
   if (error) throw error
-  console.log('[auth] anonymous session created')
 }
 
 export async function loginWithUsername(
@@ -19,7 +16,6 @@ export async function loginWithUsername(
 ): Promise<void> {
   // always lowercase for email construction
   const internalEmail = `${username.toLowerCase().trim()}@pom.internal`
-  console.log('[auth] attempting login with:', internalEmail)
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email:    internalEmail,
@@ -27,11 +23,10 @@ export async function loginWithUsername(
   })
 
   if (error) {
-    console.log('[auth] login failed:', error.message, error.status)
+    console.warn('[auth] login failed:', error.status)
     throw new Error('INVALID_CREDENTIALS')
   }
 
-  console.log('[auth] login success:', data.user.id)
 }
 
 export async function upgradeGuestAccount(params: {
@@ -54,19 +49,16 @@ export async function upgradeGuestAccount(params: {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('NO_USER')
-  console.log('[auth] current user id:', user.id, 'anon:', user.is_anonymous)
 
-  console.log('[auth] calling updateUser...')
   const { data: updateData, error: updateError } = await supabase.auth.updateUser({
     email:    internalEmail,
     password: password,
   })
 
   if (updateError) {
-    console.log('[auth] updateUser failed:', updateError.message, updateError.status)
+    console.warn('[auth] updateUser failed:', updateError.status)
     throw updateError
   }
-  console.log('[auth] updateUser success:', updateData.user.email)
 
   // store display username with original casing
   const { error: profileError } = await supabase
@@ -75,7 +67,6 @@ export async function upgradeGuestAccount(params: {
     .eq('id', user.id)
 
   if (profileError) throw profileError
-  console.log('[auth] profile updated with display username:', displayUsername)
 
   await new Promise(resolve => setTimeout(resolve, 1500))
 
@@ -89,17 +80,28 @@ export async function upgradeGuestAccount(params: {
     password: password,
   })
 
+  // The account exists at this point but we're signed out. This used to return
+  // quietly, so the register screen treated it as success and dropped the
+  // player on Home with no session at all. Say so, and send them to sign in.
   if (signInError) {
-    console.log('[auth] sign in after upgrade failed:', signInError.message)
-    return
+    console.warn('[auth] sign in after upgrade failed:', signInError.status)
+    throw new Error('SIGNIN_AFTER_UPGRADE')
   }
 
-  console.log('[auth] signed in after upgrade:', signInData.user.id)
 } 
 
 export async function signOut(): Promise<void> {
-  console.log('[auth] signing out...')
   await supabase.auth.signOut()
   await AsyncStorage.clear()
-  console.log('[auth] signed out')
+}
+/**
+ * Delete the signed-in account and all its runs (Phase 6). The work happens in
+ * the `delete-account` edge function, which needs the service role; the app
+ * then signs out and falls back to a fresh guest session, as a new install would.
+ */
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' })
+  if (error) throw error
+  await signOut()
+  await ensureGuestSession()
 }

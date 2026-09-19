@@ -1,9 +1,14 @@
 import React, { useRef } from 'react'
-import { View, Text, StyleSheet, Pressable, LayoutChangeEvent, Platform } from 'react-native'
+import { View, StyleSheet, Pressable, LayoutChangeEvent, Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
-import { colors, spacing, typography, radius } from '@/theme'
+import { ROLES, space, border } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
+import { KitText, Plate, Tag, RoundFlag, Icon } from '@/components/kit'
+
+// Kit Drop (docs/ui-overhaul/07c C5): square ties on nylon, your tie tagged,
+// unknown slots as ? tags, and a visible fit control beside the gesture hint.
+const roles = ROLES.nylon
 
 // A pre-knockout overview rendered as a real bracket TREE (column-per-round,
 // styled like the result screen's bracket) so you can see the whole draw before
@@ -32,12 +37,12 @@ function clampWorklet(value: number, min: number, max: number) {
 }
 
 export function BracketPreview({
-  firstLabel, firstTies, road, accent, onStart, title = 'The Knockout Bracket', startLabel = 'PLAY IT OUT →',
+  firstLabel, firstTies, road, onStart, title = 'The bracket', startLabel,
 }: {
   firstLabel: string
   firstTies: PreviewTie[]
   road: RoadRound[]   // rounds AFTER the first, in order, each with its real tie count
-  accent: string
+  accent?: string   // no longer drawn; kept so callers needn't change
   onStart: () => void
   title?: string
   startLabel?: string
@@ -186,37 +191,51 @@ export function BracketPreview({
     ],
   }))
 
+  // The same reset as the double tap, as a control you can see.
+  function fit() {
+    scale.value = withTiming(fitScale.value)
+    savedScale.value = fitScale.value
+    translateX.value = withTiming(0)
+    translateY.value = withTiming(0)
+    savedTranslateX.value = 0
+    savedTranslateY.value = 0
+  }
+
   return (
-    <View style={styles.container}>
-      {/* Fixed header — title, your-tie summary, road note. Does NOT scroll. */}
-      <Text style={[styles.title, { color: accent }]}>{title}</Text>
+    <View style={[styles.container, { backgroundColor: roles.bg }]}>
+      <KitText t="superM" color={roles.text} accessibilityRole="header">{`"${title.toUpperCase()}"`}</KitText>
 
       {opponent && (
-        <View style={[styles.yourTieCard, { borderColor: accent }]}>
-          <Text style={styles.yourTieLabel}>YOUR {firstLabel.toUpperCase()} TIE</Text>
+        <View style={[styles.yourTieCard, { borderColor: roles.line, backgroundColor: roles.surface }]}>
+          <KitText t="tag" color={roles.textMuted}>{`Your ${firstLabel}`}</KitText>
           <View style={styles.yourTieRow}>
-            <Text style={[styles.yourSide, { color: accent }]} numberOfLines={1}>You</Text>
-            <Text style={styles.vs}>vs</Text>
-            <View style={styles.yourOppSide}>
-              {flagForCountry(opponent.clubName) ? <Text style={styles.yourFlag}>{flagForCountry(opponent.clubName)}</Text> : null}
-              <Text style={[styles.yourSide, { textAlign: 'right' }]} numberOfLines={1}>{opponent.clubName}</Text>
-            </View>
+            <Tag roles={roles} variant="you">YOU</Tag>
+            <KitText t="tag" color={roles.textMuted}>V</KitText>
+            {flagForCountry(opponent.clubName) ? <RoundFlag emoji={flagForCountry(opponent.clubName)} code={opponent.clubName.slice(0, 3)} size={20} roles={roles} /> : null}
+            <KitText t="title" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{opponent.clubName}</KitText>
           </View>
         </View>
       )}
 
       {road.length > 0 && (
-        <Text style={styles.roadNote}>Win {road.length + 1} ties and you're champions.</Text>
+        <KitText t="body" color={roles.textMuted}>{`Win ${road.length + 1} ties and you're champions.`}</KitText>
       )}
 
-      <Text style={styles.gestureHint}>
-        {Platform.OS === 'web' ? 'Scroll to zoom · drag to pan · double-click to reset' : 'Pinch to zoom · drag to pan · double-tap to reset'}
-      </Text>
+      <View style={styles.hintRow}>
+        <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>
+          {Platform.OS === 'web' ? 'Scroll to zoom · drag to pan' : 'Pinch to zoom · drag to pan'}
+        </KitText>
+        <Pressable onPress={fit} accessibilityRole="button" accessibilityLabel="Fit the bracket to the screen"
+          style={({ pressed }) => [styles.fitBtn, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
+          <Icon name="retry" size={16} color={roles.text} />
+          <KitText t="tag" color={roles.text}>Fit</KitText>
+        </Pressable>
+      </View>
 
       {/* The bracket tree — a pinch-zoom-and-pan canvas, boxed off from the rest
           of the screen so only this area responds to the gesture. */}
       <View
-        style={styles.bracketPanel}
+        style={[styles.bracketPanel, { borderColor: roles.rule, backgroundColor: roles.sunken }]}
         onLayout={onPanelLayout}
         {...(Platform.OS === 'web' ? { onWheel: handleWheelZoom } : {})}
       >
@@ -224,24 +243,24 @@ export function BracketPreview({
           <Animated.View style={[styles.bracketRow, animatedStyle]} onLayout={onContentLayout}>
             {columns.map(col => (
               <View key={col.key} style={styles.bracketCol}>
-                <Text style={styles.bracketColLabel}>{col.label}</Text>
+                <KitText t="tag" color={roles.textMuted} style={styles.bracketColLabel}>{col.label}</KitText>
                 <View style={[styles.bracketColBody, { height: colHeight }]}>
                   {col.ties
                     ? col.ties.map((t, i) => {
                         const isPM = t.teamA.isPlayer || t.teamB.isPlayer
                         return (
-                          <View key={i} style={[styles.bracketCard, isPM && { borderColor: accent, backgroundColor: accent + '14' }]}>
-                            <TieTeamRow team={t.teamA} accent={accent} />
-                            <View style={styles.bracketDivider} />
-                            <TieTeamRow team={t.teamB} accent={accent} />
+                          <View key={i} style={[styles.bracketCard, { borderColor: isPM ? roles.line : roles.rule, backgroundColor: roles.surface }, isPM && { borderWidth: border.plate }]}>
+                            <TieTeamRow team={t.teamA} />
+                            <View style={[styles.bracketDivider, { backgroundColor: roles.rule }]} />
+                            <TieTeamRow team={t.teamB} />
                           </View>
                         )
                       })
                     : Array.from({ length: col.count }).map((_, i) => (
-                        <View key={i} style={[styles.bracketCard, styles.bracketCardEmpty]}>
-                          <Text style={styles.placeholder}>?</Text>
-                          <View style={styles.bracketDivider} />
-                          <Text style={styles.placeholder}>?</Text>
+                        <View key={i} style={[styles.bracketCard, { borderColor: roles.rule }]}>
+                          <Tag roles={roles} variant="hidden">?</Tag>
+                          <View style={[styles.bracketDivider, { backgroundColor: roles.rule }]} />
+                          <Tag roles={roles} variant="hidden">?</Tag>
                         </View>
                       ))}
                 </View>
@@ -251,63 +270,44 @@ export function BracketPreview({
         </GestureDetector>
       </View>
 
-      <Pressable style={[styles.startBtn, { backgroundColor: accent }]} onPress={onStart}>
-        <Text style={styles.startBtnText}>{startLabel}</Text>
-      </Pressable>
+      <Plate label={startLabel ?? (opponent ? `Watch your ${firstLabel.toLowerCase()} tie` : 'Watch it play out')}
+        icon="play" roles={roles} onPress={onStart} />
     </View>
   )
 }
 
-function TieTeamRow({ team, accent }: { team: TieTeam; accent: string }) {
+function TieTeamRow({ team }: { team: TieTeam }) {
   const flag = flagForCountry(team.clubName)
   return (
     <View style={styles.bracketTeamRow}>
-      {flag ? <Text style={styles.teamFlag}>{flag}</Text> : null}
-      <Text
-        style={[styles.bracketTeamName, team.isPlayer && { color: accent, fontWeight: typography.black }]}
-        numberOfLines={1}
-      >
+      {flag ? <RoundFlag emoji={flag} code={team.clubName.slice(0, 3)} size={16} roles={roles} /> : null}
+      <KitText t="body" color={team.isPlayer ? roles.text : roles.textMuted} numberOfLines={1} style={{ flex: 1 }}>
         {team.clubName}
-      </Text>
+      </KitText>
+      {team.isPlayer && <Tag roles={roles} variant="you">YOU</Tag>}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.lg, gap: spacing.md },
-  title: { fontSize: typography.xl, fontWeight: typography.black, textAlign: 'center' },
-  yourTieCard: { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing.md, gap: 4 },
-  yourTieLabel: { fontSize: 9, fontWeight: typography.black, color: colors.textMuted, letterSpacing: 1, textAlign: 'center' },
-  yourTieRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  yourSide: { flex: 1, fontSize: 16, fontWeight: typography.bold, color: colors.textPrimary },
-  yourOppSide: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
-  yourFlag: { fontSize: 18 },
-  vs: { fontSize: typography.sm, color: colors.textMuted, fontWeight: typography.bold },
-  roadNote: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
-  gestureHint: { fontSize: 10, color: colors.textMuted, textAlign: 'center', marginTop: -spacing.xs },
+  container: { flex: 1, padding: space[4], gap: space[3] },
+  yourTieCard: { borderWidth: border.plate, padding: space[3], gap: 4 },
+  yourTieRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  fitBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 40, paddingHorizontal: space[3], borderWidth: border.thin },
 
   bracketPanel: {
     flex: 1,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgCard,
+    borderWidth: border.thin,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  bracketRow: { flexDirection: 'row', gap: spacing.md, padding: CANVAS_PAD },
-  bracketCol: { width: 160 },
-  bracketColLabel: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: spacing.xs },
+  bracketRow: { flexDirection: 'row', gap: space[3], padding: CANVAS_PAD },
+  bracketCol: { width: 170 },
+  bracketColLabel: { textAlign: 'center', marginBottom: space[1] },
   bracketColBody: { justifyContent: 'space-around' },
-  bracketCard: { backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: spacing.sm, gap: 4 },
-  bracketCardEmpty: { borderStyle: 'dashed', opacity: 0.55 },
+  bracketCard: { borderWidth: border.thin, paddingVertical: 6, paddingHorizontal: space[2], gap: 4 },
   bracketTeamRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  teamFlag: { fontSize: 13 },
-  bracketTeamName: { flex: 1, fontSize: 11, color: colors.textSecondary },
-  bracketDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  placeholder: { fontSize: 11, color: colors.textMuted, fontWeight: typography.bold },
-
-  startBtn: { borderRadius: radius.md, paddingVertical: spacing.lg, alignItems: 'center' },
-  startBtnText: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1.5 },
+  bracketDivider: { height: StyleSheet.hairlineWidth },
 })

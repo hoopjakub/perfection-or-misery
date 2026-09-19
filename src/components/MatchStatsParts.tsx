@@ -16,7 +16,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, ratingColor } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
 import { useGameStore } from '@/store/gameStore'
 import { loadLeaguePools } from '@/engine/run-stats'
 import { generateMatchDetail } from '@/engine/match-detail'
@@ -28,6 +28,9 @@ import type { ContextMatch } from '@/engine/match-context'
 
 // ── Request: everything needed to (re)generate one match's detail ───────────
 export type MatchDetailRequest = {
+  /** Opened from a finished run's pages: names link to the player and club
+   *  pages. Off mid-season, where a player page would show results still to come. */
+  linkPages?: boolean
   homeClubId: string
   homeName:   string
   awayClubId: string
@@ -204,7 +207,7 @@ export function StatSideHeader({ homeName, awayName, accent }: {
       </View>
       <View style={[styles.sideChip, { justifyContent: 'flex-end' }]}>
         <Text style={[styles.sideName, { textAlign: 'right' }]} numberOfLines={1}>{withCountryFlag(awayName)}</Text>
-        <View style={[styles.sideDot, { backgroundColor: colors.textMuted }]} />
+        <View style={[styles.sideDot, { backgroundColor: prim.cottonMuted }]} />
       </View>
     </View>
   )
@@ -270,16 +273,16 @@ export function StatBar({ label, home, away, accent, pct }: {
   return (
     <View style={styles.statRow}>
       <View style={styles.statNums}>
-        <Text style={[styles.statVal, homeLeads && { color: accent, fontWeight: typography.black }]}>{fmt(home)}</Text>
+        <Text style={[styles.statVal, homeLeads && { color: accent, fontFamily: font.bodyBlack }]}>{fmt(home)}</Text>
         <Text style={styles.statLabel}>{label}</Text>
-        <Text style={[styles.statVal, { textAlign: 'right' }, awayLeads && { color: accent, fontWeight: typography.black }]}>{fmt(away)}</Text>
+        <Text style={[styles.statVal, { textAlign: 'right' }, awayLeads && { color: accent, fontFamily: font.bodyBlack }]}>{fmt(away)}</Text>
       </View>
       <View style={styles.statBarTrack}>
         <View style={[styles.statBarHalf, { flexDirection: 'row-reverse' }]}>
-          <View style={{ width: `${homeShare * 100}%`, backgroundColor: homeLeads ? accent : colors.textMuted, borderRadius: 2, height: 4 }} />
+          <View style={{ width: `${homeShare * 100}%`, backgroundColor: homeLeads ? accent : prim.cottonMuted, borderRadius: 2, height: 4 }} />
         </View>
         <View style={styles.statBarHalf}>
-          <View style={{ width: `${(1 - homeShare) * 100}%`, backgroundColor: awayLeads ? accent : colors.textMuted, borderRadius: 2, height: 4 }} />
+          <View style={{ width: `${(1 - homeShare) * 100}%`, backgroundColor: awayLeads ? accent : prim.cottonMuted, borderRadius: 2, height: 4 }} />
         </View>
       </View>
     </View>
@@ -361,17 +364,17 @@ export function PlayerRow({ l, accent, expanded, onPress }: {
           <Text style={[styles.playerName, l.motm && styles.playerNameMotm]} numberOfLines={1}>{l.name}</Text>
           {l.motm && (
             <View style={styles.motmChip}>
-              <Text style={styles.motmChipText}>★ POTM</Text>
+              <Text style={styles.motmChipText}>POTM</Text>
             </View>
           )}
-          {l.goals > 0 && <Text style={styles.playerBadge}>{'⚽'.repeat(Math.min(3, l.goals))}{l.goals > 3 ? `×${l.goals}` : ''}</Text>}
+          {l.goals > 0 && <Text style={styles.playerBadge}>{`${l.goals}G`}</Text>}
           {l.assists > 0 && <Text style={styles.playerBadgeMuted}>{l.assists}A</Text>}
           {l.yellowCard && !l.redCard && <View style={styles.cardYellow} />}
           {l.redCard && <View style={styles.cardRed} />}
           {l.subOnMinute !== undefined && <Text style={styles.subOn}>▲{l.subOnMinute}'</Text>}
           {l.subOffMinute !== undefined && <Text style={styles.subOff}>▼{l.subOffMinute}'</Text>}
           {/* §10.5 phase 4 — came off injured, and for how long. */}
-          {l.injured && <Text style={styles.injuredTag}>🩹 out {l.matchdaysOut}</Text>}
+          {l.injured && <Text style={styles.injuredTag}>INJ · out {l.matchdaysOut}</Text>}
         </View>
         {unused
           ? <Text style={styles.unusedTag}>unused</Text>
@@ -396,19 +399,19 @@ export function PlayerRow({ l, accent, expanded, onPress }: {
 // ── Events timeline ─────────────────────────────────────────────────────────
 export function EventRow({ e }: { e: MatchEvent }) {
   const minute = `${e.minute}${e.plus ? `+${e.plus}` : ''}'`
-  let icon = '⚽', body: React.ReactNode = null
+  let icon = 'GOAL', body: React.ReactNode = null
   if (e.type === 'goal') {
     // §9 — the row sits on the side the goal COUNTS FOR, so an own goal has to
     // shout that it's an own goal: different icon, red name, explicit label.
     // Without all three it reads as an opposition player scoring for us.
-    icon = e.ownGoal ? '🥅' : '⚽'
+    icon = e.ownGoal ? 'OG' : 'GOAL'
     const tag = e.ownGoal ? 'Own goal' : e.penalty ? 'Penalty' : null
     // A penalty has no assist — the equivalent credit is who won it.
     const credit = e.penWonName ? `won by ${e.penWonName}` : e.assistName ? `assist: ${e.assistName}` : null
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
-          <Text style={{ fontWeight: typography.bold, color: e.ownGoal ? colors.danger : colors.textPrimary }}>{e.playerName}</Text>
+          <Text style={{ fontFamily: font.bodyBold, color: e.ownGoal ? colors.danger : prim.cotton }}>{e.playerName}</Text>
           {tag ? <Text style={[styles.evTag, e.ownGoal && { color: colors.danger }]}>  {tag}</Text> : null}
         </Text>
         {credit ? <Text style={styles.evAssist} numberOfLines={1}>{credit}</Text> : null}
@@ -418,11 +421,11 @@ export function EventRow({ e }: { e: MatchEvent }) {
   } else if (e.type === 'penMissed') {
     // The one event that changes nothing on the scoreboard and everything in
     // the room — so it gets its own icon and says which way it went.
-    icon = '❌'
+    icon = 'MISS'
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
-          <Text style={{ fontWeight: typography.bold, color: colors.textPrimary }}>{e.playerName}</Text>
+          <Text style={{ fontFamily: font.bodyBold, color: prim.cotton }}>{e.playerName}</Text>
           <Text style={[styles.evTag, { color: colors.warning }]}>  {e.saved ? 'Penalty saved' : 'Penalty missed'}</Text>
         </Text>
         {e.saved && e.keeperName ? <Text style={styles.evAssist} numberOfLines={1}>saved by {e.keeperName}</Text> : null}
@@ -432,12 +435,12 @@ export function EventRow({ e }: { e: MatchEvent }) {
     // §10.5 phase 4 — deliberately its own row, sitting directly above the
     // change it forced: a manager losing a player is a different event from a
     // manager choosing to make a substitution, and the timeline should say so.
-    icon = '🩹'
+    icon = 'INJ'
     const out = e.matchdaysOut === 1 ? 'out for the next match' : `out for ${e.matchdaysOut} matches`
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
-          <Text style={{ fontWeight: typography.bold, color: colors.textPrimary }}>{e.playerName}</Text>
+          <Text style={{ fontFamily: font.bodyBold, color: prim.cotton }}>{e.playerName}</Text>
           <Text style={[styles.evTag, { color: colors.danger }]}>  Injured</Text>
         </Text>
         <Text style={styles.evAssist} numberOfLines={1}>
@@ -446,14 +449,14 @@ export function EventRow({ e }: { e: MatchEvent }) {
       </>
     )
   } else if (e.type === 'yellow' || e.type === 'red') {
-    icon = e.type === 'yellow' ? '🟨' : '🟥'
+    icon = e.type === 'yellow' ? 'YC' : 'RC'
     body = <Text style={styles.evText} numberOfLines={1}>{e.playerName}</Text>
   } else {
-    icon = '🔁'
+    icon = 'SUB'
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
-          <Text style={{ color: colors.success }}>▲ {e.playerName}</Text>
+          <Text style={{ color: prim.volt }}>▲ {e.playerName}</Text>
           <Text style={{ color: colors.danger }}>  ▼ {e.offPlayerName}</Text>
         </Text>
         {/* §10.5 — a change at the interval and a change forced by an injury both
@@ -537,52 +540,52 @@ const styles = StyleSheet.create({
   sideHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   sideChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
   sideDot: { width: 8, height: 8, borderRadius: 4 },
-  sideName: { flex: 1, fontSize: 10, fontWeight: typography.black, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sideName: { flex: 1, fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  scorerLine: { fontSize: 10, color: colors.textSecondary },
-  scorerMark: { color: colors.textMuted, fontWeight: typography.bold },
+  scorerLine: { fontSize: 10, color: prim.cottonMuted },
+  scorerMark: { color: prim.cottonMuted, fontFamily: font.bodyBold },
 
   statRow: { marginBottom: spacing.sm },
   statNums: { flexDirection: 'row', alignItems: 'center' },
-  statVal: { width: 52, fontSize: 12, color: colors.textSecondary },
-  statLabel: { flex: 1, fontSize: 11, color: colors.textMuted, textAlign: 'center' },
+  statVal: { width: 52, fontSize: 12, color: prim.cottonMuted },
+  statLabel: { flex: 1, fontSize: 11, color: prim.cottonMuted, textAlign: 'center' },
   statBarTrack: { flexDirection: 'row', gap: 3, marginTop: 3 },
-  statBarHalf: { flex: 1, backgroundColor: colors.bgElevated, borderRadius: 2, height: 4, overflow: 'hidden' },
+  statBarHalf: { flex: 1, backgroundColor: prim.nylonSunken, borderRadius: 2, height: 4, overflow: 'hidden' },
 
   evRow: { alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
-  evMinute: { width: 38, fontSize: 10, fontWeight: typography.black, color: colors.textMuted, textAlign: 'center' },
+  evMinute: { width: 38, fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textAlign: 'center' },
   evIcon: { fontSize: 12 },
-  evText: { fontSize: 11, color: colors.textSecondary },
-  evAssist: { fontSize: 10, color: colors.textMuted },
+  evText: { fontSize: 11, color: prim.cottonMuted },
+  evAssist: { fontSize: 10, color: prim.cottonMuted },
   // §9 markers. The tag carries weight as well as colour so "Own goal" still
   // reads as exceptional without relying on hue alone.
-  evTag: { fontSize: 9, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  evError: { fontSize: 10, color: colors.danger, fontStyle: 'italic' },
+  evTag: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  evError: { fontSize: 10, color: colors.danger, },
   breakRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
-  breakLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  breakText: { fontSize: 9, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  breakLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: prim.ruleNylon },
+  breakText: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  playerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: colors.border },
-  playerRowMotm: { backgroundColor: colors.gold + '22', borderWidth: 1, borderColor: colors.gold, borderRadius: radius.sm, paddingHorizontal: 4 },
-  playerPos: { width: 32, fontSize: 9, fontWeight: typography.black, color: colors.textMuted },
-  playerName: { fontSize: typography.sm, color: colors.textPrimary, flexShrink: 1 },
-  playerNameMotm: { color: colors.gold, fontWeight: typography.black },
-  motmChip: { backgroundColor: colors.gold, borderRadius: radius.sm, paddingHorizontal: 5, paddingVertical: 1 },
-  motmChipText: { fontSize: 9, fontWeight: typography.black, color: colors.bg, letterSpacing: 0.5 },
+  playerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  playerRowMotm: { backgroundColor: prim.volt + '22', borderWidth: 1, borderColor: prim.volt, borderRadius: 0, paddingHorizontal: 4 },
+  playerPos: { width: 32, fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted },
+  playerName: { fontSize: typography.sm, color: prim.cotton, flexShrink: 1 },
+  playerNameMotm: { color: prim.volt, fontFamily: font.bodyBlack },
+  motmChip: { backgroundColor: prim.volt, borderRadius: 0, paddingHorizontal: 5, paddingVertical: 1 },
+  motmChipText: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.nylon, letterSpacing: 0.5 },
   playerBadge: { fontSize: 10 },
-  playerBadgeMuted: { fontSize: 9, color: colors.textSecondary, fontWeight: typography.bold },
+  playerBadgeMuted: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold },
   cardYellow: { width: 8, height: 11, borderRadius: 1, backgroundColor: colors.warning },
   cardRed: { width: 8, height: 11, borderRadius: 1, backgroundColor: colors.danger },
-  subOn: { fontSize: 9, color: colors.success, fontWeight: typography.bold },
-  subOff: { fontSize: 9, color: colors.danger, fontWeight: typography.bold },
-  unusedTag: { fontSize: 9, color: colors.textMuted, fontStyle: 'italic' },
-  injuredTag: { fontSize: 9, color: colors.danger, fontWeight: typography.bold },
-  ratingChip: { minWidth: 34, borderRadius: radius.sm, paddingHorizontal: 5, paddingVertical: 2, alignItems: 'center' },
-  ratingChipText: { fontSize: 12, fontWeight: typography.black, color: colors.bg },
+  subOn: { fontSize: 9, color: prim.volt, fontFamily: font.bodyBold },
+  subOff: { fontSize: 9, color: colors.danger, fontFamily: font.bodyBold },
+  unusedTag: { fontSize: 9, color: prim.cottonMuted, },
+  injuredTag: { fontSize: 9, color: colors.danger, fontFamily: font.bodyBold },
+  ratingChip: { minWidth: 34, borderRadius: 0, paddingHorizontal: 5, paddingVertical: 2, alignItems: 'center' },
+  ratingChipText: { fontSize: 12, fontFamily: font.bodyBlack, color: prim.nylon },
 
-  sheet: { backgroundColor: colors.bgElevated, borderRadius: radius.sm, padding: spacing.sm, marginVertical: spacing.xs },
+  sheet: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.sm, marginVertical: spacing.xs },
   sheetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
-  sheetKey: { fontSize: 11, color: colors.textMuted },
-  sheetVal: { fontSize: 11, fontWeight: typography.bold },
+  sheetKey: { fontSize: 11, color: prim.cottonMuted },
+  sheetVal: { fontSize: 11, fontFamily: font.bodyBold },
 
 })

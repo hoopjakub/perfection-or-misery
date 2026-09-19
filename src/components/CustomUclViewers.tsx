@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
-import { AppModal } from '@/components/AppModal'
-import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
+import { openSheet } from '@/lib/sheet'
+import { appendKnockoutRounds } from '@/engine/match-context'
+import { colors, spacing, typography, radius, MODE_THEMES, prim, font } from '@/theme'
 import { berthForPosition, type UclRound, type UclPath } from '@/data/uefa-coefficients'
 import { QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
 import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-formats'
@@ -23,7 +24,7 @@ const BERTH_SHORT: Record<UclRound, string> = {
   league_phase: 'UCL', playoff: 'PO', q3: 'Q3', q2: 'Q2', q1: 'Q1',
 }
 const BERTH_COLOR: Record<UclRound, string> = {
-  league_phase: colors.success, playoff: '#F59E0B', q3: '#FB923C', q2: '#F87171', q1: '#F87171',
+  league_phase: prim.volt, playoff: '#F59E0B', q3: '#FB923C', q2: '#F87171', q1: '#F87171',
 }
 
 export function berthLabel(round: UclRound, path: UclPath): string {
@@ -125,7 +126,7 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
                   but do shrink if tight" actually needs. */}
               <Text
                 style={[
-                  { fontSize: typography.sm, color: colors.textPrimary, flexGrow: 0, flexShrink: 1, flexBasis: 'auto' },
+                  { fontSize: typography.sm, color: prim.cotton, flexGrow: 0, flexShrink: 1, flexBasis: 'auto' },
                   isPlayer && styles.tablePlayerText,
                 ]}
                 numberOfLines={1}
@@ -139,7 +140,7 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
       })}
       {showBadges && (
         <View style={styles.legendRow}>
-          <Text style={styles.legendItem}><Text style={{ color: colors.success }}>UCL</Text> League Phase</Text>
+          <Text style={styles.legendItem}><Text style={{ color: prim.volt }}>UCL</Text> League Phase</Text>
           <Text style={styles.legendItem}><Text style={{ color: '#F59E0B' }}>PO</Text> Play-off</Text>
           <Text style={styles.legendItem}><Text style={{ color: '#FB923C' }}>Q3</Text>/<Text style={{ color: '#F87171' }}>Q2·Q1</Text> Qualifying</Text>
         </View>
@@ -148,60 +149,35 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
   )
 }
 
-/** Modal wrapper for one league table. */
-export function LeagueTableModal({ table, playerClubId, onClose }: { table: SimLeagueTable | null; playerClubId?: string | null; onClose: () => void }) {
-  return (
-    <AppModal visible={table !== null} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
-          {table && (
-            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
-              <Text style={styles.modalTitle}>{flagForCountry(table.country) ? `${flagForCountry(table.country)} ` : ''}{table.name}</Text>
-              <LeagueTableView key={table.rank} table={table} playerClubId={playerClubId} />
-            </ScrollView>
-          )}
-          <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
-        </Pressable>
-      </Pressable>
-    </AppModal>
-  )
+// One league's table, and every league, as pages (Phase 5: were modals). They
+// come from a live draw as well as a finished run, so they use the sheet.
+export function openLeagueTable(table: SimLeagueTable, playerClubId?: string | null) {
+  const flag = flagForCountry(table.country)
+  openSheet({
+    title: table.name, sub: `${flag ? `${flag} ` : ''}${table.country} · #${table.rank} in Europe`,
+    render: () => <LeagueTableView table={table} playerClubId={playerClubId} />,
+  })
 }
 
-/** Browse every simulated league → drill into any table. */
-export function LeaguesBrowserModal({ visible, tables, playerClubId, onClose }: {
-  visible: boolean
-  tables: SimLeagueTable[]
-  playerClubId?: string | null
-  onClose: () => void
-}) {
-  const [open, setOpen] = useState<SimLeagueTable | null>(null)
-  return (
-    <>
-      <AppModal visible={visible && !open} onRequestClose={onClose}>
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>All Leagues</Text>
-            <Text style={styles.phaseNote}>{tables.length} leagues simulated this run · tap one for its table</Text>
-            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
-              {tables.map(t => (
-                <Pressable key={t.rank} style={styles.browserRow} onPress={() => setOpen(t)}>
-                  <Text style={styles.browserRank}>#{t.rank}</Text>
-                  <Text style={styles.browserFlag}>{flagForCountry(t.country) || '🏳️'}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.browserName} numberOfLines={1}>{t.name}</Text>
-                    <Text style={styles.browserChamp} numberOfLines={1}>🏆 {t.standings[0]?.clubName ?? '—'}</Text>
-                  </View>
-                  <Text style={styles.browserCount}>{t.standings.length} ›</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
+export function openLeaguesBrowser(tables: SimLeagueTable[], playerClubId?: string | null) {
+  openSheet({
+    title: 'All leagues', sub: `${tables.length} leagues simulated this run · tap one for its table`,
+    render: () => (
+      <View>
+        {tables.map(t => (
+          <Pressable key={t.rank} style={({ pressed }) => [styles.browserRow, pressed && { opacity: 0.6 }]} onPress={() => openLeagueTable(t, playerClubId)} accessibilityRole="link">
+            <Text style={styles.browserRank}>#{t.rank}</Text>
+            <Text style={styles.browserFlag}>{flagForCountry(t.country) || ''}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.browserName} numberOfLines={1}>{t.name}</Text>
+              <Text style={styles.browserChamp} numberOfLines={1}>{t.standings[0]?.clubName ?? '—'}</Text>
+            </View>
+            <Text style={styles.browserCount}>{t.standings.length} ›</Text>
           </Pressable>
-        </Pressable>
-      </AppModal>
-      <LeagueTableModal table={open} playerClubId={playerClubId} onClose={() => setOpen(null)} />
-    </>
-  )
+        ))}
+      </View>
+    ),
+  })
 }
 
 // QualTie → the shape the KO detail modal renders (legs, ET, pens, scorers).
@@ -226,67 +202,15 @@ export function qualTieToKoMatch(t: import('@/engine/cl-qualifying').QualTie): C
 
 // ── Knockout tie detail (aggregate, both legs, ET, shootout) ────────────────
 
-export function KoTieDetailModal({ match: m, roundLabel, onClose, playerClubId, draftedPlayers, yearStart = 2025, accent }: {
-  match: CLKnockoutMatch | null; roundLabel?: string; onClose: () => void
-  playerClubId?: string; draftedPlayers?: DraftedPlayer[]
-  yearStart?: number   // roster season for the deep-stats regeneration
-  accent?: string
-}) {
-  // Opening a leg's full stats leaves this tie modal behind — close it first,
-  // or you come back from the stats screen into a modal you didn't ask for.
-  const openLeg = (leg: 1 | 2) => {
-    if (!m) return
-    const req = koLegDetailRequest(m, leg, { label: roundLabel ?? m.round, yearStart, playerClubId, drafted: draftedPlayers })
-    if (!req) return
-    onClose()
-    openMatchStats(req, accent ?? CL.accent)
-  }
-  // Penalty takers: matches carry the raw make/miss sequence; the NAMED kick
-  // list is only pre-built for ties the reveal animated. Expand lazily here
-  // (same shared helper the live sim uses) so EVERY shootout — qualifying
-  // ties, no-player runs, history — shows its real takers. Your own club's
-  // takers come from YOUR drafted squad, not the DB's historical roster.
-  const [, forceTick] = useState(0)
-  useEffect(() => {
-    if (!m || m.penKicksA || !m.aPenKicks || !m.bPenKicks) return
-    let active = true
-    attachCLShootoutNames([m], playerClubId, draftedPlayers).then(() => { if (active) forceTick(x => x + 1) }).catch(() => { /* fall back to no list */ })
-    return () => { active = false }
-  }, [m])
-  const kicksA = m?.penKicksA
-  const kicksB = m?.penKicksB
-
-  return (
-    <AppModal visible={m !== null} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
-          {m && (
-            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Text style={styles.modalTitle}>{roundLabel ?? m.round}</Text>
-                {m.leg1 && <InfoBubble topic="two_legged_tie" size={16} />}
-              </View>
-              <Text style={styles.koAgg}>{m.teamA.clubName} {m.aGoals} – {m.bGoals} {m.teamB.clubName} {m.leg1 ? '(agg.)' : ''}</Text>
-              {m.extraTime && <Text style={styles.koNote}>Decided after extra time</Text>}
-              {m.aPens !== undefined && <Text style={styles.koPens}>Penalties: {m.aPens} – {m.bPens} · {m.winner.clubName} advance</Text>}
-              {kicksA && kicksB && <PenShootout teamA={m.teamA.clubName} teamB={m.teamB.clubName} kicksA={kicksA} kicksB={kicksB} />}
-              {m.leg1 ? (
-                <>
-                  <KoLeg label="Leg 1" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.leg1.aGoals} ag={m.leg1.bGoals} scorers={m.leg1Scorers} onStats={() => openLeg(1)} />
-                  {m.leg2 && <KoLeg label="Leg 2" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2.bGoals} ag={m.leg2.aGoals} scorers={m.leg2Scorers} onStats={() => openLeg(2)} />}
-                  {m.leg2ExtraTime && (m.leg2ExtraTime.aGoals > 0 || m.leg2ExtraTime.bGoals > 0) &&
-                    <KoLeg label="Extra Time (leg 2)" home={m.teamB.clubName} away={m.teamA.clubName} hg={m.leg2ExtraTime.bGoals} ag={m.leg2ExtraTime.aGoals} scorers={m.leg2ExtraTimeScorers} />}
-                </>
-              ) : (
-                <KoLeg label="Final" home={m.teamA.clubName} away={m.teamB.clubName} hg={m.aGoals} ag={m.bGoals} scorers={m.leg1Scorers} onStats={() => openLeg(1)} />
-              )}
-            </ScrollView>
-          )}
-          <Pressable style={styles.modalClose} onPress={onClose}><Text style={styles.modalCloseText}>Close</Text></Pressable>
-        </Pressable>
-      </Pressable>
-    </AppModal>
-  )
+// A knockout or qualifying tie opens on its first leg (Phase 5: was
+// KoTieDetailModal). The match sheet shows the tie, both legs tappable, the
+// aggregate and any shootout, so the modal in between said nothing new.
+export function openKoTie(m: CLKnockoutMatch, opts: { label?: string; playerClubId?: string; drafted?: DraftedPlayer[]; yearStart?: number; accent?: string }) {
+  const label = opts.label ?? m.round
+  const req = koLegDetailRequest(m, 1, { label, yearStart: opts.yearStart ?? 2025, playerClubId: opts.playerClubId, drafted: opts.drafted })
+  if (!req) return
+  const context = appendKnockoutRounds([], [{ label, ties: [m] }])
+  openMatchStats({ ...req, matchday: context[0]?.matchday, contextMatches: context }, opts.accent ?? CL.accent)
 }
 
 function KoLeg({ label, home, away, hg, ag, scorers, onStats }: { label: string; home: string; away: string; hg: number; ag: number; scorers?: import('@/types/stats').MatchScorers; onStats?: () => void }) {
@@ -297,66 +221,66 @@ function KoLeg({ label, home, away, hg, ag, scorers, onStats }: { label: string;
         <Text style={styles.koLegLabel}>{label}</Text>
         {onStats && (
           <Pressable onPress={onStats} hitSlop={8}>
-            <Text style={styles.koLegStats}>📊 Match stats ›</Text>
+            <Text style={styles.koLegStats}>Match stats ›</Text>
           </Pressable>
         )}
       </View>
       <Text style={styles.koLegScore}>{home} {hg} – {ag} {away}</Text>
-      {hs ? <Text style={styles.koLegScorer}>⚽ {home}: {hs}</Text> : null}
-      {as ? <Text style={styles.koLegScorer}>⚽ {away}: {as}</Text> : null}
+      {hs ? <Text style={styles.koLegScorer}>{home}: {hs}</Text> : null}
+      {as ? <Text style={styles.koLegScorer}>{away}: {as}</Text> : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  badge: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 4, paddingVertical: 1 },
-  badgeText: { fontSize: 8, fontWeight: typography.black, letterSpacing: 0.5 },
+  badge: { borderWidth: 1, borderRadius: 0, paddingHorizontal: 4, paddingVertical: 1 },
+  badgeText: { fontSize: 8, fontFamily: font.bodyBlack, letterSpacing: 0.5 },
 
   stakesRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  stakesPos: { width: 28, fontSize: 12, fontWeight: typography.black, color: colors.textPrimary },
-  stakesLabel: { flex: 1, fontSize: 11, color: colors.textSecondary },
-  stakesNote: { fontSize: 10, color: colors.textMuted, fontStyle: 'italic', marginTop: 2 },
-  stakesNone: { fontSize: 11, color: colors.textMuted, fontStyle: 'italic' },
+  stakesPos: { width: 28, fontSize: 12, fontFamily: font.bodyBlack, color: prim.cotton },
+  stakesLabel: { flex: 1, fontSize: 11, color: prim.cottonMuted },
+  stakesNote: { fontSize: 10, color: prim.cottonMuted, marginTop: 2 },
+  stakesNone: { fontSize: 11, color: prim.cottonMuted, },
 
-  phaseNote: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center', marginVertical: spacing.xs },
-  formatNote: { fontSize: 10, color: colors.textSecondary, backgroundColor: colors.bgElevated, borderRadius: radius.sm, padding: spacing.sm, lineHeight: 15, marginBottom: spacing.xs },
+  phaseNote: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center', marginVertical: spacing.xs },
+  formatNote: { fontSize: 10, color: prim.cottonMuted, backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.sm, lineHeight: 15, marginBottom: spacing.xs },
   phaseTabs: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', marginBottom: spacing.xs },
-  phaseTab: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 4 },
+  phaseTab: { borderWidth: 1, borderColor: prim.ruleNylon, borderRadius: 0, paddingHorizontal: spacing.md, paddingVertical: 4 },
   phaseTabActive: { borderColor: CL.accent, backgroundColor: CL.accent + '18' },
-  phaseTabText: { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
+  phaseTabText: { fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
   phaseTabTextActive: { color: CL.accent },
 
-  tableHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
-  tableHeadTxt: { fontSize: 9, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase' },
-  tableRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: colors.border },
-  tableRowPlayer: { backgroundColor: CL.accent + '15', borderRadius: radius.sm },
-  tablePos: { width: 22, fontSize: 12, color: colors.textMuted, textAlign: 'center' },
-  tableName: { flex: 1, fontSize: typography.sm, color: colors.textPrimary },
-  tablePlayerText: { color: CL.accent, fontWeight: typography.bold },
-  tableWdl: { width: 56, fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
-  tablePts: { width: 30, fontSize: typography.sm, fontWeight: typography.bold, color: CL.accent, textAlign: 'right' },
+  tableHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  tableHeadTxt: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase' },
+  tableRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  tableRowPlayer: { backgroundColor: CL.accent + '15', borderRadius: 0 },
+  tablePos: { width: 22, fontSize: 12, color: prim.cottonMuted, textAlign: 'center' },
+  tableName: { flex: 1, fontSize: typography.sm, color: prim.cotton },
+  tablePlayerText: { color: CL.accent, fontFamily: font.bodyBold },
+  tableWdl: { width: 56, fontSize: 11, color: prim.cottonMuted, textAlign: 'center' },
+  tablePts: { width: 30, fontSize: typography.sm, fontFamily: font.bodyBold, color: CL.accent, textAlign: 'right' },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.md, paddingTop: spacing.sm },
-  legendItem: { fontSize: 9, color: colors.textMuted },
+  legendItem: { fontSize: 9, color: prim.cottonMuted },
 
-  browserRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  browserRank: { width: 32, fontSize: 12, fontWeight: typography.black, color: CL.accent },
+  browserRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  browserRank: { width: 32, fontSize: 12, fontFamily: font.bodyBlack, color: CL.accent },
   browserFlag: { fontSize: 16, width: 24, textAlign: 'center' },
-  browserName: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
-  browserChamp: { fontSize: typography.xs, color: colors.textSecondary, marginTop: 1 },
-  browserCount: { fontSize: 10, color: colors.textMuted },
+  browserName: { fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cotton },
+  browserChamp: { fontSize: typography.xs, color: prim.cottonMuted, marginTop: 1 },
+  browserCount: { fontSize: 10, color: prim.cottonMuted },
 
-  koAgg: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary, textAlign: 'center', marginVertical: spacing.xs },
+  koAgg: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton, textAlign: 'center', marginVertical: spacing.xs },
   koNote: { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
-  koPens: { fontSize: typography.sm, color: CL.accent, fontWeight: typography.bold, textAlign: 'center', marginBottom: spacing.sm },
-  koLegBlock: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
-  koLegLabel: { fontSize: typography.xs, color: colors.textMuted, fontWeight: typography.bold, textTransform: 'uppercase', letterSpacing: 1 },
-  koLegStats: { fontSize: 10, color: CL.accent, fontWeight: typography.bold },
-  koLegScore: { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
-  koLegScorer: { fontSize: typography.xs, color: colors.textSecondary },
+  koPens: { fontSize: typography.sm, color: CL.accent, fontFamily: font.bodyBold, textAlign: 'center', marginBottom: spacing.sm },
+  koLegBlock: { borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
+  koLegLabel: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
+  koLegStats: { fontSize: 10, color: CL.accent, fontFamily: font.bodyBold },
+  koLegScore: { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
+  koLegScorer: { fontSize: typography.xs, color: prim.cottonMuted },
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  modalCard: { width: '100%', maxHeight: '85%', backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  modalTitle: { fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary },
-  modalClose: { marginTop: spacing.md, backgroundColor: colors.bgElevated, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  modalCloseText: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
+  modalCard: { width: '100%', maxHeight: '85%', backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.lg, gap: spacing.sm },
+  modalTitle: { fontSize: typography.lg, fontFamily: font.bodyBlack, color: prim.cotton },
+  modalClose: { marginTop: spacing.md, backgroundColor: prim.nylonSunken, borderRadius: 0, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: prim.ruleNylon },
+  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
 })

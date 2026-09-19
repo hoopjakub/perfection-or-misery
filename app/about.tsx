@@ -1,13 +1,29 @@
 import React, { useState } from 'react'
+import { WebColumn } from '@/components/kit'
+import { PageMeta } from '@/components/PageMeta'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import Constants from 'expo-constants'
 import { BackButton } from '@/components/ui'
 import { useGameStore } from '@/store/gameStore'
 import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl, autoDraftForTestFinal } from '@/engine/quick-sim'
 import { SpinningGlobe } from '@/components/GlobeReveal'
 import { colors, spacing, typography, radius, shadows } from '@/theme'
 
+// The Quick Sim Tester writes nothing (quickSim runs are never saved), but it
+// is a developer tool and shipped in public builds behind eight taps. It now
+// only unlocks in development (Metro, `npm run web`) or in a build that opts in
+// with EXPO_PUBLIC_DEV_TOOLS=1 — the `development` and `preview` EAS profiles
+// set it, `production` doesn't.
+const DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1'
+
+// Read from app.json rather than typed here: About said "1.0.0" while the app
+// was 0.0.1.
+const APP_VERSION = Constants.expoConfig?.version ?? '—'
+
 export default function AboutScreen() {
+  const insets = useSafeAreaInsets()
   const [taps, setTaps] = useState(0)
   const [showTester, setShowTester] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -15,7 +31,7 @@ export default function AboutScreen() {
   function tapVersion() {
     const n = taps + 1
     setTaps(n)
-    if (n >= 8) setShowTester(true)
+    if (n >= 8 && DEV_TOOLS) setShowTester(true)
   }
 
   async function runQuickSim(family: 'league' | 'champions_league' | 'custom_ucl' | 'world_cup' | 'test_final') {
@@ -62,11 +78,13 @@ export default function AboutScreen() {
   }
 
   return (
+    <WebColumn background={colors.bg}>
+      <PageMeta title="About" path="/about" />
     <View style={styles.container}>
       {/* header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <BackButton />
-        <Text style={styles.title}>About Me</Text>
+        <Text style={styles.title}>About</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -111,7 +129,7 @@ export default function AboutScreen() {
             • Every match is decided by a custom simulation engine — team OVR, form, and controlled
             randomness, goal by goal{'\n'}
             • On top of the result engine sits a deterministic deep-stats generator: possession, xG,
-            shot maps, pass numbers, duels, individual 0–10 ratings and a Player of the Match for
+            shot counts, pass numbers, duels, individual 0–10 ratings and a Player of the Match for
             every fixture — thousands of matches per run, each reproducible from a single stored seed
             so reopening a match always shows identical numbers{'\n'}
             • UEFA Champions League and FIFA World Cup knockouts run through a full two-legged / extra-time /
@@ -134,7 +152,7 @@ export default function AboutScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Version</Text>
           <Pressable onPress={tapVersion}>
-            <Text style={styles.content}>1.0.0</Text>
+            <Text style={styles.content}>{APP_VERSION}</Text>
           </Pressable>
         </View>
 
@@ -174,6 +192,7 @@ export default function AboutScreen() {
         )}
       </ScrollView>
     </View>
+    </WebColumn>
   )
 }
 
@@ -203,7 +222,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: 56,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,

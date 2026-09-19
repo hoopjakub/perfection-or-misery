@@ -21,14 +21,20 @@ const SPIN_FRAME_MS = 80   // ~12fps
 
 // A spinning orthographic globe that eases to a stop with `target` facing front
 // and glowing in `accent`. Calls onLock() once it settles. Text is the caller's job.
-export function GlobeReveal({ targetId, targetName, accent, size = 220, spinMs = 2600, onLock }: {
+export function GlobeReveal({ targetId, targetName, accent, size = 220, spinMs = 2600, onLock, skip }: {
   targetId?: number | null       // numeric ISO 3166-1 (preferred)
   targetName?: string | null     // fallback: feature name (case-insensitive contains)
   accent: string
   size?: number
   spinMs?: number
   onLock?: () => void
+  // Set true to land the spin on the next frame (the draw's "tap to lock",
+  // docs/ui-overhaul/06-MOTION.md §5.3). The outcome was decided before the
+  // spin started, so skipping only skips the playback.
+  skip?: boolean
 }) {
+  const skipRef = useRef(false)
+  skipRef.current = !!skip
   const R = size * 0.43
   const C = size / 2
   const rafRef = useRef<number | null>(null)
@@ -64,7 +70,7 @@ export function GlobeReveal({ targetId, targetName, accent, size = 220, spinMs =
     let lastDraw = 0
 
     const tick = () => {
-      const t = Math.min(1, (Date.now() - t0) / spinMs)
+      const t = skipRef.current ? 1 : Math.min(1, (Date.now() - t0) / spinMs)
       const e = 1 - Math.pow(1 - t, 3)       // easeOutCubic — fast then settle
       centerRef.current = {
         lon: startLon + (endLon - startLon) * e,

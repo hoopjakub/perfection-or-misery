@@ -1,13 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
-import { TeamLabel } from '@/components/TeamLabel'
-import { PenShootout } from '@/components/PenShootout'
+import { View, StyleSheet, Pressable } from 'react-native'
+import Animated, { FadeInLeft, FadeInRight } from 'react-native-reanimated'
+import { ROLES, space, border } from '@/theme'
+import { KitText, Tag, Icon, Stripe, RoundFlag } from '@/components/kit'
+import { getFlag } from '@/lib/flagMap'
 import { summariseScorers } from '@/engine/run-stats'
 import type { MatchScorers } from '@/types/stats'
 import type { PenKick } from '@/engine/knockout-match'
 
-const CL = MODE_THEMES.champions_league
+// Your match under floodlights (docs/ui-overhaul/07c C5): the scoreline as a
+// super, the round and clock in the tag mono, events sliding in from their
+// side, the aggregate under the score, penalties as a row of tags. Always
+// nylon: it's live play.
+const roles = ROLES.nylon
 
 // ── Public shapes ───────────────────────────────────────────────────────────
 export type LiveTeam = { clubId: string; clubName: string }
@@ -60,7 +65,7 @@ const lastName = (n: string) => n.split(' ').slice(-1)[0]
 // updating the running aggregate. For a single match pass one period; for a
 // two-legged tie pass leg1, leg2 (+ optional ET). Calls onDone when finished.
 export function LiveMatch({
-  teamA, teamB, periods, pens, aggregate = false, msPerMin = 26, accent = CL.accent, onDone,
+  teamA, teamB, periods, pens, aggregate = false, msPerMin = 26, onDone,
 }: {
   teamA: LiveTeam
   teamB: LiveTeam
@@ -68,7 +73,7 @@ export function LiveMatch({
   pens?: LivePens | null
   aggregate?: boolean        // show a running aggregate (two-legged ties)
   msPerMin?: number
-  accent?: string
+  accent?: string          // no longer drawn; kept so callers needn't change
   onDone?: () => void
 }) {
   const [periodIdx, setPeriodIdx] = useState(0)
@@ -77,7 +82,7 @@ export function LiveMatch({
   const [aggB, setAggB] = useState(0)
   const [legHome, setLegHome] = useState(0) // current period's HOME-side score
   const [legAway, setLegAway] = useState(0) // current period's AWAY-side score
-  const [feed, setFeed] = useState<{ text: string; isHome: boolean; isBench?: boolean; isRed?: boolean }[]>([])
+  const [feed, setFeed] = useState<FeedLine[]>([])
   const [showPens, setShowPens] = useState(false)
   const [penTick, setPenTick] = useState(0)     // number of shootout kicks revealed so far
   const [paused, setPaused] = useState(false)   // stop-time: freezes the clock + pen reveal
@@ -142,15 +147,16 @@ export function LiveMatch({
         const mm = `${g.min}${g.plus ? `+${g.plus}` : ''}'`
         // §9 — an own goal shows on the side it counts FOR, so it needs its own
         // icon and an explicit (OG) tag or it reads as the wrong man scoring.
-        const icon = g.isOg ? '🥅' : '⚽'
-        const mark = g.isOg ? ' (OG)' : g.isPen ? ' (pen)' : ''
-        setFeed(f => [{ text: `${icon} ${g.scorer} ${mm}${mark}`, isHome: g.isHome, isBench: g.isOg ? false : g.isBench }, ...f].slice(0, 6))
+        const kind = g.isOg ? 'OG' : g.isPen ? 'PEN' : 'GOAL'
+        const id = `g${periodIdx}-${goalCursor.current}`
+        setFeed(f => [{ id, kind, text: `${g.scorer} ${mm}`, isHome: g.isHome, isBench: g.isOg ? false : g.isBench } as FeedLine, ...f].slice(0, 6))
       }
       // reveal any red cards at/under the new minute (down to 10 men)
       while (cardCursor.current < cardsRef.current.length && cardsRef.current[cardCursor.current].minute <= next) {
         const c = cardsRef.current[cardCursor.current]; cardCursor.current++
         const mm = `${c.minute}${c.plus ? `+${c.plus}` : ''}'`
-        setFeed(f => [{ text: `🟥 ${lastName(c.player)} ${mm}`, isHome: c.isHome, isRed: true }, ...f].slice(0, 6))
+        const id = `r${periodIdx}-${cardCursor.current}`
+        setFeed(f => [{ id, kind: 'RED', text: `${lastName(c.player)} ${mm}`, isHome: c.isHome } as FeedLine, ...f].slice(0, 6))
       }
       setClock(next)
     }, msPerMin)
@@ -200,95 +206,140 @@ export function LiveMatch({
   const penScoredA = pens?.kicksA ? pens.kicksA.slice(0, Math.ceil(penTick / 2)).filter(k => k.scored).length : (pens?.a ?? 0)
   const penScoredB = pens?.kicksB ? pens.kicksB.slice(0, Math.floor(penTick / 2)).filter(k => k.scored).length : (pens?.b ?? 0)
 
-  return (
-    <View style={[styles.card, { borderColor: accent }]}>
-      <View style={styles.topRow}>
-        <Text style={styles.periodLabel}>{p.label}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Pressable
-            onPress={() => setPaused(v => !v)}
-            style={[styles.pausePill, { borderColor: paused ? accent : colors.border }, paused && { backgroundColor: accent + '22' }]}
-            hitSlop={8}
-          >
-            <Text style={[styles.pauseText, { color: paused ? accent : colors.textMuted }]}>
-              {paused ? '▶ RESUME' : '⏸ PAUSE'}
-            </Text>
-          </Pressable>
-          <View style={[styles.clockPill, { borderColor: accent }]}>
-            <Text style={[styles.clockText, { color: accent }]}>{Math.min(clock, p.toMin)}'</Text>
-          </View>
-        </View>
-      </View>
-      {paused && <Text style={styles.pausedNote}>Time stopped — take your time, then resume.</Text>}
+  const homeName = homeIsA ? teamA.clubName : teamB.clubName
+  const awayName = homeIsA ? teamB.clubName : teamA.clubName
+  const shownA = pens?.kicksA ? pens.kicksA.slice(0, Math.ceil(penTick / 2)) : []
+  const shownB = pens?.kicksB ? pens.kicksB.slice(0, Math.floor(penTick / 2)) : []
 
-      <View style={styles.scoreRow}>
-        <TeamLabel clubId={p.homeId} name={homeIsA ? teamA.clubName : teamB.clubName} textStyle={styles.teamName} containerStyle={{ flex: 1 }} size={15} />
-        <Text style={styles.bigScore}>{legHome} – {legAway}</Text>
-        <TeamLabel clubId={p.awayId} name={homeIsA ? teamB.clubName : teamA.clubName} textStyle={[styles.teamName, { textAlign: 'right' }]} containerStyle={{ flex: 1, justifyContent: 'flex-end' }} size={15} />
+  return (
+    <View style={[styles.card, { borderColor: roles.line, backgroundColor: roles.surface }]}>
+      <View style={styles.topRow}>
+        <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }} numberOfLines={1}>
+          {`${p.label} · ${Math.min(clock, p.toMin)}'`}
+        </KitText>
+        <Pressable
+          onPress={() => setPaused(v => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={paused ? 'Resume the match' : 'Pause the match'}
+          style={({ pressed }) => [styles.pause, { borderColor: roles.line }, (pressed || paused) && { backgroundColor: roles.sunken }]}
+        >
+          <Icon name={paused ? 'play' : 'pause'} size={20} color={roles.text} />
+          <KitText t="tag" color={roles.text}>{paused ? 'Resume' : 'Pause'}</KitText>
+        </Pressable>
       </View>
+      {paused && <KitText t="body" color={roles.textMuted}>Time stopped. Take your time, then resume.</KitText>}
+
+      <View style={styles.scoreRow} accessible accessibilityLiveRegion="polite"
+        accessibilityLabel={`${homeName} ${legHome}, ${awayName} ${legAway}, ${Math.min(clock, p.toMin)} minutes`}>
+        <Side name={homeName} clubId={p.homeId} align="right" />
+        <KitText t="superL" color={roles.text} style={styles.bigScore}>{`${legHome}–${legAway}`}</KitText>
+        <Side name={awayName} clubId={p.awayId} align="left" />
+      </View>
+
+      {aggregate && (
+        <KitText t="title" color={roles.text} style={styles.center}>
+          {`AGG ${teamA.clubName} ${aggA}–${aggB} ${teamB.clubName}`}
+        </KitText>
+      )}
 
       {priorLegs.map((L, i) => (
         <View key={i} style={styles.priorLegBlock}>
-          <Text style={styles.priorLeg} numberOfLines={1}>
-            {L.label}: {L.homeName} {L.homeG}–{L.awayG} {L.awayName}
-          </Text>
+          <KitText t="tag" color={roles.textMuted} style={styles.center} numberOfLines={1}>
+            {`${L.label}: ${L.homeName} ${L.homeG}–${L.awayG} ${L.awayName}`}
+          </KitText>
           {!!(L.homeScorers || L.awayScorers) && (
             <View style={styles.priorLegScorerRow}>
-              <Text style={[styles.priorLegScorer, { textAlign: 'left' }]} numberOfLines={1}>{L.homeScorers}</Text>
-              <Text style={[styles.priorLegScorer, { textAlign: 'right' }]} numberOfLines={1}>{L.awayScorers}</Text>
+              <KitText t="body" color={roles.textMuted} style={{ flex: 1 }} numberOfLines={1}>{L.homeScorers}</KitText>
+              <KitText t="body" color={roles.textMuted} style={{ flex: 1, textAlign: 'right' }} numberOfLines={1}>{L.awayScorers}</KitText>
             </View>
           )}
         </View>
       ))}
 
-      {aggregate && (
-        <Text style={styles.aggLine}>
-          Aggregate: <Text style={{ color: accent, fontWeight: typography.black }}>{teamA.clubName} {aggA} – {aggB} {teamB.clubName}</Text>
-        </Text>
-      )}
-
       {feed.length > 0 && (
         <View style={styles.feed}>
-          {feed.map((f, i) => (
-            <Text key={i} style={[styles.feedLine, f.isRed && styles.feedLineRed, { textAlign: f.isHome ? 'left' : 'right' }]} numberOfLines={1}>
-              {f.text}{f.isBench && <Text style={styles.subTag}> SUB</Text>}
-            </Text>
+          {feed.map(f => (
+            <Animated.View key={f.id} entering={(f.isHome ? FadeInLeft : FadeInRight).duration(220)}
+              style={[styles.feedLine, { justifyContent: f.isHome ? 'flex-start' : 'flex-end' }]}>
+              {f.kind === 'RED' ? (
+                <View style={[styles.redTag, { borderColor: roles.line }]}>
+                  <Stripe roles={roles} band={4} style={styles.redStripe} />
+                  <KitText t="tag" color={roles.text} style={styles.redText}>RED</KitText>
+                </View>
+              ) : (
+                <Tag roles={roles} variant={f.kind === 'OG' ? 'data' : 'selected'}>{f.kind}</Tag>
+              )}
+              <KitText t="body" color={roles.text} numberOfLines={1}>{f.text}</KitText>
+              {f.isBench && <Tag roles={roles}>SUB</Tag>}
+            </Animated.View>
           ))}
         </View>
       )}
 
       {showPens && pens?.kicksA && pens?.kicksB && (
-        <View style={{ marginTop: spacing.sm }}>
-          <Text style={[styles.penTitle, { color: accent }]}>Penalties: {penScoredA} – {penScoredB}</Text>
-          <PenShootout teamA={teamA.clubName} teamB={teamB.clubName} kicksA={pens.kicksA} kicksB={pens.kicksB} reveal={penTick} />
+        <View style={styles.pens}>
+          <KitText t="title" color={roles.text} style={styles.center}>{`PENALTIES ${penScoredA}–${penScoredB}`}</KitText>
+          <PenRow name={teamA.clubName} kicks={shownA} total={pens.kicksA.length} />
+          <PenRow name={teamB.clubName} kicks={shownB} total={pens.kicksB.length} />
         </View>
       )}
     </View>
   )
 }
 
+type FeedLine = { id: string; kind: 'GOAL' | 'OG' | 'PEN' | 'RED'; text: string; isHome: boolean; isBench?: boolean }
+
+function Side({ name, clubId, align }: { name: string; clubId: string; align: 'left' | 'right' }) {
+  const flag = getFlag(clubId)
+  return (
+    <View style={[styles.side, { alignItems: align === 'right' ? 'flex-end' : 'flex-start' }]}>
+      {flag ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={20} roles={roles} /> : null}
+      <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{name}</KitText>
+    </View>
+  )
+}
+
+// A shootout as a row of kit tags per side: filled for scored, striped for
+// missed, empty for still to come. The kickers' names are in the label.
+function PenRow({ name, kicks, total }: { name: string; kicks: PenKick[]; total: number }) {
+  return (
+    <View style={styles.penRow} accessible
+      accessibilityLabel={`${name}: ${kicks.map(k => `${k.playerName} ${k.scored ? 'scored' : 'missed'}`).join(', ') || 'no kicks yet'}`}>
+      <KitText t="body" color={roles.text} numberOfLines={1} style={styles.penName}>{name}</KitText>
+      {Array.from({ length: total }, (_, i) => {
+        const k = kicks[i]
+        return (
+          <View key={i} style={[styles.penTag, {
+            borderColor: k ? roles.line : roles.rule,
+            backgroundColor: k?.scored ? roles.perfection : 'transparent',
+          }]}>
+            {k && !k.scored && <Stripe roles={roles} band={4} style={StyleSheet.absoluteFillObject} />}
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1.5, padding: spacing.lg, gap: spacing.sm },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  periodLabel: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  clockPill: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 2 },
-  clockText: { fontSize: typography.sm, fontWeight: typography.black },
-  pausePill: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  pauseText: { fontSize: 9, fontWeight: typography.black, letterSpacing: 0.5 },
-  pausedNote: { fontSize: 10, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  teamName: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
-  bigScore: { fontSize: typography.xxl, fontWeight: typography.black, color: colors.textPrimary },
-  aggLine: { fontSize: typography.xs, color: colors.textSecondary, textAlign: 'center' },
+  card: { borderWidth: border.plate, padding: space[3], gap: space[2] },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  pause: { flexDirection: 'row', alignItems: 'center', gap: space[1], minHeight: 48, paddingHorizontal: space[3], borderWidth: border.thin },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  side: { flex: 1, gap: 4 },
+  bigScore: { minWidth: 96, textAlign: 'center' },
+  center: { textAlign: 'center' },
   priorLegBlock: { gap: 1 },
-  priorLeg: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
-  priorLegScorerRow: { flexDirection: 'row', gap: spacing.sm },
-  priorLegScorer: { flex: 1, fontSize: 10, color: colors.textMuted, opacity: 0.85 },
-  feed: { gap: 2, minHeight: 20 },
-  feedLine: { fontSize: typography.xs, color: colors.textSecondary },
-  feedLineRed: { color: colors.danger, fontWeight: typography.bold },
-  subTag: { fontSize: 9, fontWeight: typography.black, color: colors.warning },
-  penTitle: { fontSize: typography.sm, fontWeight: typography.black, textAlign: 'center', marginBottom: 4 },
+  priorLegScorerRow: { flexDirection: 'row', gap: space[2] },
+  feed: { gap: 4, minHeight: 20 },
+  feedLine: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
+  redTag: { flexDirection: 'row', alignItems: 'center', borderWidth: border.thin, overflow: 'hidden' },
+  redStripe: { width: 8, alignSelf: 'stretch' },
+  redText: { paddingHorizontal: 4 },
+  pens: { gap: space[1], marginTop: space[1] },
+  penRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  penName: { width: 96 },
+  penTag: { width: 18, height: 18, borderWidth: border.thin, overflow: 'hidden' },
 })
 
 // Helper: build the LivePeriods for a two-legged CL knockout tie.

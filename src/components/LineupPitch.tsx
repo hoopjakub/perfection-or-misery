@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
 import { effectiveOvr } from '@/engine/rating'
-import { colors, spacing, typography, radius } from '@/theme'
+import { colors, spacing, typography, radius, prim, font } from '@/theme'
 import type { DraftedPlayer, Formation, PositionSlot } from '@/types/game'
 
 // The squad pitch with each slot's effective OVR — reused from the pre-sim
@@ -38,7 +38,7 @@ export function LineupPitch({ formation, draftedPlayers, benchPlayers, title }: 
         {rowSlots.map((slot, i) => {
           const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
           const ovr = player ? effectiveOvr(player, slot) : 0
-          const color = (colors.positions as any)[slot.primary] ?? colors.accent
+          const color = (colors.positions as any)[slot.primary] ?? prim.cotton
           return (
             <View key={i} style={styles.pitchPlayer}>
               <View style={[styles.posIndicator, { backgroundColor: color }]}>
@@ -66,7 +66,7 @@ export function LineupPitch({ formation, draftedPlayers, benchPlayers, title }: 
           <Text style={styles.benchTitle}>Bench</Text>
           <View style={styles.benchRow}>
             {benchPlayers.map((p, i) => {
-              const color = (colors.positions as any)[p.primaryPosition] ?? colors.accent
+              const color = (colors.positions as any)[p.primaryPosition] ?? prim.cotton
               return (
                 <View key={i} style={styles.benchPlayer}>
                   <View style={[styles.posIndicator, { backgroundColor: color }]}>
@@ -86,16 +86,16 @@ export function LineupPitch({ formation, draftedPlayers, benchPlayers, title }: 
 
 const styles = StyleSheet.create({
   container: { gap: spacing.xs },
-  title: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary, marginBottom: spacing.xs },
-  pitch: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.lg, gap: spacing.lg },
+  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton, marginBottom: spacing.xs },
+  pitch: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, paddingVertical: spacing.lg, gap: spacing.lg },
   pitchRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.md },
   pitchPlayer: { alignItems: 'center', width: 70 },
-  posIndicator: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, marginBottom: 4 },
-  posText: { fontSize: 8, fontWeight: typography.black, color: colors.bg },
-  playerNameText: { fontSize: typography.xs, fontWeight: typography.medium, color: colors.textPrimary, textAlign: 'center' },
-  playerOvrText: { fontSize: 10, fontWeight: typography.bold, color: colors.textSecondary },
-  benchBox: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', padding: spacing.md, gap: spacing.sm },
-  benchTitle: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  posIndicator: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0, marginBottom: 4 },
+  posText: { fontSize: 8, fontFamily: font.bodyBlack, color: prim.nylon },
+  playerNameText: { fontSize: typography.xs, fontFamily: font.bodyMedium, color: prim.cotton, textAlign: 'center' },
+  playerOvrText: { fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
+  benchBox: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, borderStyle: 'dashed', padding: spacing.md, gap: spacing.sm },
+  benchTitle: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 1 },
   benchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, justifyContent: 'center' },
   benchPlayer: { alignItems: 'center', width: 60 },
 })

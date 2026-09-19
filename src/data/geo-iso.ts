@@ -139,6 +139,15 @@ export function flagForCountry(country?: string | null): string {
   return a2 ? flagFromA2(a2) : ''
 }
 
+// Flag emoji for a domestic league, via its country. The Premier League is
+// England's flag rather than the UK's.
+export function flagForLeague(leagueId: string): string {
+  if (leagueId === 'premier_league') return COUNTRY_FLAG.England
+  const iso = LEAGUE_ISO[leagueId]
+  const a2 = iso ? ISO_NUM_TO_A2[iso] : undefined
+  return a2 ? flagFromA2(a2) : ''
+}
+
 export function isoForCountry(country: string): number | undefined {
   return COUNTRY_ISO[country]
 }

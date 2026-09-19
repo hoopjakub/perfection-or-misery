@@ -14,6 +14,9 @@ type UserStore = {
   profile: Profile | null
   isGuest: boolean
   isLoading: boolean
+  // A guest finished a run this session. Home only tells guests their runs
+  // aren't kept once that's true for them (07a A2), not on the first visit.
+  guestFinishedRun: boolean
   setSession: (session: Session | null) => void
   fetchProfile: () => Promise<void>
   signOut: () => Promise<void>
@@ -25,6 +28,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
   profile: null,
   isGuest: true,
   isLoading: true,
+  guestFinishedRun: false,
 
   setSession: (session) => set({
     session,
@@ -35,11 +39,9 @@ export const useUserStore = create<UserStore>((set, get) => ({
   fetchProfile: async () => {
     const { user } = get()
     if (!user) {
-      console.log('[userStore] fetchProfile: no user found in store')
       return
     }
 
-    console.log('[userStore] fetchProfile: querying profiles table for user:', user.id)
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -48,10 +50,9 @@ export const useUserStore = create<UserStore>((set, get) => ({
         .single()
 
       if (error) {
-        console.log('[userStore] fetchProfile query returned error:', error.message, error.details)
+        console.warn('[userStore] fetchProfile failed:', error.code)
         set({ profile: null, isGuest: true })
       } else {
-        console.log('[userStore] fetchProfile query returned success:', data)
         set({ profile: data, isGuest: data?.is_guest ?? true })
       }
     } catch (err) {
@@ -68,8 +69,6 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
 export function initAuthListener() {
   supabase.auth.onAuthStateChange((event, session) => {
-    console.log('[userStore] auth event:', event, 'user:', session?.user?.id ?? 'none')
-
     // only handle these specific events, ignore the rest
     if (event === 'SIGNED_OUT') {
       useUserStore.setState({
@@ -87,7 +86,6 @@ export function initAuthListener() {
       const currentSession = useUserStore.getState().session
       if (currentSession?.user?.id === session?.user?.id && event === 'TOKEN_REFRESHED') {
         // just update the session token silently, don't refetch profile
-        console.log('[userStore] silent token refresh, skipping profile fetch')
         useUserStore.setState({ session })
         return
       }
@@ -95,7 +93,6 @@ export function initAuthListener() {
       useUserStore.getState().setSession(session)
 
       if (session) {
-        console.log('[userStore] auth listener: triggering async profile fetch...')
         useUserStore.getState().fetchProfile().catch(err => {
           console.error('[userStore] auth listener: profile fetch failed', err)
         })

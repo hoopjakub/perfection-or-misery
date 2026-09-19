@@ -11,6 +11,7 @@ import { generateFixtures } from './fixtures'
 import { simulateMatch, setMatchTilt } from './match'
 import { updateForm } from './simulation'
 import { assignTier } from './tier'
+import { zoneAt } from '@/data/qualification-bands'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from './placement'
 import { loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, attributeQualTieScorers, type LeaguePools } from './run-stats'
 import { getClubSeasonsForMode, getAllClubSeasons } from '@/db/queries/seasons'
@@ -220,7 +221,7 @@ function runLeagueWithHistory(league: LeagueSeason, pools?: LeaguePools): Season
     goalsFor, goalsAgainst,
     biggestWin, worstLoss, upsets,
     unbeaten, perfectSeason,
-    tier: assignTier(finalPosition, teams.length, unbeaten, perfectSeason),
+    tier: assignTier(finalPosition, teams.length, unbeaten, perfectSeason, zoneAt(league.leagueId, league.yearStart, teams.length, finalPosition)),
     matchdayHistory: history,
   }
 }
@@ -297,14 +298,6 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
 
   const qual = simulateCustomUclQualifying(access)
   const field = qual.leaguePhaseField
-  console.log('[custom-ucl] access:', {
-    direct: access.leaguePhaseDirect.length,
-    qualifyingEntrants: access.qualifying.length,
-    missingSlots: access.missing.length,
-    qualifiers: qual.qualifiers.length,
-    ties: qual.ties.length,
-    leaguePhaseSize: field.length,
-  })
 
   if (field.length < 8) throw new Error(`Only ${field.length} clubs in the league phase — add more leagues.`)
 

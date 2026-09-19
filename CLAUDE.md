@@ -82,12 +82,16 @@ npx tsc --noEmit 2>&1 | grep -v "^scripts/" | grep -v "^supabase/"
 
 `scripts/` (tsx) and `supabase/` (Deno) are separate runtimes — their errors are
 expected and ignored. Clean output from everything else is the bar.
+Exception: `supabase/functions/_shared/` (the scoring formula) is imported by
+the app too, so its errors are real. Filter with
+`grep -v "^scripts/" | grep -v "^supabase/functions/[a-z-]*/index"` to keep them.
 
 ### 2. Headless engine/stat verification — the project's testing idiom
 
 For any change to the match engine, stat generator, ratings, attribution, or
 balance, write or extend a `scripts/verify-*.ts` and run it with `npx tsx`.
-The house style (see `scripts/verify-match-detail.ts`, `verify-difficulty.ts`):
+The house style (see `scripts/verify-match-detail.ts`, `verify-difficulty.ts`,
+`verify-predictions.ts`, `verify-zones.ts`, `verify-press.ts`, `verify-awards.ts`, `verify-commentary.ts`, `verify-match-geometry.ts`, `verify-cup-calls.ts`, `verify-run-stats.ts`, `verify-score.ts`):
 
 - Simulate **thousands** of matches/runs.
 - A `check(cond, msg)` helper that increments a failure counter and logs `❌`.
@@ -104,8 +108,10 @@ The house style (see `scripts/verify-match-detail.ts`, `verify-difficulty.ts`):
 ### 3. Browser walkthrough — the quick-sim tester
 
 The fastest way to exercise draft → sim → result → stats end-to-end without
-manually drafting 11 players: **About tab → tap the version number ("1.0.0") 8×**
-to reveal the hidden Quick Sim Tester, then League/UCL/UCL✦/WC. It auto-drafts,
+manually drafting 11 players: **About tab → tap the version number 8×**
+to reveal the hidden Quick Sim Tester, then League/UCL/UCL✦/WC. It only
+unlocks in development (`__DEV__`, e.g. `npm run web`) or in builds with
+`EXPO_PUBLIC_DEV_TOOLS=1` (the `development` and `preview` EAS profiles). It auto-drafts,
 simulates headlessly, and lands on the result screen (stats included).
 
 - Prefer `get_page_text` / `read_page` over screenshots — screenshots tend to
@@ -150,6 +156,13 @@ simulates headlessly, and lands on the result screen (stats included).
 
 ## UI conventions
 
+- **The redesign is Kit Drop — read `DESIGN.md` first.** Rebuilt screens use
+  `@/components/kit` (Plate, Tag, RunLabel, ListRow, Field, KitScreen…) and
+  `ROLES[ground]` from `src/theme.ts`; they never import `colors` or write raw
+  hex. Kit text goes through `KitText`, and never sets `fontWeight` (each weight
+  is its own font family). Content goes on routes, not modals; decisions use
+  `openConfirm()` (`app/confirm.tsx`). The bullets below describe the OLD
+  dark screens that haven't been rebuilt yet (see `docs/ui-overhaul/11-ROADMAP.md`).
 - **Shared feedback primitives**: use `PressCard` for any tappable card/row (adds
   pressed scale+dim and web hover lift) and `BackButton` for headers. Every
   interactive element needs press feedback; a bare `Pressable` with no pressed
@@ -160,11 +173,11 @@ simulates headlessly, and lands on the result screen (stats included).
   `typography`, `shadows`; `ratingColor(r)` for 0–10 rating chips; `withAlpha(hex, pct)`
   instead of `color + '33'`; `colors.pots` / `colors.gold` / `colors.overlay`.
   `textMuted` must stay ≥4.5:1 on `bgCard`.
-- **Modal scroll pattern**: a capped card (`maxHeight: '80–92%'`) with a header,
-  a scroll body, and a footer (Close) must give the **scroll body `flexShrink: 1`**
-  (not a fixed `maxHeight`) so it fills only the space between header and footer —
-  otherwise long content overflows and clips the footer off-screen. Uses `AppModal`
-  (`src/components/AppModal.tsx`), which sidesteps RN-web's `<Modal>` sizing glitch.
+- **No content modals** (Phase 5): `AppModal` is deleted. Content is a route:
+  run pages via `src/lib/runNav.ts` (`openPlayer`/`openClub`/`openStory`/`openRunHub`/
+  `openRunMatch`), in-memory content (a live group, a league table from a live
+  draw) via `openSheet` (`src/lib/sheet.ts`, module-scope hand-off like the match
+  sheet), explainers via `openRules(topic)`. Decisions still use `openConfirm()`.
 - **Web/desktop**: mobile-first, capped to a centered ~480px column with hairline
   edges + ambient backdrop (`app/_layout.tsx`, `app/+html.tsx`). Style for both
   light and dark where relevant; keep flag-emoji font handling intact.

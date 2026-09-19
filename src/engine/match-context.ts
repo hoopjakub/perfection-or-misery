@@ -384,3 +384,40 @@ export function topRated(players: PlayerMatchLine[], isHome: boolean, n = 3): Pl
     .sort((a, b) => b.rating - a.rating || b.minutes - a.minutes)
     .slice(0, n)
 }
+
+// §10 R6/R7: the stats screen can show the table as it stood and each side's
+// form going in, but only if it's handed the competition's results. Every
+// league-shaped fixture list in this file reduces to the same tiny shape.
+// Goals are optional because a LIVE season's timeline has to include fixtures
+// that haven't been played yet — without them "next match" has nothing to point
+// at mid-season and every side reads as eliminated. Unplayed rows are ignored by
+// the table and by form; only `nextMatchFor` looks at them.
+export function toContextMatches(
+  rows: {
+    matchday: number
+    home: { clubId: string; clubName: string }; away: { clubId: string; clubName: string }
+    homeGoals?: number; awayGoals?: number
+    inTable?: boolean
+    scorers?: import('@/types/stats').MatchScorers; seed?: number
+    homeRotation?: number; awayRotation?: number
+    absent?: string[]; standIns?: import('@/types/stats').RosterPlayer[]
+  }[],
+  label = (md: number) => `Matchday ${md}`,
+): ContextMatch[] {
+  return rows.map(m => ({
+    matchday: m.matchday, label: label(m.matchday),
+    homeClubId: m.home.clubId, homeClubName: m.home.clubName,
+    awayClubId: m.away.clubId, awayClubName: m.away.clubName,
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+    inTable: m.inTable,
+    // Carried so form rows and the next fixture are tappable in their own right.
+    scorers: m.scorers, seed: m.seed,
+    // Rotation MUST travel with the match: regenerating without it selects a
+    // different eleven than the stored scorers were attributed against.
+    homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+    // Same for availability — regenerating without it fields a player who
+    // wasn't available and the stored scorers were never attributed against.
+    absent: m.absent, standIns: m.standIns,
+  }))
+}
+

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { calcTeamOvr } from '@/engine/rating'
@@ -34,7 +34,6 @@ import { randomSeed } from '@/lib/rng'
 import { openMatchStats } from '@/lib/matchStats'
 import { openDeepMatch } from '@/lib/deepMatch'
 import { koLegDetailRequest } from '@/components/MatchStatsParts'
-import { Ionicons } from '@expo/vector-icons'
 import type { RosterPlayer } from '@/types/stats'
 import type { SimTeam } from '@/types/simulation'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
@@ -42,19 +41,99 @@ import { LiveMatch, periodsForTwoLegTie } from '@/components/LiveMatch'
 import { BracketPreview } from '@/components/BracketPreview'
 import { InfoBubble } from '@/components/InfoBubble'
 import {
-  BerthBadge, LeaguesBrowserModal, LeagueTableModal, LeagueTableView, KoTieDetailModal, qualTieToKoMatch,
+  openLeaguesBrowser, openLeagueTable, openKoTie, qualTieToKoMatch,
 } from '@/components/CustomUclViewers'
-import { KnockoutTieRow, clKoMatchToRow } from '@/components/KnockoutRoundsView'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
 import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-formats'
-import { PenShootout } from '@/components/PenShootout'
-import { TeamLabel } from '@/components/TeamLabel'
-import { LineupPitch } from '@/components/LineupPitch'
-import { FixtureList } from '@/components/FixtureList'
-import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/theme'
+import { colors, spacing, typography, radius, shadows, MODE_THEMES, ROLES } from '@/theme'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import {
+  RoadTape, LeagueTable, ZoneLegend, StandingFigure, SeasonStrip, ScorelineCard, ResultRow,
+  SegmentSwitch, FixtureRow, StampLabel, TieCard, TieRow, CL_PHASE_ZONES,
+  type TableZone, type TableRowVM, type Mark, type TieVM,
+} from '@/components/season/SeasonParts'
+import { ThumbBar, BackToLive, askSkip } from '@/components/season/RunChrome'
+import { KitScreen, KitText, Plate, SectionTag, Tag, ListRow, Chips } from '@/components/kit'
+import { space } from '@/theme'
+import { getFlag } from '@/lib/flagMap'
 
 const CL = MODE_THEMES.champions_league
+
+// Where each phase sits on the five-stage road (07c C4).
+const ROAD_STAGE: Record<string, number> = {
+  loading: 0, domestic_review: 0, domestic_sim: 0, domestic_result: 0,
+  world_sim: 1, qualifying: 2, quali_result: 2, review: 3, simulating: 3, knockout_phase: 4,
+}
+
+const nylon = ROLES.nylon
+
+// A domestic place is worth a berth (or nothing) — drawn as the table's zones.
+const BERTH_ZONE: Record<string, TableZone> = {
+  league_phase: { code: 'UCL', label: 'League phase', tone: 'top' },
+  playoff:      { code: 'PO',  label: 'Play-off round', tone: 'mid' },
+  q3:           { code: 'Q3',  label: 'Third qualifying round', tone: 'low' },
+  q2:           { code: 'Q2',  label: 'Second qualifying round', tone: 'low' },
+  q1:           { code: 'Q1',  label: 'First qualifying round', tone: 'low' },
+}
+
+function berthZones(rank: number, places: number): (TableZone | null)[] {
+  return Array.from({ length: places }, (_, i) => {
+    const b = berthForPosition(rank, i + 1)
+    return b ? BERTH_ZONE[b.round] ?? null : null
+  })
+}
+
+const simRow = (t: SimTeam): TableRowVM => ({
+  clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer,
+  played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
+})
+
+function markOf(youHome: boolean, hg: number, ag: number): Mark {
+  const mine = youHome ? hg - ag : ag - hg
+  return mine > 0 ? 'W' : mine < 0 ? 'L' : 'D'
+}
+
+const ordinalOf = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
+}
+
+// Going out has a name per round (07c C5: elimination is a verdict).
+const KO_OUT: Record<string, string> = {
+  playoff: 'Out in the play-off', r16: 'Out in the round of 16',
+  qf: 'Out in the quarter-finals', sf: 'Out in the semi-finals', final: 'Runners-up',
+}
+
+// A Champions League tie → the shared tie view model.
+function clTieToVM(m: CLKnockoutMatch, onPress?: () => void): TieVM {
+  const parts: string[] = []
+  if (m.leg1) parts.push(`Leg 1 ${m.leg1.aGoals}–${m.leg1.bGoals}`)
+  if (m.leg2) parts.push(`Leg 2 ${m.leg2.aGoals}–${m.leg2.bGoals}`)
+  if (m.extraTime) parts.push('AET')
+  if (m.aPens !== undefined) parts.push(`Pens ${m.aPens}–${m.bPens}`)
+  return {
+    aName: m.teamA.clubName, bName: m.teamB.clubName,
+    aFlag: getFlag(m.teamA.clubId), bFlag: getFlag(m.teamB.clubId),
+    score: `${m.aGoals}–${m.bGoals}`,
+    detail: parts.join(' · ') || undefined,
+    winnerIsA: m.winner.clubId === m.teamA.clubId,
+    isPlayerTie: m.teamA.isPlayer || m.teamB.isPlayer,
+    scorers: [m.leg1Scorers, m.leg2Scorers, m.leg2ExtraTimeScorers]
+      .flatMap(sc => [summariseScorers(sc?.home), summariseScorers(sc?.away)])
+      .filter(Boolean).join(' · ') || undefined,
+    onPress,
+  }
+}
+
+function Road({ phase }: { phase: string }) {
+  const insets = useSafeAreaInsets()
+  return (
+    <View style={{ paddingTop: insets.top + spacing.sm }}>
+      <RoadTape roles={ROLES.nylon} current={ROAD_STAGE[phase] ?? 0} />
+    </View>
+  )
+}
 
 type Phase =
   | 'loading'
@@ -78,76 +157,6 @@ type MDResult = {
   hs?: string; as?: string
   scorers?: import('@/types/stats').MatchScorers   // full events — match-detail modal
   seed?: number                                    // deep-stat seed (match-detail.ts)
-}
-
-// A single matchday result row — clone of the league-mode "Matchday Results"
-// ticker (score badge, player highlight, scorer lines). Defined ABOVE the
-// screen component so it exists regardless of hoisting/Fast Refresh quirks.
-function MDResultRow({ r, onPress }: { r: MDResult; onPress?: () => void }) {
-  const isPM = r.playerHome || r.playerAway
-  let resultColor: string | null = null
-  if (isPM) {
-    const pWin = (r.playerHome && r.hg > r.ag) || (r.playerAway && r.ag > r.hg)
-    resultColor = r.hg === r.ag ? colors.warning : pWin ? colors.success : '#DC2626'
-  }
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} style={[styles.resultRowWrap, isPM && styles.resultRowPlayerHighlight, resultColor ? { backgroundColor: resultColor + '15' } : null]}>
-      <View style={styles.resultRowInner}>
-        <TeamLabel clubId={r.homeId} name={r.home} textStyle={[styles.resultClubNameText, r.playerHome && { color: CL.accent, fontWeight: typography.bold }]} containerStyle={[styles.resultTeamSide, { justifyContent: 'flex-end' }]} size={14} />
-        <View style={[styles.scoreBadge, resultColor ? { backgroundColor: resultColor + '33' } : null]}>
-          <Text style={[styles.scoreText, resultColor ? { color: resultColor } : null]}>{r.hg} - {r.ag}</Text>
-        </View>
-        <TeamLabel clubId={r.awayId} name={r.away} textStyle={[styles.resultClubNameText, r.playerAway && { color: CL.accent, fontWeight: typography.bold }]} containerStyle={styles.resultTeamSide} size={14} />
-      </View>
-      {(r.hs || r.as) ? (
-        <View style={styles.scorerRow}>
-          <Text style={[styles.scorerHalf, { textAlign: 'right' }]} numberOfLines={2}>{r.hs ? `⚽ ${r.hs}` : ''}</Text>
-          <Text style={styles.scorerHalf} numberOfLines={2}>{r.as ? `${r.as} ⚽` : ''}</Text>
-        </View>
-      ) : null}
-    </Pressable>
-  )
-}
-
-// Matchday Results card with LOOKBACK — follows the live matchday, but you can
-// scrub ‹ › back through every matchday already played (and jump to LIVE).
-function MatchdayResultsCard({ history, onOpenMatch }: { history: MDResult[][]; onOpenMatch?: (r: MDResult, matchday: number) => void }) {
-  const [idx, setIdx] = useState<number | null>(null)   // null = follow live
-  const total = history.length
-  const viewing = idx == null ? total : Math.min(idx, total)
-  const shown = total === 0 ? [] : (history[viewing - 1] ?? [])
-  const atLive = idx == null || viewing >= total
-
-  return (
-    <View style={styles.resultsCard}>
-      <View style={styles.mdCardHead}>
-        <Text style={[styles.cardHeaderTitle, { flexShrink: 1 }]} numberOfLines={1}>{total > 0 ? `Matchday ${viewing}` : 'Matchday Results'}</Text>
-        {total > 1 && (
-          <View style={styles.mdScrub}>
-            <Pressable style={styles.mdScrubBtn} disabled={viewing <= 1} onPress={() => setIdx(Math.max(1, viewing - 1))}>
-              <Text style={[styles.mdScrubText, viewing <= 1 && { opacity: 0.3 }]}>‹</Text>
-            </Pressable>
-            <Text style={styles.mdScrubCount}>{viewing}/{total}</Text>
-            <Pressable style={styles.mdScrubBtn} disabled={atLive} onPress={() => setIdx(v => Math.min(total, (v ?? total) + 1))}>
-              <Text style={[styles.mdScrubText, atLive && { opacity: 0.3 }]}>›</Text>
-            </Pressable>
-            {!atLive && (
-              <Pressable style={[styles.mdLiveBtn, { borderColor: CL.accent }]} onPress={() => setIdx(null)}>
-                <Text style={[styles.mdLiveText, { color: CL.accent }]}>LIVE</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-      </View>
-      {shown.length === 0 ? (
-        <View style={styles.emptyResultsBox}><Text style={styles.emptyResultsText}>Waiting for kickoff...</Text></View>
-      ) : (
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          {shown.map((r, i) => <MDResultRow key={i} r={r} onPress={onOpenMatch ? () => onOpenMatch(r, viewing) : undefined} />)}
-        </ScrollView>
-      )}
-    </View>
-  )
 }
 
 function sortStandings(teams: CLTeam[]): CLTeam[] {
@@ -226,9 +235,15 @@ export default function CustomUclSimulationScreen() {
   const [liveQualDone, setLiveQualDone] = useState<Record<string, boolean>>({})
   const [liveQualMatch, setLiveQualMatch] = useState<CLKnockoutMatch | null>(null)
   const [justDecidedQualTie, setJustDecidedQualTie] = useState<QualTie | null>(null)
-  const [openLeague, setOpenLeague] = useState<SimLeagueTable | null>(null)
-  const [openKo, setOpenKo] = useState<{ m: CLKnockoutMatch; label?: string } | null>(null)
-  const [browserOpen, setBrowserOpen] = useState(false)
+  const koOpts = { playerClubId: playerClubId ?? undefined, drafted: draftedPlayers, yearStart: clYear ?? 2025 }
+  // Which matchday's results are on screen (null = the latest), and which of
+  // the two views each league is showing.
+  const [mdView, setMdView] = useState<number | null>(null)
+  const [domTab, setDomTab] = useState<'table' | 'results'>('table')
+  const [lpTab, setLpTab] = useState<'table' | 'results'>('table')
+  // The ConfirmScreen calls back after this render may be stale.
+  const domSkipRef = useRef<() => void>(() => {})
+  const lpSkipRef = useRef<() => void>(() => {})
 
   // ── UCL league phase + knockouts ──
   const [clTeamsLocal, setClTeamsLocal] = useState<CLTeam[]>([])
@@ -363,6 +378,8 @@ export default function CustomUclSimulationScreen() {
     }
     finishDomesticSeason()
   }
+
+  domSkipRef.current = skipDomesticSeason
 
   function finishDomesticSeason() {
     const ordered = lockedFinalTable(domTeamsRef.current, domSplitIdsRef.current)
@@ -660,7 +677,7 @@ export default function CustomUclSimulationScreen() {
   function finishAll() {
     if (finishedRef.current || !finalResultRef.current) return
     commitFinalResult()
-    router.push('/game/custom-ucl-result')
+    router.push('/game/awards?to=cucl')
   }
 
   // ── Player out before the league phase (qualifying exit / never qualified) ──
@@ -716,7 +733,7 @@ export default function CustomUclSimulationScreen() {
       attributeCLResultScorers(result, rosters, lineupCtxRef.current)
     } catch (e) { console.warn('[custom-ucl-sim] scorer attribution failed:', e) }
     setClResult(result)
-    router.push('/game/custom-ucl-result')
+    router.push('/game/awards?to=cucl')
   }
 
   // Knockout auto-advance — but WAIT while the player's tie is playing out live.
@@ -732,297 +749,249 @@ export default function CustomUclSimulationScreen() {
   // ── Guards ──────────────────────────────────────────────────────────────────
   if (!formation || draftedPlayers.length === 0 || !playerClubId) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
-        <Text style={styles.loadingText}>No custom UCL run in progress.</Text>
-        <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>← Back</Text>
-        </Pressable>
+      <View style={[styles.container, { backgroundColor: nylon.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
+        <KitText t="superM" color={nylon.text}>"NO RUN"</KitText>
+        <KitText t="bodyL" color={nylon.textMuted}>This run lost its squad, usually after a reload. Start a new one.</KitText>
+        <Plate label="Start a new run" roles={nylon} onPress={() => router.replace('/game/mode-select')} />
       </View>
     )
   }
+
+  // ── The road, on nylon (docs/ui-overhaul/07c C4) ──────────────────────────
+  // Every phase of the full path is the same screen: the road across the top,
+  // one thing to read, and the next step in the thumb zone. The simulation
+  // underneath is untouched.
+  const domOrdered = domStage === 'split'
+    ? lockedFinalTable(domTeamsRef.current, domSplitIdsRef.current)
+    : sortLeagueTable(domTeamsRef.current)
+  const domZones = mine ? berthZones(mine.rank, domOrdered.length) : []
+  const domYouPos = domOrdered.findIndex(t => t.isPlayer) + 1
+  const domTotalMDs = domMatchdaysRef.current.length
+  const domMarks: Mark[] = domHistory.map(md => {
+    const yours = md.find(r => r.playerHome || r.playerAway)
+    if (!yours) return null
+    return markOf(yours.playerHome, yours.hg, yours.ag)
+  }).filter((m): m is Mark => !!m)
+  const domSplitSize = domSplitIdsRef.current
+    ? domOrdered.findIndex(t => !domSplitIdsRef.current!.has(t.clubId))
+    : -1
+
+  // Which matchday's results are being read, in either league (null = latest).
+  const historyFor = (h: MDResult[][]) => (mdView == null ? h.length : Math.min(mdView, h.length))
+  const resultsOf = (h: MDResult[][]) => h[historyFor(h) - 1] ?? []
 
   if (phase === 'loading' || !mine) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={CL.accent} size="large" />
-        <Text style={styles.loadingText}>Setting up your season…</Text>
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase="loading" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[3], padding: space[4] }}>
+          <KitText t="superM" color={nylon.text}>"SETTING UP"</KitText>
+          <KitText t="bodyL" color={nylon.textMuted}>Your league, your club and the road to the Champions League.</KitText>
+        </View>
       </View>
     )
   }
 
-  const leaguesButton = tables.length > 0 && (
-    <Pressable style={styles.leaguesBtn} onPress={() => setBrowserOpen(true)}>
-      <Text style={styles.leaguesBtnText}>🌍</Text>
+  const leaguesButton = tables.length > 0 ? (
+    <Pressable onPress={() => openLeaguesBrowser(tables, playerClubId)} accessibilityRole="button" accessibilityLabel="Every league's table"
+      style={({ pressed }) => [styles.kitLeagues, { borderColor: nylon.line }, pressed && { backgroundColor: nylon.sunken }]}>
+      <KitText t="tag" color={nylon.text}>Leagues</KitText>
     </Pressable>
+  ) : null
+
+  const modals = (
+    <>
+    </>
   )
 
-  // ── Phase: domestic review (season preview — placement already introduced
-  //    the club/league, so this is just the table you're about to fight in) ────
+  // ── Phase: domestic review ────────────────────────────────────────────────
   if (phase === 'domestic_review') {
     const preview = [...domTeamsRef.current].sort((a, b) => b.ovr - a.ovr)
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={[styles.headerTitle, { color: CL.accent }]}>{mine.name}</Text>
-          {mine.format && isSpecialFormat(mine.format)
-            ? <InfoBubble topic={`format_${mine.format}`} />
-            : <InfoBubble topic="league_simulation" />}
-        </View>
-        <Text style={styles.phaseHint}>The field by squad strength · badges show what each finish earns</Text>
-        {mine.format && isSpecialFormat(mine.format) && (
-          <View style={styles.splitBanner}>
-            <Text style={styles.splitBannerText}>ℹ️ {FORMAT_LABEL[mine.format]} — {FORMAT_EXPLAINER[mine.format]}</Text>
-          </View>
-        )}
-        <View style={[styles.tableCard, { flex: 1, marginHorizontal: spacing.lg, marginBottom: spacing.md }]}>
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-            <Text style={[styles.tableCol, styles.colName]}>Club</Text>
-            <Text style={[styles.tableCol, styles.colStat]}>OVR</Text>
-          </View>
-          <ScrollView style={{ flex: 1 }}>
-            {preview.map((t, i) => (
-              <View key={t.clubId} style={[styles.standRow, t.isPlayer && styles.standRowPlayer]}>
-                <Text style={styles.standPos}>{i + 1}</Text>
-                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={[styles.standName, t.isPlayer && { color: CL.accent, fontWeight: typography.bold }]} size={13} gap={4} />
-                  <BerthBadge rank={mine.rank} position={i + 1} />
-                </View>
-                <Text style={[styles.standStat, { width: 34 }]}>{t.ovr}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-        <View style={styles.footerBar}>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setPhase('domestic_sim'); setIsPlaying(true) }}>
-            <Text style={styles.primaryBtnText}>KICK OFF THE SEASON →</Text>
-          </Pressable>
-        </View>
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <KitText t="superM" color={nylon.text} accessibilityRole="header">{`"${mine.name.toUpperCase()}"`}</KitText>
+          <KitText t="tag" color={nylon.textMuted}>{`${mine.country} · rank ${mine.rank} · ${preview.length} clubs`}</KitText>
+          <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>
+            The field by squad strength. The codes say what each finish earns.
+          </KitText>
+          {isSpecialFormat(mine.format) && mine.format && (
+            <KitText t="body" color={nylon.textMuted} style={{ marginTop: space[2] }}>
+              {`${FORMAT_LABEL[mine.format as LeagueFormat]}: ${FORMAT_EXPLAINER[mine.format as LeagueFormat]}`}
+            </KitText>
+          )}
+          <SectionTag roles={nylon}>The field</SectionTag>
+          <LeagueTable roles={nylon} strength zones={domZones}
+            rows={preview.map(t => ({ ...simRow(t), ovr: t.ovr }))} />
+          <ZoneLegend roles={nylon} zones={domZones} />
+        </KitScreen>
+        <ThumbBar>
+          <Plate label="Kick off the season" icon="play" roles={nylon} onPress={() => { setPhase('domestic_sim'); setIsPlaying(true) }} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: domestic live sim (mirrors the normal league-mode sim layout) ───
+  // ── Phase: domestic season ────────────────────────────────────────────────
   if (phase === 'domestic_sim') {
-    const totalMDs = domMatchdaysRef.current.length
-    const playedMDs = Math.min(domMD, totalMDs)
-    const ordered = domStage === 'split'
-      ? lockedFinalTable(domTeamsRef.current, domSplitIdsRef.current)
-      : sortLeagueTable(domTeamsRef.current)
+    const playedMDs = Math.min(domMD, domTotalMDs)
     const atSplitPause = !isPlaying && domStage === 'split' && domMD === 0
+    const shown = resultsOf(domHistory)
+    const yourResult = shown.find(r => r.playerHome || r.playerAway)
+    const others = shown.filter(r => !(r.playerHome || r.playerAway))
+    const preSplit = domStage === 'split' && showRegularTable && domRegularSnapshotRef.current
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: CL.accent }]}>{mine.name}</Text>
-          <Text style={styles.headerSub}>
-            {domStage === 'split' ? domStageLabelRef.current : 'Season 2025/26'}
-            {'  '}{mine.format && isSpecialFormat(mine.format) ? '' : ''}
-          </Text>
-        </View>
-        <View style={styles.simContainer}>
-          {/* Progress card — matchday, status, bar, controls (league-mode look) */}
-          <View style={styles.progressCard}>
-            <View style={styles.progressTextRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.matchdayLabel}>Matchday {Math.min(domMD + (isPlaying ? 1 : 0), totalMDs) || 1} / {totalMDs}</Text>
-                {mine.format && isSpecialFormat(mine.format)
-                  ? <InfoBubble topic={`format_${mine.format}`} size={15} />
-                  : <InfoBubble topic="league_simulation" size={15} />}
-              </View>
-              <Text style={styles.simStatusText}>{isPlaying ? 'Simulating...' : atSplitPause ? 'Split reached' : 'Paused'}</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(playedMDs / Math.max(1, totalMDs)) * 100}%`, backgroundColor: CL.accent }]} />
-            </View>
-            <View style={styles.controlsRow}>
-              <Pressable style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(p => !p)}>
-                <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : atSplitPause ? '▶ Play Split' : '▶ Play'}</Text>
-              </Pressable>
-              <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipDomesticSeason}>
-                <Text style={styles.controlBtnText}>⏩ Skip All</Text>
-              </Pressable>
-              <View style={styles.speedSelector}>
-                {(['slow', 'normal', 'fast'] as Speed[]).map(s => (
-                  <Pressable key={s} style={[styles.speedBtn, speed === s && { backgroundColor: CL.accent, borderColor: CL.accent }]} onPress={() => setSpeed(s)}>
-                    <Text style={[styles.speedBtnText, speed === s && styles.speedBtnTextActive]}>{s.toUpperCase()}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            {atSplitPause && (
-              <Text style={styles.splitBannerText}>⚡ {domStageLabelRef.current} — {FORMAT_EXPLAINER[mine.format ?? 'double_round_robin'] ?? ''}</Text>
-            )}
-          </View>
-
-          <View style={styles.simSplitGrid}>
-            {/* Live Standings */}
-            <View style={styles.tableCard}>
-              <View style={styles.mdCardHead}>
-                <Text style={[styles.cardHeaderTitle, { flexShrink: 1 }]} numberOfLines={1}>
-                  {domStage === 'split' && showRegularTable ? 'Regular Season (final)' : 'Live Standings'}
-                </Text>
-                {domStage === 'split' && domRegularSnapshotRef.current && (
-                  <Pressable style={[styles.mdLiveBtn, { borderColor: CL.accent }]} onPress={() => setShowRegularTable(v => !v)}>
-                    <Text style={[styles.mdLiveText, { color: CL.accent }]}>{showRegularTable ? 'LIVE' : 'PRE-SPLIT'}</Text>
-                  </Pressable>
-                )}
-              </View>
-              <View style={styles.tableHeaderRow}>
-                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-                <Text style={[styles.tableCol, styles.colName]}>Club</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>PTS</Text>
-              </View>
-              {domStage === 'split' && showRegularTable && domRegularSnapshotRef.current ? (
-                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                  {domRegularSnapshotRef.current.map((t, i) => {
-                    const gd = t.goalsFor - t.goalsAgainst
-                    const isPlayer = t.clubId === playerClubId
-                    const pText = isPlayer ? { color: CL.accent, fontWeight: typography.bold } : null
-                    return (
-                      <View key={t.clubId} style={[styles.tableRow, isPlayer && styles.tableRowPlayer]}>
-                        <Text style={[styles.tableColData, styles.colPos, pText]}>{i + 1}</Text>
-                        <View style={[styles.colName, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                          <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={[styles.tableColData, pText]} size={14} gap={4} containerStyle={{ flexShrink: 1 }} />
-                        </View>
-                        <Text style={[styles.tableColData, styles.colStat, pText]}>{t.played}</Text>
-                        <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                        <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{t.points}</Text>
-                      </View>
-                    )
-                  })}
-                </ScrollView>
-              ) : (
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                {domStage === 'split' && domSplitIdsRef.current && (
-                  <View style={[styles.splitGroupHeader, { borderColor: CL.accent }]}>
-                    <Text style={[styles.splitGroupHeaderText, { color: CL.accent }]}>◆ CHAMPIONSHIP GROUP</Text>
-                  </View>
-                )}
-                {ordered.map((t, i) => {
-                  const gd = t.stats.goalsFor - t.stats.goalsAgainst
-                  const pText = t.isPlayer ? { color: CL.accent, fontWeight: typography.bold } : null
-                  // Visual split: divider where the championship group ends.
-                  const inChamp = domStage === 'split' && domSplitIdsRef.current?.has(t.clubId)
-                  const prevInChamp = i > 0 && domStage === 'split' && domSplitIdsRef.current?.has(ordered[i - 1].clubId)
-                  const showRelHeader = domStage === 'split' && prevInChamp && !inChamp
-                  return (
-                    <React.Fragment key={t.clubId}>
-                      {showRelHeader && (
-                        <View style={styles.splitGroupHeader}>
-                          <Text style={styles.splitGroupHeaderTextMuted}>RELEGATION / EUROPE GROUP</Text>
-                        </View>
-                      )}
-                      <View style={[styles.tableRow, t.isPlayer && styles.tableRowPlayer]}>
-                        <Text style={[styles.tableColData, styles.colPos, pText]}>{i + 1}</Text>
-                        <View style={[styles.colName, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                          <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={[styles.tableColData, pText]} size={14} gap={4} containerStyle={{ flexShrink: 1 }} />
-                          <BerthBadge rank={mine.rank} position={i + 1} />
-                        </View>
-                        <Text style={[styles.tableColData, styles.colStat, pText]}>{t.stats.played}</Text>
-                        <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                        <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{t.stats.points}</Text>
-                      </View>
-                    </React.Fragment>
-                  )
-                })}
-              </ScrollView>
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <KitText t="tag" color={nylon.textMuted}>
+            {`${mine.name} · 2025/26 · ${domStage === 'split' ? domStageLabelRef.current : 'Regular season'} · MD ${playedMDs}/${domTotalMDs}`}
+          </KitText>
+          {domYouPos > 0 && (
+            <StandingFigure roles={nylon} pos={domYouPos} delta={null}
+              zone={domZones[domYouPos - 1] ?? null} points={domOrdered[domYouPos - 1]?.stats.points ?? 0} />
+          )}
+          {atSplitPause && (
+            <KitText t="body" color={nylon.text}>
+              {`${domStageLabelRef.current}. ${FORMAT_EXPLAINER[(mine.format ?? 'double_round_robin') as LeagueFormat] ?? ''}`}
+            </KitText>
+          )}
+          <SeasonStrip roles={nylon} marks={domMarks} total={domTotalMDs} viewing={mdView} onPick={md => { setMdView(md); if (md != null) setIsPlaying(false) }} />
+          {mdView != null && <BackToLive md={mdView} onPress={() => setMdView(null)} />}
+          {yourResult && (
+            <ScorelineCard roles={nylon} label={`MD ${historyFor(domHistory)} · ${yourResult.playerHome ? 'HOME' : 'AWAY'}`}
+              homeName={yourResult.home} awayName={yourResult.away}
+              homeGoals={yourResult.hg} awayGoals={yourResult.ag} youHome={yourResult.playerHome}
+              homeScorers={yourResult.hs || undefined} awayScorers={yourResult.as || undefined}
+              onPress={() => openMdDetail(yourResult, historyFor(domHistory), 'Domestic Season', 2025)} />
+          )}
+          <SegmentSwitch<'table' | 'results'> roles={nylon} value={domTab} onChange={setDomTab} options={[
+            { id: 'table', label: preSplit ? 'Pre-split table' : 'Table' },
+            { id: 'results', label: `Results MD ${historyFor(domHistory)}` },
+          ]} />
+          {domTab === 'table' ? (
+            <>
+              {domStage === 'split' && domRegularSnapshotRef.current && (
+                <Plate label={showRegularTable ? 'Show the live table' : 'Show the pre-split table'} variant="quiet"
+                  roles={nylon} onPress={() => setShowRegularTable(v => !v)} />
               )}
-            </View>
-
-            {/* Matchday Results — scrub back through the whole season */}
-            <MatchdayResultsCard history={domHistory} onOpenMatch={(r, md) => openMdDetail(r, md, 'Domestic Season', 2025)} />
+              <LeagueTable roles={nylon} zones={domZones} moveMs={mdView == null ? 700 : undefined}
+                breakAfter={preSplit ? undefined : (domSplitSize > 0 ? domSplitSize : undefined)}
+                breakLabel="Relegation / Europe group"
+                rows={preSplit
+                  ? domRegularSnapshotRef.current!.map(r => ({
+                      clubId: r.clubId, clubName: r.clubName, isPlayer: r.clubId === playerClubId,
+                      played: r.played, gd: r.goalsFor - r.goalsAgainst, points: r.points,
+                    }))
+                  : domOrdered.map(simRow)} />
+              <ZoneLegend roles={nylon} zones={domZones} />
+            </>
+          ) : others.length === 0 ? (
+            <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>No other results yet.</KitText>
+          ) : (
+            others.map((r, i) => (
+              <ResultRow key={i} roles={nylon} homeName={r.home} awayName={r.away} homeGoals={r.hg} awayGoals={r.ag}
+                youSide={null} scorers={[r.hs, r.as].filter(Boolean).join(' · ') || undefined}
+                onPress={() => openMdDetail(r, historyFor(domHistory), 'Domestic Season', 2025)} />
+            ))
+          )}
+        </KitScreen>
+        <ThumbBar>
+          <View style={styles.kitControls}>
+            <Chips<Speed> roles={nylon} label="Speed" value={speed} onChange={setSpeed}
+              options={[{ id: 'slow', label: 'Slow' }, { id: 'normal', label: 'Normal' }, { id: 'fast', label: 'Fast' }]} />
+            <View style={{ flex: 1 }} />
+            <Plate label="Skip to the last day" icon="skip" variant="secondary" roles={nylon}
+              onPress={() => askSkip(`The rest of your ${mine.name} season is played at once.`, () => setIsPlaying(false), () => domSkipRef.current())} />
           </View>
-        </View>
+          <Plate label={isPlaying ? 'Pause' : atSplitPause ? 'Play the split' : `Play matchday ${Math.min(domMD + 1, domTotalMDs)}`}
+            icon={isPlaying ? 'pause' : 'play'} roles={nylon} onPress={() => setIsPlaying(p => !p)} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: domestic result ─────────────────────────────────────────────────
+  // ── Phase: domestic result ────────────────────────────────────────────────
   if (phase === 'domestic_result') {
     const pos = domesticFinish ?? 0
     const berth = domesticBerth
     const holderIn = inFieldViaHolders
     const qualified = !!berth || holderIn
     const berthText = berth
-      ? (berth.round === 'league_phase' ? 'Straight into the League Phase!' : `You enter at the ${QUAL_ROUND_LABEL[berth.round]} (${PATH_LABEL[berth.path]}).`)
-      : holderIn ? 'No spot through the league — but as TITLE HOLDERS you\'re in the League Phase anyway!' : 'No UEFA Champions League this season.'
-    const domTable = domPlayerTableRef.current
-    // Compact hero banner + the final table you actually earned it from (Big
-    // Fixes §2) → CTA. Was a bare hero + button with the table thrown away
-    // right after computing it; the table is what justifies the outcome.
+      ? (berth.round === 'league_phase' ? 'Straight into the league phase.' : `You enter at the ${QUAL_ROUND_LABEL[berth.round]} (${PATH_LABEL[berth.path]}).`)
+      : holderIn ? "No place through the league, but as title holders you're in the league phase anyway."
+      : 'No Champions League this season.'
+    const table = domPlayerTableRef.current
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={{ fontSize: 22 }}>{qualified ? (pos === 1 ? '🏆' : '🎫') : '💔'}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.resultCompactText, { color: qualified ? colors.success : colors.danger }]}>
-              {pos === 1 ? `${mine.name} CHAMPIONS` : `FINISHED ${pos}${pos === 2 ? 'ND' : pos === 3 ? 'RD' : 'TH'}`}
-            </Text>
-            <Text style={styles.resultCompactSub}>{berthText}</Text>
-          </View>
-        </View>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
-          {domTable && <LeagueTableView table={domTable} playerClubId={playerClubId} />}
-        </ScrollView>
-        <View style={styles.footerBar}>
-          <Pressable
-            style={[styles.primaryBtn, { backgroundColor: CL.accent }, !qual && { opacity: 0.5 }]}
-            disabled={!qual}
-            onPress={() => setPhase('world_sim')}
-          >
-            <Text style={styles.primaryBtnText}>{!qual ? 'RESOLVING EUROPE…' : qualified ? 'SEE THE REST OF EUROPE →' : 'SEE WHO TOOK YOUR PLACE →'}</Text>
-          </Pressable>
-        </View>
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <StampLabel roles={nylon} good={qualified} sub={berthText}
+            text={pos === 1 ? `${mine.name} champions` : `Finished ${ordinalOf(pos)}`} />
+          {table && (
+            <>
+              <SectionTag roles={nylon}>{`${mine.name} · final table`}</SectionTag>
+              <LeagueTable roles={nylon} zones={domZones}
+                breakAfter={domSplitSize > 0 ? domSplitSize : undefined} breakLabel="Relegation / Europe group"
+                rows={table.standings.map(r => ({
+                  clubId: r.clubId, clubName: r.clubName, isPlayer: r.clubId === playerClubId,
+                  played: r.played, gd: r.goalsFor - r.goalsAgainst, points: r.points,
+                }))} />
+              <ZoneLegend roles={nylon} zones={domZones} />
+            </>
+          )}
+        </KitScreen>
+        <ThumbBar>
+          <Plate label={!qual ? 'Resolving Europe' : qualified ? "See the rest of Europe" : 'See who took your place'}
+            icon="forward" roles={nylon} disabled={!qual} missingStep="Resolving Europe"
+            onPress={() => setPhase('world_sim')} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: world reveal ────────────────────────────────────────────────────
+  // ── Phase: Europe's seasons ───────────────────────────────────────────────
   if (phase === 'world_sim') {
     const visible = tables.slice(0, worldRevealed)
     const done = worldRevealed >= tables.length
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={[styles.headerTitle, { color: CL.accent }]}>Europe's Seasons Conclude</Text>
-          <InfoBubble topic="league_simulation" />
-        </View>
-        <Text style={styles.phaseHint}>Every league simulated for real · tap any league to inspect its full table</Text>
-        <ScrollView style={styles.leaguesScroll} contentContainerStyle={{ padding: spacing.lg, gap: 6 }}>
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <KitText t="superM" color={nylon.text} accessibilityRole="header">"EUROPE IS DONE"</KitText>
+          <KitText t="bodyL" color={nylon.textMuted}>{`Every league played out for real. ${visible.length} of ${tables.length} in.`}</KitText>
+          <SectionTag roles={nylon}>The champions</SectionTag>
           {visible.map(t => (
-            <Pressable key={t.rank} style={styles.leagueRevealRow} onPress={() => setOpenLeague(t)}>
-              <Text style={styles.leagueRevealRank}>#{t.rank}</Text>
-              <Text style={[styles.leagueRevealName, t.rank === mine.rank && { color: CL.accent, fontWeight: typography.bold }]} numberOfLines={1}>{t.name}</Text>
-              <Text style={styles.leagueRevealChamp} numberOfLines={1}>🏆 {t.standings[0]?.clubName ?? '—'}</Text>
-            </Pressable>
+            <ListRow key={t.rank} roles={nylon} tier="t2" onPress={() => openLeagueTable(t, playerClubId)}
+              label={t.name} value={t.standings[0]?.clubName ?? '—'}
+              trailing={t.rank === mine.rank ? <Tag roles={nylon} variant="you">YOURS</Tag> : undefined} />
           ))}
-        </ScrollView>
-        <View style={styles.footerBar}>
-          {!done && <ActivityIndicator color={CL.accent} style={{ marginBottom: spacing.sm }} />}
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => {
-            setWorldRevealed(tables.length)
-            if (done) {
-              if (notQualified) { handleOutOfEurope('not_qualified'); return }
-              setPhase('qualifying')
-            }
-          }}>
-            <Text style={styles.primaryBtnText}>{done ? (notQualified ? 'VIEW FINAL RESULT →' : 'TO THE QUALIFIERS →') : 'REVEAL ALL →'}</Text>
-          </Pressable>
-        </View>
-        <LeagueTableModal table={openLeague} playerClubId={playerClubId} onClose={() => setOpenLeague(null)} />
+        </KitScreen>
+        <ThumbBar>
+          <Plate label={done ? (notQualified ? 'See your verdict' : 'To the qualifiers') : 'Reveal them all'}
+            icon="forward" roles={nylon}
+            onPress={() => {
+              setWorldRevealed(tables.length)
+              if (done) {
+                if (notQualified) { handleOutOfEurope('not_qualified'); return }
+                setPhase('qualifying')
+              }
+            }} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: qualifying reveal ───────────────────────────────────────────────
+  // ── Phase: qualifying ─────────────────────────────────────────────────────
   if (phase === 'qualifying') {
     // The WHOLE current round stays hidden until your own tie's live watch
-    // finishes — not just your row — same as the knockout rounds' `revealOthers`
-    // gate in simulation.tsx (maintainer feedback: this was only hiding your
-    // own tie, so the rest of the round spoiled itself immediately).
+    // finishes — not just your row (maintainer feedback: the rest of the round
+    // spoiled itself immediately).
     const visibleTies = (qual?.ties ?? []).filter(t => {
       const idx = qualRoundsWithTies.indexOf(t.round)
       if (idx < qualRoundIdx) return true
@@ -1030,29 +999,16 @@ export default function CustomUclSimulationScreen() {
       return false
     })
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={[styles.headerTitle, { color: CL.accent }]}>Qualifying Rounds</Text>
-          <InfoBubble topic="champions_vs_league_path" />
-          {leaguesButton}
-        </View>
-        <Text style={styles.phaseHint}>Two-legged ties · tap any tie for legs, extra time & shootouts</Text>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
-          {/* Earlier, already-settled rounds first — the live round belongs
-              UNDER them (maintainer feedback: it was pinned above everything,
-              including rounds that finished long ago). */}
-          <QualifyingLadder ties={visibleTies} justDecidedTie={justDecidedQualTie ?? undefined} onTiePress={t => {
-            const m = qualTieToKoMatch(t)
-            if (m) setOpenKo({ m, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
-          }} />
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <KitText t="superM" color={nylon.text} accessibilityRole="header">"QUALIFYING"</KitText>
+          <KitText t="bodyL" color={nylon.textMuted}>Two legs a tie. Tap any tie for its legs, extra time and shootout.</KitText>
           {waitingOnLiveQual && liveQualMatch && currentQualRound && (
-            <View style={{ gap: spacing.xs }}>
-              {/* Which qualifying round/path you've landed in — previously this
-                  only showed up retroactively in the ladder above (maintainer
-                  feedback: "no idea when we appear"). */}
-              <Text style={styles.koRoundLabel}>
-                {QUAL_ROUND_LABEL[currentQualRound]}{playerQualTie ? ` · ${PATH_LABEL[playerQualTie.path]}` : ''}
-              </Text>
+            <View style={{ gap: space[2], marginTop: space[3] }}>
+              <SectionTag roles={nylon}>
+                {`${QUAL_ROUND_LABEL[currentQualRound]}${playerQualTie ? ` · ${PATH_LABEL[playerQualTie.path]}` : ''}`}
+              </SectionTag>
               <LiveMatch
                 teamA={liveQualMatch.teamA} teamB={liveQualMatch.teamB}
                 periods={periodsForTwoLegTie(liveQualMatch)}
@@ -1065,255 +1021,177 @@ export default function CustomUclSimulationScreen() {
               />
             </View>
           )}
-        </ScrollView>
-        <View style={styles.footerBar}>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setLiveQualDone(Object.fromEntries(qualRoundsWithTies.map(r => [r, true]))); setQualRoundIdx(qualRoundsWithTies.length) }}>
-            <Text style={styles.primaryBtnText}>SKIP →</Text>
-          </Pressable>
-        </View>
-        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
-        <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
+          <QualifyingLadder ties={visibleTies} justDecidedTie={justDecidedQualTie ?? undefined} onTiePress={t => {
+            const m = qualTieToKoMatch(t)
+            if (m) openKoTie(m, { ...koOpts, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
+          }} />
+        </KitScreen>
+        <ThumbBar>
+          <Plate label="Skip to the end of qualifying" icon="skip" variant="secondary" roles={nylon}
+            onPress={() => { setLiveQualDone(Object.fromEntries(qualRoundsWithTies.map(r => [r, true]))); setQualRoundIdx(qualRoundsWithTies.length) }} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: qualifying resolved ─────────────────────────────────────────────
+  // ── Phase: qualifying resolved ────────────────────────────────────────────
   if (phase === 'quali_result') {
     const playerHadTies = qual?.ties.some(t => t.teamA.clubId === playerClubId || t.teamB?.clubId === playerClubId)
-    // This hand-off is about the QUALIFYING run, not the domestic league (that
-    // already got its own table on domestic_result) — so it shows the
-    // qualifying ladder (your ties highlighted throughout), not domTable.
-    // Reuses QualifyingLadder as-is (same component + "your ties highlighted"
-    // framing as the final result screen's ladder section).
-    if (playerReachedLeaguePhase) {
-      return (
-        <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-          <View style={[styles.header, styles.headerRow]}>
-            <Text style={{ fontSize: 22 }}>🎉</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.resultCompactText, { color: colors.success }]}>{playerHadTies ? 'QUALIFIED!' : 'THE FIELD IS SET'}</Text>
-              <Text style={styles.resultCompactSub}>
-                {playerHadTies
-                  ? "You've battled through qualifying into the League Phase. 36 clubs, 8 games, top 8 go straight to the Round of 16."
-                  : 'Your league finish put you straight into the League Phase — the ladder just decided who joins you. 36 clubs, 8 games.'}
-              </Text>
-            </View>
-          </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
-            {playerHadTies && qual && (
-              <QualifyingLadder ties={qual.ties} onTiePress={t => {
-                const m = qualTieToKoMatch(t)
-                if (m) setOpenKo({ m, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
-              }} />
-            )}
-          </ScrollView>
-          <View style={styles.footerBar}>
-            <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => setPhase('review')}>
-              <Text style={styles.primaryBtnText}>CONTINUE →</Text>
-            </Pressable>
-          </View>
-          <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
-        </View>
-      )
-    }
     const exitTie = [...(qual?.ties ?? [])].reverse().find(t => t.teamA.clubId === playerClubId || t.teamB?.clubId === playerClubId)
     const exitKey = exitTie ? (Object.entries(QUAL_EXIT_ROUND).find(([, r]) => r === exitTie.round)?.[0] as CLSeasonResult['playerFinalRound'] | undefined) : undefined
-    // Same "show your qualifying run" treatment as the reached-league-phase
-    // branch above — this screen previously had no table at all.
+    const through = playerReachedLeaguePhase
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={{ fontSize: 22 }}>💔</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.resultCompactText, { color: colors.danger }]}>ELIMINATED</Text>
-            <Text style={styles.resultCompactSub}>Your UEFA Champions League run ends in qualifying. The tournament continues without you — see how it plays out.</Text>
-          </View>
-        </View>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg }}>
-          {qual && (
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <StampLabel roles={nylon} good={through}
+            text={through ? (playerHadTies ? 'Qualified' : 'The field is set') : `Out in ${exitTie ? QUAL_ROUND_LABEL[exitTie.round].toLowerCase() : 'qualifying'}`}
+            sub={through
+              ? (playerHadTies
+                  ? 'You came through qualifying. 36 clubs, eight games, the top eight go straight to the round of 16.'
+                  : 'Your league finish put you straight into the league phase. The ladder only decided who joins you.')
+              : 'Your Champions League ends here. The tournament goes on without you.'} />
+          {qual && (playerHadTies || !through) && (
             <QualifyingLadder ties={qual.ties} onTiePress={t => {
               const m = qualTieToKoMatch(t)
-              if (m) setOpenKo({ m, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
+              if (m) openKoTie(m, { ...koOpts, label: `${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
             }} />
           )}
-        </ScrollView>
-        <View style={styles.footerBar}>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => handleOutOfEurope(exitKey ?? 'q1_exit')}>
-            <Text style={styles.primaryBtnText}>VIEW RESULT →</Text>
-          </Pressable>
-        </View>
-        <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
+        </KitScreen>
+        <ThumbBar>
+          {through
+            ? <Plate label="To the league phase" icon="forward" roles={nylon} onPress={() => setPhase('review')} />
+            : <Plate label="See how it ends" icon="forward" roles={nylon} onPress={() => handleOutOfEurope(exitKey ?? 'q1_exit')} />}
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: league phase review ─────────────────────────────────────────────
+  // ── Phase: league phase review ────────────────────────────────────────────
   if (phase === 'review') {
     const playerTeam = clTeamsLocal.find(t => t.isPlayer)
+    const yourEight = fixtures.filter(f => f.home.isPlayer || f.away.isPlayer).sort((a, b) => a.matchday - b.matchday)
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={[styles.headerTitle, { color: CL.accent }]}>League Phase</Text>
-          <InfoBubble topic="league_phase" />
-          {leaguesButton}
-        </View>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
-          <View style={styles.reviewCard}>
-            <Text style={styles.reviewClub}>{playerTeam?.clubName}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.reviewMeta}>OVR {playerTeam?.ovr} · Pot {playerTeam?.pot} · {clTeamsLocal.length} clubs</Text>
-              <InfoBubble topic="pots" size={15} />
-            </View>
-            <Text style={styles.reviewNote}>8 matches — 2 opponents from each of the 4 pots. Top 8 go straight to the Round of 16, 9th–24th enter the Playoff Round, 25th and below are out.</Text>
-          </View>
-
-          {/* Who you actually play, and from which pot, before a ball is kicked */}
-          <FixtureList
-            accent={CL.accent}
-            items={fixtures
-              .filter(f => f.home.isPlayer || f.away.isPlayer)
-              .map(f => {
-                const isHome = f.home.isPlayer
-                const opp = isHome ? f.away : f.home
-                return { matchday: f.matchday, clubId: opp.clubId, clubName: opp.clubName, pot: opp.pot, isHome }
-              })}
-          />
-
-          {formation && draftedPlayers.length > 0 && (
-            <View style={{ gap: spacing.sm }}>
-              <Text style={styles.reviewClub}>Your Lineup ({formation})</Text>
-              <LineupPitch formation={formation} draftedPlayers={draftedPlayers} benchPlayers={benchPlayers} />
-            </View>
-          )}
-        </ScrollView>
-        <View style={styles.footerBar}>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => { setPhase('simulating'); setIsPlaying(true) }}>
-            <Text style={styles.primaryBtnText}>SIMULATE LEAGUE PHASE →</Text>
-          </Pressable>
-        </View>
-        <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <KitText t="superM" color={nylon.text} accessibilityRole="header">"THE LEAGUE PHASE"</KitText>
+          <KitText t="tag" color={nylon.textMuted}>
+            {`${playerTeam?.clubName ?? ''} · OVR ${playerTeam?.ovr ?? 0} · POT ${playerTeam?.pot ?? '-'} · ${clTeamsLocal.length} clubs`}
+          </KitText>
+          <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>
+            Eight matches, two clubs from each pot. The top eight go straight to the round of 16, ninth to 24th play a knockout play-off, and the rest are out.
+          </KitText>
+          <SectionTag roles={nylon}>Your eight</SectionTag>
+          {yourEight.map(f => (
+            <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday} home={f.home.isPlayer}
+              opponent={(f.home.isPlayer ? f.away : f.home).clubName} pot={(f.home.isPlayer ? f.away : f.home).pot} />
+          ))}
+          <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+        </KitScreen>
+        <ThumbBar>
+          <Plate label="Start the league phase" icon="play" roles={nylon} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: UCL league phase (mirrors the normal league-mode sim layout) ────
+  // ── Phase: league phase ───────────────────────────────────────────────────
   if (phase === 'simulating') {
     const standings = sortStandings(clTeamsLocal)
-    const playedMDs = Math.min(currentMD - 1, totalMatchdays)
+    const youPos = standings.findIndex(t => t.isPlayer) + 1
+    const shown = resultsOf(lpHistory)
+    const yourResult = shown.find(r => r.playerHome || r.playerAway)
+    const others = shown.filter(r => !(r.playerHome || r.playerAway))
+    const lpMarks: Mark[] = lpHistory.map(md => {
+      const yours = md.find(r => r.playerHome || r.playerAway)
+      return yours ? markOf(yours.playerHome, yours.hg, yours.ag) : null
+    }).filter((m): m is Mark => !!m)
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
-            <Text style={[styles.headerTitle, { color: CL.accent }]}>League Phase</Text>
-            {leaguesButton}
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase={phase} />
+        <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+          <KitText t="tag" color={nylon.textMuted}>{`League phase · 36 clubs · MD ${Math.min(currentMD - 1, totalMatchdays)}/${totalMatchdays}`}</KitText>
+          {youPos > 0 && (
+            <StandingFigure roles={nylon} pos={youPos} delta={null}
+              zone={CL_PHASE_ZONES[youPos - 1] ?? null} points={standings[youPos - 1]?.stats.points ?? 0} />
+          )}
+          <SeasonStrip roles={nylon} marks={lpMarks} total={totalMatchdays} viewing={mdView} onPick={md => { setMdView(md); if (md != null) setIsPlaying(false) }} />
+          {mdView != null && <BackToLive md={mdView} onPress={() => setMdView(null)} />}
+          {yourResult && (
+            <ScorelineCard roles={nylon} label={`MD ${historyFor(lpHistory)} · ${yourResult.playerHome ? 'HOME' : 'AWAY'}`}
+              homeName={yourResult.home} awayName={yourResult.away}
+              homeGoals={yourResult.hg} awayGoals={yourResult.ag} youHome={yourResult.playerHome}
+              homeScorers={yourResult.hs || undefined} awayScorers={yourResult.as || undefined}
+              onPress={() => openMdDetail(yourResult, historyFor(lpHistory), 'League Phase', clYear ?? 2025)} />
+          )}
+          <SegmentSwitch<'table' | 'results'> roles={nylon} value={lpTab} onChange={setLpTab} options={[
+            { id: 'table', label: 'Table' },
+            { id: 'results', label: `Results MD ${historyFor(lpHistory)}` },
+          ]} />
+          {lpTab === 'table' ? (
+            <>
+              <LeagueTable roles={nylon} zones={CL_PHASE_ZONES} moveMs={mdView == null ? 700 : undefined}
+                rows={standings.map(simRow)} />
+              <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+            </>
+          ) : others.length === 0 ? (
+            <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>No other results yet.</KitText>
+          ) : (
+            others.map((r, i) => (
+              <ResultRow key={i} roles={nylon} homeName={r.home} awayName={r.away} homeGoals={r.hg} awayGoals={r.ag}
+                youSide={null} scorers={[r.hs, r.as].filter(Boolean).join(' · ') || undefined}
+                onPress={() => openMdDetail(r, historyFor(lpHistory), 'League Phase', clYear ?? 2025)} />
+            ))
+          )}
+        </KitScreen>
+        <ThumbBar>
+          <View style={styles.kitControls}>
+            <Chips<Speed> roles={nylon} label="Speed" value={speed} onChange={setSpeed}
+              options={[{ id: 'slow', label: 'Slow' }, { id: 'normal', label: 'Normal' }, { id: 'fast', label: 'Fast' }]} />
+            <View style={{ flex: 1 }} />
+            <Plate label="Skip to the last matchday" icon="skip" variant="secondary" roles={nylon}
+              onPress={() => askSkip(`Matchdays ${currentMD} to ${totalMatchdays} are played at once.`, () => setIsPlaying(false), () => lpSkipRef.current())} />
           </View>
-          <Text style={styles.headerSub}>36 clubs · one table · 8 matchdays</Text>
-        </View>
-        <View style={styles.simContainer}>
-          <View style={styles.progressCard}>
-            <View style={styles.progressTextRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.matchdayLabel}>Matchday {Math.min(currentMD, totalMatchdays)} / {totalMatchdays}</Text>
-                <InfoBubble topic="league_phase_zones" size={15} />
-              </View>
-              <Text style={styles.simStatusText}>{isPlaying ? 'Simulating...' : 'Paused'}</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(playedMDs / totalMatchdays) * 100}%`, backgroundColor: CL.accent }]} />
-            </View>
-            <View style={styles.controlsRow}>
-              <Pressable style={[styles.controlBtn, isPlaying && styles.controlBtnActive]} onPress={() => setIsPlaying(p => !p)}>
-                <Text style={styles.controlBtnText}>{isPlaying ? '⏸ Pause' : '▶ Play'}</Text>
-              </Pressable>
-              <Pressable style={[styles.controlBtn, styles.skipAllBtn]} onPress={skipUclLeaguePhase}>
-                <Text style={styles.controlBtnText}>⏩ Skip All</Text>
-              </Pressable>
-              <View style={styles.speedSelector}>
-                {(['slow', 'normal', 'fast'] as Speed[]).map(s => (
-                  <Pressable key={s} style={[styles.speedBtn, speed === s && { backgroundColor: CL.accent, borderColor: CL.accent }]} onPress={() => setSpeed(s)}>
-                    <Text style={[styles.speedBtnText, speed === s && styles.speedBtnTextActive]}>{s.toUpperCase()}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.simSplitGrid}>
-            <View style={styles.tableCard}>
-              <Text style={styles.cardHeaderTitle}>Live Standings</Text>
-              <View style={styles.tableHeaderRow}>
-                <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-                <Text style={[styles.tableCol, styles.colName]}>Club</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-                <Text style={[styles.tableCol, styles.colStat]}>PTS</Text>
-              </View>
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                {standings.map((t, i) => {
-                  const gd = t.stats.goalsFor - t.stats.goalsAgainst
-                  const pText = t.isPlayer ? { color: CL.accent, fontWeight: typography.bold } : null
-                  return (
-                    <View key={t.clubId} style={[styles.tableRow, t.isPlayer && styles.tableRowPlayer]}>
-                      <View style={[styles.colPos, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <View style={[styles.zoneDot, { backgroundColor: i < 8 ? colors.success : i < 24 ? colors.warning : colors.danger }]} />
-                        <Text style={[styles.tableColData, pText]}>{i + 1}</Text>
-                      </View>
-                      <TeamLabel clubId={t.clubId} name={t.clubName} textStyle={[styles.tableColData, pText]} size={14} gap={4} containerStyle={styles.colName} />
-                      <Text style={[styles.tableColData, styles.colStat, pText]}>{t.stats.played}</Text>
-                      <Text style={[styles.tableColData, styles.colStat, pText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-                      <Text style={[styles.tableColData, styles.colStat, styles.colPts, pText]}>{t.stats.points}</Text>
-                    </View>
-                  )
-                })}
-                <Text style={styles.zoneLegend}>
-                  <Text style={{ color: colors.success }}>■</Text> 1-8 → R16   ·   <Text style={{ color: colors.warning }}>■</Text> 9-24 → Playoff   ·   <Text style={{ color: colors.danger }}>■</Text> 25+ out
-                </Text>
-              </ScrollView>
-            </View>
-
-            <MatchdayResultsCard history={lpHistory} onOpenMatch={(r, md) => openMdDetail(r, md, 'League Phase', clYear ?? 2025)} />
-          </View>
-        </View>
-        <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
+          <Plate label={isPlaying ? 'Pause' : `Play matchday ${Math.min(currentMD, totalMatchdays)}`}
+            icon={isPlaying ? 'pause' : 'play'} roles={nylon} onPress={() => setIsPlaying(p => !p)} />
+        </ThumbBar>
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: knockout bracket preview (before a ball is kicked) ───────────────
+  // ── Phase: the bracket, before a ball is kicked ───────────────────────────
   if (koVisibleCount === 0 && koRounds.length > 0) {
     const startIdx = Math.max(0, koRounds.findIndex(r => r.ties.some(t => t.teamA.isPlayer || t.teamB.isPlayer)))
     const first = koRounds[startIdx]
     return (
-      <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-        <View style={[styles.header, styles.headerRow]}>
-          <Text style={[styles.headerTitle, { color: CL.accent }]}>Knockout Bracket</Text>
-          <InfoBubble topic="knockout_bracket" />
-        </View>
+      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+        <Road phase="knockout_phase" />
         <BracketPreview
           firstLabel={first.label}
           firstTies={first.ties.map(t => ({ teamA: t.teamA, teamB: t.teamB }))}
           road={koRounds.slice(startIdx + 1).map(r => ({ label: r.label, count: r.ties.length }))}
-          accent={CL.accent}
           onStart={() => setKoVisibleCount(1)}
         />
+        {modals}
       </View>
     )
   }
 
-  // ── Phase: knockout reveal ─────────────────────────────────────────────────
+  // ── Phase: the knockouts ──────────────────────────────────────────────────
   const visibleRounds = koRounds.slice(0, koVisibleCount)
   const allRevealed = koVisibleCount >= koRounds.length
+  const nextRound = koRounds[koVisibleCount]
 
-  // §7 — the Deep Match, offered only when YOUR side made the final. The generic
-  // SKIP becomes a jump to the final, and the results CTA is withheld until the
-  // final has actually been watched.
+  // §7 — the Deep Match, offered only when YOUR side made the final.
   const koFinalIdx = koRounds.findIndex(r => r.round === 'final')
   const koFinal = koFinalIdx >= 0 ? koRounds[koFinalIdx] : undefined
   const playerFinalTie = koFinal?.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer) ?? null
   const atFinal = koFinalIdx >= 0 && koVisibleCount - 1 >= koFinalIdx
-  // Offered from the first revealed round — see the note on the UCL-classic
-  // screen: gating it until the semis made the button turn up too late to be
-  // worth having.
   const canSkipToFinal = !!playerFinalTie && !atFinal
   const awaitingDeepFinal = !!playerFinalTie && atFinal && !deepFinalWatched
 
@@ -1324,8 +1202,8 @@ export default function CustomUclSimulationScreen() {
 
   const openCustomDeepFinal = () => {
     if (!koFinal || !playerFinalTie) return
-    // A final is a single match, which koLegDetailRequest reads off leg1* — the
-    // same request the result screen builds, so both replay the same sheet.
+    // A final is one match, which koLegDetailRequest reads off leg1* — the same
+    // request the result screen builds, so both replay the same sheet.
     const detail = koLegDetailRequest(playerFinalTie, 1, {
       label: koFinal.label, yearStart: clYear ?? 2025,
       playerClubId: playerClubId ?? undefined, drafted: draftedPlayers,
@@ -1339,48 +1217,40 @@ export default function CustomUclSimulationScreen() {
       playerWon: playerFinalTie.winner.isPlayer,
       playerClubName: (playerFinalTie.teamA.isPlayer ? playerFinalTie.teamA : playerFinalTie.teamB).clubName,
       onFinished: () => { setDeepFinalWatched(true); commitFinalResult() },
-      resultRoute: '/game/custom-ucl-result',
+      resultRoute: '/game/awards?to=cucl',
     })
   }
+
   return (
-    <View style={[styles.container, { backgroundColor: CL.bgTint }]}>
-      <View style={[styles.header, styles.headerRow]}>
-        <Text style={[styles.headerTitle, { color: CL.accent }]}>Knockout Rounds</Text>
-        <InfoBubble topic="knockout_bracket" />
-        {leaguesButton}
-      </View>
-      <Text style={styles.phaseHint}>Tap any tie for legs, extra time & shootout detail</Text>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+    <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <Road phase="knockout_phase" />
+      <KitScreen ground="nylon" contentStyle={{ paddingTop: space[3] }}>
+        <View style={styles.kitHeadRow}>
+          <KitText t="tag" color={nylon.textMuted} style={{ flex: 1 }}>UEFA Champions League · Knockouts</KitText>
+          {leaguesButton}
+        </View>
         {visibleRounds.map((r, ri) => {
           const isLatest = ri === visibleRounds.length - 1
           const playerTie = r.ties.find(m => m.teamA.isPlayer || m.teamB.isPlayer)
           const watchLive = isLatest && playerTie && !liveDone[r.round]
+          const isDeepFinal = r.round === 'final' && !!playerFinalTie
+          const others = r.ties.filter(m => !(m.teamA.isPlayer || m.teamB.isPlayer))
+          const settled = playerTie && !watchLive && !(isDeepFinal && !deepFinalWatched)
+          const fate = settled && playerTie
+            ? (playerTie.winner.isPlayer ? null : (KO_OUT[r.round] ?? `Out in the ${r.label.toLowerCase()}`))
+            : null
           return (
-            <View key={r.round} style={styles.koRoundBlock}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Text style={styles.koRoundLabel}>{r.label}</Text>
+            <View key={r.round} style={styles.kitRound}>
+              <View style={styles.kitHeadRow}>
+                <SectionTag roles={nylon}>{r.label}</SectionTag>
                 {r.round === 'playoff' && <InfoBubble topic="knockout_playoff" size={15} />}
               </View>
-              {/* your tie plays out minute-by-minute FIRST; the rest of the round
-                  is held back until your match settles, then revealed. */}
-              {/* §7 — your final never plays out inline, and its scoreline is
-                  kept off screen until the Deep Match has revealed it. */}
-              {r.round === 'final' && playerFinalTie && !deepFinalWatched ? (
-                <View style={styles.deepFinalCard}>
-                  <Text style={[styles.deepFinalKicker, { color: CL.accent }]}>The Final</Text>
-                  <Text style={styles.deepFinalTeams} numberOfLines={2}>
-                    {playerFinalTie.teamA.clubName}  vs  {playerFinalTie.teamB.clubName}
-                  </Text>
-                  <Text style={styles.deepFinalNote}>
-                    One match. Played out in full, minute by minute — you only get to watch it once.
-                  </Text>
-                  <Pressable
-                    style={({ pressed }) => [styles.deepFinalBtn, { backgroundColor: CL.accent }, pressed && { opacity: 0.85 }]}
-                    onPress={openCustomDeepFinal}
-                  >
-                    <Ionicons name="people" size={15} color={colors.textPrimary} />
-                    <Text style={styles.deepFinalBtnText}>SEE LINEUPS →</Text>
-                  </Pressable>
+
+              {isDeepFinal && !deepFinalWatched ? (
+                <View style={[styles.kitFinalCard, { borderColor: nylon.line, backgroundColor: nylon.surface }]}>
+                  <KitText t="superM" color={nylon.text}>"THE FINAL"</KitText>
+                  <KitText t="title" color={nylon.text}>{`${playerFinalTie!.teamA.clubName} v ${playerFinalTie!.teamB.clubName}`}</KitText>
+                  <KitText t="body" color={nylon.textMuted}>One match, played out in full, minute by minute. You only get to watch it once.</KitText>
                 </View>
               ) : watchLive && playerTie ? (
                 <LiveMatch
@@ -1390,168 +1260,49 @@ export default function CustomUclSimulationScreen() {
                   aggregate={!!playerTie.leg1}
                   onDone={() => setLiveDone(d => ({ ...d, [r.round]: true }))}
                 />
-              ) : (
-                <View style={{ gap: spacing.xs }}>
-                  {r.ties.map((m, i) => {
-                    // Your settled tie gets the same "YOU ADVANCE"/"YOU'RE
-                    // ELIMINATED" treatment WC already has: colored INSIDE the
-                    // row itself (green win / red loss), not a separate line —
-                    // maintainer feedback: a gold border read as neutral. Not
-                    // gated on `isLatest` — a club only ever appears in ONE
-                    // round's ties once eliminated, so this must persist as
-                    // later rounds reveal, exactly like UCL classic/WC do.
-                    const isPlayerTie = m.teamA.isPlayer || m.teamB.isPlayer
-                    const justDecided = isPlayerTie ? {
-                      outcomeLine: m.winner.isPlayer ? 'YOU ADVANCE' : "YOU'RE ELIMINATED",
-                      outcomeColor: m.winner.isPlayer ? colors.success : colors.danger,
-                    } : undefined
-                    return (
-                      <KnockoutTieRow key={i} accent={CL.accent} tie={clKoMatchToRow(m, undefined, () => setOpenKo({ m, label: r.label }), justDecided)} />
-                    )
-                  })}
-                </View>
+              ) : null}
+
+              {settled && playerTie && (
+                <TieCard roles={nylon} label={r.label} tone={playerTie.winner.isPlayer ? 'win' : 'loss'}
+                  tie={{ ...clTieToVM(playerTie, () => openKoTie(playerTie, { ...koOpts, label: r.label })), isPlayerTie: false,
+                         note: playerTie.winner.isPlayer ? 'THROUGH' : 'OUT' }} />
               )}
+              {fate && <StampLabel roles={nylon} text={fate} good={false} />}
+
+              {(!playerTie || settled) && others.map((m, i) => (
+                <TieRow key={i} roles={nylon} tie={clTieToVM(m, () => openKoTie(m, { ...koOpts, label: r.label }))} />
+              ))}
             </View>
           )
         })}
-      </ScrollView>
-      <View style={styles.footerBar}>
-        {canSkipToFinal
-          ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => revealThrough(koFinalIdx)}><Text style={styles.primaryBtnText}>SKIP TO FINAL →</Text></Pressable>
-          : !allRevealed
-          ? <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={() => revealThrough(koRounds.length - 1)}><Text style={styles.primaryBtnText}>SKIP →</Text></Pressable>
-          : awaitingDeepFinal
-          ? null
-          : <Pressable style={[styles.primaryBtn, { backgroundColor: CL.accent }]} onPress={finishAll}><Text style={styles.primaryBtnText}>VIEW FINAL RESULT →</Text></Pressable>}
-      </View>
-      <KoTieDetailModal match={openKo?.m ?? null} roundLabel={openKo?.label} onClose={() => setOpenKo(null)} playerClubId={playerClubId ?? undefined} draftedPlayers={draftedPlayers} yearStart={clYear ?? 2025} />
-      <LeaguesBrowserModal visible={browserOpen} tables={tables} playerClubId={playerClubId} onClose={() => setBrowserOpen(false)} />
+        {!allRevealed && nextRound && (
+          <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>
+            {nextRound.ties.some(t => t.teamA.isPlayer || t.teamB.isPlayer)
+              ? `Your ${nextRound.label.toLowerCase()} is next.`
+              : `Next: the ${nextRound.label.toLowerCase()}.`}
+          </KitText>
+        )}
+      </KitScreen>
+      <ThumbBar>
+        {canSkipToFinal && <Plate label="Skip to the final" icon="skip" variant="secondary" roles={nylon} onPress={() => revealThrough(koFinalIdx)} />}
+        {!canSkipToFinal && !allRevealed && <Plate label="Skip to the end" icon="skip" variant="secondary" roles={nylon} onPress={() => revealThrough(koRounds.length - 1)} />}
+        {awaitingDeepFinal
+          ? <Plate label="See the line-ups" icon="forward" roles={nylon} onPress={openCustomDeepFinal} />
+          : allRevealed
+          ? <Plate label="See your verdict" icon="forward" roles={nylon} onPress={finishAll} />
+          : null}
+      </ThumbBar>
+      {modals}
     </View>
   )
 }
 
-
 const styles = StyleSheet.create({
+  kitLeagues: { borderWidth: 1, borderColor: '#F3F3F0', minHeight: 40, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  kitControls: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  kitHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  kitRound: { gap: 8, marginTop: 12 },
+  kitFinalCard: { borderWidth: 2, padding: 12, gap: 8 },
+
   container: { flex: 1, backgroundColor: colors.bg },
-  loadingContainer: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  loadingText: { fontSize: typography.sm, color: colors.textSecondary },
-  header: { paddingTop: 56, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, alignItems: 'center' },
-  headerRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
-  headerTitle: { fontSize: typography.xl, fontWeight: typography.black },
-  phaseHint: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.xs },
-
-  leaguesBtn: { marginLeft: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgElevated },
-  leaguesBtnText: { fontSize: 15 },
-
-  leaguesScroll: { flex: 1 },
-  leagueRevealRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
-  leagueRevealRank: { width: 30, fontSize: 11, color: CL.accent, fontWeight: typography.bold },
-  leagueRevealName: { flex: 1, fontSize: 12, color: colors.textSecondary },
-  leagueRevealChamp: { fontSize: 12, color: colors.textPrimary, fontWeight: typography.bold },
-
-  footerBar: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.sm },
-  primaryBtn: { borderRadius: radius.md, paddingVertical: spacing.lg, alignItems: 'center', ...shadows.md },
-  secondaryBtn: { backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-  primaryBtnText: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1.5 },
-
-  resultBigText: { fontSize: typography.xxl, fontWeight: typography.black, textAlign: 'center' },
-  resultSubText: { fontSize: typography.sm, color: colors.textSecondary, textAlign: 'center', lineHeight: 21 },
-  // Compact hand-off banner (Big Fixes §2) — demotes the hero so the final
-  // table below is the focus, instead of a full-screen result + a lost table.
-  resultCompactText: { fontSize: typography.lg, fontWeight: typography.black, textAlign: 'left' },
-  resultCompactSub: { fontSize: typography.xs, color: colors.textSecondary, textAlign: 'left', lineHeight: 16, marginTop: 2 },
-
-  reviewCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  reviewClub: { fontSize: typography.xl, fontWeight: typography.black, color: colors.textPrimary },
-  reviewMeta: { fontSize: typography.sm, color: colors.textSecondary },
-  reviewNote: { fontSize: typography.xs, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 18 },
-  formatNote: { fontSize: 11, color: colors.textSecondary, backgroundColor: colors.bgElevated, borderRadius: radius.sm, padding: spacing.sm, lineHeight: 16, marginTop: spacing.xs },
-  stakesTitle: { fontSize: typography.xs, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1 },
-
-  splitBanner: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: CL.accent + '15', borderWidth: 1, borderColor: CL.accent, borderRadius: radius.md, padding: spacing.sm },
-  splitBannerText: { fontSize: 11, color: colors.textPrimary, lineHeight: 16, marginTop: spacing.xs },
-  splitGroupHeader: { paddingVertical: 4, paddingHorizontal: 6, marginTop: 4, borderLeftWidth: 2, borderColor: colors.border, backgroundColor: colors.bgElevated },
-  splitGroupHeaderText: { fontSize: 9, fontWeight: typography.black, letterSpacing: 1 },
-  splitGroupHeaderTextMuted: { fontSize: 9, fontWeight: typography.black, letterSpacing: 1, color: colors.textMuted },
-  headerSub: { fontSize: typography.xs, color: colors.textSecondary, textAlign: 'center', marginTop: 2 },
-
-  // ── League-mode sim clone (progress card + split grid) — mirrors simulation.tsx ──
-  simContainer: { flex: 1, padding: spacing.md, gap: spacing.md },
-  progressCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, gap: spacing.sm },
-  progressTextRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  matchdayLabel: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary },
-  simStatusText: { fontSize: typography.xs, color: colors.textSecondary, fontWeight: typography.medium },
-  progressBarBg: { height: 8, backgroundColor: colors.bgElevated, borderRadius: radius.full, overflow: 'hidden' },
-  progressBarFill: { height: '100%' },
-  controlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
-  controlBtn: { backgroundColor: colors.bgElevated, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  controlBtnActive: { borderColor: CL.accent },
-  skipAllBtn: { backgroundColor: colors.warning, borderColor: colors.warning },
-  controlBtnText: { fontSize: typography.sm, color: colors.textPrimary, fontWeight: typography.bold },
-  speedSelector: { flexDirection: 'row', gap: 4 },
-  speedBtn: { backgroundColor: colors.bgElevated, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
-  speedBtnText: { fontSize: 9, fontWeight: typography.bold, color: colors.textSecondary },
-  speedBtnTextActive: { color: colors.bg },
-  simSplitGrid: { flex: 1, flexDirection: 'row', gap: spacing.md },
-  tableCard: { flex: 1.2, backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, gap: spacing.xs },
-  cardHeaderTitle: { fontSize: typography.md, fontWeight: typography.bold, color: colors.textPrimary, marginBottom: spacing.xs },
-  mdCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.xs },
-  mdScrub: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  mdScrubBtn: { paddingHorizontal: 6, paddingVertical: 1 },
-  mdScrubText: { fontSize: 18, fontWeight: typography.black, color: colors.textPrimary },
-  mdScrubCount: { fontSize: typography.xs, color: colors.textMuted, minWidth: 34, textAlign: 'center' },
-  mdLiveBtn: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 1, marginLeft: 2 },
-  mdLiveText: { fontSize: 9, fontWeight: typography.black, letterSpacing: 1 },
-  tableHeaderRow: { flexDirection: 'row', paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
-  tableRow: { flexDirection: 'row', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, alignItems: 'center' },
-  tableRowPlayer: { backgroundColor: CL.accent + '11', borderColor: CL.accent, borderWidth: 1, borderRadius: radius.sm },
-  tableCol: { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
-  tableColData: { fontSize: 11, color: colors.textSecondary },
-  colPos: { width: 34 },
-  colName: { flex: 1, paddingLeft: spacing.xs },
-  colStat: { width: 26, textAlign: 'center' as any },
-  colPts: { fontWeight: typography.bold, color: colors.textPrimary },
-  zoneDot: { width: 6, height: 6, borderRadius: 3 },
-  zoneLegend: { fontSize: 9, color: colors.textMuted, textAlign: 'center', paddingTop: spacing.sm },
-  resultsCard: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, gap: spacing.xs },
-  emptyResultsBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyResultsText: { fontSize: typography.xs, color: colors.textMuted, fontStyle: 'italic' },
-  resultRowWrap: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  resultRowPlayerHighlight: { backgroundColor: CL.accent + '09', borderRadius: radius.sm },
-  resultRowInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  resultTeamSide: { flex: 1 },
-  resultClubNameText: { fontSize: 10, color: colors.textSecondary },
-  scoreBadge: { backgroundColor: colors.bgElevated, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.full, minWidth: 40, alignItems: 'center' },
-  scoreText: { fontSize: 10, fontWeight: typography.bold, color: colors.textPrimary },
-  scorerRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginTop: 3, paddingHorizontal: 2 },
-  scorerHalf: { flex: 1, fontSize: 9, color: colors.textMuted },
-
-  standingsScroll: { flex: 1 },
-  standRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
-  standRowPlayer: { backgroundColor: CL.accent + '11', borderRadius: radius.sm },
-  standPos: { width: 22, fontSize: 11, fontWeight: typography.bold, textAlign: 'center', color: colors.textMuted },
-  standName: { fontSize: 12, color: colors.textSecondary },
-  standStat: { width: 26, fontSize: 11, color: colors.textMuted, textAlign: 'center' },
-
-  speedRow: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
-  speedChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: 4 },
-  speedChipText: { fontSize: 10, fontWeight: typography.bold, color: colors.textMuted },
-
-  koRoundBlock: { gap: spacing.sm },
-  // §7 — matches the card on the UCL-classic / World Cup knockout screens.
-  deepFinalCard: {
-    backgroundColor: colors.bgElevated, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    padding: spacing.lg, gap: spacing.sm, alignItems: 'center',
-  },
-  deepFinalKicker: { fontSize: typography.xs, fontWeight: typography.black, textTransform: 'uppercase', letterSpacing: 1.5 },
-  deepFinalTeams: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary, textAlign: 'center' },
-  deepFinalNote: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
-  deepFinalBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
-    marginTop: spacing.xs,
-  },
-  deepFinalBtnText: { fontSize: typography.sm, fontWeight: typography.black, color: colors.textPrimary, letterSpacing: 1 },
-  koRoundLabel: { fontSize: typography.md, fontWeight: typography.black, color: colors.textPrimary },
 })
