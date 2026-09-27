@@ -1,5 +1,7 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { colors, spacing, typography, radius } from '@/theme'
 import { TeamLabel } from '@/components/TeamLabel'

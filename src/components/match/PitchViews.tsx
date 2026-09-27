@@ -1,11 +1,14 @@
 // The match drawn on a pitch (P4-H): shot map, average positions, heat map.
 // Pure drawing over src/engine/match-geometry.ts, on nylon, in Kit Drop's
 // grammar — square lines, cotton markings, volt for goals and heat.
-import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, StyleSheet, Pressable } from 'react-native'
+import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
+import type { TimedShot } from '@/engine/commentary'
 import Svg, { Rect, Line, Circle, Path, G, Text as SvgText } from 'react-native-svg'
 import { ROLES, prim, space } from '@/theme'
-import { KitText } from '@/components/kit'
+import { KitText, Icon } from '@/components/kit'
 import { HEAT_COLS, HEAT_ROWS, type Shot, type PlayerSpot } from '@/engine/match-geometry'
 
 const roles = ROLES.nylon
@@ -46,33 +49,120 @@ const OUTCOME_LABEL: Record<Shot['outcome'], string> = {
   goal: 'Goal', saved: 'Saved', off: 'Off target', blocked: 'Blocked', woodwork: 'Woodwork',
 }
 
-export function ShotMap({ shots }: { shots: Shot[] }) {
+// P8-47: "too condensed and hard to see". Every shot now starts greyed out,
+// and arrows above the map step through them in the order they were taken.
+// The current shot lights up in its outcome's colour, says who took it, when,
+// how it went and its xG, and a line runs from where it was struck to where it
+// ended — in the net, at the keeper, wide, charged down, off a post — drawn
+// out as you step, so the map moves (P8-145). The map itself isn't tapped.
+const AnimatedLine = Animated.createAnimatedComponent(Line)
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+const OUTCOME_COLOUR: Record<Shot['outcome'], string> = {
+  goal: prim.volt, saved: prim.cotton, off: prim.cotton, blocked: prim.cottonMuted, woodwork: prim.orange,
+}
+const GREY = prim.nylonFaint
+
+function ShotDot({ s, lit }: { s: TimedShot; lit: boolean }) {
+  const cx = s.x * 68, cy = (1 - s.y) * 105
+  const r = 0.9 + s.xg * 3.2
+  const c = lit ? OUTCOME_COLOUR[s.outcome] : GREY
+  if (s.outcome === 'goal') return <Circle cx={cx} cy={cy} r={r} fill={c} stroke={prim.ink} strokeWidth={0.35} />
+  if (s.outcome === 'saved') return <Circle cx={cx} cy={cy} r={r} fill={c} />
+  if (s.outcome === 'blocked') return <Circle cx={cx} cy={cy} r={r * 0.8} fill={c} opacity={lit ? 1 : 0.6} />
+  if (s.outcome === 'woodwork') return (
+    <G>
+      <Circle cx={cx} cy={cy} r={r} fill="none" stroke={c} strokeWidth={0.45} />
+      <Line x1={cx - r * 0.6} y1={cy} x2={cx + r * 0.6} y2={cy} stroke={c} strokeWidth={0.45} />
+    </G>
+  )
+  return <Circle cx={cx} cy={cy} r={r} fill="none" stroke={c} strokeWidth={0.4} />
+}
+
+// One shot's route, drawn from the boot to where it ended. Its own component,
+// mounted fresh for every shot (keyed by the shot): the first version kept ONE
+// progress value in the map and reset it after the render, so each step's
+// first frame drew the new route at full length — at the previous shot's end,
+// the maintainer's "all snap to where the first one ends" — before it snapped
+// back and grew. Here every route starts at zero with its own coordinates in
+// its own closure; there's no previous shot for it to remember. Its first
+// frame is the boot itself (x2/y2 and cx/cy are set as plain props too, or it
+// would draw from the pitch's corner before the animation lands).
+function Route({ shot }: { shot: TimedShot }) {
+  const reduced = useReducedMotion()
+  const fx = shot.x * 68, fy = (1 - shot.y) * 105
+  const ex = shot.end.x, ey = shot.end.y
+  const p = useSharedValue(reduced ? 1 : 0)
+  useEffect(() => {
+    if (!reduced) p.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) })
+  }, [])
+  const lineProps = useAnimatedProps(() => ({ x2: fx + (ex - fx) * p.value, y2: fy + (ey - fy) * p.value }))
+  const ballProps = useAnimatedProps(() => ({ cx: fx + (ex - fx) * p.value, cy: fy + (ey - fy) * p.value }))
+  const start = reduced ? { x: ex, y: ey } : { x: fx, y: fy }
+  const colour = OUTCOME_COLOUR[shot.outcome]
+  return (
+    <G>
+      <AnimatedLine x1={fx} y1={fy} x2={start.x} y2={start.y} animatedProps={lineProps} stroke={colour} strokeWidth={0.5}
+        strokeDasharray={shot.outcome === 'blocked' ? '1 0.8' : undefined} />
+      <AnimatedCircle cx={start.x} cy={start.y} animatedProps={ballProps} r={0.8} fill={colour} />
+    </G>
+  )
+}
+
+export function ShotMap({ shots }: { shots: TimedShot[] }) {
   const goals = shots.filter(s => s.outcome === 'goal').length
   const onTarget = shots.filter(s => s.outcome === 'goal' || s.outcome === 'saved').length
   const xg = shots.reduce((a, s) => a + s.xg, 0)
+  // The first shot is picked from the start (the maintainer, 24 Sept): the map
+  // opens already telling you something, and the arrows go on from there.
+  const [at, setAt] = useState<number | null>(shots.length ? 0 : null)
+  const cur = at != null ? shots[at] : null
+
+  const step = (d: number) => setAt(i => {
+    if (shots.length === 0) return null
+    if (i == null) return d > 0 ? 0 : shots.length - 1
+    return Math.max(0, Math.min(shots.length - 1, i + d))
+  })
+
   return (
     <View style={styles.wrap}>
       <KitText t="tag" color={roles.textMuted}>
         {`${shots.length} shots · ${onTarget} on target · ${goals} ${goals === 1 ? 'goal' : 'goals'} · ${xg.toFixed(2)} xG`}
       </KitText>
+      {shots.length > 0 && (
+        <View style={styles.stepper}>
+          <Pressable onPress={() => step(-1)} disabled={at === 0} accessibilityRole="button" accessibilityLabel="Previous shot" hitSlop={6}
+            style={({ pressed }) => [styles.stepBtn, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }, at === 0 && { opacity: 0.4 }]}>
+            <Icon name="back" size={20} color={roles.text} />
+          </Pressable>
+          <View style={styles.stepText} accessibilityLiveRegion="polite">
+            {cur ? (
+              <>
+                <KitText t="title" color={roles.text} numberOfLines={1}>{`${cur.minute}${cur.plus ? `+${cur.plus}` : ''}' · ${cur.name}`}</KitText>
+                <KitText t="tag" color={OUTCOME_COLOUR[cur.outcome] === prim.cotton ? roles.textMuted : OUTCOME_COLOUR[cur.outcome]}>
+                  {`${cur.penalty ? 'Penalty · ' : ''}${OUTCOME_LABEL[cur.outcome]} · ${cur.xg.toFixed(2)} xG · shot ${at! + 1} of ${shots.length}`}
+                </KitText>
+              </>
+            ) : (
+              <KitText t="body" color={roles.textMuted}>Step through the shots, in the order they came.</KitText>
+            )}
+          </View>
+          <Pressable onPress={() => step(1)} disabled={at === shots.length - 1} accessibilityRole="button" accessibilityLabel="Next shot" hitSlop={6}
+            style={({ pressed }) => [styles.stepBtn, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }, at === shots.length - 1 && { opacity: 0.4 }]}>
+            <Icon name="chevron" size={20} color={roles.text} />
+          </Pressable>
+        </View>
+      )}
       <View style={[styles.pitch, { aspectRatio: 68 / 54 }]}
         accessible accessibilityLabel={`Shot map: ${shots.length} shots, ${goals} goals, ${xg.toFixed(2)} expected goals`}>
         <Svg width="100%" height="100%" viewBox="-1 -2 70 56">
           <Markings half />
-          {[...shots].sort((a, b) => (a.outcome === 'goal' ? 1 : 0) - (b.outcome === 'goal' ? 1 : 0)).map((s, i) => {
-            const cx = s.x * 68, cy = (1 - s.y) * 105
-            const r = 0.9 + s.xg * 3.2
-            if (s.outcome === 'goal') return <Circle key={i} cx={cx} cy={cy} r={r} fill={prim.volt} stroke={prim.ink} strokeWidth={0.35} />
-            if (s.outcome === 'saved') return <Circle key={i} cx={cx} cy={cy} r={r} fill={prim.cotton} />
-            if (s.outcome === 'blocked') return <Circle key={i} cx={cx} cy={cy} r={r * 0.8} fill={prim.cottonMuted} opacity={0.6} />
-            if (s.outcome === 'woodwork') return (
-              <G key={i}>
-                <Circle cx={cx} cy={cy} r={r} fill="none" stroke={prim.orange} strokeWidth={0.45} />
-                <Line x1={cx - r * 0.6} y1={cy} x2={cx + r * 0.6} y2={cy} stroke={prim.orange} strokeWidth={0.45} />
-              </G>
-            )
-            return <Circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={prim.cotton} strokeWidth={0.4} />
-          })}
+          {shots.map((s, i) => i === at ? null : <ShotDot key={i} s={s} lit={false} />)}
+          {cur && (
+            <G>
+              <Route key={at} shot={cur} />
+              <ShotDot s={cur} lit />
+            </G>
+          )}
         </Svg>
       </View>
       <View style={styles.legend}>
@@ -143,6 +233,9 @@ export function HeatMap({ grid, name }: { grid: number[][]; name: string }) {
 }
 
 const styles = StyleSheet.create({
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  stepBtn: { width: 48, height: 48, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stepText: { flex: 1, minHeight: 48, justifyContent: 'center' },
   wrap: { gap: space[2] },
   pitch: { width: '100%', backgroundColor: roles.sunken, borderWidth: 1, borderColor: roles.rule },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: space[3], alignItems: 'center' },

@@ -1,8 +1,7 @@
 import { useCallback } from 'react'
-import { BackHandler, Platform, Alert } from 'react-native'
+import { BackHandler, Platform } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { useGameStore } from '@/store/gameStore'
-import { exitToHome } from '@/lib/nav'
+import { askAbandon } from '@/components/season/RunChrome'
 
 // Anti-cheese guard (Big Fixes §3). Results are attribute-once and stored the
 // moment a match/tie is simulated — the reveal animation is just playback of
@@ -13,52 +12,61 @@ import { exitToHome } from '@/lib/nav'
 // practice, everything from the first simulate call in a run through to the
 // result screen, not just the literal last tick.
 //
-// Android: OS back is interceptable — show a real confirm (Cancel stays,
-// Quit exits the run for good). Web: browser back has already moved the
-// history entry by the time `popstate` fires, so there's no clean "stay"
-// option — re-arm the trap and punish it by sending the player all the way
-// home, with a warning explaining why (maintainer decision: harsher than
-// Android's cancel/quit choice, since a soft "are you sure" is trivially
-// re-triggerable by pressing back again).
+// P8-26 (Phase 7): back opens the Abandon screen, and back again on that
+// screen abandons (ConfirmRequest.backConfirms). No OS alert on Android and
+// no window.alert on web any more; the same route everywhere. Android's back
+// is intercepted before it navigates; on web the browser has already moved the
+// history entry when `popstate` fires, so the sentinel is re-armed first.
 // `useFocusEffect`, not `useEffect`: since §10 the match-stats screen pushes on
 // TOP of guarded screens, and a plain effect would leave this listener armed
 // underneath — so backing out of match stats would fire the simulation's
 // quit-the-run confirm (or, on web, send you straight home) instead of just
 // returning. Focus-gating means only the screen you're actually looking at
 // guards its back button.
+// How long after the guard arms a `popstate` still counts as the return that
+// armed it (P8-127). A person can't press back again this fast.
+const SETTLE_MS = 400
+
 export function useSimBackGuard(active: boolean) {
   useFocusEffect(useCallback(() => {
     if (!active) return
 
-    function quit() {
-      useGameStore.getState().resetRun()
-      exitToHome()
-    }
+    const ask = () => askAbandon(() => {})
 
     if (Platform.OS === 'android') {
-      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        Alert.alert(
-          'Quit this run?',
-          "You can't re-simulate — the result is final.",
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Quit', style: 'destructive', onPress: quit },
-          ],
-        )
-        return true   // swallow the default back — it would rewind the sim
-      })
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => { ask(); return true })
       return () => sub.remove()
     }
 
     if (Platform.OS === 'web') {
-      // Push a sentinel entry so the next back press fires `popstate` here
-      // instead of actually navigating away. Re-armed on every focus, so
-      // returning from the match-stats screen leaves the trap set again.
-      window.history.pushState(null, '', window.location.href)
+      // A sentinel entry so the next back press fires `popstate` here instead
+      // of navigating away. Re-armed on every focus, so returning from the
+      // match-stats screen (or choosing "Keep playing") sets the trap again.
+      //
+      // P8-127: back from a match sheet could open Abandon over and over (on
+      // PC). Leaving the match sheet is itself a step back in the history, and
+      // its `popstate` can land just AFTER this screen has refocused and
+      // re-armed, so it read as the player pressing back; each return armed
+      // it again. Three changes:
+      // - a `popstate` within SETTLE_MS of arming is that return: re-arm
+      //   quietly, don't ask;
+      // - the sentinel is pushed only when the current entry isn't one
+      //   already (it was pushed on every focus, so they piled up);
+      // - it keeps the navigator's own history state (its entry id), so the
+      //   step back from the sentinel reads to the navigator as the same
+      //   screen, not an unknown entry it has to reconcile by navigating.
+      // The dev log says which case each `popstate` was, to confirm the cause.
+      const armedAt = Date.now()
+      const arm = () => {
+        const state = window.history.state as Record<string, unknown> | null
+        if (!state?.simGuard) window.history.pushState({ ...(state ?? {}), simGuard: true }, '', window.location.href)
+      }
+      arm()
       const onPopState = () => {
-        window.history.pushState(null, '', window.location.href)
-        window.alert("Back is disabled during a simulation — you can't rewind to re-roll a result. Taking you home.")
-        quit()
+        const settling = Date.now() - armedAt < SETTLE_MS
+        if (__DEV__) console.log(`[back-guard] popstate ${Date.now() - armedAt} ms after arming: ${settling ? 'a return, ignored' : 'a back press'}`)
+        arm()
+        if (!settling) ask()
       }
       window.addEventListener('popstate', onPopState)
       return () => window.removeEventListener('popstate', onPopState)

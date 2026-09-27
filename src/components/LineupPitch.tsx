@@ -1,101 +1,45 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
+import { View, StyleSheet } from 'react-native'
+import { getSlotsForFormation } from '@/engine/formations'
 import { effectiveOvr } from '@/engine/rating'
-import { colors, spacing, typography, radius, prim, font } from '@/theme'
-import type { DraftedPlayer, Formation, PositionSlot } from '@/types/game'
+import { ROLES, space } from '@/theme'
+import { SectionTag } from '@/components/kit'
+import { FormationPitch } from '@/components/season/AwardsParts'
+import type { PickedTeam } from '@/engine/awards'
+import type { DraftedPlayer, Formation } from '@/types/game'
 
-// The squad pitch with each slot's effective OVR — reused from the pre-sim
-// review screen so the result page shows the same lineup overview. Rows come
-// from the formation's real row layout (getFormationRows), so a 4-2-3-1's
-// double pivot + AM band, a 3-4-3's wing-backs, etc. actually look distinct
-// from each other instead of every formation collapsing into the same
-// generic attack/mid/defense/GK bucketing.
-export function LineupPitch({ formation, draftedPlayers, benchPlayers, title }: {
+// Your XI on the result pages, on the same kit pitch the awards use (P8-104:
+// this was the last pre-redesign pitch, a rounded box with coloured position
+// chips). Each player shows his effective OVR in the slot he played, which is
+// what the sim used; the bench shows each sub's club and OVR.
+export function LineupPitch({ formation, draftedPlayers, benchPlayers, title, caption = "Each player's OVR in the slot he played.", scoreText }: {
   formation: Formation
   draftedPlayers: DraftedPlayer[]
   benchPlayers?: DraftedPlayer[]
   title?: string
+  caption?: string
+  /** Hold a figure back by player id (the ratings reveal). */
+  scoreText?: (playerId: string, ovr: number) => string
 }) {
-  const slots = getSlotsForFormation(formation)
-  const rows = getFormationRows(formation)
-
-  const renderRow = (labels: string[], key: number) => {
-    // Consume slots by label as we go so duplicate labels (e.g. three 'CM's)
-    // each get their own distinct slot rather than all matching the first.
-    const remaining = [...slots]
-    const rowSlots = labels
-      .map(label => {
-        const idx = remaining.findIndex(s => s.label === label)
-        if (idx === -1) return null
-        const [slot] = remaining.splice(idx, 1)
-        return slot
-      })
-      .filter((s): s is PositionSlot => s !== null)
-
-    return (
-      <View key={key} style={styles.pitchRow}>
-        {rowSlots.map((slot, i) => {
-          const player = draftedPlayers.find(p => p.slotIndex === slot.slotIndex)
-          const ovr = player ? effectiveOvr(player, slot) : 0
-          const color = (colors.positions as any)[slot.primary] ?? prim.cotton
-          return (
-            <View key={i} style={styles.pitchPlayer}>
-              <View style={[styles.posIndicator, { backgroundColor: color }]}>
-                <Text style={styles.posText}>{slot.label}</Text>
-              </View>
-              <Text style={styles.playerNameText} numberOfLines={1}>
-                {player ? player.name.split(' ').slice(-1)[0] : 'Empty'}
-              </Text>
-              <Text style={styles.playerOvrText}>{player ? ovr : '--'}</Text>
-            </View>
-          )
-        })}
-      </View>
-    )
+  const roles = ROLES.nylon
+  const team: PickedTeam = {
+    formation,
+    xi: getSlotsForFormation(formation).flatMap(slot => {
+      const p = draftedPlayers.find(d => d.slotIndex === slot.slotIndex && !d.isBench)
+      return p ? [{ slot, player: { id: p.playerId, name: p.name, position: slot.label, score: effectiveOvr(p, slot), clubName: p.clubName } }] : []
+    }),
+    bench: (benchPlayers ?? []).map(p => ({ id: p.playerId, name: p.name, position: p.primaryPosition, score: p.ovr, clubName: p.clubName })),
+    total: 0,
   }
-
   return (
-    <View style={styles.container}>
-      {title && <Text style={styles.title}>{title}</Text>}
-      <View style={styles.pitch}>
-        {rows.map((row, i) => renderRow(row, i))}
-      </View>
-      {benchPlayers && benchPlayers.length > 0 && (
-        <View style={styles.benchBox}>
-          <Text style={styles.benchTitle}>Bench</Text>
-          <View style={styles.benchRow}>
-            {benchPlayers.map((p, i) => {
-              const color = (colors.positions as any)[p.primaryPosition] ?? prim.cotton
-              return (
-                <View key={i} style={styles.benchPlayer}>
-                  <View style={[styles.posIndicator, { backgroundColor: color }]}>
-                    <Text style={styles.posText}>{p.primaryPosition}</Text>
-                  </View>
-                  <Text style={styles.playerNameText} numberOfLines={1}>{p.name.split(' ').slice(-1)[0]}</Text>
-                  <Text style={styles.playerOvrText}>{p.ovr}</Text>
-                </View>
-              )
-            })}
-          </View>
-        </View>
-      )}
+    <View style={styles.wrap}>
+      {title ? <SectionTag roles={roles}>{title}</SectionTag> : null}
+      <FormationPitch roles={roles} team={team} showScores="score" benchScores benchLabel="Bench"
+        caption={caption} scoreText={scoreText && (p => scoreText(p.id, p.score))} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.xs },
-  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton, marginBottom: spacing.xs },
-  pitch: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, paddingVertical: spacing.lg, gap: spacing.lg },
-  pitchRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.md },
-  pitchPlayer: { alignItems: 'center', width: 70 },
-  posIndicator: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0, marginBottom: 4 },
-  posText: { fontSize: 8, fontFamily: font.bodyBlack, color: prim.nylon },
-  playerNameText: { fontSize: typography.xs, fontFamily: font.bodyMedium, color: prim.cotton, textAlign: 'center' },
-  playerOvrText: { fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  benchBox: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, borderStyle: 'dashed', padding: spacing.md, gap: spacing.sm },
-  benchTitle: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  benchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, justifyContent: 'center' },
-  benchPlayer: { alignItems: 'center', width: 60 },
+  wrap: { gap: space[2] },
 })

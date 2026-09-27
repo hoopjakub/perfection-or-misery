@@ -1,10 +1,13 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { RatingSquare } from '@/components/kit'
+import { View, StyleSheet, Pressable } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSlotsForFormation } from '@/engine/formations'
 import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
 import type { CompetitionStats } from '@/types/stats'
 import type { DraftedPlayer, Formation } from '@/types/game'
 
@@ -65,9 +68,7 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
               <>
                 <Text style={styles.line}>{p.goals}G {p.assists}A {p.cleanSheets}CS</Text>
                 {p.avgRating != null && (
-                  <View style={[styles.ratingChip, { backgroundColor: ratingColor(p.avgRating) }]}>
-                    <Text style={styles.ratingChipText}>{p.avgRating.toFixed(2)}</Text>
-                  </View>
+                  <RatingSquare value={p.avgRating} decimals={2} size="sm" />
                 )}
                 {(p.potm ?? 0) > 0 && <Text style={styles.potm}>{p.potm}</Text>}
                 {notable.length > 0 && <Text style={[styles.notable, { color: accent }]}>{notable.join(' ')}</Text>}
@@ -102,8 +103,6 @@ const styles = StyleSheet.create({
   name: { flex: 1, fontSize: typography.sm, color: prim.cotton },
   line: { fontSize: typography.xs, color: prim.cottonMuted },
   notable: { fontSize: 10, fontFamily: font.bodyBold },
-  ratingChip: { borderRadius: 0, paddingHorizontal: 4, paddingVertical: 1, minWidth: 32, alignItems: 'center' },
-  ratingChipText: { fontSize: 10, fontFamily: font.bodyBlack, color: '#0A0E1A' },
   potm: { fontSize: 10, fontFamily: font.bodyBlack, color: '#FFD700' },
   subTag: { fontSize: 9, fontFamily: font.bodyBlack, color: colors.warning },
   more: { fontSize: typography.sm, fontFamily: font.bodyBold, textAlign: 'center' },

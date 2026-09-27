@@ -205,6 +205,22 @@ try {
   console.warn(`! could not auto-bump DB_VERSION (${e.message}); baking ${newVersion}`)
 }
 
+// The scrapers write a slate placeholder (#1E293B / #94A3B8) when a crest's
+// colours couldn't be read — 57 of the Champions League copies of a club
+// (`liverpool_fc_ucl`) among them, whose domestic row has the real colours.
+// Every screen reading `clubs` got the placeholder, which reads as black (the
+// maintainer, 24 Sept: "the main clubs, all black, only in the UCL"). Here the
+// placeholder borrows the same club's real colours by name, once, in the data,
+// so no reader has to know about it.
+const COLOUR_FIX = `
+  UPDATE clubs SET
+    primary_color   = (SELECT c2.primary_color   FROM clubs c2 WHERE c2.name = clubs.name AND upper(c2.primary_color) != '#1E293B' LIMIT 1),
+    secondary_color = (SELECT c2.secondary_color FROM clubs c2 WHERE c2.name = clubs.name AND upper(c2.primary_color) != '#1E293B' LIMIT 1)
+  WHERE upper(primary_color) = '#1E293B'
+    AND EXISTS (SELECT 1 FROM clubs c2 WHERE c2.name = clubs.name AND upper(c2.primary_color) != '#1E293B')`
+const fixed = db.prepare(COLOUR_FIX).run().changes
+console.log(`✓ ${fixed} placeholder club colours replaced with the club's real ones`)
+
 // Bake the same version into the asset's _meta for reference.
 db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', ?)`).run(newVersion)
 

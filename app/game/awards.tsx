@@ -1,17 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { verdictIn } from '@/lib/motion'
+import { forCompetition } from '@/data/competition'
 import { View, StyleSheet } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useGameStore } from '@/store/gameStore'
 import { liveRunData } from '@/lib/runData'
+import { useUserStore } from '@/store/userStore'
 import { buildAwardsNight, type AwardsNight as Night } from '@/engine/awards'
 import { stashRunStats, clubsForManagerAward, openPlayerSeason } from '@/lib/awardsNight'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
-import { haptic } from '@/lib/haptics'
 import { ROLES, space, border } from '@/theme'
 import { KitScreen, KitText, Plate, SectionTag, Stripe } from '@/components/kit'
 import { ThumbBar } from '@/components/season/RunChrome'
-import { PlayerAwardCard, ClubAwardCard, FormationPitch } from '@/components/season/AwardsParts'
+import { PlayerAwardCard, ClubAwardCard, FormationPitch, QualifyingAwards } from '@/components/season/AwardsParts'
 import type { PunditPicks } from '@/engine/predictions'
 
 // C7 · Awards Night (docs/ui-overhaul/07c), on nylon — and only here, only once:
@@ -28,9 +31,10 @@ import type { PunditPicks } from '@/engine/predictions'
 // This screen also pays for computing the run's stats and hands them to the
 // verdict through src/lib/awardsNight.ts, so nothing is regenerated twice.
 const roles = ROLES.nylon
-const BEAT_MS = 2800
+const BEAT_MS = 3400   // the verdict lands in ~0.9s; the rest is reading time
 
 type Beat =
+  | { kind: 'qualifying' }
   | { kind: 'team' }
   | { kind: 'player'; index: number }
   | { kind: 'club'; index: number }
@@ -75,7 +79,8 @@ export default function AwardsNightScreen() {
         setNight(buildAwardsNight({
           awards: res.awards, stats: res.stats, rounds: res.rounds ?? undefined,
           clubs: clubsForManagerAward(placedLeague?.teams, simResult?.table, predictionSeed),
-          playerClubId: simResult?.playerTeam.clubId,
+          playerClubId: simResult?.playerTeam.clubId, mode,
+          managerName: useUserStore.getState().profile?.username ?? undefined,
         }))
       } catch (e) {
         console.warn('[awards] stats compute failed:', e)
@@ -91,6 +96,8 @@ export default function AwardsNightScreen() {
   const beats = useMemo<Beat[]>(() => {
     if (!night) return []
     return [
+      // P8-116: qualifying first, as it was played.
+      ...(night.qualifying ? [{ kind: 'qualifying' } as Beat] : []),
       ...(night.teamOfTheSeason ? [{ kind: 'team' } as Beat] : []),
       ...night.players.map((_, index) => ({ kind: 'player', index }) as Beat),
       ...night.clubs.map((_, index) => ({ kind: 'club', index }) as Beat),
@@ -107,19 +114,6 @@ export default function AwardsNightScreen() {
     return () => clearTimeout(t)
   }, [night, paused, showAll, idx, beats.length])
 
-  // One of your own players winning is the moment the night exists for.
-  const current = beats[idx]
-  useEffect(() => {
-    if (!night || !current) return
-    const mine =
-      current.kind === 'player' ? night.players[current.index]?.winner.isPlayerClub
-      : current.kind === 'club' ? night.clubs[current.index]?.winner.isPlayerClub
-      : current.kind === 'u21' ? night.bestU21?.winner.isPlayerClub
-      : current.kind === 'pots' ? night.playerOfTheSeason?.winner.isPlayerClub
-      : night.teamOfTheSeason?.xi.some(x => x.player.isPlayerClub)
-    if (mine) haptic('success')
-  }, [current, night])
-
   // Tapping a winner pauses the night, so it's still where you left it.
   function openPlayer(playerId: string) {
     setPaused(true)
@@ -135,8 +129,8 @@ export default function AwardsNightScreen() {
   if (failed) {
     return (
       <KitScreen ground="nylon" scroll={false} contentStyle={styles.centre}>
-        <KitText t="superM" color={roles.text}>"NO AWARDS"</KitText>
-        <KitText t="bodyL" color={roles.textMuted}>This run's stats couldn't be read. Your verdict is still waiting.</KitText>
+        <KitText t="superM" color={roles.text} style={styles.centred}>NO AWARDS</KitText>
+        <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>This run's stats couldn't be read. Your verdict is still waiting.</KitText>
         <Plate label="See your verdict" icon="forward" roles={roles} onPress={done} />
       </KitScreen>
     )
@@ -145,14 +139,20 @@ export default function AwardsNightScreen() {
   if (!night) {
     return (
       <KitScreen ground="nylon" scroll={false} contentStyle={styles.centre}>
-        <KitText t="superL" color={roles.text}>"AWARDS NIGHT"</KitText>
-        <KitText t="bodyL" color={roles.textMuted}>Counting the season up.</KitText>
+        {/* The title in the header's size, centred. At superL it wrapped on a
+            narrow phone and the first line sat off to the left ("AWARDS"),
+            while a wider screen fit it on one line — hence "sometimes". */}
+        <KitText t="superM" color={roles.text} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.title}>AWARDS NIGHT</KitText>
+        <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>{forCompetition('Counting the season up.', mode)}</KitText>
       </KitScreen>
     )
   }
 
   const atEnd = showAll || idx >= beats.length - 1
   const list = showAll ? beats : beats.slice(0, idx + 1)
+  // P8-84: after "Show them all" the counter jumps to the end instead of
+  // staying frozen on the award that was showing when you skipped.
+  const shown = showAll ? beats.length : Math.min(idx + 1, beats.length)
   // Newest award at the top, so the one being read out is always in view.
   const ordered = [...list].reverse()
 
@@ -160,19 +160,26 @@ export default function AwardsNightScreen() {
     <View style={styles.fill}>
       <KitScreen ground="nylon">
         <Stripe roles={roles} band={6} style={styles.topStripe} />
-        <View style={styles.head}>
-          <KitText t="superM" color={roles.text} accessibilityRole="header">"AWARDS NIGHT"</KitText>
-          <View style={{ flex: 1 }} />
-          <KitText t="tag" color={roles.textMuted}>{`${Math.min(idx + 1, beats.length)} / ${beats.length}`}</KitText>
-        </View>
-        <View style={styles.ticks} accessibilityLabel={`Award ${Math.min(idx + 1, beats.length)} of ${beats.length}`}>
-          {beats.map((_, i) => (
-            <View key={i} style={[styles.tick, { backgroundColor: i <= idx || showAll ? roles.text : 'transparent', borderColor: roles.line }]} />
-          ))}
+        {/* The title shared its row with the "3 / 14" counter. How wide the
+            counter is depends on the run (how many awards, which one is
+            showing), so on a phone the title sometimes didn't fit, wrapped, and
+            only "AWARDS" showed, off to the left — the "random" the maintainer
+            kept seeing. The title now has its own centred line and is always one
+            line (it shrinks to fit rather than wrap); the counter sits with the
+            ticks it counts. */}
+        <KitText t="superM" color={roles.text} accessibilityRole="header" numberOfLines={1}
+          adjustsFontSizeToFit minimumFontScale={0.6} style={styles.title}>AWARDS NIGHT</KitText>
+        <View style={styles.tickRow}>
+          <View style={styles.ticks} accessibilityLabel={`Award ${shown} of ${beats.length}`}>
+            {beats.map((_, i) => (
+              <View key={i} style={[styles.tick, { backgroundColor: i <= idx || showAll ? roles.text : 'transparent', borderColor: roles.line }]} />
+            ))}
+          </View>
+          <KitText t="tag" color={roles.textMuted}>{`${shown} / ${beats.length}`}</KitText>
         </View>
 
         {ordered.map(beat => (
-          <Animated.View key={keyOf(beat)} entering={reduced ? undefined : FadeIn.duration(260)}>
+          <Animated.View key={keyOf(beat)} entering={reduced ? undefined : verdictIn()}>
             <BeatView night={night} beat={beat} onPlayer={openPlayer} picks={punditPicks} />
           </Animated.View>
         ))}
@@ -196,10 +203,12 @@ const keyOf = (b: Beat) => b.kind === 'player' || b.kind === 'club' ? `${b.kind}
 
 function BeatView({ night, beat, onPlayer, picks }: { night: Night; beat: Beat; onPlayer: (id: string) => void; picks: PunditPicks | null }) {
   switch (beat.kind) {
+    case 'qualifying':
+      return <View style={styles.beat}><QualifyingAwards roles={roles} night={night} onPlayer={onPlayer} /></View>
     case 'team':
       return night.teamOfTheSeason ? (
         <View style={styles.beat}>
-          <SectionTag roles={roles}>Team of the season</SectionTag>
+          <SectionTag roles={roles}>{`Team of the ${night.word ?? 'season'}`}</SectionTag>
           <FormationPitch roles={roles} team={night.teamOfTheSeason} onPlayer={onPlayer} />
         </View>
       ) : null
@@ -218,9 +227,11 @@ function BeatView({ night, beat, onPlayer, picks }: { night: Night; beat: Beat; 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: roles.bg },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[4] },
-  topStripe: { position: 'absolute', top: 0, left: 0, right: 0, height: 6 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[2] },
-  ticks: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: space[4] },
+  centred: { textAlign: 'center' },
+  topStripe: { height: 6, marginBottom: space[3] },   // in the flow: the status band now covers the very top
+  title: { textAlign: 'center', alignSelf: 'stretch', marginBottom: space[2] },
+  tickRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[4] },
+  ticks: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   tick: { width: 10, height: 10, borderWidth: border.thin },
   beat: { marginBottom: space[4] },
   row: { flexDirection: 'row', gap: space[2] },

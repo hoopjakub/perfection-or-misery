@@ -1,4 +1,6 @@
+import { useCrestStore } from '@/store/crestStore'
 import { supabase } from '@/lib/supabase'
+import { useGameStore } from '@/store/gameStore'
 import {
   scoreRun, invalidRun, type RunRow,
   WC_ROUND_TO_POSITION, CL_ROUND_TO_POSITION, CUSTOM_CL_ROUND_TO_POSITION,
@@ -47,18 +49,38 @@ function difficultyColumns(
 // supabase/policies.sql so the table no longer takes inserts from the app.
 const SERVER_SCORING = process.env.EXPO_PUBLIC_SERVER_SCORING === '1'
 
+// The saved run's id goes on the game store (cleared with the run), so the
+// verdict it was saved from can share its link (/r/<id>) without threading an
+// id through every save function. A run is saved once, as its result opens.
+const remember = (data: unknown) => useGameStore.setState({ savedRunId: (data as { id?: string } | null)?.id ?? null })
+
+// P8-88: the run's length, for the profile's total playing time. Capped, so a
+// run left open overnight counts as a long evening rather than a whole day.
+const MAX_RUN_SECONDS = 4 * 3600
+function runDuration(): number | null {
+  const started = useGameStore.getState().runStartedAt
+  return started ? Math.min(MAX_RUN_SECONDS, Math.round((Date.now() - started) / 1000)) : null
+}
+
 async function insertRun(row: Record<string, unknown>): Promise<void> {
-  const payload: Record<string, unknown> = { ...row, score: scoreRun(row as RunRow) }
+  // duration_seconds is optional like the other late columns: dropped and
+  // retried below if the database doesn't have it yet (supabase/profile.sql).
+  const payload: Record<string, unknown> = { ...row, duration_seconds: runDuration(), score: scoreRun(row as RunRow) }
+  // P8-132: the crest this run was played with, so it still shows after you
+  // change yours. Added here, where every mode's save passes.
+  const crest = useCrestStore.getState().active
+  if (crest) payload.highlights = { ...((row.highlights as object) ?? {}), crest }
   const invalid = invalidRun(row as RunRow)
   if (invalid) console.warn(`[saveRun] this run would be refused by the server: ${invalid}`)
   if (SERVER_SCORING) {
-    const { error } = await supabase.functions.invoke('submit-run', { body: payload })
+    const { data, error } = await supabase.functions.invoke('submit-run', { body: payload })
     if (error) throw error
+    remember(data)
     return
   }
   for (let attempt = 0; attempt < 10; attempt++) {
-    const { error } = await supabase.from('runs').insert(payload as any)
-    if (!error) return
+    const { data, error } = await supabase.from('runs').insert(payload as any).select('id').single()
+    if (!error) { remember(data); return }
     const missing = error.code === 'PGRST204'
       ? error.message?.match(/Could not find the '([^']+)' column/)?.[1]
       : undefined
@@ -86,6 +108,10 @@ export async function saveRun(params: {
   custom?: CustomDifficulty | null
   stats?: unknown
   awards?: unknown
+  /** P8-96: the pundits' predicted place for every club (clubId → place). */
+  pundits?: Record<string, number> | null
+  /** P8-122: the points they tipped each club for, beside the places. */
+  punditPoints?: Record<string, number> | null
 }) {
 
   await insertRun({
@@ -115,6 +141,13 @@ export async function saveRun(params: {
       // §10.5 phase 4 — the medical table rides along in `highlights` so it
       // survives a history load without needing its own column.
       absences:   params.seasonResult.absences ?? [],
+      // P8-96: two things a saved run lost. The press was written live and
+      // thrown away, so a run opened again had none (P8-135's saved case);
+      // and the pundits' calls came from a seed the run didn't keep, so the
+      // verdict opened from history had no pundits. Both ride here too.
+      press:      params.seasonResult.press ?? [],
+      pundits:    params.pundits ?? null,
+      punditPoints: params.punditPoints ?? null,
     },
     stats:  params.stats,
     awards: params.awards,

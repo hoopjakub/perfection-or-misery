@@ -1,3 +1,4 @@
+import { useCrestStore } from '@/store/crestStore'
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { Session, User } from '@supabase/supabase-js'
@@ -6,6 +7,10 @@ type Profile = {
   id: string
   username: string | null
   is_guest: boolean
+  // P8-88 (supabase/profile.sql): absent until that file is applied.
+  avatar_path?: string | null
+  badge_team_id?: string | null
+  badge_team_name?: string | null
 }
 
 type UserStore = {
@@ -54,6 +59,9 @@ export const useUserStore = create<UserStore>((set, get) => ({
         set({ profile: null, isGuest: true })
       } else {
         set({ profile: data, isGuest: data?.is_guest ?? true })
+        // P8-132: your crest, with the profile. Loaded lazily, so this store
+        // doesn't pull the profile queries in at start-up.
+        import('@/db/queries/profile').then(m => m.fetchCrest(user.id)).then(c => useCrestStore.getState().setMine(c)).catch(() => {})
       }
     } catch (err) {
       console.error('[userStore] fetchProfile threw exception:', err)
@@ -64,6 +72,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
   signOut: async () => {
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null, isGuest: true })
+    useCrestStore.getState().setMine(null)
+    useCrestStore.getState().setActive(null)
   },
 }))
 

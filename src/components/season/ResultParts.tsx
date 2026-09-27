@@ -2,6 +2,7 @@ import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { ROLES, space } from '@/theme'
+import { COLUMN } from '@/hooks/useSizeClass'
 import { KitText, SectionTag, Plate } from '@/components/kit'
 import { SaveStatusLine } from '@/components/ui'
 import { ResultRow } from './SeasonParts'
@@ -81,7 +82,8 @@ export function YourMatches<M extends MatchLike>({ matches, onOpen }: { matches:
       {mine.map((m, i) => (
         <ResultRow key={i} roles={roles} homeName={m.home.clubName} awayName={m.away.clubName}
           homeGoals={m.homeGoals} awayGoals={m.awayGoals} youSide={m.home.isPlayer ? 'home' : 'away'}
-          scorers={[summariseScorers(m.scorers?.home), summariseScorers(m.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+          homeClubId={m.home.clubId} awayClubId={m.away.clubId}
+          homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
           onPress={onOpen ? () => onOpen(m) : undefined} />
       ))}
     </>
@@ -93,5 +95,6 @@ const styles = StyleSheet.create({
   figure: { minWidth: 44 },
   section: { gap: space[2], marginTop: space[6] },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] },
-  plates: { gap: space[3], marginTop: space[6] },
+  // The closing plates keep the reading column's width on a wide window.
+  plates: { gap: space[3], marginTop: space[6], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
 })

@@ -17,7 +17,7 @@ import { loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResul
 import { getClubSeasonsForMode, getAllClubSeasons } from '@/db/queries/seasons'
 import { getPlayersForClubSeason, type PlayerRow } from '@/db/queries/players'
 import {
-  buildCLTeams, generateCLLeagueFixtures, simulateCLKnockoutsOnly,
+  buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly,
   type CLTeam, type CLSeasonResult, type CLLeagueMatch,
 } from './cl-sim'
 import {
@@ -28,6 +28,7 @@ import type { KnockoutResult } from './knockout-match'
 import { simulateKnockout } from './knockout-match'
 import type { MatchResult } from '@/types/simulation'
 import { buildCustomUclSeason } from '@/db/queries/custom-ucl'
+import { countryForClClub } from '@/data/geo-iso'
 import { simulateCustomUclQualifying, type QualifyingResult } from './cl-qualifying'
 import type { SimLeagueTable } from './cl-league-sim'
 
@@ -259,9 +260,10 @@ export async function quickSimCL(): Promise<QuickCLRun> {
   const edition = rows.filter(r => r.year_start === latest).sort((a, b) => a.historical_ovr - b.historical_ovr)
   const replaceIdx = Math.floor(Math.random() * Math.min(3, edition.length))
   const clubs = edition.map((r, i) => ({ clubId: r.club_id, clubName: r.club_name, ovr: i === replaceIdx ? teamOvr : r.historical_ovr, isPlayer: i === replaceIdx }))
-  const teams = buildCLTeams(clubs)
+  const teams = buildCLTeams(clubs, t => countryForClClub(t.clubName))
 
-  const fixtures = generateCLLeagueFixtures(teams)
+  // P8-114: drawn as a real run draws it, the country read from the club's name.
+  const fixtures = drawCLLeaguePhase(teams, t => countryForClClub(t.clubName)).fixtures
   const leagueMatchdays: CLLeagueMatch[] = []
   const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
   for (let md = 1; md <= maxMd; md++) {
@@ -305,11 +307,13 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   const replaceIdx = Math.floor(Math.random() * field.length)
   const clubs = field.map((t, i) => ({
     clubId: t.clubId, clubName: t.clubName,
-    ovr: i === replaceIdx ? teamOvr : t.ovr, isPlayer: i === replaceIdx,
+    ovr: i === replaceIdx ? teamOvr : t.ovr, isPlayer: i === replaceIdx, holder: t.associationRank === 0,
   }))
-  const teams = buildCLTeams(clubs)
+  // P8-114: the real draw, each club's country from the league it came from.
+  const countryByClub = new Map(tables.flatMap(tb => tb.standings.map(r => [r.clubId, tb.country] as [string, string | undefined])))
+  const teams = buildCLTeams(clubs, t => countryByClub.get(t.clubId))
 
-  const fixtures = generateCLLeagueFixtures(teams)
+  const fixtures = drawCLLeaguePhase(teams, t => countryByClub.get(t.clubId)).fixtures
   const leagueMatchdays: CLLeagueMatch[] = []
   const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
   for (let md = 1; md <= maxMd; md++) {

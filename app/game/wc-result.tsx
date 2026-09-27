@@ -1,22 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native'
+import { ResultRow } from '@/components/season/SeasonParts'
+import { venueFor } from '@/data/venues'
+import { VenueMap } from '@/components/VenueMap'
+import { Loader } from '@/components/kit'
+import { COLUMN } from '@/hooks/useSizeClass'
+import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { router, useLocalSearchParams } from 'expo-router'
 import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
+import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { formatTier, verdictOf } from '@/data/tiers'
 import { useRunSave } from '@/hooks/useRunSave'
-import { VerdictBlock, PunditsRoundTable } from '@/components/season/VerdictBlock'
-import { worldCupCalls } from '@/engine/cup-calls'
+import { VerdictBlock, PunditsRoundTable, PunditsTournament } from '@/components/season/VerdictBlock'
+import { worldCupCalls, worldCupTournament } from '@/engine/cup-calls'
 import { predictTable, predictWorldCupRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
-import { Plate, KitScreen, KitText, Tag, ListRow, RoundFlag } from '@/components/kit'
+import { Plate, KitScreen, KitText, Tag, ListRow, RoundFlag, Columns } from '@/components/kit'
 import { openClub, openRunHub } from '@/lib/runNav'
 import { getFlag } from '@/lib/flagMap'
 import { LeagueTable, ZoneLegend, GroupWall, WC_GROUP_ZONES, WC_THIRD_ZONES, type TableRowVM, type MiniGroup } from '@/components/season/SeasonParts'
 import { ResultFigures, ResultSection, ResultActions, YourMatches } from '@/components/season/ResultParts'
-import { KnockoutRoundsView, clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { BracketTree, koRoundsToColumns } from '@/components/BracketTree'
 import { space } from '@/theme'
 import { SaveStatusLine } from '@/components/ui'
 import { saveWCRun, fetchRunById } from '@/db/queries/runs'
@@ -35,7 +44,7 @@ import type { WCKnockoutMatch, WCTeam, WCGroup, WCGroupMatch, WCSeasonResult } f
 import { openWCGroup, WCGroupMatchdays } from '@/components/WCGroupModal'
 import { MedicalTable } from '@/components/MedicalTable'
 import { openMatchStats } from '@/lib/matchStats'
-import type { ContextMatch } from '@/engine/match-context'
+import { wcTieShootout, type ContextMatch } from '@/engine/match-context'
 
 const WC = MODE_THEMES.world_cup
 
@@ -110,6 +119,7 @@ export default function WCResultScreen() {
     if (!params.runId) return
     let active = true
     fetchRunById(params.runId)
+      .then(run => { adoptRunCrest((run as any)?.highlights); return run })   // P8-132
       .then(run => { if (active) setDbRun(run) })
       .catch(err => console.error('[wc-result] failed to load run:', err))
       .finally(() => { if (active) setLoading(false) })
@@ -136,7 +146,7 @@ export default function WCResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={prim.cotton} size="large" />
+        <Loader color={prim.cotton} wide />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -226,6 +236,7 @@ export default function WCResultScreen() {
         // So the stats screen's bracket can say who went through — a shootout
         // leaves no trace in the goals.
         tieWinnerClubId: m.winner.clubId,
+        ...wcTieShootout(m),
       })))
     return [...groupRows, ...koRows]
   }
@@ -256,7 +267,7 @@ export default function WCResultScreen() {
       awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
       homeGoals: m.result.homeGoals, awayGoals: m.result.awayGoals,
       extraTime: m.result.extraTime,
-      pensNote: m.result.homePens !== null ? `Penalties ${m.result.homePens} – ${m.result.awayPens} · ${m.winner.clubName} advance` : undefined,
+      ...wcTieShootout(m),
       scorers: m.scorers, seed: m.seed, yearStart: 2026,
       absent: m.absent, standIns: m.standIns,
       competitionLabel: KO_ROUND_NAMES[m.round] ?? m.round,
@@ -349,13 +360,15 @@ export default function WCResultScreen() {
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
 
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground="nylon" width="wide">
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}
         meta={`FIFA World Cup 2026 · ` + `${playerTeam.clubName} · Group ${playerGroup}, ${playerGroupPos}${ordinal(playerGroupPos)}`}
         punditsText={punditsText}
         shareText={`${resultLabel} — FIFA World Cup 2026. Perfection or Misery.`}
+        runId={params.runId}
+        ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
       />
       <ResultFigures items={[
         ['Group', `${playerGroupPos}${ordinal(playerGroupPos)}`], ['Games', playerTeam.stats.played],
@@ -363,9 +376,34 @@ export default function WCResultScreen() {
         ['Goals', `${playerTeam.stats.goalsFor}–${playerTeam.stats.goalsAgainst}`],
         ...(playerKoMatches.length > 0 ? [['KO', `${koW}-${koL}`] as [string, string]] : []),
       ]} />
+      {/* Your matches, the last one you played on top: the knockouts first
+          (newest first), then your group. Only the group games were listed,
+          further down, so your latest match wasn't anywhere near the top. */}
+      <ResultSection title="Your matches">
+        {[...playerKoMatches].reverse().map((m, i) => (
+          <ResultRow key={`ko${i}`} roles={nylon} homeName={m.teamA.clubName} awayName={m.teamB.clubName}
+            homeGoals={m.result.homeGoals} awayGoals={m.result.awayGoals} youSide={m.teamA.isPlayer ? 'home' : 'away'} neutral
+            homeClubId={m.teamA.clubId} awayClubId={m.teamB.clubId}
+            homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
+            round={(KO_ROUND_NAMES[m.round] ?? m.round).toUpperCase()}
+            onPress={() => openKoDetail(m)} />
+        ))}
+        {groupMatchdays.filter(m => m.home.isPlayer || m.away.isPlayer).sort((a, b) => b.matchday - a.matchday).map((m, i) => (
+          <ResultRow key={`g${i}`} roles={nylon} homeName={m.home.clubName} awayName={m.away.clubName}
+            homeGoals={m.homeGoals} awayGoals={m.awayGoals} youSide={m.home.isPlayer ? 'home' : 'away'} neutral
+            homeClubId={m.home.clubId} awayClubId={m.away.clubId}
+            homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
+            round={`GROUP ${m.groupId} · MD ${m.matchday}`}
+            onPress={() => openGroupMatchDetail(m)} />
+        ))}
+      </ResultSection>
+
       {/* P8-24 for the cups — every side's call, checked against how far it got. */}
       {store.predictionSeed != null && store.wcTeams && store.wcResult && (
-        <PunditsRoundTable rows={worldCupCalls(store.wcResult as any, store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+        <>
+          <PunditsRoundTable rows={worldCupCalls(store.wcResult as any, store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+          <PunditsTournament calls={worldCupTournament(store.wcResult as any, store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+        </>
       )}
 
       <View style={styles.kitPlates}>
@@ -374,26 +412,30 @@ export default function WCResultScreen() {
           if (!src) return null
           const night = buildAwardsNight({
             awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
-            clubs: [], playerClubId: playerTeam?.clubId,
+            clubs: [], playerClubId: playerTeam?.clubId, mode: 'world_cup',
           })
           return <Plate label="See the awards" icon="trophy" variant="secondary" roles={nylon} onPress={() => openAwardsView(night, params.runId)} />
         })()}
         {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={nylon} onPress={() => openRunHub(undefined, hubRunId)} />}
+        {/* P8-108: every round's team of the matchday, in the run hub. */}
+        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={nylon} onPress={() => openRunHub('teams', hubRunId)} />}
       </View>
+      {/* Expanded (10-ADAPT §2.2): the sections as two newspaper columns. */}
+      <Columns>
 
       {winner && (
         <ResultSection title="World champions">
           <View style={styles.kitWinner}>
             <RoundFlag emoji={getFlag(winner.clubId)} code={winner.clubName.slice(0, 3)} size={24} roles={nylon} />
             <KitText t="superM" color={nylon.text}>{winner.clubName.toUpperCase()}</KitText>
-            {winner.clubId === playerTeam.clubId && <Tag roles={nylon} variant="you">YOU</Tag>}
           </View>
         </ResultSection>
       )}
 
       {koRounds.length > 0 && (
         <ResultSection title="Knockouts">
-          <KnockoutRoundsView title="" rounds={koRounds} maxHeight={100000} />
+          {/* P8-79: the full bracket, the same tree as the preview and the run hub. */}
+          <BracketTree {...koRoundsToColumns(koRounds)} playerClubId={playerTeam?.clubId} />
         </ResultSection>
       )}
 
@@ -415,6 +457,16 @@ export default function WCResultScreen() {
           <ZoneLegend roles={nylon} zones={WC_THIRD_ZONES} />
         </ResultSection>
       )}
+
+      {/* P8-93: the sixteen grounds, and the ones your run played at. */}
+      <ResultSection title="The grounds">
+        <VenueMap roles={nylon} played={[
+          ...groupMatchdays.filter((m: any) => m.home.isPlayer || m.away.isPlayer)
+            .map((m: any) => venueFor({ label: `Group ${m.groupId} · MD ${m.matchday}`, yearStart: 2026, homeName: m.home.clubName, homeClubId: m.home.clubId, awayClubId: m.away.clubId })?.id),
+          ...knockoutRounds.flatMap((r: any) => r.matches.filter((k: any) => k.teamA.isPlayer || k.teamB.isPlayer)
+            .map((k: any) => venueFor({ label: KO_ROUND_NAMES[r.round] ?? r.round, yearStart: 2026, homeName: k.teamA.clubName, homeClubId: k.teamA.clubId, awayClubId: k.teamB.clubId })?.id)),
+        ].filter((x): x is string => !!x)} />
+      </ResultSection>
 
       <ResultSection title="Every group">
         <GroupWall roles={nylon} groups={wall} onOpen={id => {
@@ -441,6 +493,7 @@ export default function WCResultScreen() {
         )
       })()}
 
+      </Columns>
       <ResultActions fromHistory={fromHistory} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>
   )
@@ -528,7 +581,7 @@ function ordinal(n: number): string {
 // ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  kitPlates: { gap: space[3], marginTop: space[5] },
+  kitPlates: { gap: space[3], marginTop: space[5], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
   kitWinner: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
   container: { flex: 1, backgroundColor: prim.nylon },
   content:   { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },

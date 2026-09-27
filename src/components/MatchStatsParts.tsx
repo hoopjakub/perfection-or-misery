@@ -14,9 +14,11 @@
 // route. Nothing here knows about navigation.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
 import { useGameStore } from '@/store/gameStore'
 import { loadLeaguePools } from '@/engine/run-stats'
 import { generateMatchDetail } from '@/engine/match-detail'
@@ -25,6 +27,13 @@ import { flagForCountry } from '@/data/geo-iso'
 import type { MatchScorers } from '@/types/stats'
 import type { MatchStats, PlayerMatchLine, MatchEvent, AddedTime } from '@/types/match-stats'
 import type { ContextMatch } from '@/engine/match-context'
+import { clTieShootout } from '@/engine/match-context'
+import { useTeamColourPair } from '@/lib/teamColours'
+import { Ionicons } from '@expo/vector-icons'
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
+import { Crest, RatingSquare, EventMark, Tag, KitText } from '@/components/kit'
+import { ROLES, space, formatRating, type Roles } from '@/theme'
+import type { CommentaryLine } from '@/engine/commentary'
 
 // ── Request: everything needed to (re)generate one match's detail ───────────
 export type MatchDetailRequest = {
@@ -39,6 +48,13 @@ export type MatchDetailRequest = {
   awayGoals:  number
   extraTime?: boolean
   pensNote?:  string          // e.g. "Penalties 4–2 · City advance"
+  /** P8-81: the shootout itself, from THIS match's home/away point of view.
+   *  Raw make/miss always; names when the reveal already attached them. */
+  shootout?: import('@/engine/match-context').ShootoutView
+  /** P8-101: both legs of a two-legged tie, in order, so the sheet can switch
+   *  between them. Only needed where there's no timeline to find the other leg
+   *  in (the run hub); with `contextMatches` the sheet finds it itself. */
+  legs?: MatchDetailRequest[]
   scorers?:   MatchScorers
   seed?:      number          // missing on legacy saves → stable hash fallback
   yearStart:  number          // roster season to load
@@ -72,22 +88,24 @@ export type MatchDetailRequest = {
 export function koLegDetailRequest(
   m: import('@/engine/cl-sim').CLKnockoutMatch,
   leg: 1 | 2,
-  opts: { label: string; yearStart: number; playerClubId?: string; drafted?: import('@/types/game').DraftedPlayer[] },
+  opts: {
+    label: string; yearStart: number; playerClubId?: string; drafted?: import('@/types/game').DraftedPlayer[]
+    /** P8-31: your shape, so the lineup tab draws your eleven in it. The
+     *  knockout legs were the one route into the sheet that never carried it. */
+    playerFormation?: import('@/types/game').Formation
+  },
 ): MatchDetailRequest | null {
-  const pensNote = m.aPens !== undefined
-    ? `Penalties ${m.aPens} – ${m.bPens} · ${m.winner.clubName} advance`
-    : undefined
   if (!m.leg1) {
     // single match (a final)
     return {
       homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
       awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
       homeGoals: m.aGoals, awayGoals: m.bGoals,
-      extraTime: m.extraTime, pensNote,
+      extraTime: m.extraTime, ...clTieShootout(m, true),
       scorers: m.leg1Scorers, seed: m.leg1Seed,
       absent: m.leg1Absent, standIns: m.leg1StandIns,
       yearStart: opts.yearStart, competitionLabel: opts.label,
-      playerClubId: opts.playerClubId, drafted: opts.drafted,
+      playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation,
     }
   }
   if (leg === 1) {
@@ -98,7 +116,7 @@ export function koLegDetailRequest(
       scorers: m.leg1Scorers, seed: m.leg1Seed,
       absent: m.leg1Absent, standIns: m.leg1StandIns,
       yearStart: opts.yearStart, competitionLabel: `${opts.label} · Leg 1`,
-      playerClubId: opts.playerClubId, drafted: opts.drafted,
+      playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation,
     }
   }
   if (!m.leg2) return null
@@ -110,13 +128,14 @@ export function koLegDetailRequest(
     homeClubId: m.teamB.clubId, homeName: m.teamB.clubName,
     awayClubId: m.teamA.clubId, awayName: m.teamA.clubName,
     homeGoals: m.leg2.bGoals + (et?.bGoals ?? 0), awayGoals: m.leg2.aGoals + (et?.aGoals ?? 0),
-    extraTime: !!et || m.extraTime, pensNote,
+    // Leg 2 is at teamB's ground: the shootout is told from B's side.
+    extraTime: !!et || m.extraTime, ...clTieShootout(m, false),
     scorers: merged, seed: m.leg2Seed,
     // §10.5 phase 4 — leg 2 is its own matchday, so it has its own absences: a
     // leg-1 red card means he isn't in this eleven.
     absent: m.leg2Absent, standIns: m.leg2StandIns,
     yearStart: opts.yearStart, competitionLabel: `${opts.label} · Leg 2`,
-    playerClubId: opts.playerClubId, drafted: opts.drafted,
+    playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation,
   }
 }
 
@@ -137,6 +156,26 @@ const GROUP_ORDER: Record<string, number> = {
 export function effectiveSeed(req: MatchDetailRequest): number {
   return req.seed ?? hashSeed(
     `${req.homeClubId}|${req.awayClubId}|${req.homeGoals}|${req.awayGoals}|${req.competitionLabel ?? ''}`,
+  )
+}
+
+// ── Man of the match, at full time (P8-129) ──────────────────────────────────
+// Your match's man of the match, named under its scoreline the moment it's
+// over, the same player the match sheet crowns (the same request, regenerated
+// from the same seed). The season award ("Man of the match, most often") was
+// only on Awards Night; this is the moment each match. It holds its request
+// by the match's identity, so the card re-rendering never reloads it.
+export function ManOfTheMatch({ roles, req }: { roles: Roles; req: MatchDetailRequest }) {
+  const stable = useMemo(() => req, [req.seed, req.homeClubId, req.awayClubId, req.homeGoals, req.awayGoals])
+  const { detail } = useMatchDetail(stable)
+  const best = detail?.players.find(p => p.motm)
+  if (!best) return null
+  return (
+    <View style={styles.motm} accessible accessibilityLabel={`Man of the match: ${best.name}, rated ${formatRating(best.rating)}`}>
+      <Tag roles={roles} variant="selected">MAN OF THE MATCH</Tag>
+      <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{best.name}</KitText>
+      <RatingSquare value={best.rating} size="sm" />
+    </View>
   )
 }
 
@@ -266,10 +305,16 @@ export function StatBar({ label, home, away, accent, pct }: {
   label: string; home: number; away: number; accent: string; pct?: boolean
 }) {
   const total = Math.max(1e-6, home + away)
-  const homeShare = home / total
+  // Both on nothing: two empty bars, not a full bar for whoever's second (P8-49).
+  const none = home + away <= 0
+  const homeShare = none ? 0 : home / total
   const homeLeads = home > away
   const awayLeads = away > home
   const fmt = (v: number) => pct ? `${v}%` : (Number.isInteger(v) ? String(v) : v.toFixed(2))
+  // The leading side's bar wears its club colour (FotMob's reading) when the
+  // screen provides one; the figure itself stays in the accent, for contrast.
+  const pair = useTeamColourPair()
+  const homeBar = pair?.home ?? accent, awayBar = pair?.away ?? accent
   return (
     <View style={styles.statRow}>
       <View style={styles.statNums}>
@@ -279,10 +324,10 @@ export function StatBar({ label, home, away, accent, pct }: {
       </View>
       <View style={styles.statBarTrack}>
         <View style={[styles.statBarHalf, { flexDirection: 'row-reverse' }]}>
-          <View style={{ width: `${homeShare * 100}%`, backgroundColor: homeLeads ? accent : prim.cottonMuted, borderRadius: 2, height: 4 }} />
+          <View style={{ width: `${homeShare * 100}%`, backgroundColor: homeLeads ? homeBar : prim.cottonMuted, borderRadius: 2, height: 4 }} />
         </View>
         <View style={styles.statBarHalf}>
-          <View style={{ width: `${(1 - homeShare) * 100}%`, backgroundColor: awayLeads ? accent : prim.cottonMuted, borderRadius: 2, height: 4 }} />
+          <View style={{ width: `${none ? 0 : (1 - homeShare) * 100}%`, backgroundColor: awayLeads ? awayBar : prim.cottonMuted, borderRadius: 2, height: 4 }} />
         </View>
       </View>
     </View>
@@ -362,25 +407,19 @@ export function PlayerRow({ l, accent, expanded, onPress }: {
         <Text style={styles.playerPos}>{l.position}</Text>
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           <Text style={[styles.playerName, l.motm && styles.playerNameMotm]} numberOfLines={1}>{l.name}</Text>
-          {l.motm && (
-            <View style={styles.motmChip}>
-              <Text style={styles.motmChipText}>POTM</Text>
-            </View>
-          )}
-          {l.goals > 0 && <Text style={styles.playerBadge}>{`${l.goals}G`}</Text>}
-          {l.assists > 0 && <Text style={styles.playerBadgeMuted}>{l.assists}A</Text>}
-          {l.yellowCard && !l.redCard && <View style={styles.cardYellow} />}
-          {l.redCard && <View style={styles.cardRed} />}
-          {l.subOnMinute !== undefined && <Text style={styles.subOn}>▲{l.subOnMinute}'</Text>}
-          {l.subOffMinute !== undefined && <Text style={styles.subOff}>▼{l.subOffMinute}'</Text>}
+          {l.motm && <EventMark kind="motm" size={14} />}
+          {l.goals > 0 && <EventMark kind="goal" count={l.goals} />}
+          {l.assists > 0 && <EventMark kind="assist" count={l.assists} />}
+          {l.yellowCard && !l.redCard && <EventMark kind="yellow" size={11} />}
+          {l.redCard && <EventMark kind="red" size={11} />}
+          {l.subOnMinute !== undefined && <View style={styles.markMin}><EventMark kind="subOn" size={11} /><Text style={styles.subOn}>{l.subOnMinute}'</Text></View>}
+          {l.subOffMinute !== undefined && <View style={styles.markMin}><EventMark kind="subOff" size={11} /><Text style={styles.subOff}>{l.subOffMinute}'</Text></View>}
           {/* §10.5 phase 4 — came off injured, and for how long. */}
-          {l.injured && <Text style={styles.injuredTag}>INJ · out {l.matchdaysOut}</Text>}
+          {l.injured && <View style={styles.markMin}><EventMark kind="injury" size={11} /><Text style={styles.injuredTag}>out {l.matchdaysOut}</Text></View>}
         </View>
         {unused
           ? <Text style={styles.unusedTag}>unused</Text>
-          : <View style={[styles.ratingChip, { backgroundColor: ratingColor(l.rating) }]}>
-              <Text style={styles.ratingChipText}>{l.rating.toFixed(1)}</Text>
-            </View>}
+          : <RatingSquare value={l.rating} />}
       </PressCard>
       {expanded && !unused && (
         <View style={styles.sheet}>
@@ -397,14 +436,14 @@ export function PlayerRow({ l, accent, expanded, onPress }: {
 }
 
 // ── Events timeline ─────────────────────────────────────────────────────────
-export function EventRow({ e }: { e: MatchEvent }) {
+export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
   const minute = `${e.minute}${e.plus ? `+${e.plus}` : ''}'`
-  let icon = 'GOAL', body: React.ReactNode = null
+  let icon: React.ReactNode = null, body: React.ReactNode = null
   if (e.type === 'goal') {
     // §9 — the row sits on the side the goal COUNTS FOR, so an own goal has to
     // shout that it's an own goal: different icon, red name, explicit label.
     // Without all three it reads as an opposition player scoring for us.
-    icon = e.ownGoal ? 'OG' : 'GOAL'
+    icon = <EventMark kind={e.ownGoal ? 'ownGoal' : 'goal'} size={16} />
     const tag = e.ownGoal ? 'Own goal' : e.penalty ? 'Penalty' : null
     // A penalty has no assist — the equivalent credit is who won it.
     const credit = e.penWonName ? `won by ${e.penWonName}` : e.assistName ? `assist: ${e.assistName}` : null
@@ -414,6 +453,8 @@ export function EventRow({ e }: { e: MatchEvent }) {
           <Text style={{ fontFamily: font.bodyBold, color: e.ownGoal ? colors.danger : prim.cotton }}>{e.playerName}</Text>
           {tag ? <Text style={[styles.evTag, e.ownGoal && { color: colors.danger }]}>  {tag}</Text> : null}
         </Text>
+        {/* FotMob's running score beside the goal, so the timeline reads as the match went. */}
+        {score ? <View style={styles.evScore}><Text style={styles.evScoreText}>{score}</Text></View> : null}
         {credit ? <Text style={styles.evAssist} numberOfLines={1}>{credit}</Text> : null}
         {e.errorByName ? <Text style={styles.evError} numberOfLines={1}>error led to goal · {e.errorByName}</Text> : null}
       </>
@@ -421,7 +462,7 @@ export function EventRow({ e }: { e: MatchEvent }) {
   } else if (e.type === 'penMissed') {
     // The one event that changes nothing on the scoreboard and everything in
     // the room — so it gets its own icon and says which way it went.
-    icon = 'MISS'
+    icon = <EventMark kind="penMissed" size={16} />
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
@@ -435,7 +476,7 @@ export function EventRow({ e }: { e: MatchEvent }) {
     // §10.5 phase 4 — deliberately its own row, sitting directly above the
     // change it forced: a manager losing a player is a different event from a
     // manager choosing to make a substitution, and the timeline should say so.
-    icon = 'INJ'
+    icon = <EventMark kind="injury" size={15} />
     const out = e.matchdaysOut === 1 ? 'out for the next match' : `out for ${e.matchdaysOut} matches`
     body = (
       <>
@@ -449,15 +490,15 @@ export function EventRow({ e }: { e: MatchEvent }) {
       </>
     )
   } else if (e.type === 'yellow' || e.type === 'red') {
-    icon = e.type === 'yellow' ? 'YC' : 'RC'
+    icon = <EventMark kind={e.type} size={14} />
     body = <Text style={styles.evText} numberOfLines={1}>{e.playerName}</Text>
   } else {
-    icon = 'SUB'
+    icon = <EventMark kind="subOn" size={16} color={prim.cottonMuted} />
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
-          <Text style={{ color: prim.volt }}>▲ {e.playerName}</Text>
-          <Text style={{ color: colors.danger }}>  ▼ {e.offPlayerName}</Text>
+          <Text style={{ color: prim.volt }}>{e.playerName}</Text>
+          <Text style={{ color: prim.cottonMuted }}>  for {e.offPlayerName}</Text>
         </Text>
         {/* §10.5 — a change at the interval and a change forced by an injury both
             read differently from a tactical one, so both say what they are. */}
@@ -469,55 +510,158 @@ export function EventRow({ e }: { e: MatchEvent }) {
   return (
     <View style={[styles.evRow, { flexDirection: e.isHome ? 'row' : 'row-reverse' }]}>
       <Text style={styles.evMinute}>{minute}</Text>
-      <Text style={styles.evIcon}>{icon}</Text>
+      <View style={styles.evIcon}>{icon}</View>
       <View style={{ flex: 1, alignItems: e.isHome ? 'flex-start' : 'flex-end' }}>{body}</View>
     </View>
   )
 }
 
-// Timeline with the period breaks folded in, each showing how much was added
-// to that half (§10 R4 — added time per half, not one lump at the end).
-export function Timeline({ events, addedTime, duration, revealUpTo }: {
+// Timeline with the period breaks folded in, FotMob's way (P8-33): home on the
+// left and away on the right, each goal with the score it made, the added time
+// announced where the stoppage starts ("+4 minutes added"), each break as a
+// pill with the score at that point, and a goal VAR ruled out on its side.
+export type VarCall = { minute: number; isHome: boolean; playerName: string; reason: string }
+
+export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [] }: {
   events: MatchEvent[]; addedTime: AddedTime; duration: number
   /** §7 live playback: only draw the period breaks that have been REACHED.
    *  Without it a match in its 20th minute already showed a "Full-time · +4'"
    *  line, which both looks wrong and gives away the stoppage time. */
   revealUpTo?: number
+  /** Goals ruled out (from the feed's `chanceLines`), placed by minute. */
+  varCalls?: VarCall[]
 }) {
   const breaks = duration > 90
     ? [
-        { at: 45,  label: 'Half-time',  plus: addedTime.firstHalf },
-        { at: 90,  label: 'Full-time',  plus: addedTime.secondHalf },
-        { at: 105, label: 'ET half-time', plus: addedTime.firstET ?? 0 },
-        { at: 120, label: 'End of extra time', plus: addedTime.secondET ?? 0 },
+        { at: 45,  label: 'HT',  plus: addedTime.firstHalf },
+        { at: 90,  label: '90 mins', plus: addedTime.secondHalf },
+        { at: 105, label: 'ET HT', plus: addedTime.firstET ?? 0 },
+        { at: 120, label: 'AET', plus: addedTime.secondET ?? 0 },
       ]
     : [
-        { at: 45, label: 'Half-time', plus: addedTime.firstHalf },
-        { at: 90, label: 'Full-time', plus: addedTime.secondHalf },
+        { at: 45, label: 'HT', plus: addedTime.firstHalf },
+        { at: 90, label: 'FT', plus: addedTime.secondHalf },
       ]
 
   const out: React.ReactNode[] = []
+  const score = { h: 0, a: 0 }
   let bi = 0
+  const announced = new Set<number>()
+  // The board goes up as the stoppage starts: before the first event played
+  // in it, or just before the break if nothing happened in it.
+  const announce = (at: number, plus: number) => {
+    if (plus <= 0 || announced.has(at)) return
+    announced.add(at)
+    out.push(<Text key={`plus${at}`} style={styles.addedText}>+{plus} minute{plus === 1 ? '' : 's'} added</Text>)
+  }
   const flushBreaksBefore = (minute: number) => {
     // A 90+3 goal belongs BEFORE the full-time line, so compare on the whole
     // minute — stoppage-time events stay inside the half they were played in.
     while (bi < breaks.length && breaks[bi].at < minute) {
       const b = breaks[bi++]
+      announce(b.at, b.plus)
       out.push(
         <View key={`b${b.at}`} style={styles.breakRow}>
           <View style={styles.breakLine} />
-          <Text style={styles.breakText}>{b.label}{b.plus > 0 ? ` · +${b.plus}'` : ''}</Text>
+          <View style={styles.breakPill}><Text style={styles.breakText}>{b.label} {score.h} - {score.a}</Text></View>
           <View style={styles.breakLine} />
         </View>,
       )
     }
   }
-  events.forEach((e, i) => {
-    flushBreaksBefore(e.minute)
-    out.push(<EventRow key={`e${i}`} e={e} />)
+  type Item = { key: number; e?: MatchEvent; v?: VarCall }
+  const items: Item[] = [
+    ...events.map(e => ({ key: e.minute + (e.plus ?? 0) / 100, e })),
+    ...varCalls.filter(v => revealUpTo === undefined || v.minute <= revealUpTo).map(v => ({ key: v.minute + 0.0001, v })),
+  ].sort((a, b) => a.key - b.key)
+  items.forEach((it, i) => {
+    const minute = it.e?.minute ?? it.v!.minute
+    flushBreaksBefore(minute)
+    const brk = breaks.find(b => b.at === minute)
+    if (it.e?.plus && brk) announce(brk.at, brk.plus)
+    if (it.v) {
+      const v = it.v
+      out.push(
+        <View key={`v${i}`} style={[styles.evRow, { flexDirection: v.isHome ? 'row' : 'row-reverse' }]}>
+          <Text style={styles.evMinute}>{`${v.minute}'`}</Text>
+          <View style={styles.evIcon}><EventMark kind="var" size={15} /></View>
+          <View style={{ flex: 1, alignItems: v.isHome ? 'flex-start' : 'flex-end' }}>
+            <Text style={styles.evText} numberOfLines={1}><Text style={{ fontFamily: font.bodyBold, color: prim.cotton }}>{v.playerName}</Text></Text>
+            <Text style={[styles.evTag, { color: colors.warning }]} numberOfLines={1}>VAR · {v.reason}</Text>
+          </View>
+        </View>,
+      )
+      return
+    }
+    const e = it.e!
+    if (e.type === 'goal') e.isHome ? score.h++ : score.a++
+    out.push(<EventRow key={`e${i}`} e={e} score={e.type === 'goal' ? `${score.h} - ${score.a}` : undefined} />)
   })
   flushBreaksBefore(revealUpTo ?? Infinity)
   return <>{out}</>
+}
+
+// ── The feed, FotMob's way (P8-33) ──────────────────────────────────────────
+// A line with a title (a goal, a card, a change, a big chance, VAR) is a card:
+// the minute in a badge, the heading, the player on his own row beside his
+// club's crest, then the words, with the side's colour down the edge so whose
+// moment it is reads before a word does. Everything else — shots, corners,
+// fouls, offsides — is a plain row with a dot in the side's colour. Markers
+// (kick-off, the breaks, full time) sit across the width.
+export type FeedRowData = CommentaryLine & { marker?: boolean }
+
+export function FeedRow({ row, homeName, awayName, homeClubId, awayClubId }: {
+  row: FeedRowData; homeName: string; awayName: string; homeClubId?: string; awayClubId?: string
+}) {
+  const pair = useTeamColourPair()
+  const side = row.isHome === undefined ? null : row.isHome
+  const colour = side === null ? prim.cottonMuted : side ? (pair?.home ?? prim.cotton) : (pair?.away ?? prim.cottonMuted)
+  if (row.marker) {
+    return (
+      <View style={styles.feedMarker}>
+        <Text style={styles.feedMarkerMin}>{row.minute}</Text>
+        <Text style={[styles.feedText, row.big && { color: prim.cotton, fontFamily: font.bodyBold }]}>{row.text}</Text>
+      </View>
+    )
+  }
+  if (!row.title) {
+    return (
+      <View style={styles.feedPlain}>
+        <Text style={styles.feedMin}>{row.minute}</Text>
+        <View style={[styles.feedDot, { backgroundColor: colour }]} />
+        <Text style={styles.feedText}>{row.text}</Text>
+      </View>
+    )
+  }
+  // A sending-off gets FotMob's red wash across the top of its card and a red
+  // minute badge: the one moment in the feed that should look like trouble.
+  const red = row.title === 'Red card'
+  return (
+    <View style={[styles.feedCard, { borderLeftColor: colour }]}>
+      {red && (
+        <Svg style={styles.feedWash} pointerEvents="none" preserveAspectRatio="none" viewBox="0 0 10 10">
+          <Defs>
+            <LinearGradient id="redWash" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={prim.misery} stopOpacity={0.55} />
+              <Stop offset="1" stopColor={prim.misery} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="10" height="10" fill="url(#redWash)" />
+        </Svg>
+      )}
+      <View style={styles.feedCardHead}>
+        <View style={[styles.feedBadge, red && { backgroundColor: prim.misery }]}><Text style={styles.feedBadgeText}>{row.minute}</Text></View>
+        <Text style={[styles.feedTitle, row.big && { color: prim.cotton }]} numberOfLines={1}>{row.title}</Text>
+      </View>
+      {row.player && side !== null ? (
+        <View style={styles.feedPlayer}>
+          <Crest roles={ROLES.nylon} clubId={side ? homeClubId : awayClubId} name={side ? homeName : awayName} size={18} />
+          <Text style={styles.feedPlayerName} numberOfLines={1}>{row.player}</Text>
+        </View>
+      ) : null}
+      <Text style={styles.feedText}>{row.text}</Text>
+    </View>
+  )
 }
 
 // ── The modal ───────────────────────────────────────────────────────────────
@@ -536,6 +680,7 @@ export function splitLineup(players: PlayerMatchLine[], isHome: boolean) {
 // Only the row-level pieces live here now — the screen (app/game/match-stats.tsx)
 // owns the page chrome, header and section framing.
 const styles = StyleSheet.create({
+  motm: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingTop: space[2] },
 
   sideHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   sideChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -554,7 +699,9 @@ const styles = StyleSheet.create({
 
   evRow: { alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
   evMinute: { width: 38, fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textAlign: 'center' },
-  evIcon: { fontSize: 12 },
+  evIcon: { width: 18, alignItems: 'center', justifyContent: 'center' },
+  evScore: { alignSelf: 'flex-start', backgroundColor: prim.nylonSunken, paddingHorizontal: 5, paddingVertical: 1, marginTop: 2 },
+  evScoreText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cotton },
   evText: { fontSize: 11, color: prim.cottonMuted },
   evAssist: { fontSize: 10, color: prim.cottonMuted },
   // §9 markers. The tag carries weight as well as colour so "Own goal" still
@@ -563,7 +710,23 @@ const styles = StyleSheet.create({
   evError: { fontSize: 10, color: colors.danger, },
   breakRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
   breakLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: prim.ruleNylon },
-  breakText: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  breakText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cotton, textTransform: 'uppercase', letterSpacing: 0.5 },
+  breakPill: { backgroundColor: prim.nylonSunken, borderWidth: StyleSheet.hairlineWidth, borderColor: prim.ruleNylon, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  addedText: { fontSize: 10, color: prim.cottonMuted, textAlign: 'center', paddingVertical: 2 },
+  feedMarker: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, backgroundColor: prim.nylonSunken, marginVertical: 4 },
+  feedMarkerMin: { width: 40, fontSize: 11, fontFamily: font.bodyBlack, color: prim.cotton },
+  feedPlain: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: prim.ruleNylon },
+  feedMin: { width: 40, fontSize: 11, fontFamily: font.bodyBlack, color: prim.cottonMuted },
+  feedDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
+  feedText: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted, lineHeight: 19 },
+  feedCard: { backgroundColor: prim.nylonRaised, borderLeftWidth: 4, padding: spacing.sm, gap: 6, marginVertical: 4 },
+  feedWash: { position: 'absolute', left: 0, right: 0, top: 0, height: 72 },
+  feedCardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  feedBadge: { backgroundColor: prim.cotton, paddingHorizontal: 6, paddingVertical: 2, minWidth: 34, alignItems: 'center' },
+  feedBadgeText: { fontSize: 11, fontFamily: font.bodyBlack, color: prim.nylon },
+  feedTitle: { flex: 1, fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  feedPlayer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  feedPlayerName: { flex: 1, fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cotton },
 
   playerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
   playerRowMotm: { backgroundColor: prim.volt + '22', borderWidth: 1, borderColor: prim.volt, borderRadius: 0, paddingHorizontal: 4 },
@@ -576,12 +739,11 @@ const styles = StyleSheet.create({
   playerBadgeMuted: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold },
   cardYellow: { width: 8, height: 11, borderRadius: 1, backgroundColor: colors.warning },
   cardRed: { width: 8, height: 11, borderRadius: 1, backgroundColor: colors.danger },
+  markMin: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   subOn: { fontSize: 9, color: prim.volt, fontFamily: font.bodyBold },
   subOff: { fontSize: 9, color: colors.danger, fontFamily: font.bodyBold },
   unusedTag: { fontSize: 9, color: prim.cottonMuted, },
   injuredTag: { fontSize: 9, color: colors.danger, fontFamily: font.bodyBold },
-  ratingChip: { minWidth: 34, borderRadius: 0, paddingHorizontal: 5, paddingVertical: 2, alignItems: 'center' },
-  ratingChipText: { fontSize: 12, fontFamily: font.bodyBlack, color: prim.nylon },
 
   sheet: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.sm, marginVertical: spacing.xs },
   sheetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },

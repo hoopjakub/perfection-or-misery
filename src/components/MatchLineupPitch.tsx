@@ -10,19 +10,18 @@
 // from — which is what makes a 3-4-3 look like a 3-4-3 instead of every side
 // collapsing into the same generic blocks.
 
+import { EventMark, Pitch } from '@/components/kit'
+import { RatingSquare } from '@/components/kit'
 import React from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
+import { View, StyleSheet, Pressable } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
+import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
 import { getFormationRows } from '@/engine/formations'
 import type { Formation } from '@/types/game'
 import type { LineupShape, PlayerMatchLine } from '@/types/match-stats'
 
 const lastName = (n: string) => n.split(' ').slice(-1)[0]
-
-const GOAL = 'G'          // football
-const OWN_GOAL = 'OG' // goal net
-const INJURY = 'INJ'   // adhesive bandage — §10.5 phase 4
-const ASSIST = 'A'   // target
 
 /**
  * Goals, assists and cards — shown identically wherever a player appears,
@@ -31,22 +30,16 @@ const ASSIST = 'A'   // target
  * bench was invisible.
  */
 function Contributions({ l, compact }: { l: PlayerMatchLine; compact?: boolean }) {
-  const size = compact ? 9 : 10
+  const size = compact ? 10 : 11
   const parts: React.ReactNode[] = []
-  if (l.goals > 0) {
-    parts.push(<Text key="g" style={{ fontSize: size }}>{GOAL}{l.goals > 1 && (<Text style={{ color: prim.cotton }}> {l.goals}</Text>)}</Text>)
-  }
-  if (l.ownGoals > 0) {
-    parts.push(<Text key="og" style={{ fontSize: size }}>{OWN_GOAL}{l.ownGoals > 1 && (<Text style={{ color: prim.cotton }}> {l.ownGoals}</Text>)}</Text>)
-  }
-  if (l.assists > 0) {
-    parts.push(<Text key="a" style={{ fontSize: size - 1 }}>{ASSIST}{l.assists > 1 && (<Text style={{ color: prim.cotton }}> {l.assists}</Text>)}</Text>)
-  }
-  if (l.yellowCard && !l.redCard) parts.push(<View key="y" style={styles.pipYellow} />)
-  if (l.redCard) parts.push(<View key="r" style={styles.pipRed} />)
+  if (l.goals > 0) parts.push(<EventMark key="g" kind="goal" size={size} count={l.goals} />)
+  if (l.ownGoals > 0) parts.push(<EventMark key="og" kind="ownGoal" size={size} count={l.ownGoals} />)
+  if (l.assists > 0) parts.push(<EventMark key="a" kind="assist" size={size} count={l.assists} />)
+  if (l.yellowCard && !l.redCard) parts.push(<EventMark key="y" kind="yellow" size={size - 1} />)
+  if (l.redCard) parts.push(<EventMark key="r" kind="red" size={size - 1} />)
   // §10.5 phase 4 — he didn't just come off, he came off injured, and how long
   // he's out for is the thing you actually want to know from a lineup.
-  if (l.injured) parts.push(<Text key="i" style={{ fontSize: size }}>{INJURY}</Text>)
+  if (l.injured) parts.push(<EventMark key="i" kind="injury" size={size} />)
   if (parts.length === 0) return null
   return <View style={compact ? styles.pips : styles.benchPips}>{parts}</View>
 }
@@ -75,31 +68,27 @@ export function MatchLineupPitch({ shape, players, accent, onPressPlayer, showRa
   }
 
   return (
-    <View style={styles.pitch}>
-      {/* Attack at the top, keeper at the bottom — same reading order as the
-          formation rows themselves. */}
-      {rows.map((row, ri) => (
-        <View key={ri} style={styles.row}>
-          {row.map((label, ci) => {
-            const slot = take(label)
-            const line = slot ? byId.get(slot.playerId) : undefined
-            return (
-              <PitchPlayer
-                key={`${ri}-${ci}`} label={label} line={line} accent={accent}
-                showRatings={showRatings}
-                onPress={line && onPressPlayer ? () => onPressPlayer(line) : undefined}
-              />
-            )
-          })}
+    <Pitch
+      rows={rows.map((row, ri) => row.map((label, ci) => {
+        const slot = take(label)
+        const line = slot ? byId.get(slot.playerId) : undefined
+        return (
+          <PitchPlayer
+            key={`${ri}-${ci}`} label={label} line={line} accent={accent}
+            showRatings={showRatings}
+            onPress={line && onPressPlayer ? () => onPressPlayer(line) : undefined}
+          />
+        )
+      }))}
+      footer={
+        <View style={styles.footer}>
+          <Text style={styles.formationText}>{shape.formation}</Text>
+          {shape.rotated > 0 && (
+            <Text style={styles.rotatedText}>{shape.rotated} rested</Text>
+          )}
         </View>
-      ))}
-      <View style={styles.footer}>
-        <Text style={styles.formationText}>{shape.formation}</Text>
-        {shape.rotated > 0 && (
-          <Text style={styles.rotatedText}>{shape.rotated} rested</Text>
-        )}
-      </View>
-    </View>
+      }
+    />
   )
 }
 
@@ -113,18 +102,16 @@ function PitchPlayer({ label, line, accent, onPress, showRatings = true }: {
           <Text style={styles.shirtLabel}>{label}</Text>
         </View>
         {line && showRatings && line.minutes > 0 && (
-          <View style={[styles.ratingDot, { backgroundColor: ratingColor(line.rating) }]}>
-            <Text style={styles.ratingDotText}>{line.rating.toFixed(1)}</Text>
-          </View>
+          <RatingSquare value={line.rating} size="sm" style={styles.ratingDot} />
         )}
         {/* Event pips, stacked down the left so they never cover the rating. */}
         {line && <Contributions l={line} compact />}
       </View>
       <Text style={styles.name} numberOfLines={1}>{line ? lastName(line.name) : '—'}</Text>
       {line?.subOffMinute !== undefined && (
-        <Text style={[styles.subOff, line.injured && { fontFamily: font.bodyBold }]} numberOfLines={1}>
-          {'▼'} {line.subOffMinute}&#39;{line.injured ? ` · out ${line.matchdaysOut}` : ''}
-        </Text>
+        <View style={styles.benchOnRow}><EventMark kind="subOff" size={10} /><Text style={[styles.subOff, line.injured && { fontFamily: font.bodyBold }]} numberOfLines={1}>
+          {line.subOffMinute}&#39;{line.injured ? ` · out ${line.matchdaysOut}` : ''}
+        </Text></View>
       )}
     </Pressable>
   )
@@ -154,12 +141,10 @@ export function MatchBench({ players, accent, onPressPlayer, showRatings = true,
           <Text style={styles.benchName} numberOfLines={1}>{lastName(l.name)}</Text>
           <Contributions l={l} />
           {l.subOnMinute !== undefined
-            ? <Text style={[styles.benchOn, { color: prim.volt }]}>{'▲'} {l.subOnMinute}&#39;</Text>
+            ? <View style={styles.benchOnRow}><EventMark kind="subOn" size={11} /><Text style={[styles.benchOn, { color: prim.volt }]}>{l.subOnMinute}&#39;</Text></View>
             : <Text style={styles.benchUnused}>{unusedLabel}</Text>}
           {showRatings && l.minutes > 0 && (
-            <View style={[styles.ratingDotSm, { backgroundColor: ratingColor(l.rating) }]}>
-              <Text style={styles.ratingDotText}>{l.rating.toFixed(1)}</Text>
-            </View>
+            <RatingSquare value={l.rating} size="sm" />
           )}
         </Pressable>
       ))}
@@ -168,6 +153,7 @@ export function MatchBench({ players, accent, onPressPlayer, showRatings = true,
 }
 
 const styles = StyleSheet.create({
+  benchOnRow: { flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: 'center' },
   pitch: {
     backgroundColor: prim.nylonSunken, borderRadius: 0,
     borderWidth: 1, borderColor: prim.ruleNylon,
@@ -181,12 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: prim.nylonRaised, alignItems: 'center', justifyContent: 'center',
   },
   shirtLabel: { fontSize: 8, fontFamily: font.bodyBlack, color: prim.cottonMuted },
-  ratingDot: {
-    position: 'absolute', right: -4, bottom: -2,
-    minWidth: 22, paddingHorizontal: 3, paddingVertical: 1, borderRadius: 0, alignItems: 'center',
-  },
-  ratingDotSm: { minWidth: 22, paddingHorizontal: 3, paddingVertical: 1, borderRadius: 0, alignItems: 'center' },
-  ratingDotText: { fontSize: 8, fontFamily: font.bodyBlack, color: '#0B1220' },
+  ratingDot: { position: 'absolute', right: -8, bottom: -4 },
   pips: { position: 'absolute', left: -8, top: -2, gap: 1, alignItems: 'center' },
   benchPips: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pipYellow: { width: 6, height: 8, borderRadius: 1, backgroundColor: colors.warning },

@@ -29,6 +29,9 @@ const ALLOWED = new Set([
   'teams_in_league', 'tier', 'wins', 'draws', 'losses', 'goals_for', 'goals_against', 'squad',
   'difficulty', 'difficulty_meta', 'matchday_history', 'highlights', 'stats', 'awards',
   'wc_result', 'cl_result',
+  // P8-88: the run's length in seconds, for the profile's playing time
+  // (runs.duration_seconds, added by supabase/profile.sql).
+  'duration_seconds',
 ])
 
 Deno.serve(async (req: Request) => {
@@ -57,8 +60,9 @@ Deno.serve(async (req: Request) => {
     // doesn't have yet is dropped and the insert retried, so the core run saves.
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
     for (let attempt = 0; attempt < 10; attempt++) {
-      const { error } = await admin.from('runs').insert(row)
-      if (!error) return json({ score: row.score, tier: row.tier }, 200)
+      // The id comes back so the app can share the run's link (/r/<id>).
+      const { data, error } = await admin.from('runs').insert(row).select('id').single()
+      if (!error) return json({ id: data?.id, score: row.score, tier: row.tier }, 200)
       const missing = error.code === 'PGRST204' ? error.message?.match(/Could not find the '([^']+)' column/)?.[1] : undefined
       if (missing && missing in row && !['mode', 'tier', 'score', 'user_id'].includes(missing)) { delete row[missing]; continue }
       return json({ error: error.message }, 400)

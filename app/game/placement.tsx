@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { View, Pressable, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
+import { Loader } from '@/components/kit'
+import { useSizeClass } from '@/hooks/useSizeClass'
+import { View, Pressable, ScrollView, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
-import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from '@/engine/placement'
+import { filterEligibleLeagues, spinPlacement, buildLeagueSeason, sideName } from '@/engine/placement'
+import { useUserStore } from '@/store/userStore'
+import { activateCrestFor } from '@/store/crestStore'
 import { calcTeamOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { buildCLTeams } from '@/engine/cl-sim'
@@ -12,17 +16,15 @@ import { generateFixtures } from '@/engine/fixtures'
 import { GlobeReveal } from '@/components/GlobeReveal'
 import { InfoBubble } from '@/components/InfoBubble'
 import { PositionStakes } from '@/components/CustomUclViewers'
-import { isoForLeague, isoForNationId, isoForCountryName, flagForCountry, countryForClClub } from '@/data/geo-iso'
+import { isoForLeague, isoForNationId, isoForCountryName, flagForCountry, flagForLeague, countryForClClub } from '@/data/geo-iso'
 import { getCustomUclAssociations } from '@/db/queries/custom-ucl'
 import type { AssociationEntry } from '@/engine/cl-access'
 import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 import type { SimTeam } from '@/types/simulation'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
-import { haptic } from '@/lib/haptics'
 import { ROLES, space, border, colourwayFor, prim, type Roles } from '@/theme'
 import {
-  KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Rivets, StripedNotice, RoundFlag,
-} from '@/components/kit'
+  KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Rivets, StripedNotice, RoundFlag, VenueMark, Crest,} from '@/components/kit'
 
 // Stage 5 · The draw — docs/ui-overhaul/07b B7.
 //
@@ -47,13 +49,44 @@ export default function PlacementScreen() {
 
 // ── Shared pieces ───────────────────────────────────────────────────────────
 
+// Children with fragments opened up, so the globe can be found wherever a
+// mode's draw put it.
+function flatten(children: React.ReactNode): React.ReactNode[] {
+  return React.Children.toArray(children).flatMap(c =>
+    React.isValidElement(c) && c.type === React.Fragment ? flatten((c.props as { children?: React.ReactNode }).children) : [c])
+}
+
 function DrawScreen({ title, children, cta }: { title: string; children: React.ReactNode; cta?: React.ReactNode }) {
   const { mode } = useGameStore()
+  const wide = useSizeClass() === 'expanded'
+  const header = (
+    <RunHeader roles={roles} stage={5} colourway={colourwayFor(mode)} title={title} back={false}
+      skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} />
+  )
+  // Expanded (10-ADAPT §2.2): the globe on the left, the reveal, rivals,
+  // fixtures and the plate on the right. Before the spin there's no globe
+  // yet, so everything stays in the right-hand column.
+  if (wide) {
+    const items = flatten(children)
+    const globe = items.find(c => React.isValidElement(c) && c.type === GlobePanel)
+    const rest = items.filter(c => c !== globe)
+    return (
+      <KitScreen ground="cotton" scroll={false} width="wide" contentStyle={styles.screen}>
+        {header}
+        <View style={styles.wide}>
+          {globe ? <View style={styles.wideGlobe}>{globe}</View> : null}
+          <View style={styles.wideSide}>
+            <ScrollView style={styles.body} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={Platform.OS === 'web'}>{rest}</ScrollView>
+            {cta ? <View style={styles.cta}>{cta}</View> : null}
+          </View>
+        </View>
+      </KitScreen>
+    )
+  }
   return (
     <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
-      <RunHeader roles={roles} stage={5} colourway={colourwayFor(mode)} title={title} back={false}
-        skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} />
-      <ScrollView style={styles.body} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      {header}
+      <ScrollView style={styles.body} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={Platform.OS === 'web'}>
         {children}
       </ScrollView>
       {cta ? <View style={styles.cta}>{cta}</View> : null}
@@ -69,6 +102,7 @@ function GlobePanel({ targetId, targetName, spinMs, onLock, locked }: {
   locked: boolean
 }) {
   const [skip, setSkip] = useState(false)
+  const wide = useSizeClass() === 'expanded'
   return (
     <Pressable
       onPress={() => setSkip(true)}
@@ -77,33 +111,57 @@ function GlobePanel({ targetId, targetName, spinMs, onLock, locked }: {
       accessibilityLabel={locked ? 'The draw has landed' : 'The globe is spinning. Tap to land it.'}
       style={[styles.globePanel, { backgroundColor: prim.nylon }]}
     >
-      <GlobeReveal targetId={targetId} targetName={targetName} accent={prim.orange} spinMs={spinMs} onLock={onLock} skip={skip} />
+      {/* Bigger in the wide layout's own pane; same path count, so no extra cost per frame. */}
+      <GlobeReveal targetId={targetId} targetName={targetName} accent={prim.orange} spinMs={spinMs} onLock={onLock} skip={skip} size={wide ? 360 : 220} />
       {!locked && <KitText t="tag" color={ROLES.nylon.textMuted}>TAP TO LAND IT</KitText>}
     </Pressable>
   )
 }
 
-function RevealLabel({ name, meta, flag }: { name: string; meta: string; flag?: string }) {
+const REVEAL_MARK = 64
+
+// `nation`: you ARE the nation (the World Cup), so its flag is the mark. A
+// club run shows the club's crest, with its country's flag small by the
+// details: the classic and full Champions League showed only the flag, and
+// the club was nowhere (the maintainer, 26 Sept). `replaces`: your side wears
+// your name (P8-20), so the label says whose place it took.
+function RevealLabel({ name, meta, flag, clubId, nation, replaces }: {
+  name: string; meta: string; flag?: string; clubId?: string; nation?: boolean; replaces?: string
+}) {
   return (
-    <View style={styles.revealWrap} accessible accessibilityLiveRegion="polite" accessibilityLabel={`You're ${name}. ${meta}`}>
+    <View style={styles.revealWrap} accessible accessibilityLiveRegion="polite" accessibilityLabel={`You're ${name}.${replaces ? ` In place of ${replaces}.` : ''} ${meta}`}>
       <View style={[styles.revealOffset, { backgroundColor: roles.offset }]} />
       <View style={[styles.reveal, { borderColor: roles.line, backgroundColor: roles.surface }]}>
         <Rivets color={roles.line} />
-        <View style={styles.revealTop}>
-          {flag ? <RoundFlag roles={roles} emoji={flag} code={name} size={24} /> : null}
-          <KitText t="tag" color={roles.textMuted}>YOU'RE</KitText>
+        {/* P8-118: the crest big and on the left, the words beside it. It was
+            a 24px mark in the top row with an empty half-label beside the name. */}
+        <View style={styles.revealBody}>
+          {nation && flag
+            ? <RoundFlag roles={roles} emoji={flag} code={name} size={REVEAL_MARK} />
+            : <Crest roles={roles} clubId={clubId} name={replaces ?? name} size={REVEAL_MARK} />}
+          <View style={styles.revealWords}>
+            <KitText t="tag" color={roles.textMuted}>YOU'RE</KitText>
+            <KitText t="superM" color={roles.text}>{name.toUpperCase()}</KitText>
+            {replaces ? <KitText t="tag" color={roles.textMuted}>{`IN PLACE OF ${replaces.toUpperCase()}`}</KitText> : null}
+            <View style={styles.revealMeta}>
+              {!nation && flag ? <RoundFlag roles={roles} emoji={flag} code={name} size={16} /> : null}
+              <KitText t="tag" color={roles.text} style={{ flexShrink: 1 }}>{meta}</KitText>
+            </View>
+          </View>
         </View>
-        <KitText t="superM" color={roles.text}>{`"${name.toUpperCase()}"`}</KitText>
-        <KitText t="tag" color={roles.text}>{meta}</KitText>
       </View>
     </View>
   )
 }
 
+// P8-08: the whole field, strongest first, in its own scrolling list (it was
+// the top three). Capped at about six rows so it reads as a list you can
+// scroll, and so a 47-nation World Cup doesn't push everything else down.
 function Rivals({ teams, teamOvr }: { teams: { clubName: string; ovr: number }[]; teamOvr: number }) {
   return (
     <View>
-      <SectionTag roles={roles}>Strongest rivals</SectionTag>
+      <SectionTag roles={roles}>{`The field, strongest first · ${teams.length}`}</SectionTag>
+      <ScrollView style={styles.rivals} nestedScrollEnabled showsVerticalScrollIndicator={Platform.OS === 'web'}>
       {teams.map(t => {
         const gap = t.ovr - teamOvr
         const words = gap > 0 ? `+${gap} ON YOU` : gap < 0 ? `${gap} ON YOU` : 'LEVEL'
@@ -116,6 +174,7 @@ function Rivals({ teams, teamOvr }: { teams: { clubName: string; ovr: number }[]
           </View>
         )
       })}
+      </ScrollView>
     </View>
   )
 }
@@ -128,7 +187,7 @@ function Fixtures({ items, more }: { items: { md: number; opponent: string; home
         <View key={f.md} style={[styles.row, { borderBottomColor: roles.rule }]} accessible
           accessibilityLabel={`Matchday ${f.md}, ${f.home ? 'home to' : 'away at'} ${f.opponent}`}>
           <KitText t="tag" color={roles.textMuted} style={styles.md}>{`MD${f.md}`}</KitText>
-          <Tag roles={roles} variant={f.home ? 'selected' : 'data'}>{f.home ? 'HOME' : 'AWAY'}</Tag>
+          <VenueMark roles={roles} home={f.home} />
           <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{f.opponent}</KitText>
         </View>
       ))}
@@ -140,7 +199,7 @@ function Fixtures({ items, more }: { items: { md: number; opponent: string; home
 function Loading({ text }: { text: string }) {
   return (
     <KitScreen ground="cotton" scroll={false} contentStyle={styles.center}>
-      <ActivityIndicator color={roles.text} />
+      <Loader color={roles.text} />
       <KitText t="tag" color={roles.textMuted}>{text}</KitText>
     </KitScreen>
   )
@@ -149,7 +208,7 @@ function Loading({ text }: { text: string }) {
 function Failed({ noSquad, message }: { noSquad: boolean; message: string }) {
   return (
     <KitScreen ground="cotton" scroll={false} contentStyle={styles.center}>
-      <StripedNotice roles={roles}>{noSquad ? "There's no squad yet." : message}</StripedNotice>
+      <StripedNotice roles={roles} failed>{noSquad ? "There's no squad yet." : message}</StripedNotice>
       <Plate
         label={noSquad ? 'Back to the draft' : 'Change mode'}
         roles={roles}
@@ -161,7 +220,7 @@ function Failed({ noSquad, message }: { noSquad: boolean; message: string }) {
 }
 
 const season = (y: number) => `${y}/${String(y + 1).slice(-2)}`
-const toPundits = () => { haptic('light'); router.push('/game/pundits') }
+const toPundits = () => { router.push('/game/pundits') }
 
 // ── League ──────────────────────────────────────────────────────────────────
 
@@ -216,15 +275,17 @@ function LeaguePlacement() {
     return { first, more: total - first.length }
   }, [placed])
 
+  const { profile, isGuest } = useUserStore()   // P8-20: your side takes your name
   function spin() {
     if (eligible.length === 0) return
-    haptic('light')
-    setPlaced(buildLeagueSeason(spinPlacement(eligible), teamOvr))
+    const season = buildLeagueSeason(spinPlacement(eligible), teamOvr, sideName(isGuest ? null : profile?.username))
+    setPlaced(season)
+    // P8-132: your crest on the side you field (the league modes always).
+    activateCrestFor(season.teams.find(t => t.isPlayer)?.clubId, useGameStore.getState().mode)
     setPhase('spinning')
   }
 
   function lock() {
-    haptic('medium')
     setPhase('revealed')
   }
 
@@ -258,11 +319,24 @@ function LeaguePlacement() {
           <GlobePanel targetId={isoForLeague(placed.leagueId)} spinMs={spinMs} onLock={lock} locked={phase === 'revealed'} />
           {phase === 'revealed' && (
             <>
+              {/* P8-11: the competition you've landed in, with its country's
+                  flag, above the club whose place you took. The label's meta
+                  line drops the league name now that it's said here. */}
+              <View style={styles.leagueLine}>
+                {/* The competition's mark, then its country's flag (P8-12). */}
+                <Crest roles={roles} clubId={placed.leagueId} name={placed.leagueName} size={24} competition />
+                {flagForLeague(placed.leagueId)
+                  ? <RoundFlag roles={roles} emoji={flagForLeague(placed.leagueId)} code={placed.leagueName} size={20} />
+                  : null}
+                <KitText t="title" color={roles.text} numberOfLines={2} style={{ flex: 1 }}>{placed.leagueName}</KitText>
+              </View>
               <RevealLabel
-                name={placed.replacedTeamName}
-                meta={`${placed.leagueName} · ${season(placed.yearStart)} · ${placed.teams.length} CLUBS`.toUpperCase()}
+                clubId={placed.teams.find(t => t.isPlayer)?.clubId}
+                name={placed.teams.find(t => t.isPlayer)?.clubName ?? placed.replacedTeamName}
+                replaces={placed.replacedTeamName}
+                meta={`${season(placed.yearStart)} · ${placed.teams.length} CLUBS`.toUpperCase()}
               />
-              <Rivals teamOvr={teamOvr} teams={placed.teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr).slice(0, 3)} />
+              <Rivals teamOvr={teamOvr} teams={placed.teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr)} />
               {fixtures && <Fixtures items={fixtures.first} more={fixtures.more} />}
             </>
           )}
@@ -281,7 +355,7 @@ function CLPlacement() {
   useSimBackGuard(!loading)
   const [spinMs] = useState(globeMs)
   const [revealed, setRevealed] = useState(false)
-  const [info, setInfo] = useState<{ name: string; country?: string; year: number; pot: number; count: number; ovr: number; rivals: { clubName: string; ovr: number }[] } | null>(null)
+  const [info, setInfo] = useState<{ name: string; clubId?: string; country?: string; year: number; pot: number; count: number; ovr: number; rivals: { clubName: string; ovr: number }[] } | null>(null)
   const [count, setCount] = useState(0)
 
   useEffect(() => {
@@ -300,13 +374,16 @@ function CLPlacement() {
       const sorted = [...edition].sort((a, b) => a.historical_ovr - b.historical_ovr)
       const pick = Math.floor(Math.random() * sorted.length)
       const clubs = sorted.map((r, i) => ({ clubId: r.club_id, clubName: r.club_name, ovr: i === pick ? ovr : r.historical_ovr, isPlayer: i === pick }))
-      const teams = buildCLTeams(clubs)
+      // P8-114: the pots made drawable for the country rule.
+      const teams = buildCLTeams(clubs, t => countryForClClub(t.clubName))
       setClTeams(teams)
+      activateCrestFor(teams.find(t => t.isPlayer)?.clubId, 'champions_league')   // P8-132, with "everywhere" only
       setInfo({
         name: sorted[pick].club_name,
+        clubId: sorted[pick].club_id,
         country: countryForClClub(sorted[pick].club_name),
         year, pot: teams.find(t => t.isPlayer)!.pot, count: teams.length, ovr,
-        rivals: teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr).slice(0, 3),
+        rivals: teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr),
       })
       setLoading(false)
     }
@@ -321,11 +398,12 @@ function CLPlacement() {
     <DrawScreen title="The draw"
       cta={revealed ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={toPundits} /> : null}>
       <GlobePanel targetId={isoForCountryName(info.country)} targetName={info.country} spinMs={spinMs}
-        onLock={() => { haptic('medium'); setRevealed(true) }} locked={revealed} />
+        onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>
           <RevealLabel
             name={info.name}
+            clubId={info.clubId}
             flag={flagForCountry(info.country) || undefined}
             meta={`CHAMPIONS LEAGUE · ${season(info.year)} · POT ${info.pot} · ${info.count} CLUBS`}
           />
@@ -347,6 +425,7 @@ type ChosenClub = { clubId: string; clubName: string; leagueRank: number; league
 
 function CustomCLPlacement() {
   const { draftedPlayers, formation, setClYear, setCustomUclPlayerClubId } = useGameStore()
+  const { profile, isGuest } = useUserStore()   // your side takes your name, as in a league run
   const [loading, setLoading] = useState(true)
   useSimBackGuard(!loading)   // §3 — club is picked before loading flips false
   const [spinMs] = useState(globeMs)
@@ -376,7 +455,7 @@ function CustomCLPlacement() {
     if (!chosen) return
     setClYear(2025)
     setCustomUclPlayerClubId(chosen.clubId)
-    haptic('heavy')
+    activateCrestFor(chosen.clubId, 'champions_league_custom')   // P8-132, with "everywhere" only
     router.push('/game/custom-ucl-simulation')
   }
 
@@ -388,11 +467,13 @@ function CustomCLPlacement() {
     <DrawScreen title="The draw"
       cta={revealed ? <Plate label="Start your league season" icon="forward" roles={roles} onPress={start} /> : null}>
       <GlobePanel targetId={isoForCountryName(chosen.country)} spinMs={spinMs}
-        onLock={() => { haptic('medium'); setRevealed(true) }} locked={revealed} />
+        onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>
           <RevealLabel
-            name={chosen.clubName}
+            name={sideName(isGuest ? null : profile?.username)}
+            replaces={chosen.clubName}
+            clubId={chosen.clubId}
             flag={flagForCountry(chosen.country) || undefined}
             meta={`${chosen.leagueName} · ${leagueSize} CLUBS · ASSOCIATION #${chosen.leagueRank}`.toUpperCase()}
           />
@@ -403,11 +484,7 @@ function CustomCLPlacement() {
             <SectionTag roles={roles}>What each finish earns</SectionTag>
             <InfoBubble topic="entry_point" accent={roles.text} size={15} />
           </View>
-          {/* Still the old dark component (Phase 3 rebuilds it), so it sits on
-              a nylon panel rather than clashing with the cotton. */}
-          <View style={[styles.legacyPanel, { backgroundColor: prim.nylon }]}>
-            <PositionStakes rank={chosen.leagueRank} />
-          </View>
+          <PositionStakes roles={roles} rank={chosen.leagueRank} />
         </>
       )}
     </DrawScreen>
@@ -444,9 +521,10 @@ function WCPlacement() {
         isPlayer: i === pick,
       })))
       setWcTeams(teams)
+      activateCrestFor(teams.find(t => t.isPlayer)?.clubId, 'world_cup')   // P8-132, with "everywhere" only
       setInfo({
         id: edition[pick].club_id, name: edition[pick].club_name, year: String(latest), ovr,
-        rivals: teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr).slice(0, 3),
+        rivals: teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr),
       })
       setLoading(false)
     }
@@ -461,10 +539,11 @@ function WCPlacement() {
     <DrawScreen title="The draw"
       cta={revealed ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={toPundits} /> : null}>
       <GlobePanel targetId={isoForNationId(info.id)} spinMs={spinMs}
-        onLock={() => { haptic('medium'); setRevealed(true) }} locked={revealed} />
+        onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>
           <RevealLabel
+            nation
             name={info.name}
             flag={flagForCountry(info.name) || undefined}
             meta={`WORLD CUP · ${info.year} · 48 NATIONS · 12 GROUPS`}
@@ -480,6 +559,11 @@ function WCPlacement() {
 }
 
 const styles = StyleSheet.create({
+  rivals: { maxHeight: 300 },
+  leagueLine: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[2] },
+  wide: { flex: 1, flexDirection: 'row', gap: space[6] },
+  wideGlobe: { flex: 1.2, minWidth: 0 },
+  wideSide: { flex: 1, minWidth: 0 },
   screen: { flex: 1, paddingBottom: space[3] },
   body: { flex: 1 },
   scroll: { gap: space[4], paddingBottom: space[5] },
@@ -490,10 +574,11 @@ const styles = StyleSheet.create({
   revealWrap: { paddingRight: 2, paddingBottom: 2 },
   revealOffset: { position: 'absolute', left: 2, top: 2, right: 0, bottom: 0 },
   reveal: { borderWidth: border.plate, padding: space[4], gap: space[1] },
-  revealTop: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  revealBody: { flexDirection: 'row', alignItems: 'center', gap: space[4] },
+  revealWords: { flex: 1, gap: space[1] },
+  revealMeta: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   row: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 40, borderBottomWidth: StyleSheet.hairlineWidth },
   md: { width: 40 },
   more: { marginTop: space[2] },
   stakesHead: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
-  legacyPanel: { padding: space[3] },
 })

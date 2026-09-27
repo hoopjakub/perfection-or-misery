@@ -52,6 +52,12 @@ type GameStore = {
   // Phase 5 — the run's stats, computed once (on Awards Night or the first
   // page that needs them) and read by every run page after. Cleared with the run.
   runData:        import('@/lib/runData').RunData | null
+  // Phase 6 — the id this run was saved under, for its share link (/r/<id>).
+  // Cleared with the run, so a guest run never shares the previous run's link.
+  savedRunId:     string | null
+  // P8-88: when this run began (a mode was chosen), for the profile's total
+  // playing time. Saved with the run as duration_seconds.
+  runStartedAt:   number | null
   // Big Fixes §12 "Test final game" dev tool — while true, every WC match the
   // player's team plays (group stage or knockout) is forced to a clean 1-0
   // win EXCEPT the final, which always simulates for real. Read by
@@ -69,6 +75,9 @@ type GameStore = {
   // (shouldn't normally happen once the XI is full, but safe either way) the
   // sub just fills it and the bench shrinks by one.
   swapBenchAndStarter: (benchPlayerId: string, starterSlotIndex: number) => void
+  // P8-06: a starter goes to the bench (at any point in the draft), leaving his
+  // slot open. He takes the next free bench number.
+  benchStarter:   (playerId: string) => void
   markSeasonSpun: (id: string) => void
   useReroll:      () => void
   resetRun:       () => void
@@ -120,7 +129,15 @@ const initialState = {
   predictionSeed:  null,
   punditPicks:     null,
   runData:         null,
+  savedRunId:      null,
+  runStartedAt:    null,
   testForceWinUntilFinal: false,
+}
+
+/** The bench's next free number (bench players are 11, 12, …). "11 + bench
+ *  size" collided once subs could leave the bench before it was full (P8-06). */
+export function nextBenchIndex(bench: DraftedPlayer[]): number {
+  return Math.max(10, ...bench.map(b => b.slotIndex)) + 1
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -159,6 +176,14 @@ export const useGameStore = create<GameStore>((set) => ({
         : benchWithoutSub,
     }
   }),
+  benchStarter: (playerId) => set(s => {
+    const p = s.draftedPlayers.find(d => d.playerId === playerId)
+    if (!p) return s
+    return {
+      draftedPlayers: s.draftedPlayers.filter(d => d.playerId !== playerId),
+      benchPlayers: [...s.benchPlayers, { ...p, isBench: true, slotIndex: nextBenchIndex(s.benchPlayers) }],
+    }
+  }),
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll:      () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),
   resetRun:       () => set(s => ({
@@ -183,10 +208,12 @@ export const useGameStore = create<GameStore>((set) => ({
     predictionSeed:  null,
   punditPicks:     null,
   runData:         null,
+  savedRunId:      null,
+    runStartedAt:    null,
     testForceWinUntilFinal: false,
     // Keep mode, difficulty, selectedLeague, and accentColor
   })),
-  setMode:        (mode) => set({ mode }),
+  setMode:        (mode) => set({ mode, runStartedAt: Date.now() }),
   setDifficulty:  (difficulty) => set({ difficulty }),
   setCustomDifficulty: (customDifficulty) => set({ customDifficulty }),
   setWeightedPicksOverride: (weightedPicksOverride) => set({ weightedPicksOverride }),

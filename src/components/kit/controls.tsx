@@ -1,11 +1,12 @@
 // Kit Drop controls. States built are the "states in use" from
 // docs/ui-overhaul/08-COMPONENTS.md §2; anything else in that document waits
 // for a screen that needs it.
+import { pulseTap } from '@/lib/navGuard'
 import React, { useEffect, useRef, useState } from 'react'
 import { View, Pressable, TextInput, Animated, Easing, StyleSheet, type StyleProp, type ViewStyle, type TextInputProps } from 'react-native'
 import { router } from 'expo-router'
-import { type Roles, space, border, OFFSET, density, font } from '@/theme'
-import { KitText, Rivets, Stripe, Icon, type IconName } from './primitives'
+import { type Roles, space, border, OFFSET, density, font, withAlpha } from '@/theme'
+import { KitText, Rivets, Stripe, Icon, H2, type IconName } from './primitives'
 
 // ── Plate ────────────────────────────────────────────────────────────────────
 // The one control that commits to an action. Primary = orange, one per screen.
@@ -35,7 +36,7 @@ export function Plate({
     <View style={[variant === 'quiet' ? null : { paddingRight: OFFSET, paddingBottom: OFFSET }, style]}>
       {hasOffset && <View style={[styles.offset, { backgroundColor: roles.offset }]} />}
       <Pressable
-        onPress={onPress}
+        onPress={() => { pulseTap(); onPress() }}
         disabled={inactive}
         // Disabled plates stay focusable so a screen reader can read the missing step.
         focusable
@@ -55,7 +56,8 @@ export function Plate({
         {({ pressed }) => (
           <>
             {variant === 'primary' && !disabled && <Rivets color={roles.onFill} />}
-            {variant === 'destructive' && <Stripe roles={roles} band={4} style={styles.destructiveEdge} />}
+            {/* P8-111: a destructive action is red, like the loss it can cause. */}
+            {variant === 'destructive' && <View style={[styles.destructiveEdge, { backgroundColor: roles.loss }]} />}
             <View style={styles.plateRow}>
               <KitText
                 t="button"
@@ -110,11 +112,40 @@ function ProgressBar({ color }: { color: string }) {
   )
 }
 
+// ── Loader ───────────────────────────────────────────────────────────────────
+// P8-51: the kit's own "working on it", in place of the stock spinner (which
+// read as a system control on every screen that waited). The plate's progress
+// bar, on its own: a short block sliding along a faint track. `wide` for a
+// screen that's waiting as a whole.
+export function Loader({ color, wide, label, width }: { color: string; wide?: boolean; label?: string; width?: number }) {
+  const x = useRef(new Animated.Value(0)).current
+  // `width`: a bar across the whole screen (the tap feedback, P8-151).
+  const w = width ?? (wide ? 160 : 72), block = width ? 96 : wide ? 48 : 24
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(x, {
+      toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true,
+    }))
+    loop.start()
+    return () => loop.stop()
+  }, [x])
+  return (
+    <View style={styles.loaderWrap} accessibilityRole="progressbar" accessibilityLabel={label ?? 'Loading'}>
+      <View style={[styles.loaderTrack, { width: w, backgroundColor: withAlpha(color, 20) }]}>
+        <Animated.View style={{ width: block, height: 3, backgroundColor: color,
+          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-block, w] }) }] }} />
+      </View>
+      {label ? <KitText t="tag" color={color}>{label}</KitText> : null}
+    </View>
+  )
+}
+
 // ── BackControl ──────────────────────────────────────────────────────────────
 export function BackControl({ roles, onPress }: { roles: Roles; onPress?: () => void }) {
   return (
     <Pressable
-      onPress={onPress ?? (() => router.back())}
+      // A page opened straight from a link or a reload has no history; back
+      // then goes Home instead of doing nothing.
+      onPress={() => { pulseTap(); (onPress ?? (() => (router.canGoBack() ? router.back() : router.replace('/'))))() }}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel="Back"
@@ -128,7 +159,7 @@ export function BackControl({ roles, onPress }: { roles: Roles; onPress?: () => 
 // ── SectionTag ───────────────────────────────────────────────────────────────
 export function SectionTag({ children, roles, style }: { children: string; roles: Roles; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[styles.sectionTag, style]} accessibilityRole="header">
+    <View style={[styles.sectionTag, style]} accessibilityRole="header" {...H2}>
       <KitText t="tag" color={roles.textMuted}>{children}</KitText>
     </View>
   )
@@ -136,8 +167,27 @@ export function SectionTag({ children, roles, style }: { children: string; roles
 
 // ── ListRow ──────────────────────────────────────────────────────────────────
 // Rules between rows, not cards around them.
-export function ListRow({ label, roles, onPress, value, icon, tier = 't2', chevron = !!onPress, trailing, danger }: {
+// ── Swatches ─────────────────────────────────────────────────────────────────
+// The palette's colours as squares to tap (radius 0, like every mark in the
+// kit): the crest's colours (P8-132) and your club's (P8-142).
+export function Swatches({ roles, label, options, value, onChange }: {
+  roles: Roles; label: string; options: { id: string; label: string; hex: string }[]; value: string; onChange: (id: string) => void
+}) {
+  return (
+    <View style={styles.swatchRow} accessibilityRole="radiogroup" accessibilityLabel={`${label} colour`}>
+      <KitText t="tag" color={roles.textMuted} style={styles.swatchLabel}>{label}</KitText>
+      {options.map(c => (
+        <Pressable key={c.id} onPress={() => onChange(c.id)} accessibilityRole="radio" accessibilityState={{ selected: value === c.id }} accessibilityLabel={c.label}
+          style={[styles.swatch, { backgroundColor: c.hex, borderColor: roles.line, borderWidth: value === c.id ? border.tape : border.thin }]} />
+      ))}
+    </View>
+  )
+}
+
+export function ListRow({ label, sub, roles, onPress, value, icon, tier = 't2', chevron = !!onPress, trailing, danger }: {
   label: string
+  /** A line under the label, muted (P8-72: what a guide topic covers). */
+  sub?: string
   roles: Roles
   onPress?: () => void
   value?: string
@@ -149,8 +199,13 @@ export function ListRow({ label, roles, onPress, value, icon, tier = 't2', chevr
 }) {
   const body = (
     <>
-      {icon && <Icon name={icon} size={20} color={roles.text} />}
-      <KitText t={tier === 't1' ? 'bodyL' : 'body'} color={roles.text} style={{ flex: 1 }}>{label}</KitText>
+      {icon && <Icon name={icon} size={20} color={danger ? roles.lossText : roles.text} />}
+      {sub ? (
+        <View style={{ flex: 1, paddingVertical: space[2] }}>
+          <KitText t={tier === 't1' ? 'bodyL' : 'body'} color={danger ? roles.lossText : roles.text}>{label}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{sub}</KitText>
+        </View>
+      ) : <KitText t={tier === 't1' ? 'bodyL' : 'body'} color={danger ? roles.lossText : roles.text} style={{ flex: 1 }}>{label}</KitText>}
       {value ? <KitText t="tag" color={roles.textMuted}>{value}</KitText> : null}
       {trailing}
       {chevron && <Icon name="chevron" size={16} color={roles.textMuted} />}
@@ -163,12 +218,14 @@ export function ListRow({ label, roles, onPress, value, icon, tier = 't2', chevr
   ]
   return onPress ? (
     <Pressable
-      onPress={onPress}
+      onPress={() => { pulseTap(); onPress() }}
       accessibilityRole="button"
-      accessibilityLabel={value ? `${label}, ${value}` : label}
+      accessibilityLabel={[label, sub, value].filter(Boolean).join(', ')}
       style={({ pressed }) => [rowStyle, pressed && { backgroundColor: roles.sunken }]}
     >
-      {danger && <Stripe roles={roles} band={4} style={styles.rowStripe} />}
+      {/* P8-87: a destructive row is misery red (edge, icon, label), not the
+          hazard stripe, which means "out" rather than "this deletes things". */}
+      {danger && <View style={[styles.rowStripe, { backgroundColor: roles.loss }]} />}
       {body}
     </Pressable>
   ) : (
@@ -231,7 +288,8 @@ export function Field({ label, roles, error, secure, style, ...input }: TextInpu
         { backgroundColor: roles.sunken, borderColor: error ? roles.line : focused ? roles.line : roles.rule },
         focused && { borderWidth: border.plate },
       ]}>
-        {error ? <Stripe roles={roles} band={4} style={styles.fieldStripe} /> : null}
+        {/* P8-111: a field in error is red; the message beside it says what's wrong. */}
+        {error ? <View style={[styles.fieldStripe, { backgroundColor: roles.loss }]} /> : null}
         <TextInput
           {...input}
           accessibilityLabel={label}
@@ -268,6 +326,9 @@ export function Checkbox({ checked, onChange, roles, children }: {
 }
 
 const styles = StyleSheet.create({
+  swatchRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[2], marginBottom: space[2] },
+  swatchLabel: { width: 56 },
+  swatch: { width: 32, height: 32 },
   offset: { position: 'absolute', left: OFFSET, top: OFFSET, right: 0, bottom: 0 },
   plate: {
     minHeight: 52, paddingHorizontal: space[5], justifyContent: 'center', overflow: 'hidden',
@@ -275,6 +336,8 @@ const styles = StyleSheet.create({
   quiet: { minHeight: 48, paddingHorizontal: space[2] },
   plateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2] },
   destructiveEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 10 },
+  loaderWrap: { alignItems: 'center', gap: 8 },
+  loaderTrack: { height: 3, overflow: 'hidden' },
   progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, overflow: 'hidden' },
   progressBlock: { width: 60, height: 3 },
   back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginLeft: -space[3] },

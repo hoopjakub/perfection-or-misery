@@ -12,9 +12,10 @@ import { Tag } from './labels'
 // you are among the six stages, and the stage title. Setup stands on cotton,
 // the season on nylon; the header follows whatever `roles` it's given.
 export const RUN_STAGES = ['Where', 'How hard', 'Shape', 'Draft', 'Draw', 'Season'] as const
+const stageName = (n: number, tournament?: boolean) => (n === 6 && tournament ? 'Tournament' : RUN_STAGES[n - 1])
 export type RunStage = 1 | 2 | 3 | 4 | 5 | 6
 
-export function RunHeader({ roles, stage, colourway, title, right, onBack, skipped = [], back = true }: {
+export function RunHeader({ roles, stage, colourway, title, right, onBack, skipped = [], back = true, tournament }: {
   roles: Roles
   stage: RunStage
   colourway: string[]
@@ -22,6 +23,7 @@ export function RunHeader({ roles, stage, colourway, title, right, onBack, skipp
   right?: React.ReactNode
   onBack?: () => void
   skipped?: RunStage[]   // stages this mode doesn't have (Chaos and Cursed skip "How hard")
+  tournament?: boolean   // a cup: stage 6 is the Tournament, not the Season (P8-78)
   back?: boolean
 }) {
   return (
@@ -29,10 +31,10 @@ export function RunHeader({ roles, stage, colourway, title, right, onBack, skipp
       <Tape colours={colourway} roles={roles} style={styles.tape} />
       <View style={styles.headerRow}>
         {back ? <BackControl roles={roles} onPress={onBack} /> : null}
-        <View style={styles.stages} accessible accessibilityLabel={`Stage ${stage} of 6, ${RUN_STAGES[stage - 1]}`}>
+        <View style={styles.stages} accessible accessibilityLabel={`Stage ${stage} of 6, ${stageName(stage, tournament)}`}>
           {RUN_STAGES.map((name, i) => {
             const n = (i + 1) as RunStage
-            if (n === stage) return <Tag key={n} roles={roles} variant="selected">{`${n} ${name}`}</Tag>
+            if (n === stage) return <Tag key={n} roles={roles} variant="selected">{`${n} ${stageName(n, tournament) ?? name}`}</Tag>
             if (skipped.includes(n)) return <KitText key={n} t="tag" color={roles.textFaint}>{`${n} SET`}</KitText>
             return <KitText key={n} t="tag" color={n < stage ? roles.text : roles.textFaint}>{String(n)}</KitText>
           })}
@@ -41,7 +43,7 @@ export function RunHeader({ roles, stage, colourway, title, right, onBack, skipp
       </View>
       {title ? (
         <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>
-          {`"${title.toUpperCase()}"`}
+          {title.toUpperCase()}
         </KitText>
       ) : null}
     </View>
@@ -53,9 +55,11 @@ export function RunHeader({ roles, stage, colourway, title, right, onBack, skipp
 // (CareLabel). Tape down the leading edge, the name in the super, a line or
 // rule list under it. Dangerous choices (Chaos, Cursed) wear the hazard edge.
 export function ChoiceLabel({
-  roles, colourway, title, lines = [], note, trailing, onPress, hazard, lastTime, comingSoon, selected, accessibilityHint,
+  roles, colourway, title, lines = [], note, trailing, onPress, hazard, lastTime, comingSoon, selected, accessibilityHint, mark,
 }: {
   roles: Roles
+  /** A mark to wear beside the title — a competition's own (P8-12). */
+  mark?: React.ReactNode
   colourway?: string[]
   title: string
   lines?: string[]          // rule lines, set in the tag mono
@@ -76,6 +80,7 @@ export function ChoiceLabel({
         : colourway ? <Tape colours={colourway} roles={roles} vertical thickness={border.tape} style={styles.tapeEdge} /> : null}
       <View style={[styles.labelBody, comingSoon && { opacity: 0.55 }]}>
         <View style={styles.labelTop}>
+          {mark}
           <KitText t="superS" color={roles.text} style={{ flexShrink: 1 }}>{title.toUpperCase()}</KitText>
           {lastTime && <Tag roles={roles}>LAST TIME</Tag>}
           {comingSoon && <Tag roles={roles} variant="selected">SOON</Tag>}

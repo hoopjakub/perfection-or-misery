@@ -1,21 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native'
+import { Loader } from '@/components/kit'
+import { COLUMN } from '@/hooks/useSizeClass'
+import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { openClub, openRunHub } from '@/lib/runNav'
 import { router, useLocalSearchParams } from 'expo-router'
 import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
+import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { formatTier, verdictOf } from '@/data/tiers'
 import { useRunSave } from '@/hooks/useRunSave'
-import { VerdictBlock, PunditsRoundTable } from '@/components/season/VerdictBlock'
-import { championsLeagueCalls } from '@/engine/cup-calls'
+import { VerdictBlock, PunditsRoundTable, PunditsTournament } from '@/components/season/VerdictBlock'
+import { championsLeagueCalls, championsLeagueTournament } from '@/engine/cup-calls'
 import { predictTable, predictChampionsLeagueRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
-import { Plate, KitScreen, KitText, Tag, ListRow } from '@/components/kit'
+import { Plate, KitScreen, KitText, Tag, ListRow, Columns } from '@/components/kit'
 import { LeagueTable, ZoneLegend, CL_PHASE_ZONES } from '@/components/season/SeasonParts'
 import { ResultFigures, ResultSection, ResultActions, YourMatches } from '@/components/season/ResultParts'
-import { KnockoutRoundsView, clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { BracketTree, koRoundsToColumns } from '@/components/BracketTree'
 import { space } from '@/theme'
 import { SaveStatusLine } from '@/components/ui'
 import { saveCLRun, fetchRunById } from '@/db/queries/runs'
@@ -86,6 +92,7 @@ export default function CLResultScreen() {
     if (!params.runId) return
     let active = true
     fetchRunById(params.runId)
+      .then(run => { adoptRunCrest((run as any)?.highlights); return run })   // P8-132
       .then(run => { if (active) setDbRun(run) })
       .catch(err => console.error('[cl-result] failed to load run:', err))
       .finally(() => { if (active) setLoading(false) })
@@ -111,7 +118,7 @@ export default function CLResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={prim.cotton} size="large" />
+        <Loader color={prim.cotton} wide />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -204,6 +211,7 @@ export default function CLResultScreen() {
     const req = koLegDetailRequest(m, leg, {
       label: CL_KO_NAMES[m.round] ?? m.round, yearStart: clYearStart, playerClubId: playerTeam.clubId,
       drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+      playerFormation: (fromHistory ? dbRun?.formation : formation) ?? undefined,
     })
     if (req) {
       openMatchStats({ ...req, matchday: koMatchday(m, leg), contextMatches: clContextMatches }, prim.cotton)
@@ -285,13 +293,15 @@ export default function CLResultScreen() {
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
 
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground="nylon" width="wide">
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}
         meta={`UEFA Champions League · ` + `${playerTeam.clubName} · ${playerPos}${ordinal(playerPos)} in the league phase`}
         punditsText={punditsText}
         shareText={`${resultLabel} — UEFA Champions League. Perfection or Misery.`}
+        runId={params.runId}
+        ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
       />
       <ResultFigures items={[
         ['League phase', `${playerPos}${ordinal(playerPos)}`], ['Pts', playerTeam.stats.points],
@@ -302,7 +312,10 @@ export default function CLResultScreen() {
       ]} />
       {/* P8-24 for the cups — every side's call, checked against how far it got. */}
       {store.predictionSeed != null && store.clTeams && store.clResult && (
-        <PunditsRoundTable rows={championsLeagueCalls(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+        <>
+          <PunditsRoundTable rows={championsLeagueCalls(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+          <PunditsTournament calls={championsLeagueTournament(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+        </>
       )}
 
       <View style={styles.kitPlates}>
@@ -311,25 +324,29 @@ export default function CLResultScreen() {
           if (!src) return null
           const night = buildAwardsNight({
             awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
-            clubs: [], playerClubId: playerTeam?.clubId,
+            clubs: [], playerClubId: playerTeam?.clubId, mode: 'champions_league',
           })
           return <Plate label="See the awards" icon="trophy" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openAwardsView(night, params.runId)} />
         })()}
         {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openRunHub(undefined, hubRunId)} />}
+        {/* P8-108: every round's team of the matchday, in the run hub. */}
+        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openRunHub('teams', hubRunId)} />}
       </View>
+      {/* Expanded (10-ADAPT §2.2): the sections as two newspaper columns. */}
+      <Columns>
 
       {winner && (
         <ResultSection title="Champions of Europe">
           <View style={styles.kitWinner}>
             <KitText t="superM" color={KIT_ROLES.nylon.text}>{winner.clubName.toUpperCase()}</KitText>
-            {winner.clubId === playerTeam.clubId && <Tag roles={KIT_ROLES.nylon} variant="you">YOU</Tag>}
           </View>
         </ResultSection>
       )}
 
       {koRounds.length > 0 && (
         <ResultSection title="Knockouts" right={<InfoBubble topic="knockout_bracket" accent={KIT_ROLES.nylon.text} />}>
-          <KnockoutRoundsView title="" rounds={koRounds} maxHeight={100000} />
+          {/* P8-79: the full bracket, the same tree as the preview and the run hub. */}
+          <BracketTree {...koRoundsToColumns(koRounds)} playerClubId={playerTeam?.clubId} />
           <KitText t="tag" color={KIT_ROLES.nylon.textMuted}>SEED · entered the Round of 16 directly (1st–8th)</KitText>
         </ResultSection>
       )}
@@ -365,6 +382,7 @@ export default function CLResultScreen() {
         )
       })()}
 
+      </Columns>
       <View style={styles.kitPlates}>
         <ListRow roles={KIT_ROLES.nylon} icon="guide" label="How the Champions League works" onPress={() => openRules()} />
       </View>
@@ -512,7 +530,7 @@ function ordinal(n: number): string {
 // ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  kitPlates: { gap: space[3], marginTop: space[5] },
+  kitPlates: { gap: space[3], marginTop: space[5], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
   kitWinner: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
   container: { flex: 1, backgroundColor: prim.nylon },
   content:   { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },

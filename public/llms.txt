@@ -1,0 +1,11 @@
+# Perfection or Misery
+
+> A free football-management roguelike for Android and the web. You draft an XI from random real club-seasons, get dropped into a league or a cup (a domestic league, the UEFA Champions League, or the FIFA World Cup), simulate the season, and get a verdict from PERFECTION down to ABSOLUTE MISERY.
+
+- [Play in the browser](https://perfection-or-misery.vercel.app/)
+- [How it works](https://perfection-or-misery.vercel.app/guide): the draft, the modes, difficulty and scoring
+- [The rules of every competition](https://perfection-or-misery.vercel.app/game/rules)
+- [Ranks](https://perfection-or-misery.vercel.app/leaderboard): the best runs anyone has played
+- [Privacy](https://perfection-or-misery.vercel.app/privacy) and [Terms](https://perfection-or-misery.vercel.app/terms)
+
+Made by one developer in Slovakia. Not affiliated with any player, club, league, UEFA or FIFA.

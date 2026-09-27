@@ -35,9 +35,22 @@ export function spinPlacement(eligible: LeagueSeasonWithTeams[]): LeagueSeasonWi
   return eligible[Math.floor(Math.random() * eligible.length)]
 }
 
+/**
+ * Your side's name in a league run (P8-20): "{username} XI" when you're signed
+ * in, "Your XI" for a guest. The side is yours, not the club it replaced, so it
+ * wears your name — and it's stored on the run under that name. The modes where
+ * you take over a club or a nation keep that club's or nation's name.
+ */
+export function sideName(username: string | null | undefined): string {
+  const u = username?.trim()
+  return u ? `${u} XI` : 'Your XI'
+}
+
 export function buildLeagueSeason(
   raw: LeagueSeasonWithTeams,
-  playerOvr: number
+  playerOvr: number,
+  /** P8-20: what your side is called — `sideName(username)`. */
+  yourSide: string = sideName(null),
 ): LeagueSeason {
   const sorted  = [...raw.teams].sort((a, b) => a.historical_ovr - b.historical_ovr)
   const weakest = sorted[0]
@@ -51,7 +64,7 @@ export function buildLeagueSeason(
     replacedTeamName: weakest.club_name,
     teams: raw.teams.map(t => ({
       clubId:   t.club_id,
-      clubName: t === weakest ? 'Your XI' : t.club_name,
+      clubName: t === weakest ? yourSide : t.club_name,
       ovr:      t === weakest ? playerOvr : t.historical_ovr,
       isPlayer: t === weakest,
     })),

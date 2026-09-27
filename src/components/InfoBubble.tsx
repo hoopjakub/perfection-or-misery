@@ -1,5 +1,7 @@
 import React from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { router } from 'expo-router'
 import { spacing, MODE_THEMES, font } from '@/theme'
 import { EXPLAINERS } from '@/data/explainers'

@@ -1,9 +1,14 @@
 import React, { useMemo, useState } from 'react'
+import { teamInFormation } from '@/engine/awards'
+import { FormationPitch } from '@/components/season/AwardsParts'
+import type { Formation } from '@/types/game'
+import { forCompetition } from '@/data/competition'
+import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
-import { ROLES, space, border, prim, ratingColor } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon } from '@/components/kit'
-import { SegmentSwitch, SeasonStrip, PositionGraph, type Mark } from '@/components/season/SeasonParts'
+import { ROLES, space, border, prim, ratingColor, ratingInk } from '@/theme'
+import { KitScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, Crest, RatingSquare } from '@/components/kit'
+import { SegmentSwitch, SeasonStrip, PositionCompare, type Mark } from '@/components/season/SeasonParts'
 import { useRunData } from '@/lib/runData'
 import { openPlayer, openRunMatch, openStory } from '@/lib/runNav'
 import { lineOf } from '@/engine/awards'
@@ -40,17 +45,41 @@ export default function ClubScreen() {
   const marks: Mark[] = matches.map(m => resultFor(m, id!))
   const stories = (data?.press ?? []).filter(s => s.rows.some(r => r.clubId === id))
 
-  if (loading) return <KitScreen ground="nylon"><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the club's season.</KitText></KitScreen>
+  // P8-70: the shape this club played most, and the eleven that started most,
+  // in it — the awards' pitch. Starts come from each player's match log (a
+  // start is a match he played without coming off the bench).
+  const shapes = matches.map(m => (m.homeClubId === id ? m.homeFormation : m.awayFormation)).filter((f): f is string => !!f)
+  const usual = useMemo(() => {
+    const count = new Map<string, number>()
+    for (const f of shapes) count.set(f, (count.get(f) ?? 0) + 1)
+    return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? null
+  }, [shapes.join()])
+  const bestXI = useMemo(() => {
+    if (!usual || !data) return null
+    const picks = squad.map(p => {
+      const starts = (data.matchLog?.get(p.playerId) ?? []).filter(e => e.line.minutes > 0 && e.line.subOnMinute === undefined).length
+      // The shirt's figure is his starts; the rating square, how he played.
+      return { id: p.playerId, name: p.name, position: p.position, score: starts, rating: p.avgRating, clubName: p.clubName, isPlayerClub: p.isPlayerClub }
+    }).filter(p => p.score >= 1)
+    return teamInFormation(usual[0] as Formation, picks)
+  }, [usual, squad, data])
+
+  if (loading) return <KitScreen ground="nylon"><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText></KitScreen>
   if (failed || !data) return <KitScreen ground="nylon"><BackControl roles={roles} /><InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} /></KitScreen>
   if (!name) return <KitScreen ground="nylon"><BackControl roles={roles} /><EmptyState roles={roles} title="Not in this run" body="This club didn't play in the competition." /></KitScreen>
 
   return (
     <KitScreen ground="nylon">
+      <PageMeta title={name} description={forCompetition(`${name}'s season in a Perfection or Misery run.`, data.mode)} />
       <BackControl roles={roles} />
 
       {/* The club as a tag: code, name, finish and record. */}
       <View style={styles.head}>
-        <Tag roles={roles} variant="selected">{clubCode(name)}</Tag>
+        <View style={styles.headTop}>
+          {/* P8-12: the club's own mark, beside its code. */}
+          <Crest roles={roles} clubId={data.table.find(r => r.clubName === name)?.clubId} name={name} size={24} />
+          <Tag roles={roles} variant="selected">{clubCode(name)}</Tag>
+        </View>
         <KitText t="superL" color={roles.text}>{name.toUpperCase()}</KitText>
         {row && (
           <KitText t="tag" color={roles.textMuted}>
@@ -67,6 +96,15 @@ export default function ClubScreen() {
         <View style={styles.section}>
           <SectionTag roles={roles}>Against your XI</SectionTag>
           {vsYou.map((m, i) => <MatchRow key={`h${i}`} m={m} clubId={id!} onPress={() => openRunMatch(data, m)} />)}
+        </View>
+      )}
+
+      {bestXI && usual && (
+        <View style={styles.section}>
+          <SectionTag roles={roles}>Most-used XI</SectionTag>
+          <FormationPitch roles={roles} team={bestXI} showScores="score" onPlayer={pid => openPlayer(pid, runId)}
+            caption={`The eleven that started most, in the shape played most (${usual[1]} of ${shapes.length} matches).`}
+            benchLabel="Next in line" />
         </View>
       )}
 
@@ -98,7 +136,7 @@ export default function ClubScreen() {
                 <KitText t="figure" color={roles.textMuted} style={styles.num}>{`${p.matchesRated ?? 0} apps`}</KitText>
                 <KitText t="figure" color={roles.textMuted} style={styles.num}>{`${p.goals}G ${p.assists}A`}</KitText>
                 {p.avgRating != null
-                  ? <View style={[styles.rating, { backgroundColor: ratingColor(p.avgRating) }]}><KitText t="figure" color={prim.ink}>{p.avgRating.toFixed(1)}</KitText></View>
+                  ? <RatingSquare value={p.avgRating} />
                   : <View style={styles.rating} />}
                 <Icon name="chevron" size={16} color={roles.textMuted} />
               </Pressable>
@@ -122,17 +160,35 @@ export default function ClubScreen() {
               <Big label="Clean sheets" value={String(team.cleanSheets)} />
             </View>
           )}
-          {data.positions?.get(id!) && (
+          {/* P8-80 — the club's own numbers from every match sheet (newer runs). */}
+          {team?.matches ? (
+            <>
+              <SectionTag roles={roles}>{`Club numbers · ${team.matches} matches`}</SectionTag>
+              <View style={styles.bigGrid}>
+                <Big label="xG" value={(team.xg ?? 0).toFixed(1)} />
+                <Big label="xG against" value={(team.xgAgainst ?? 0).toFixed(1)} />
+                <Big label="Possession" value={`${((team.possessionSum ?? 0) / team.matches).toFixed(1)}%`} />
+                <Big label="Pass accuracy" value={`${((team.passAccuracySum ?? 0) / team.matches).toFixed(1)}%`} />
+                <Big label="Shots" value={String(team.shots ?? 0)} />
+                <Big label="On target" value={String(team.shotsOnTarget ?? 0)} />
+                <Big label="Big chances" value={String(team.bigChances ?? 0)} />
+                <Big label="Corners" value={String(team.corners ?? 0)} />
+                <Big label="Fouls" value={String(team.fouls ?? 0)} />
+                <Big label="Yellow / red" value={`${team.yellowCards ?? 0} / ${team.redCards ?? 0}`} />
+              </View>
+            </>
+          ) : null}
+          {data.positions && data.positions.get(id!) && (
             <>
               <SectionTag roles={roles}>Position, matchday by matchday</SectionTag>
-              <PositionGraph roles={roles} values={data.positions.get(id!)!} clubs={data.table.length} />
+              <PositionCompare roles={roles} clubId={id!} positions={data.positions} table={data.table} clubs={data.table.length} />
             </>
           )}
           {stories.length > 0 && (
             <>
               <SectionTag roles={roles}>In the press</SectionTag>
               {stories.map(s => (
-                <Pressable key={s.id} onPress={() => openStory(s.id)} accessibilityRole="link"
+                <Pressable key={s.id} onPress={() => openStory(s.id, runId)} accessibilityRole="link"
                   style={({ pressed }) => [styles.row, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
                   <KitText t="tag" color={roles.textMuted} style={styles.pos}>{`MD ${s.matchday}`}</KitText>
                   <KitText t="body" color={roles.text} style={{ flex: 1 }}>{storyText(s).headline}</KitText>
@@ -165,6 +221,8 @@ function MatchRow({ m, clubId, onPress }: { m: RunMatch; clubId: string; onPress
         {m.label ? <KitText t="tag" color={roles.textMuted}>{m.label}</KitText> : null}
         <KitText t="body" color={roles.text} numberOfLines={1}>{`${home ? 'v' : 'at'} ${home ? m.awayClubName : m.homeClubName}`}</KitText>
       </View>
+      {/* P8-70: the shape this club played in this match. */}
+      {(home ? m.homeFormation : m.awayFormation) ? <Tag roles={roles}>{(home ? m.homeFormation : m.awayFormation)!}</Tag> : null}
       <Tag roles={roles} variant={res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'}>{`${res} ${us}–${them}`}</Tag>
       <Icon name="chevron" size={16} color={roles.textMuted} />
     </Pressable>
@@ -181,6 +239,7 @@ function Big({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  headTop: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   head: { gap: space[2], marginTop: space[2], alignItems: 'flex-start' },
   section: { gap: space[2], marginTop: space[4] },
   pad: { paddingVertical: space[3] },
@@ -190,4 +249,5 @@ const styles = StyleSheet.create({
   num: { width: 64, textAlign: 'right' },
   rating: { minWidth: 36, paddingHorizontal: 4, paddingVertical: 2, alignItems: 'center' },
   bigRow: { flexDirection: 'row', gap: space[5], marginVertical: space[3] },
+  bigGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space[3], columnGap: space[5], marginBottom: space[3] },
 })

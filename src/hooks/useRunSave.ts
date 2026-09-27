@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useUserStore } from '@/store/userStore'
+import { useGameStore } from '@/store/gameStore'
+import { useSettingsStore } from '@/store/settingsStore'
 
 // ── useRunSave ───────────────────────────────────────────────────────────────
 // Every result screen used to save the run only when you pressed Play Again or
@@ -60,6 +62,13 @@ export function useRunSave({ applies, signedIn, ready }: {
     if (inflight.current) return
     setStatus(s => (s === 'saved' || s === 'failed') ? s : !applies ? 'off' : !signedIn ? 'guest' : 'waiting')
   }, [applies, signedIn])
+
+  // A finished run is "last time" from here on, for guests and accounts alike.
+  useEffect(() => {
+    if (!applies) return
+    const { mode, difficulty } = useGameStore.getState()
+    if (mode) useSettingsStore.getState().setLastRun({ mode, difficulty: difficulty ?? null })
+  }, [applies])
 
   useEffect(() => {
     if (applies && signedIn && ready) void start()

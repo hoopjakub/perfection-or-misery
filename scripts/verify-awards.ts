@@ -13,8 +13,9 @@
 //    rewards beating the prediction, and a title win counts extra
 // Run: npx tsx scripts/verify-awards.ts
 
-import { buildAwardsNight, pickTeam, lineOf, BENCH_SIZE, type Pick, type ClubRow } from '../src/engine/awards'
+import { buildAwardsNight, pickTeam, lineOf, BENCH_SIZE, managerScore, placeWorth, type Pick, type ClubRow } from '../src/engine/awards'
 import { ALL_FORMATIONS, getSlotsForFormation } from '../src/engine/formations'
+import { applyImportance, importanceFactor, matchWeight } from '../src/engine/importance'
 import type { AwardCandidate, SeasonAwards, CompetitionStats, TeamGoalRecord } from '../src/types/stats'
 
 let failures = 0
@@ -117,9 +118,22 @@ for (let s = 1; s <= SEASONS; s++) {
   const strip = (n: typeof night) => JSON.stringify(n, (k, v) => (typeof v === 'function' ? undefined : v))
   check(strip(night) === strip(shuffled), `season ${s}: input order changed the night`)
 
-  // Player of the Season is the scoring model's best season. Always.
-  const best = [...input.awards.playerOfTheSeason].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))[0]
-  check(night.playerOfTheSeason?.winner.playerId === best.playerId, `season ${s}: Player of the Season isn't the best score`)
+  // P8-155: Player of the Season is whoever stood furthest above his own
+  // line: always the best score IN his line, and the furthest above it of any.
+  const pots = night.playerOfTheSeason?.winner
+  if (pots) {
+    const line = lineOf(pots.position)
+    const regs = input.awards.playerOfTheSeason.filter(c => (c.matchesRated ?? 0) >= 10 && c.score > 0)
+    const bestInLine = [...regs.filter(c => lineOf(c.position) === line)].sort((a, b) => b.score - a.score)[0]
+    check(!bestInLine || pots.score >= bestInLine.score, `season ${s}: Player of the Season isn't the best of his line`)
+    const standing = (c: AwardCandidate) => {
+      const xs = regs.filter(x => lineOf(x.position) === lineOf(c.position)).map(x => x.score)
+      const m = xs.reduce((a, b) => a + b, 0) / xs.length, sd = Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length)
+      return sd > 0 ? (c.score - m) / sd : 0
+    }
+    const top = [...regs].sort((a, b) => standing(b) - standing(a))[0]
+    check(!top || Math.abs(standing(pots) - standing(top)) < 1e-9, `season ${s}: someone stood further above his line than the Player of the Season`)
+  }
 
   // Each award's winner leads its column and is eligible.
   const all = input.awards.playerOfTheSeason
@@ -132,8 +146,12 @@ for (let s = 1; s <= SEASONS; s++) {
       check(w.cleanSheets === Math.max(...all.filter(c => lineOf(c.position) === 'GK').map(c => c.cleanSheets)), `season ${s}: golden glove isn't the best keeper`)
     }
     if (a.key === 'defender') check(lineOf(w.position) === 'DEF', `season ${s}: defender of the season isn't a defender`)
-    if (a.key === 'midfielder') check(lineOf(w.position) === 'MID', `season ${s}: midfielder of the season isn't a midfielder`)
-    if (a.key === 'forward') check(lineOf(w.position) === 'FWD', `season ${s}: forward of the season isn't a forward`)
+    // P8-36's split: each positional award goes to a position it's for.
+    const FOR: Record<string, string[]> = {
+      fullback: ['RB', 'LB', 'RWB', 'LWB'], midfielder: ['CDM', 'CM', 'CAM', 'RM', 'LM'], defensiveMid: ['CDM', 'CM'], attackingMid: ['CAM', 'CM'],
+      winger: ['RW', 'LW', 'RM', 'LM'], forward: ['ST', 'CF'],
+    }
+    if (FOR[a.key]) check(FOR[a.key].includes(w.position), `season ${s}: ${a.key} went to a ${w.position}`)
     check(!a.runnersUp.some(r => r.playerId === w.playerId), `season ${s}: ${a.key} winner is also a runner-up`)
   }
   check(!night.bestU21 || (night.bestU21.winner.age ?? 99) <= 21, `season ${s}: best under-21 is older than 21`)
@@ -151,6 +169,13 @@ for (let s = 1; s <= SEASONS; s++) {
     const pool: Pick[] = round.lines.map(l => ({ id: l.playerId, name: l.name, position: l.position, score: l.rating, clubName: l.clubName, isPlayerClub: l.isPlayerClub }))
     checkTeam(r.team, pool, `season ${s} ${r.label}`)
   }
+  // P8-100: the regular's headline divides by the rounds played, and nobody is
+  // picked more often than there were rounds.
+  const totr = night.players.find(a => a.key === 'totr')
+  if (totr) {
+    const m = /Picked (\d+) times? in (\d+)$/.exec(totr.headline(totr.winner))
+    check(!!m && +m[2] === input.rounds.length && +m[1] >= 1 && +m[1] <= +m[2], `season ${s}: regular headline "${totr.headline(totr.winner)}" for ${input.rounds.length} rounds`)
+  }
 
   // Club awards.
   const attack = night.clubs.find(c => c.key === 'attack')
@@ -162,10 +187,14 @@ for (let s = 1; s <= SEASONS; s++) {
   const manager = night.clubs.find(c => c.key === 'manager')
   check(!!manager, `season ${s}: no manager of the season`)
   if (manager) {
-    const beat = (c: ClubRow) => c.predicted! - c.finalPosition + (c.finalPosition === 1 ? 3 : 0)
-    const top = Math.max(...input.clubs.map(beat))
+    // P8-37: the winner has the best manager score (stars counted from the
+    // night's own team of the season).
+    const clubOf = new Map(input.awards.playerOfTheSeason.map(c => [c.playerId, c.clubId]))
+    const stars = (id: string) => night.teamOfTheSeason?.xi.filter(x => clubOf.get(x.player.id) === id).length ?? 0
+    const n = Math.max(input.clubs.length, ...input.clubs.map(c => Math.max(c.finalPosition, c.predicted!)))
+    const top = Math.max(...input.clubs.map(c => managerScore(c, n, stars(c.clubId))))
     const w = input.clubs.find(c => c.clubId === manager.winner.clubId)!
-    check(beat(w) === top, `season ${s}: the manager award didn't go to the biggest overachiever`)
+    check(Math.abs(managerScore(w, n, stars(w.clubId)) - top) < 1e-9, `season ${s}: the manager award didn't go to the best manager score`)
     if (w.predicted === 1 && w.finalPosition === 1) managerWasFavourite++
   }
 }
@@ -180,6 +209,59 @@ const favourite = buildAwardsNight({
   ],
 })
 check(favourite.clubs.find(c => c.key === 'manager')?.winner.clubName === 'Favourite', 'a favourite that won the title lost the manager award to a +2')
+
+// P8-37: places near the top are worth more — 10th to 5th beats 16th to 10th.
+check(placeWorth(5, 20) - placeWorth(10, 20) > placeWorth(10, 20) - placeWorth(16, 20), 'a climb from 10th to 5th is worth less than 16th to 10th')
+check(managerScore({ clubId: 'x', clubName: 'X', finalPosition: 5, predicted: 10 }, 20) > managerScore({ clubId: 'y', clubName: 'Y', finalPosition: 10, predicted: 16 }, 20),
+  'the manager award prefers 16th→10th to 10th→5th')
+// Your club's manager is you.
+const mine = buildAwardsNight({
+  ...season(4242), playerClubId: 'mine', managerName: 'MisterMan',
+  clubs: [
+    { clubId: 'mine', clubName: 'MisterMan XI', finalPosition: 2, predicted: 14 },
+    { clubId: 'b', clubName: 'Other', finalPosition: 5, predicted: 6 },
+  ],
+})
+check(mine.clubs.find(c => c.key === 'manager')?.winner.manager === 'MisterMan', "your club's manager award doesn't name you")
+
+// P8-116: the full path. A two-game qualifying star can't win the tournament's
+// awards (they're the league phase and knockouts), but qualifying has its own
+// player and team, and he wins that. The club awards read the main stage's lines.
+{
+  const main = season(4242)
+  const cands = main.awards.playerOfTheSeason
+  const star: AwardCandidate = { ...cands[0], playerId: 'qstar', name: 'Q Star', clubId: 'q1', clubName: 'Out In Q2', position: 'ST', goals: 5, assists: 2, matchesRated: 4, score: 80 }
+  const qualifying = [star, ...cands.slice(1, 40).map(c => ({ ...c, playerId: `q-${c.playerId}`, score: Math.round(c.score / 6) }))]
+  const onlyMainTeam: TeamGoalRecord = { ...main.stats.teams[0], clubId: 'main-only', clubName: 'Main Stage FC', goalsFor: 999 }
+  const night = buildAwardsNight({
+    awards: { playerOfTheSeason: cands, bestU21: [], qualifying, teams: [onlyMainTeam] },
+    stats: { players: [], teams: main.stats.teams }, mode: 'champions_league_custom',
+  })
+  check(night.qualifying?.player?.winner.playerId === 'qstar', 'the qualifying star did not win player of qualifying')
+  check(!!night.qualifying?.team?.xi.some(x => x.player.id === 'qstar'), 'the qualifying star is not in the team of qualifying')
+  check(night.playerOfTheSeason?.winner.playerId !== 'qstar' && !night.teamOfTheSeason?.xi.some(x => x.player.id === 'qstar'), 'a qualifying-only player reached the tournament awards')
+  check(night.clubs.find(c => c.key === 'attack')?.winner.clubId === 'main-only', "the club awards didn't read the main stage's lines")
+  const classic = buildAwardsNight({ awards: { playerOfTheSeason: cands, bestU21: [] }, stats: { players: [], teams: main.stats.teams } })
+  check(classic.qualifying === undefined, 'a run with no qualifying grew a qualifying section')
+}
+
+// P8-130: the big matches count for more. Two players, the same ratings over
+// the same eight games; one had his best nights in the knockouts, the other
+// early in the league phase. The first edges it.
+{
+  const labels = ['League Phase · MD 1', 'League Phase · MD 2', 'League Phase · MD 3', 'League Phase · MD 4', 'Round of 16 · Leg 1', 'Quarter-final · Leg 1', 'Semi-final · Leg 2', 'Final']
+  const late = labels.map((label, i) => ({ label, rating: i >= 4 ? 8.5 : 6.5 }))
+  const early = labels.map((label, i) => ({ label, rating: i < 4 ? 8.5 : 6.5 }))
+  const w = (l: string) => matchWeight(l, 0)
+  check(importanceFactor(late, w) > 1.1 && importanceFactor(early, w) < importanceFactor(late, w), `the knockouts' star isn't weighted up (${importanceFactor(late, w).toFixed(2)} vs ${importanceFactor(early, w).toFixed(2)})`)
+  const base = (id: string): AwardCandidate => ({ ...season(99).awards.playerOfTheSeason[0], playerId: id, name: id, score: 50, lineScores: { defender: 20 }, breakdown: [] })
+  const ranked = applyImportance([base('early'), base('late')], id => (id === 'late' ? late : early), w)
+  check(ranked[0].playerId === 'late' && ranked[0].score > ranked[1].score, 'the big-night player does not edge the identical early one')
+  check(ranked[0].breakdown!.some(p => p.label.startsWith('Big matches')), 'the weighting is not shown in the breakdown')
+  check(ranked[0].lineScores!.defender! > 20, 'the positional scores are not weighted too')
+  check(matchWeight('Final', 0) === 1.5 && matchWeight('Matchday 36', 38) === 1.1 && matchWeight('Matchday 3', 38) === 1 && matchWeight('Group A · MD 1', 0) === 1, 'match weights')
+  check(importanceFactor([{ label: 'Final', rating: 5 }], w) === 1, 'a quiet final lifts nobody')
+}
 
 // Empty inputs don't throw.
 const empty = buildAwardsNight({ awards: { playerOfTheSeason: [], bestU21: [] }, stats: { players: [], teams: [] } })

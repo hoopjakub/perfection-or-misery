@@ -202,3 +202,45 @@ export function getSlotsForFormation(formation: Formation): PositionSlot[] {
 export function getFormationRows(formation: Formation): string[][] {
   return FORMATION_ROWS[formation] ?? [['ST'], ['CM'], ['CB'], ['GK']]
 }
+// ── Shirt numbers (P8-124) ───────────────────────────────────────────────────
+// Football reads a number as a position: the keeper 1, the full-backs 2 and 3,
+// the centre-backs 4 and 5 (6 in a back three), the holding midfielder 6, the
+// wide right 7, the central midfielder 8, the striker 9, the number ten 10,
+// the wide left 11. The shape used to number shirts by slot order, so a CAM
+// could be a 7 and a striker a 3.
+//
+// Each position takes the first free number from its list, and the positions
+// choose in this order, so the iconic numbers go where they belong before a
+// second of a kind takes what's left: a lone striker is 9 and a number ten 10;
+// two strikers with no ten are 9 and 10; a 4-3-3's three midfielders are 8, 6
+// and 10; a second holding midfielder is 8.
+const SHIRTS: [string[], number[]][] = [
+  [['GK'], [1]],
+  [['RB', 'RWB'], [2, 12]],
+  [['LB', 'LWB'], [3, 13]],
+  [['RW', 'RM'], [7, 17]],
+  [['LW', 'LM'], [11, 21]],
+  [['CAM', 'LAM', 'RAM'], [10, 8, 14, 20]],
+  [['ST'], [9, 10, 11, 19, 18]],
+  [['CB'], [5, 4, 6, 15]],
+  [['CDM'], [6, 8, 4, 16]],
+  [['CM'], [8, 6, 10, 4, 7, 11, 14, 16]],
+]
+
+/** Each slot's shirt number, by slot index. Every number is different. */
+export function shirtNumbers(slots: PositionSlot[]): Map<number, number> {
+  const out = new Map<number, number>()
+  const taken = new Set<number>()
+  const take = (slotIndex: number, wanted: number[]) => {
+    let n = wanted.find(w => !taken.has(w))
+    // Past the list: the next free squad number, so a strange shape still has one each.
+    for (let k = 12; n === undefined; k++) if (!taken.has(k)) n = k
+    taken.add(n); out.set(slotIndex, n)
+  }
+  for (const [labels, wanted] of SHIRTS) {
+    for (const slot of slots) if (labels.includes(slot.label)) take(slot.slotIndex, wanted)
+  }
+  // A label not in the table (none today) still gets a number.
+  for (const slot of slots) if (!out.has(slot.slotIndex)) take(slot.slotIndex, [])
+  return out
+}

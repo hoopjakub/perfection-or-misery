@@ -3,8 +3,9 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet } from 'react-native'
 import { useUserStore } from '@/store/userStore'
 import { fetchAchievementRuns, isRunWon, type AchievementRun } from '@/db/queries/leaderboard'
+import { FEATS, featCounts } from '@/lib/feats'
 import { ROLES, space, border, font, colourwayFor, MODE_LABELS } from '@/theme'
-import { KitScreen, KitText, BackControl, Tag, Tape, EmptyState } from '@/components/kit'
+import { KitScreen, KitText, BackControl, Tag, Tape, EmptyState, SectionTag } from '@/components/kit'
 
 // D10 · Achievements (docs/ui-overhaul/07d). Each mode is a strip in its own
 // colourway (the same tape its run labels wear); a difficulty won is a WIN
@@ -76,6 +77,7 @@ export default function AchievementsScreen() {
   const [ach, setAch] = useState<Record<string, ModeAch>>({})
   const [totalWins, setTotalWins] = useState(0)
   const [hardestWon, setHardestWon] = useState<number | null>(null)
+  const [feats, setFeats] = useState<Map<string, number>>(new Map())
 
   useEffect(() => {
     let active = true
@@ -93,6 +95,7 @@ export default function AchievementsScreen() {
           return typeof h === 'number' ? Math.max(max ?? -1, h) : max
         }, null)
         setHardestWon(hardest)
+        setFeats(featCounts(runs))
       } catch (e) {
         console.warn('[achievements] load failed:', e)
       } finally {
@@ -154,6 +157,22 @@ export default function AchievementsScreen() {
               </View>
             )
           })}
+          {/* P8-126: feats, about a way of playing rather than a mode. Checked
+              from every saved run, past ones included. */}
+          <SectionTag roles={roles} style={styles.featsHead}>{`Feats · ${FEATS.filter(f => (feats.get(f.id) ?? 0) > 0).length}/${FEATS.length}`}</SectionTag>
+          {FEATS.map(f => {
+            const n = feats.get(f.id) ?? 0
+            return (
+              <View key={f.id} style={[styles.feat, { borderBottomColor: roles.rule }]} accessible
+                accessibilityLabel={`${f.title}. ${f.how} ${n > 0 ? `Earned ${n} time${n === 1 ? '' : 's'}` : 'Not yet'}`}>
+                <View style={{ flex: 1 }}>
+                  <KitText t="bodyL" color={roles.text} style={styles.modeTitle}>{f.title}</KitText>
+                  <KitText t="body" color={roles.textMuted}>{f.how}</KitText>
+                </View>
+                <Tag roles={roles} variant={n > 0 ? 'win' : 'data'}>{n > 1 ? `WON ×${n}` : n === 1 ? 'WON' : 'NOT YET'}</Tag>
+              </View>
+            )
+          })}
           <KitText t="body" color={roles.textMuted} style={styles.foot}>
             Win a mode on a difficulty and its tag stays. Custom shows the hardest custom run you've won, on a 0–11 scale.
           </KitText>
@@ -173,6 +192,8 @@ function Big({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  featsHead: { marginTop: space[5] },
+  feat: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56, paddingVertical: space[2], borderBottomWidth: border.hair },
   title: { marginTop: space[3] },
   bigRow: { flexDirection: 'row', gap: space[3], marginVertical: space[4] },
   mode: { flexDirection: 'row', borderWidth: border.thin, marginBottom: space[3] },

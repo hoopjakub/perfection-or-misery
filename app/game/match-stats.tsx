@@ -10,23 +10,33 @@
 // STATS (the full grid). As the scoreline leaves, a compact copy of it fades
 // into the top bar, so the score is never off-screen.
 
-import React, { useMemo, useRef, useState } from 'react'
+import { venueFor } from '@/data/venues'
+import { kickoffFor } from '@/engine/schedule'
+import { Loader } from '@/components/kit'
+import { TeamColoursContext, useTeamColours, useTeamColourPair } from '@/lib/teamColours'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { nameShootout } from '@/engine/run-stats'
+import type { PenKick } from '@/engine/knockout-match'
+import { useSizeClass } from '@/hooks/useSizeClass'
 import { WebColumn } from '@/components/kit'
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Animated, ScrollView } from 'react-native'
+import { View, StyleSheet, Pressable, Animated, ScrollView } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { openPlayer, openClub } from '@/lib/runNav'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { colors, spacing, typography, radius, ratingColor, prim, font } from '@/theme'
+import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
 import { openMatchStats, takeMatchStatsRequest } from '@/lib/matchStats'
 import {
-  useMatchDetail, StatBar, PlayerRow, Timeline, splitLineup, ScorerList, StatSideHeader, effectiveSeed,
+  useMatchDetail, StatBar, PlayerRow, Timeline, FeedRow, type FeedRowData, splitLineup, ScorerList, StatSideHeader, effectiveSeed,
   type MatchDetailRequest,
 } from '@/components/MatchStatsParts'
 import { buildShotMap, averagePositions, heatMap } from '@/engine/match-geometry'
 import { ShotMap, AveragePositions, HeatMap } from '@/components/match/PitchViews'
+import { formatRating } from '@/theme'
 import { ROLES } from '@/theme'
-import { KitText, Chips, SectionTag } from '@/components/kit'
+import { KitText, Chips, SectionTag, Crest, RatingSquare, EventMark, VenueMark } from '@/components/kit'
 import { MomentumGraph, momentumMarkers } from '@/components/MomentumGraph'
 import { MatchLineupPitch, MatchBench } from '@/components/MatchLineupPitch'
 import {
@@ -35,7 +45,7 @@ import {
   type BracketRound, type BracketTie,
 } from '@/engine/match-context'
 import type { MatchEvent, PlayerMatchLine, MatchStats } from '@/types/match-stats'
-import { lineForEvent } from '@/engine/commentary'
+import { lineForEvent, chanceLines, timedShots } from '@/engine/commentary'
 
 type Tab = 'facts' | 'commentary' | 'lineup' | 'map' | 'stats'
 
@@ -44,19 +54,123 @@ type Tab = 'facts' | 'commentary' | 'lineup' | 'map' | 'stats'
 const HEADER_FADE_START = 40
 const HEADER_FADE_END = 110
 
+// A timeline match as a sheet request, carrying the page's shared context
+// (squad, season, links) and the match's own shootout (P8-103: this used to
+// drop it, so a second leg opened from the tie card showed no penalties).
+function requestFromContext(r: MatchDetailRequest, m: ContextMatch): MatchDetailRequest | null {
+  if (m.homeGoals === undefined || m.awayGoals === undefined) return null
+  return {
+    homeClubId: m.homeClubId, homeName: m.homeClubName,
+    awayClubId: m.awayClubId, awayName: m.awayClubName,
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+    extraTime: m.extraTime, pensNote: m.pensNote, shootout: m.shootout,
+    scorers: m.scorers, seed: m.seed,
+    homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+    absent: m.absent, standIns: m.standIns,
+    yearStart: r.yearStart,
+    competitionLabel: m.label,
+    playerClubId: r.playerClubId, drafted: r.drafted, playerFormation: r.playerFormation,
+    matchday: m.matchday, contextMatches: r.contextMatches, linkPages: r.linkPages,
+  }
+}
+
+const LEG = / · Leg ([12])$/
+
+// Both legs of the tie this match belongs to, or null for a single match. On a
+// timeline the other leg is the knockout game between the same two clubs, the
+// other way round, labelled as the other leg of the same round.
+function tieLegs(r: MatchDetailRequest): MatchDetailRequest[] | null {
+  if (r.legs?.length === 2) return r.legs
+  const round = r.competitionLabel?.match(LEG) ? r.competitionLabel.replace(LEG, '') : null
+  if (!round || !r.contextMatches) return null
+  const leg = (n: 1 | 2) => r.contextMatches!.find(c => c.inTable === false && c.label === `${round} · Leg ${n}`
+    && ((c.homeClubId === r.homeClubId && c.awayClubId === r.awayClubId) || (c.homeClubId === r.awayClubId && c.awayClubId === r.homeClubId)))
+  const l1 = leg(1), l2 = leg(2)
+  const a = l1 && requestFromContext(r, l1), b = l2 && requestFromContext(r, l2)
+  return a && b ? [a, b] : null
+}
+
 export default function MatchStatsScreen() {
   // Taken ONCE on mount: the screen owns its match for as long as it's on the
   // stack, so opening another match from underneath can't swap this one out.
-  const [request] = useState<MatchDetailRequest | null>(() => takeMatchStatsRequest())
+  // Only the leg switcher (P8-101) changes it, and only to the same tie's other leg.
+  const [request, setRequest] = useState<MatchDetailRequest | null>(() => takeMatchStatsRequest())
   const { detail, loading } = useMatchDetail(request)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // P8-48: a player tapped on the pitch opens his stats in the list below and
+  // the screen slides down to them — before, the row opened out of sight and
+  // the tap seemed to do nothing. Each row reports itself; the scroll's own
+  // offset is tracked with the header's listener.
+  const scrollRef = useRef<any>(null)
+  const offset = useRef(0)
+  const rowRefs = useRef(new Map<string, View>())
+  const rowRef = (id: string) => (el: View | null) => { if (el) rowRefs.current.set(id, el); else rowRefs.current.delete(id) }
+  // The platform's animated scroll is a fixed, quick jump — "slow it down" (the
+  // maintainer, 24 Sept). This glides over GLIDE_MS on an ease-out, frame by
+  // frame, so you see where on the page his stats are.
+  const GLIDE_MS = 700
+  const glideTo = (target: number) => {
+    const from = offset.current, t0 = Date.now()
+    const frame = () => {
+      const k = Math.min(1, (Date.now() - t0) / GLIDE_MS)
+      const eased = 1 - Math.pow(1 - k, 3)
+      scrollRef.current?.scrollTo?.({ y: from + (target - from) * eased, animated: false })
+      if (k < 1) requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  }
+  const focusPlayer = (id: string) => {
+    setExpandedId(id)
+    // Two frames: the row has to open (and the list reflow) before it's measured.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const row = rowRefs.current.get(id)
+      const sv = scrollRef.current?.getNativeScrollRef?.() ?? scrollRef.current
+      if (!row || !sv?.measureInWindow) return
+      sv.measureInWindow((_x: number, top: number) => {
+        row.measureInWindow((_rx: number, rowTop: number) => {
+          glideTo(Math.max(0, offset.current + rowTop - top - 96))
+        })
+      })
+    }))
+  }
   const [tab, setTab] = useState<Tab>('facts')
+  const wide = useSizeClass() === 'expanded'
+  const paired = wide && (tab === 'facts' || tab === 'lineup')
   const scrollY = useRef(new Animated.Value(0)).current
+  // Whether the header is still up: the leg switcher only takes taps then (P8-101).
+  const [atTop, setAtTop] = useState(true)
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      offset.current = value
+      setAtTop(value < (HEADER_FADE_START + HEADER_FADE_END) / 2)
+    })
+    return () => scrollY.removeListener(id)
+  }, [scrollY])
+  // P8-81: the shootout, named. Ties the live reveal showed arrive named;
+  // any other penalty match is named here through the same shared fetch.
+  const [kicks, setKicks] = useState<Kicks | null>(null)
+  useEffect(() => {
+    const so = request?.shootout
+    setKicks(null)   // switching legs: leg 1 must not keep leg 2's shootout
+    if (!request || !so) return
+    if (so.homeKicks && so.awayKicks) { setKicks({ home: so.homeKicks, away: so.awayKicks }); return }
+    let alive = true
+    nameShootout(request.homeClubId, request.awayClubId, so.home, so.away, request.playerClubId, request.drafted)
+      .then(k => { if (alive) setKicks(k) })
+      .catch(e => console.warn('[match-stats] shootout names failed:', e))
+    return () => { alive = false }
+  }, [request])
 
   // P4-H — on nylon the sheet reads in cotton; a competition's colour is
   // location, never meaning, so it doesn't tint numbers here.
   const accent = prim.cotton
   const r = request
+  // P8-92: when it was played; the same kick-off every view works out.
+  const kickoff = r ? kickoffFor({ label: r.competitionLabel, yearStart: r.yearStart, seed: r.seed, homeClubId: r.homeClubId, awayClubId: r.awayClubId }) : null
+  // P8-93: and where — the home side's ground, a final's venue, a World Cup stadium.
+  const venue = r ? venueFor({ label: r.competitionLabel, yearStart: r.yearStart, homeName: r.homeName, homeClubId: r.homeClubId, awayClubId: r.awayClubId }) : null
+  // Each side in its club colour on the graph and bars (P8-49).
+  const teamColours = useTeamColours(request?.homeClubId, request?.awayClubId)
 
   const lineups = useMemo(
     () => detail ? { home: splitLineup(detail.players, true), away: splitLineup(detail.players, false) } : null,
@@ -93,27 +207,27 @@ export default function MatchStatsScreen() {
   // Tapping any other match on this page opens ITS full stats, inheriting the
   // season context so you can keep walking the campaign match by match.
   const openRelated = (m: ContextMatch) => {
-    if (!r || m.homeGoals === undefined || m.awayGoals === undefined) return
-    openMatchStats({
-      homeClubId: m.homeClubId, homeName: m.homeClubName,
-      awayClubId: m.awayClubId, awayName: m.awayClubName,
-      homeGoals: m.homeGoals, awayGoals: m.awayGoals,
-      extraTime: m.extraTime, scorers: m.scorers, seed: m.seed,
-      homeRotation: m.homeRotation, awayRotation: m.awayRotation,
-      absent: m.absent, standIns: m.standIns,
-      yearStart: r.yearStart,
-      competitionLabel: m.label,
-      playerClubId: r.playerClubId, drafted: r.drafted,
-      matchday: m.matchday, contextMatches: r.contextMatches, linkPages: r.linkPages,
-    }, accent)
+    const req = r && requestFromContext(r, m)
+    if (req) openMatchStats(req, accent)
+  }
+
+  // P8-101: a two-legged tie's legs, and which one this is. Found on the
+  // timeline when there is one; the run hub hands them over as `legs`.
+  const legs = r ? tieLegs(r) : null
+  const legIdx = legs ? legs.findIndex(l => l.competitionLabel === r!.competitionLabel && l.homeClubId === r!.homeClubId) : -1
+  const switchLeg = (i: number) => {
+    if (!legs?.[i] || i === legIdx) return
+    setRequest({ ...legs[i], legs: r!.legs })
   }
 
   if (!r) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <Text style={styles.noData}>No match selected.</Text>
-        <Pressable style={styles.backLink} onPress={() => router.back()}>
-          <Text style={[styles.backLinkText, { color: accent }]}>Go back</Text>
+        {/* Reached by a reload (the match rides in memory): there may be no
+            history to go back to, so fall back to Home. */}
+        <Text style={styles.noData}>This match isn't open any more. It was lost when the page reloaded.</Text>
+        <Pressable style={styles.backLink} accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
+          <Text style={[styles.backLinkText, { color: accent }]}>{router.canGoBack() ? 'Go back' : 'Go home'}</Text>
         </Pressable>
       </View>
     )
@@ -129,14 +243,105 @@ export default function MatchStatsScreen() {
     inputRange: [HEADER_FADE_START, HEADER_FADE_END], outputRange: [0, 1], extrapolate: 'clamp',
   })
 
+  const lineupBody = detail && lineups ? (
+          <>
+            {/* The XI on a pitch — what the side actually lined up in. */}
+            {([['home', r.homeName, detail.homeShape], ['away', r.awayName, detail.awayShape]] as const).map(([side, name, shape]) => (
+              <Section key={`pitch-${side}`} title={name}>
+                {shape ? (
+                  <>
+                    <MatchLineupPitch
+                      shape={shape}
+                      players={detail.players.filter(p => p.isHome === (side === 'home'))}
+                      accent={accent}
+                      onPressPlayer={l => focusPlayer(l.playerId)}
+                    />
+                    <Text style={styles.benchLabel}>Bench</Text>
+                    <MatchBench
+                      players={[...lineups[side].cameOn, ...lineups[side].unused]}
+                      accent={accent}
+                      onPressPlayer={l => focusPlayer(l.playerId)}
+                    />
+                  </>
+                ) : (
+                  <Text style={styles.hint}>
+                    No formation recorded for this side — see the ratings list below.
+                  </Text>
+                )}
+              </Section>
+            ))}
+
+          <Section title="Lineups & ratings">
+            <Text style={styles.hint}>Tap a player for their full match stats · POTM = player of the match</Text>
+            {([['home', r.homeName], ['away', r.awayName]] as const).map(([side, name]) => {
+              const lu = lineups[side]
+              return (
+                <View key={side} style={{ marginTop: spacing.md }}>
+                  <Text style={[styles.lineupTeam, { color: accent }]}>{withFlag(name)}</Text>
+                  {lu.starters.map(l => (
+                    <View key={l.playerId} ref={rowRef(l.playerId)} collapsable={false}>
+                    <PlayerRow l={l} accent={accent}
+                      expanded={expandedId === l.playerId}
+                      onPress={() => setExpandedId(id => id === l.playerId ? null : l.playerId)} />
+                    {r.linkPages && expandedId === l.playerId && (
+                      <Pressable onPress={() => openPlayer(l.playerId)} accessibilityRole="link" style={({ pressed }) => [styles.seasonLink, pressed && { opacity: 0.6 }]}>
+                        <Text style={[styles.seasonLinkText, { color: accent }]}>Their whole season ›</Text>
+                      </Pressable>
+                    )}
+                    </View>
+                  ))}
+                  {lu.cameOn.length > 0 && <Text style={styles.benchLabel}>Came on</Text>}
+                  {lu.cameOn.map(l => (
+                    <View key={l.playerId} ref={rowRef(l.playerId)} collapsable={false}>
+                    <PlayerRow l={l} accent={accent}
+                      expanded={expandedId === l.playerId}
+                      onPress={() => setExpandedId(id => id === l.playerId ? null : l.playerId)} />
+                    {r.linkPages && expandedId === l.playerId && (
+                      <Pressable onPress={() => openPlayer(l.playerId)} accessibilityRole="link" style={({ pressed }) => [styles.seasonLink, pressed && { opacity: 0.6 }]}>
+                        <Text style={[styles.seasonLinkText, { color: accent }]}>Their whole season ›</Text>
+                      </Pressable>
+                    )}
+                    </View>
+                  ))}
+                  {lu.unused.length > 0 && <Text style={styles.benchLabel}>Unused subs</Text>}
+                  {lu.unused.map(l => (
+                    <View key={l.playerId} ref={rowRef(l.playerId)} collapsable={false}>
+                      <PlayerRow l={l} accent={accent} expanded={false} onPress={() => {}} />
+                    </View>
+                  ))}
+                </View>
+              )
+            })}
+          </Section>
+          </>
+  ) : null
+
   return (
-    <WebColumn background={prim.nylon}>
+    <WebColumn background={prim.nylon} maxWidth={paired ? 1200 : undefined}>
+    <TeamColoursContext.Provider value={teamColours}>
     <View style={styles.container}>
       {/* Top bar — always present. The score fades into it as you scroll. */}
       <View style={styles.topBar}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={22} color={prim.cotton} />
         </Pressable>
+        {/* P8-101: ‹ LEG 1 OF 2 ›, the arrows right beside the words. It gives
+            way to the score on scroll, and stops taking taps once it has. */}
+        {legs && (
+          <Animated.View style={[styles.legLabel, { opacity: Animated.subtract(1, barOpacity) }]} pointerEvents={atTop ? 'box-none' : 'none'}>
+            <View style={styles.legSwitch}>
+              <Pressable style={styles.legArrow} onPress={() => switchLeg(legIdx - 1)} disabled={legIdx <= 0} hitSlop={8}
+                accessibilityRole="button" accessibilityLabel="Leg 1" accessibilityState={{ disabled: legIdx <= 0 }}>
+                <Ionicons name="chevron-back" size={18} color={legIdx <= 0 ? prim.nylonFaint : prim.cotton} />
+              </Pressable>
+              <KitText t="tag" color={prim.cotton}>{`LEG ${legIdx + 1} OF 2`}</KitText>
+              <Pressable style={styles.legArrow} onPress={() => switchLeg(legIdx + 1)} disabled={legIdx >= legs.length - 1} hitSlop={8}
+                accessibilityRole="button" accessibilityLabel="Leg 2" accessibilityState={{ disabled: legIdx >= legs.length - 1 }}>
+                <Ionicons name="chevron-forward" size={18} color={legIdx >= legs.length - 1 ? prim.nylonFaint : prim.cotton} />
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
         <Animated.View style={[styles.topBarScore, { opacity: barOpacity }]} pointerEvents="none">
           {/* Flags stay with the names once collapsed — national sides are far
               easier to tell apart by flag than by a truncated name. */}
@@ -158,6 +363,7 @@ export default function MatchStatsScreen() {
           at any scroll speed — and the only thing left animating is one
           opacity, which can't affect layout. */}
       <Animated.ScrollView
+        ref={scrollRef}
         stickyHeaderIndices={[1]}
         showsVerticalScrollIndicator
         scrollEventThrottle={16}
@@ -165,7 +371,17 @@ export default function MatchStatsScreen() {
       >
         <View style={styles.headerCollapse}>
           {r.competitionLabel ? <Text style={styles.compLabel} numberOfLines={1}>{r.competitionLabel}</Text> : null}
+          {/* P8-92: when it was played, the same kick-off every view works out. */}
+          {kickoff ? <Text style={styles.compLabel} numberOfLines={1}>{`${kickoff.day} · ${kickoff.time}`}</Text> : null}
+          {venue ? <Text style={styles.compLabel} numberOfLines={1}>{venue.city ? `${venue.name}, ${venue.city}` : venue.name}</Text> : null}
+          {/* P8-134: your match, from your side: at home or away. */}
+          {r.playerClubId && (r.playerClubId === r.homeClubId || r.playerClubId === r.awayClubId) && !isNeutral(r.competitionLabel) ? (
+            <View style={styles.venueLine}><VenueMark roles={ROLES.nylon} home={r.playerClubId === r.homeClubId} /></View>
+          ) : null}
           <View style={styles.headerRow}>
+            {/* P8-12: a club's crest beside its name; a national side already
+                carries its flag through withFlag. */}
+            {flagForCountry(r.homeName) ? null : <Crest roles={ROLES.nylon} clubId={r.homeClubId} name={r.homeName} size={20} />}
             <Text style={[[styles.headerTeam, { textAlign: 'right' }], r.linkPages && styles.linked]} numberOfLines={2} onPress={r.linkPages ? () => openClub(r.homeClubId) : undefined} accessibilityRole={r.linkPages ? 'link' : undefined}>{withFlag(r.homeName)}</Text>
             <View style={styles.headerScoreCol}>
               <Text style={[styles.headerScore, { color: accent }]} numberOfLines={1}>{r.homeGoals} – {r.awayGoals}</Text>
@@ -174,6 +390,7 @@ export default function MatchStatsScreen() {
               </Text>
             </View>
             <Text style={[styles.headerTeam, r.linkPages && styles.linked]} numberOfLines={2} onPress={r.linkPages ? () => openClub(r.awayClubId) : undefined} accessibilityRole={r.linkPages ? 'link' : undefined}>{withFlag(r.awayName)}</Text>
+            {flagForCountry(r.awayName) ? null : <Crest roles={ROLES.nylon} clubId={r.awayClubId} name={r.awayName} size={20} />}
           </View>
           {r.pensNote ? <Text style={[styles.pensNote, { color: accent }]}>{r.pensNote}</Text> : null}
           {detail && (
@@ -193,13 +410,13 @@ export default function MatchStatsScreen() {
             position: sticky and never had the bug. */}
         <View style={styles.tabBar}>
           <View style={styles.tabRow}>
-            {(['facts', 'commentary', 'lineup', 'map', 'stats'] as Tab[]).map(t => (
+            {((wide ? ['facts', 'commentary', 'map', 'stats'] : ['facts', 'commentary', 'lineup', 'map', 'stats']) as Tab[]).map(t => (
               <Pressable
                 key={t} style={styles.tabBtn} onPress={() => setTab(t)}
                 accessibilityRole="tab" accessibilityState={{ selected: tab === t }}
               >
                 <Text style={[styles.tabText, tab === t && { color: prim.cotton }]}>
-                  {t === 'facts' ? 'Facts' : t === 'commentary' ? 'Comms' : t === 'lineup' ? 'Lineup' : t === 'map' ? 'Map' : 'Stats'}
+                  {t === 'facts' ? (wide ? 'Facts & lineup' : 'Facts') : t === 'commentary' ? 'Comms' : t === 'lineup' ? 'Lineup' : t === 'map' ? 'Map' : 'Stats'}
                 </Text>
                 <View style={[styles.tabUnderline, tab === t && { backgroundColor: accent }]} />
               </Pressable>
@@ -210,97 +427,38 @@ export default function MatchStatsScreen() {
         <View style={styles.body}>
         {loading && (
           <View style={styles.loadingBlock}>
-            <ActivityIndicator color={accent} />
+            <Loader color={accent} />
             <Text style={styles.loadingText}>Crunching the numbers…</Text>
           </View>
         )}
         {!loading && !detail && <Text style={styles.noData}>No detailed stats available for this match.</Text>}
 
-        {detail && lineups && tab === 'facts' && (
+        {detail && lineups && tab === 'facts' && !paired && (
           <FactsTab
-            r={r} detail={detail} accent={accent} motm={motm} context={context} onOpenMatch={openRelated}
+            r={r} detail={detail} accent={accent} motm={motm} context={context} onOpenMatch={openRelated} kicks={kicks}
           />
         )}
-
-        {detail && lineups && tab === 'lineup' && (
-          <>
-            {/* The XI on a pitch — what the side actually lined up in. */}
-            {([['home', r.homeName, detail.homeShape], ['away', r.awayName, detail.awayShape]] as const).map(([side, name, shape]) => (
-              <Section key={`pitch-${side}`} title={name}>
-                {shape ? (
-                  <>
-                    <MatchLineupPitch
-                      shape={shape}
-                      players={detail.players.filter(p => p.isHome === (side === 'home'))}
-                      accent={accent}
-                      onPressPlayer={l => setExpandedId(id => id === l.playerId ? null : l.playerId)}
-                    />
-                    <Text style={styles.benchLabel}>Bench</Text>
-                    <MatchBench
-                      players={[...lineups[side].cameOn, ...lineups[side].unused]}
-                      accent={accent}
-                      onPressPlayer={l => setExpandedId(id => id === l.playerId ? null : l.playerId)}
-                    />
-                  </>
-                ) : (
-                  <Text style={styles.hint}>
-                    No formation recorded for this side — see the ratings list below.
-                  </Text>
-                )}
-              </Section>
-            ))}
-
-          <Section title="Lineups & ratings">
-            <Text style={styles.hint}>Tap a player for their full match stats · POTM = player of the match</Text>
-            {([['home', r.homeName], ['away', r.awayName]] as const).map(([side, name]) => {
-              const lu = lineups[side]
-              return (
-                <View key={side} style={{ marginTop: spacing.md }}>
-                  <Text style={[styles.lineupTeam, { color: accent }]}>{withFlag(name)}</Text>
-                  {lu.starters.map(l => (
-                    <React.Fragment key={l.playerId}>
-                    <PlayerRow l={l} accent={accent}
-                      expanded={expandedId === l.playerId}
-                      onPress={() => setExpandedId(id => id === l.playerId ? null : l.playerId)} />
-                    {r.linkPages && expandedId === l.playerId && (
-                      <Pressable onPress={() => openPlayer(l.playerId)} accessibilityRole="link" style={({ pressed }) => [styles.seasonLink, pressed && { opacity: 0.6 }]}>
-                        <Text style={[styles.seasonLinkText, { color: accent }]}>Their whole season ›</Text>
-                      </Pressable>
-                    )}
-                    </React.Fragment>
-                  ))}
-                  {lu.cameOn.length > 0 && <Text style={styles.benchLabel}>Came on</Text>}
-                  {lu.cameOn.map(l => (
-                    <React.Fragment key={l.playerId}>
-                    <PlayerRow l={l} accent={accent}
-                      expanded={expandedId === l.playerId}
-                      onPress={() => setExpandedId(id => id === l.playerId ? null : l.playerId)} />
-                    {r.linkPages && expandedId === l.playerId && (
-                      <Pressable onPress={() => openPlayer(l.playerId)} accessibilityRole="link" style={({ pressed }) => [styles.seasonLink, pressed && { opacity: 0.6 }]}>
-                        <Text style={[styles.seasonLinkText, { color: accent }]}>Their whole season ›</Text>
-                      </Pressable>
-                    )}
-                    </React.Fragment>
-                  ))}
-                  {lu.unused.length > 0 && <Text style={styles.benchLabel}>Unused subs</Text>}
-                  {lu.unused.map(l => (
-                    <PlayerRow key={l.playerId} l={l} accent={accent} expanded={false} onPress={() => {}} />
-                  ))}
-                </View>
-              )
-            })}
-          </Section>
-          </>
+        {/* Expanded (10-ADAPT §2.2): Facts and Lineup side by side. */}
+        {detail && lineups && paired && (
+          <View style={styles.paired}>
+            <View style={styles.pairedCol}>
+              <FactsTab r={r} detail={detail} accent={accent} motm={motm} context={context} onOpenMatch={openRelated} kicks={kicks} />
+            </View>
+            <View style={styles.pairedCol}>{lineupBody}</View>
+          </View>
         )}
+
+        {detail && lineups && tab === 'lineup' && !paired && lineupBody}
 
         {detail && tab === 'map' && <MapTab detail={detail} seed={effectiveSeed(r)} homeName={r.homeName} awayName={r.awayName} />}
 
-        {detail && tab === 'commentary' && <CommentaryTab detail={detail} homeName={r.homeName} awayName={r.awayName} status={status} />}
+        {detail && tab === 'commentary' && <CommentaryTab detail={detail} homeName={r.homeName} awayName={r.awayName} homeClubId={r.homeClubId} awayClubId={r.awayClubId} status={status} kicks={kicks} seed={effectiveSeed(r)} />}
 
         {detail && tab === 'stats' && <StatsTab detail={detail} accent={accent} homeName={r.homeName} awayName={r.awayName} onOpenPlayer={r.linkPages ? openPlayer : undefined} />}
         </View>
       </Animated.ScrollView>
     </View>
+    </TeamColoursContext.Provider>
     </WebColumn>
   )
 }
@@ -313,7 +471,8 @@ export default function MatchStatsScreen() {
 function MapTab({ detail, seed, homeName, awayName }: { detail: MatchStats; seed: number; homeName: string; awayName: string }) {
   const kit = ROLES.nylon
   const [side, setSide] = useState<'home' | 'away'>('home')
-  const shots = useMemo(() => buildShotMap(detail, seed), [detail, seed])
+  // P8-47: in time order, each with its minute and where it ended.
+  const shots = useMemo(() => timedShots(detail, seed), [detail, seed])
   const spots = useMemo(() => averagePositions(detail, seed), [detail, seed])
   const isHome = side === 'home'
   const sideSpots = spots.filter(s => s.isHome === isHome)
@@ -326,7 +485,7 @@ function MapTab({ detail, seed, homeName, awayName }: { detail: MatchStats; seed
         options={[{ id: 'home', label: homeName }, { id: 'away', label: awayName }]} />
       <View style={{ gap: spacing.sm }}>
         <SectionTag roles={kit}>Shot map</SectionTag>
-        <ShotMap shots={shots.filter(s => s.isHome === isHome)} />
+        <ShotMap key={side} shots={shots.filter(s => s.isHome === isHome)} />
       </View>
       <View style={{ gap: spacing.sm }}>
         <SectionTag roles={kit}>Average positions</SectionTag>
@@ -349,17 +508,28 @@ function MapTab({ detail, seed, homeName, awayName }: { detail: MatchStats; seed
 // its own fields by src/engine/commentary.ts, so it reads the same live in the
 // Deep Match and here afterwards), with kick-off, half-time and full-time
 // marking the breaks. Newest first, the way a live feed reads.
-function CommentaryTab({ detail, homeName, awayName, status }: {
-  detail: MatchStats; homeName: string; awayName: string; status: string
+function CommentaryTab({ detail, homeName, awayName, homeClubId, awayClubId, status, kicks, seed }: {
+  detail: MatchStats; homeName: string; awayName: string; homeClubId: string; awayClubId: string; status: string; kicks: Kicks | null; seed: number
 }) {
+  // P8-33: the chances between the events, each on its own minute, told in the
+  // same feed. An event on the same minute reads first.
+  const chances = chanceLines(detail, seed, homeName, awayName)
+  let ci = 0
+  // `minute` is a sort key: a stoppage event at 45+2 is 45.02, so the added-
+  // time board (45.001) is said before it and a chance at 45 before that.
+  const chancesUpTo = (minute: number, rows: FeedRowData[]) => {
+    while (ci < chances.length && chances[ci].minute < minute) { rows.push(chances[ci].line); ci++ }
+  }
   const events = [...detail.events].sort((a, b) => (a.minute + (a.plus ?? 0) / 100) - (b.minute + (b.plus ?? 0) / 100))
   const scoreAt = (minute: number) => events
     .filter(e => e.type === 'goal' && e.minute <= minute)
     .reduce((acc, e) => (e.isHome ? { ...acc, h: acc.h + 1 } : { ...acc, a: acc.a + 1 }), { h: 0, a: 0 })
-  type Row = { minute: string; text: string; big: boolean; marker?: boolean }
+  type Row = FeedRowData
   const rows: Row[] = [{ minute: "1'", text: `Kick-off. ${homeName} v ${awayName}.`, big: false, marker: true }]
   let halfDone = false, ninetyDone = false
   for (const e of events) {
+    // Up to the next marker that's due (half-time, then the 90'), never past it.
+    chancesUpTo(Math.min(e.minute, !halfDone ? 46 : !ninetyDone ? 91 : 999), rows)
     if (!halfDone && e.minute > 45) {
       const ht = scoreAt(45); halfDone = true
       rows.push({ minute: 'HT', text: `Half-time. ${homeName} ${ht.h}–${ht.a} ${awayName}.`, big: false, marker: true })
@@ -368,33 +538,88 @@ function CommentaryTab({ detail, homeName, awayName, status }: {
       const ft = scoreAt(90); ninetyDone = true
       rows.push({ minute: "90'", text: `Level after 90 minutes at ${ft.h}–${ft.a}. Extra time.`, big: false, marker: true })
     }
-    const l = lineForEvent(e, homeName, awayName)
-    rows.push({ minute: l.minute, text: l.text, big: l.big })
+    chancesUpTo(e.minute + (e.plus ?? 0) / 100, rows)
+    rows.push(lineForEvent(e, homeName, awayName))
   }
   if (!halfDone) {
+    chancesUpTo(46, rows)
     const ht = scoreAt(45)
     rows.push({ minute: 'HT', text: `Half-time. ${homeName} ${ht.h}–${ht.a} ${awayName}.`, big: false, marker: true })
   }
+  chancesUpTo(999, rows)
   const end = scoreAt(999)
   rows.push({
     minute: status,
     text: status === 'PENS' ? `Still level at ${end.h}–${end.a}. Penalties decide it.` : `Full time. ${homeName} ${end.h}–${end.a} ${awayName}.`,
     big: true, marker: true,
   })
+  // The shootout, back and forth, each kick with its taker and the running score.
+  if (status === 'PENS' && kicks) {
+    for (const k of shootoutOrder(kicks)) {
+      const team = k.home ? homeName : awayName
+      rows.push({
+        minute: 'PEN',
+        text: k.kick.scored
+          ? `${k.kick.playerName} (${team}) scores. ${k.score.h}–${k.score.a}.`
+          : `${k.kick.playerName} (${team}) misses! Still ${k.score.h}–${k.score.a}.`,
+        big: k.last,
+      })
+    }
+    const s2 = shootoutOrder(kicks).at(-1)?.score
+    if (s2) rows.push({ minute: 'END', text: `${s2.h > s2.a ? homeName : awayName} win the shoot-out ${Math.max(s2.h, s2.a)}–${Math.min(s2.h, s2.a)}.`, big: true, marker: true })
+  }
   return (
     <Section title="Commentary">
       {rows.reverse().map((row, i) => (
-        <View key={i} style={[styles.commentRow, row.marker && styles.commentMarker]}>
-          <Text style={styles.commentMin}>{row.minute}</Text>
-          <Text style={[styles.commentText, row.big && styles.commentBig]}>{row.text}</Text>
-        </View>
+        <FeedRow key={i} row={row} homeName={homeName} awayName={awayName} homeClubId={homeClubId} awayClubId={awayClubId} />
       ))}
     </Section>
   )
 }
 
+// ── The shootout (P8-81) ────────────────────────────────────────────────────
+type Kicks = { home: PenKick[]; away: PenKick[] }
+
+/** The kicks in the order they were taken (home first, then alternating), each
+ *  with the score after it and whether it was the one that decided it. */
+function shootoutOrder(k: Kicks): { home: boolean; kick: PenKick; score: { h: number; a: number }; last: boolean }[] {
+  const out: { home: boolean; kick: PenKick; score: { h: number; a: number }; last: boolean }[] = []
+  let h = 0, a = 0
+  for (let i = 0; i < Math.max(k.home.length, k.away.length); i++) {
+    if (k.home[i]) { if (k.home[i].scored) h++; out.push({ home: true, kick: k.home[i], score: { h, a }, last: false }) }
+    if (k.away[i]) { if (k.away[i].scored) a++; out.push({ home: false, kick: k.away[i], score: { h, a }, last: false }) }
+  }
+  if (out.length) out[out.length - 1].last = true
+  return out
+}
+
+/** The shootout by round: each side's kick in that round and the score after it. */
+function shootoutRounds(k: Kicks): { home?: PenKick; away?: PenKick; score: { h: number; a: number } }[] {
+  const rows: { home?: PenKick; away?: PenKick; score: { h: number; a: number } }[] = []
+  let h = 0, a = 0
+  for (let i = 0; i < Math.max(k.home.length, k.away.length); i++) {
+    if (k.home[i]?.scored) h++
+    if (k.away[i]?.scored) a++
+    rows.push({ home: k.home[i], away: k.away[i], score: { h, a } })
+  }
+  return rows
+}
+
+function PenCell({ kick, align }: { kick?: PenKick; align: 'left' | 'right' }) {
+  if (!kick) return <View style={styles.penCell} />
+  const mark = <EventMark kind={kick.scored ? 'penScored' : 'penMissed'} size={14} />
+  const name = <Text style={[styles.penName, { textAlign: align }, !kick.scored && { color: prim.cottonMuted }]} numberOfLines={1}>{kick.playerName}</Text>
+  return (
+    <View style={[styles.penCell, { justifyContent: align === 'left' ? 'flex-start' : 'flex-end' }]}
+      accessible accessibilityLabel={`${kick.playerName}, ${kick.scored ? 'scored' : 'missed'}`}>
+      {align === 'left' ? <>{mark}{name}</> : <>{name}{mark}</>}
+    </View>
+  )
+}
+
 // ── Facts ───────────────────────────────────────────────────────────────────
-function FactsTab({ r, detail, accent, motm, context, onOpenMatch }: {
+function FactsTab({ r, detail, accent, motm, context, onOpenMatch, kicks }: {
+  kicks: Kicks | null
   r: MatchDetailRequest
   detail: MatchStats
   accent: string
@@ -408,13 +633,16 @@ function FactsTab({ r, detail, accent, motm, context, onOpenMatch }: {
   } | null
   onOpenMatch: (m: ContextMatch) => void
 }) {
+  // P8-33: a goal VAR ruled out lives in the feed; the timeline shows it too.
+  const varCalls = useMemo(() => chanceLines(detail, effectiveSeed(r), r.homeName, r.awayName)
+    .flatMap(x => x.var ? [{ minute: x.minute, ...x.var }] : []), [detail, r])
   return (
     <>
       {/* Player of the match sits at the very top — who was best is the first
           thing you want, and it used to be buried under the whole stat grid. */}
       {motm && (
         <Pressable style={({ pressed }) => [styles.motmCard, pressed && { opacity: 0.8 }]} disabled={!r.linkPages} onPress={() => openPlayer(motm.playerId)} accessibilityRole={r.linkPages ? 'link' : undefined}>
-          <Text style={styles.motmStar}>POTM</Text>
+          <EventMark kind="motm" size={24} />
           <View style={{ flex: 1 }}>
             <Text style={styles.motmLabel}>PLAYER OF THE MATCH</Text>
             <Text style={styles.motmName} numberOfLines={1}>
@@ -431,7 +659,7 @@ function FactsTab({ r, detail, accent, motm, context, onOpenMatch }: {
         <MomentumGraph
           series={detail.momentum} duration={detail.duration}
           markers={momentumMarkers(detail.events)}
-          accentHome={accent} homeName={r.homeName} awayName={r.awayName} title={null}
+          homeName={r.homeName} awayName={r.awayName} title={null}
         />
         <View style={{ height: spacing.md }} />
         <StatBar label="Ball possession" home={detail.home.possession} away={detail.away.possession} accent={accent} pct />
@@ -448,7 +676,29 @@ function FactsTab({ r, detail, accent, motm, context, onOpenMatch }: {
 
       {detail.events.length > 0 && (
         <Section title="Timeline">
-          <Timeline events={detail.events} addedTime={detail.addedTime} duration={detail.duration} />
+          <Timeline events={detail.events} addedTime={detail.addedTime} duration={detail.duration} varCalls={varCalls} />
+        </Section>
+      )}
+      {kicks && (
+        <Section title="Penalty shoot-out">
+          {/* Two columns, like the score at the top: the home side's takers on
+              the left, the away side's on the right, one row per round, with
+              the score after that round between them (maintainer, P8-81). */}
+          <View style={styles.penHead}>
+            <Text style={[styles.penHeadName, { textAlign: 'left' }]} numberOfLines={1}>{withFlag(r.homeName)}</Text>
+            <View style={styles.penMid} />
+            <Text style={[styles.penHeadName, { textAlign: 'right' }]} numberOfLines={1}>{withFlag(r.awayName)}</Text>
+          </View>
+          {shootoutRounds(kicks).map((row, i) => (
+            <View key={i} style={styles.penRow}>
+              <PenCell kick={row.home} align="left" />
+              <View style={styles.penMid}>
+                <Text style={styles.penRound}>{String(i + 1)}</Text>
+                <Text style={styles.penScore}>{`${row.score.h}–${row.score.a}`}</Text>
+              </View>
+              <PenCell kick={row.away} align="right" />
+            </View>
+          ))}
         </Section>
       )}
 
@@ -515,8 +765,10 @@ type PlayerCol = {
 }
 
 const PLAYER_COLS: PlayerCol[] = [
-  { key: 'rating', label: 'Rating', short: 'Rating', value: l => l.rating, render: l => l.rating.toFixed(1) },
+  { key: 'rating', label: 'Rating', short: 'Rating', value: l => l.rating, render: l => formatRating(l.rating) },
   { key: 'created', label: 'Chances created', short: 'Chances created', value: l => l.keyPasses, render: l => String(l.keyPasses) },
+  // P8-43: its own column; a big chance is a different, rarer thing than a key pass.
+  { key: 'bigCreated', label: 'Big chances created', short: 'Big chances', value: l => l.bigChancesCreated, render: l => String(l.bigChancesCreated) },
   { key: 'shots', label: 'Total shots', short: 'Total shots', value: l => l.shots, render: l => String(l.shots) },
   { key: 'sot', label: 'Shots on target', short: 'Shots on Target', value: l => l.shotsOnTarget, render: l => String(l.shotsOnTarget) },
   {
@@ -540,6 +792,7 @@ function PlayerStatsTable({ detail, accent, homeName, awayName, onOpenPlayer }: 
   onOpenPlayer?: (id: string) => void
   detail: MatchStats; accent: string; homeName: string; awayName: string
 }) {
+  const pair = useTeamColourPair()
   const [sort, setSort] = useState('rating')
   const col = PLAYER_COLS.find(c => c.key === sort) ?? PLAYER_COLS[0]
   // Only players who actually featured — an unused substitute has no stats to
@@ -565,11 +818,14 @@ function PlayerStatsTable({ detail, accent, homeName, awayName, onOpenPlayer }: 
       
       {rows.map(l => (
         <Pressable key={l.playerId} style={({ pressed }) => [styles.psRow, pressed && { opacity: 0.6 }]} disabled={!onOpenPlayer} onPress={() => onOpenPlayer?.(l.playerId)}>
-          <View style={[styles.psSide, { backgroundColor: l.isHome ? accent : prim.cottonMuted }]} />
+          <View style={[styles.psSide, { backgroundColor: l.isHome ? (pair?.home ?? accent) : (pair?.away ?? prim.cottonMuted) }]} />
           <Text style={styles.psPos}>{l.position}</Text>
           <Text style={styles.psName} numberOfLines={1}>{l.name}</Text>
           <Text style={styles.psTeam} numberOfLines={1}>{l.isHome ? homeName : awayName}</Text>
-          <Text style={[styles.psValue, { color: accent }]} numberOfLines={1}>{col.render(l)}</Text>
+          {/* Sorted by rating, the figure is the rating chip, in SofaScore's colours (P8-44). */}
+          {col.key === 'rating'
+            ? <RatingChip value={l.rating} />
+            : <Text style={[styles.psValue, { color: accent }]} numberOfLines={1}>{col.render(l)}</Text>}
         </Pressable>
       ))}
     </View>
@@ -655,9 +911,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function RatingChip({ value }: { value: number }) {
   return (
-    <View style={[styles.ratingChip, { backgroundColor: ratingColor(value) }]}>
-      <Text style={styles.ratingChipText}>{value.toFixed(1)}</Text>
-    </View>
+    <RatingSquare value={value} />
   )
 }
 
@@ -668,9 +922,7 @@ function TopRated({ title, players }: { title: string; players: PlayerMatchLine[
       {players.map(p => (
         <View key={p.playerId} style={styles.topRatedItem}>
           <Text style={styles.topRatedName} numberOfLines={1}>{p.name}</Text>
-          <View style={[styles.ratingChipSm, { backgroundColor: ratingColor(p.rating) }]}>
-            <Text style={styles.ratingChipSmText}>{p.rating.toFixed(1)}</Text>
-          </View>
+          <RatingSquare value={p.rating} size="sm" />
         </View>
       ))}
     </View>
@@ -879,10 +1131,26 @@ function NextMatch({ name, clubId, match, accent, onOpenMatch }: {
   )
 }
 
+// Kit Drop's result colours (P8-74): volt a win, misery red a loss, grey a draw.
 const outcomeColor = (o: 'W' | 'D' | 'L') =>
-  o === 'W' ? prim.volt : o === 'L' ? colors.danger : colors.warning
+  o === 'W' ? prim.volt : o === 'L' ? prim.misery : ROLES.nylon.draw
+
+// A World Cup match and a final are on neutral ground: no home or away to mark.
+const isNeutral = (label?: string) => !!label && (/^Final\b/.test(label) || /Group [A-L]|Round of 32|World Cup/.test(label))
 
 const styles = StyleSheet.create({
+  venueLine: { alignItems: 'center', marginTop: 4 },
+  penHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: spacing.xs },
+  penHeadName: { flex: 1, fontSize: 11, color: prim.cottonMuted, fontFamily: font.tagBold, textTransform: 'uppercase' },
+  penRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: prim.ruleNylon },
+  penCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minWidth: 0 },
+  penMid: { width: 56, alignItems: 'center' },
+  penRound: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.tag },
+  penMark: { fontSize: 10, fontFamily: font.tagBold },
+  penName: { flexShrink: 1, fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
+  penScore: { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBlack },
+  paired: { flexDirection: 'row', gap: spacing.xl, alignItems: 'flex-start' },
+  pairedCol: { flex: 1, minWidth: 0 },
   container: { flex: 1, backgroundColor: prim.nylon },
   centred: { alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   backLink: { padding: spacing.md },
@@ -908,6 +1176,10 @@ const styles = StyleSheet.create({
   headerScoreCol: { alignItems: 'center', minWidth: 92, flexShrink: 0, paddingHorizontal: 8 },
   headerScore: { fontSize: 48, lineHeight: 48, fontFamily: font.super },
   headerStatus: { fontSize: 9, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: font.bodyBold },
+  legSwitch: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  legArrow: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
+  // Over the bar's content row (below its 52px status-bar padding), centred.
+  legLabel: { position: 'absolute', left: 0, right: 0, top: 52, bottom: spacing.sm, alignItems: 'center', justifyContent: 'center' },
   pensNote: { fontSize: typography.xs, fontFamily: font.bodyBold, textAlign: 'center' },
   scorerRow: { flexDirection: 'row', gap: spacing.md, marginTop: 2 },
   scorerLine: { fontSize: 10, color: prim.cottonMuted },
@@ -931,11 +1203,6 @@ const styles = StyleSheet.create({
   subHead: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.6 },
   subHeadSmall: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   hint: { fontSize: 10, color: prim.cottonMuted, },
-  commentRow: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: prim.ruleNylon },
-  commentMarker: { backgroundColor: prim.nylonSunken },
-  commentMin: { width: 44, fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted },
-  commentText: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted, lineHeight: 19 },
-  commentBig: { color: prim.cotton, fontFamily: font.bodyBold },
   twoCol: { flexDirection: 'row', gap: spacing.lg },
 
   motmCard: {
@@ -950,10 +1217,6 @@ const styles = StyleSheet.create({
 
   teamRatings: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md, marginTop: spacing.md },
   teamRatingLabel: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, letterSpacing: 1 },
-  ratingChip: { minWidth: 34, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 0, alignItems: 'center' },
-  ratingChipText: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: '#0B1220' },
-  ratingChipSm: { minWidth: 28, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 0, alignItems: 'center' },
-  ratingChipSmText: { fontSize: 9, fontFamily: font.bodyBlack, color: '#0B1220' },
 
   lineupTeam: { fontSize: typography.sm, fontFamily: font.bodyBlack, marginBottom: 4 },
   benchLabel: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.sm },

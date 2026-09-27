@@ -1,6 +1,12 @@
 import { supabase } from './supabase'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
+// A username is at most 38 characters: the matchdays of a league season, and
+// the 38 of the 38-0 idea the game started from. Long enough for any real
+// name, short enough to sit on a tab and a run label. The database holds the
+// same limit (supabase/friends.sql), so it can't be got round.
+export const USERNAME_MAX = 38
+
 export async function ensureGuestSession(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {

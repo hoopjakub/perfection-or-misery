@@ -3,6 +3,7 @@ import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
 import { simulateKnockout, simulateTwoLegs, type PenKick } from './knockout-match'
 import type { KnockoutSimHook } from './availability'
+import { drawLeaguePhase, balancePots, type DrawRelaxed } from './cl-draw'
 
 export type CLPot = 1 | 2 | 3 | 4
 
@@ -85,7 +86,11 @@ export type CLSeasonResult = {
 }
 
 export function buildCLTeams(
-  clubs: { clubId: string; clubName: string; ovr: number; isPlayer: boolean }[]
+  // `holder`: the title holders, the top seed of pot 1 whatever their rating (P8-114).
+  clubs: { clubId: string; clubName: string; ovr: number; isPlayer: boolean; holder?: boolean }[],
+  /** P8-114: each club's country. Given, the pots are nudged so the draw's
+   *  country rule can hold (balancePots, cl-draw.ts). */
+  countryOf?: (t: CLTeam) => string | undefined,
 ): CLTeam[] {
   const teams: CLTeam[] = clubs.map(c => ({
     clubId:   c.clubId,
@@ -97,11 +102,13 @@ export function buildCLTeams(
     stats:    { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
   }))
 
-  const sorted = [...teams].sort((a, b) => b.ovr - a.ovr)
+  const holders = new Set(clubs.filter(c => c.holder).map(c => c.clubId))
+  const sorted = [...teams].sort((a, b) => Number(holders.has(b.clubId)) - Number(holders.has(a.clubId)) || b.ovr - a.ovr)
   const potSize = Math.ceil(teams.length / 4)
   sorted.forEach((t, i) => {
     t.pot = (Math.min(4, Math.floor(i / potSize) + 1)) as CLPot
   })
+  if (countryOf) balancePots(teams, countryOf, holders)
 
   return teams
 }
@@ -269,6 +276,26 @@ function legacyRotationFixtures(teams: CLTeam[]): { matchday: number; home: CLTe
     rotating.unshift(rotating.pop()!)
   }
   return fixtures
+}
+
+export type CLLeaguePhase = { fixtures: { matchday: number; home: CLTeam; away: CLTeam }[]; relaxed: DrawRelaxed | 'fixed' }
+
+/** P8-114: the league phase drawn for real (cl-draw.ts), then packed into
+ *  eight matchdays. `countryOf` gives the association rule its countries.
+ *  'fixed' means the field couldn't take the draw (unequal pots) and got the
+ *  old fixed pairing. */
+export function drawCLLeaguePhase(teams: CLTeam[], countryOf: (t: CLTeam) => string | undefined = () => undefined): CLLeaguePhase {
+  // A draw that can't be packed into eight matchdays is drawn again; measured
+  // (verify-draw), the first one almost always packs.
+  for (let d = 0; d < 6; d++) {
+    const draw = drawLeaguePhase(teams, countryOf)
+    if (!draw) break
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const rounds = scheduleIntoRounds(draw.fixtures, teams, 8)
+      if (rounds) return { fixtures: rounds.flatMap((round, idx) => round.map(fx => ({ matchday: idx + 1, home: fx.home, away: fx.away }))), relaxed: draw.relaxed }
+    }
+  }
+  return { fixtures: generateCLLeagueFixtures(teams), relaxed: 'fixed' }
 }
 
 export function generateCLLeagueFixtures(

@@ -14,11 +14,11 @@ export const FORMAT_LABEL: Record<LeagueFormat, string> = {
 
 export const FORMAT_EXPLAINER: Record<LeagueFormat, string> = {
   double_round_robin:
-    'Every club plays every other twice (home and away). One table — highest points wins.',
+    'Every club plays every other twice (home and away). One table; the most points wins.',
   belgium_playoff:
-    'After a full home-and-away season, the TOP 6 have their points HALVED (rounded up) and play a fresh mini-league against each other. Everyone bunches back up — the title is decided in this play-off.',
+    'After a full home-and-away season, the TOP 6 have their points HALVED (rounded up) and play a fresh mini-league against each other. Everyone bunches back up, and the title is decided in this play-off.',
   scotland_split:
-    'Clubs play three times each (33 games), then the league SPLITS into a top-6 and bottom-6. Each half plays 5 more games — but you can’t cross the line, so 7th can never finish above 6th no matter the points.',
+    'Clubs play three times each (33 games), then the league SPLITS into a top-6 and bottom-6. Each half plays 5 more games, but you can’t cross the line, so 7th can never finish above 6th no matter the points.',
   split_championship:
     'A regular season, then the league splits: the top clubs play a Championship round for the title and European places, while the rest play a separate round. The championship group always finishes above the rest.',
 }

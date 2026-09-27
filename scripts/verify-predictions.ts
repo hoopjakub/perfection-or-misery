@@ -9,10 +9,11 @@
 //    matter (they must not simply reproduce the strength order)
 // Run: npx tsx scripts/verify-predictions.ts
 
-import { predictTable, predictWorldCupRound, predictChampionsLeagueRound, predictPlayers, type PredictionTeam, type PickablePlayer } from '../src/engine/predictions'
+import { predictTable, predictWorldCupRound, predictChampionsLeagueRound, predictPlayers, punditPanel, PANEL_SIZE, type PredictionTeam, type PickablePlayer } from '../src/engine/predictions'
 import { simulateMatch, setMatchTilt } from '../src/engine/match'
 import { generateFixtures } from '../src/engine/fixtures'
 import type { SimTeam } from '../src/types/simulation'
+import { punditsSummary, callOf } from '../src/lib/punditsSummary'
 
 let failures = 0
 function check(cond: boolean, msg: string) {
@@ -51,7 +52,7 @@ setMatchTilt(0)
 const SEASONS = 1500
 let predictedChampWins = 0
 const titlesByPredictedPlace = new Map<number, number>()
-let misplaced = 0, totalClubs = 0, absError = 0
+let misplaced = 0, totalClubs = 0, absError = 0, pointsAbsError = 0, pointsBias = 0
 
 for (let s = 1; s <= SEASONS; s++) {
   const teams = league(s).map(t => ({ ...t, isPlayer: false }))
@@ -85,7 +86,13 @@ for (let s = 1; s <= SEASONS; s++) {
     if (row.predicted !== row.strengthRank) misplaced++
     const actual = final.findIndex(t => t.clubId === row.clubId) + 1
     absError += Math.abs(actual - row.predicted)
+    // P8-13: the points they called, against the points actually finished on.
+    const got = final.find(t => t.clubId === row.clubId)!.stats.points
+    pointsAbsError += Math.abs(got - row.points)
+    pointsBias += row.points - got
   }
+  // A lower place can never be called to finish on more points.
+  check(pred.table.every((r, i) => i === 0 || pred.table[i - 1].points >= r.points), `season ${s}: predicted points not in order`)
 }
 
 const bestOther = Math.max(0, ...[...titlesByPredictedPlace.entries()].filter(([p]) => p !== 1).map(([, n]) => n))
@@ -94,6 +101,11 @@ const meanError = absError / totalClubs
 check(predictedChampWins > bestOther, `predicted champion won ${predictedChampWins} titles, another predicted place won ${bestOther}`)
 check(meanError < 5, `mean |actual - predicted| is ${meanError.toFixed(2)} places (a random guess is ~6.65)`)
 check(misplacedRate > 0.15, `only ${(misplacedRate * 100).toFixed(1)}% of clubs misplaced vs strength: the pundits just copy the table`)
+const meanPointsError = pointsAbsError / totalClubs
+const meanBias = pointsBias / totalClubs
+console.log(`predicted points: mean error ${meanPointsError.toFixed(2)} pts, bias ${meanBias >= 0 ? '+' : ''}${meanBias.toFixed(2)} pts a club over a 38-game season`)
+check(meanPointsError < 8, `predicted points are ${meanPointsError.toFixed(2)} points out on average`)
+check(Math.abs(meanBias) < 2, `predicted points run ${meanBias.toFixed(2)} points off in one direction: the model is biased`)
 check(misplacedRate < 0.9, `${(misplacedRate * 100).toFixed(1)}% misplaced: the preview is noise`)
 
 // ── Knockout calls ───────────────────────────────────────────────────────────
@@ -130,6 +142,51 @@ console.log(`player picks: the best-rated player was the pundits' Player of the 
 
 console.log(`${SEASONS} seasons · predicted champion won ${predictedChampWins} (${(predictedChampWins / SEASONS * 100).toFixed(1)}%), next best predicted place ${bestOther}`)
 console.log(`misplaced vs strength ${(misplacedRate * 100).toFixed(1)}% · mean error vs actual finish ${meanError.toFixed(2)} places`)
+// ── P8-57: the panel ──
+let spread = 0, split = 0, panels = 0
+for (let s = 1; s <= 500; s++) {
+  const teams = league(s)
+  const panel = punditPanel(teams, s)
+  const consensus = predictTable(teams, s).player!.predicted
+  check(panel.length === PANEL_SIZE && new Set(panel.map(p => p.name)).size === PANEL_SIZE, `panel ${s}: not ${PANEL_SIZE} different pundits`)
+  check(panel.every(p => p.youAt >= 1 && p.youAt <= teams.length), `panel ${s}: a pundit put you off the table`)
+  check(JSON.stringify(panel) === JSON.stringify(punditPanel([...teams].reverse(), s)), `panel ${s}: not deterministic`)
+  spread += panel.reduce((a, p) => a + Math.abs(p.youAt - consensus), 0) / panel.length
+  if (new Set(panel.map(p => p.youAt)).size > 1) split++
+  panels++
+}
+// They argue about places, not about who's good: a pundit is on average within
+// three places of the consensus, and most panels don't all say the same thing.
+console.log(`panel: a pundit is ${(spread / panels).toFixed(2)} places from the consensus on average; ${Math.round(split / panels * 100)}% of panels disagree about you`)
+check(spread / panels < 3, 'the panel strays too far from the consensus')
+check(split / panels > 0.5, "the panel mostly agrees to the place — it isn't a panel")
+
+// P8-122: the verdict's summary of the pundits' calls, in words.
+{
+  const rows = [
+    { clubId: 'a', clubName: 'Alpha', finalPosition: 1, predicted: 1, isPlayer: false, points: 80, predictedPoints: 78 },
+    { clubId: 'b', clubName: 'Bravo', finalPosition: 2, predicted: 5, isPlayer: true, points: 70, predictedPoints: 55 },
+    { clubId: 'c', clubName: 'Charlie', finalPosition: 3, predicted: 3, isPlayer: false, points: 60, predictedPoints: 61 },
+    { clubId: 'd', clubName: 'Delta', finalPosition: 5, predicted: 2, isPlayer: false, points: 40, predictedPoints: 72 },
+    { clubId: 'e', clubName: 'Echo', finalPosition: 4, predicted: 4, isPlayer: false },
+  ]
+  const lines = punditsSummary(rows)
+  check(lines[0] === 'They got 3 of 5 places exactly right and 0 points totals.', `summary count: ${lines[0]}`)
+  check(lines[1].startsWith('Their best call: Charlie,'), `the best call is the exact one nearest on points (Charlie, 1 point out): ${lines[1]}`)
+  check(lines[2].startsWith('Their worst: '), `a worst call is named: ${lines[2]}`)
+  check(lines[3] === 'On you: tipped 5th on 55 points. You finished 2nd on 70 points, 3 places better than they said.', `the line on you: ${lines[3]}`)
+  // The calls: both right is mega; one right says which; neither says how far.
+  const base = { clubId: 'x', clubName: 'X', isPlayer: false }
+  check(callOf({ ...base, finalPosition: 3, predicted: 3, points: 60, predictedPoints: 60 }).label === 'MEGA SPOT ON', 'place and points right: MEGA SPOT ON')
+  check(callOf({ ...base, finalPosition: 3, predicted: 3, points: 61, predictedPoints: 60 }).label === 'PLACE SPOT ON', 'only the place: PLACE SPOT ON')
+  check(callOf({ ...base, finalPosition: 5, predicted: 3, points: 60, predictedPoints: 60 }).label === 'POINTS SPOT ON', 'only the points: POINTS SPOT ON')
+  check(callOf({ ...base, finalPosition: 5, predicted: 3, points: 50, predictedPoints: 60 }).label === 'DOWN 2', 'neither: DOWN 2')
+  check(callOf({ ...base, finalPosition: 3, predicted: 3 }).label === 'SPOT ON', 'no points kept: plain SPOT ON')
+  check(punditsSummary([{ ...base, finalPosition: 1, predicted: 1, points: 9, predictedPoints: 9 }])[0] === 'They got 1 of 1 places exactly right and 1 points total; 1 mega spot on, both.', 'the summary counts the mega ones')
+  const noPoints = punditsSummary(rows.map(r => ({ ...r, points: undefined, predictedPoints: undefined })))
+  check(!noPoints.some(l => l.includes('points')), 'a saved run without points still reads (no "on undefined points")')
+}
+
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 else console.log(`${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

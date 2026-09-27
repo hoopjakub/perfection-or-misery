@@ -8,6 +8,7 @@
 // session. Pages call `useRunData(runId?)` and get it instantly after the
 // first time.
 import { useEffect, useState } from 'react'
+import { adoptRunCrest } from '@/store/crestStore'
 import { useGameStore } from '@/store/gameStore'
 import { computeLeagueRunStats, computeCLRunStats, computeWCRunStats, type RunMatch, type RoundLines, type PlayerMatchLog } from '@/engine/run-stats'
 import { fetchRunById } from '@/db/queries/runs'
@@ -19,10 +20,12 @@ export type RunData = {
   mode: string | null
   stats: CompetitionStats
   awards: SeasonAwards
-  matchLog: PlayerMatchLog | null   // per-match lines: live runs only
+  matchLog: PlayerMatchLog | null   // per-match lines (a saved run's are rebuilt, P8-96)
   rounds: RoundLines | null
   matches: RunMatch[] | null
   yearStart: number | null
+  /** League runs: which league, so the table can mark its places (UCL, relegation…) (P8-61). */
+  leagueId: string | null
   playerClubId: string | null
   drafted: DraftedPlayer[]
   formation: Formation | null
@@ -30,10 +33,12 @@ export type RunData = {
   table: TableRow[]
   /** League runs: every club's position after each matchday, for the position graph. */
   positions: Map<string, number[]> | null
-  /** The run's press (league runs). */
+  /** The run's press (league runs; saved with the run since P8-96). */
   press: import('@/engine/press').Story[]
   /** The club your XI took the place of. */
   replacedClubName: string | null
+  /** P8-89: whose run it is (a saved run's user); null for the live run, which is yours. */
+  ownerId?: string | null
   /** Anything a saved run can't show, said plainly on the page. */
   missing: string[]
 }
@@ -88,6 +93,7 @@ export async function liveRunData(): Promise<RunData | null> {
     key: 'live', mode,
     stats: res.stats, awards: res.awards, matchLog: res.matchLog, rounds: res.rounds, matches: res.matches,
     yearStart: mode === 'world_cup' ? 2026 : mode?.startsWith('champions_league') ? (clYear ?? 2025) : (placedLeague?.yearStart ?? null),
+    leagueId: mode === 'world_cup' || mode?.startsWith('champions_league') ? null : (placedLeague?.leagueId ?? null),
     playerClubId: simResult?.playerTeam.clubId ?? clResult?.playerTeam.clubId ?? wcResult?.playerTeam.clubId ?? null,
     drafted, formation: st.formation,
     table: liveTable(st), positions: livePositions(st), press: st.simResult?.press ?? [],
@@ -103,19 +109,57 @@ export async function savedRunData(runId: string): Promise<RunData | null> {
   const hit = saved.get(runId)
   if (hit) return hit
   const run = await fetchRunById(runId) as Record<string, any> | null
+  adoptRunCrest(run?.highlights)   // P8-132: the crest it was played with
   if (!run?.stats || !run?.awards) return null
+  // P8-96: a saved run already holds every match it played — a league its
+  // matchday history (fixtures, scores, scorers, seeds), a cup its whole
+  // result — but this page used to read only the totals, so a run opened again
+  // had no match-by-match detail, no teams of the matchday and no bracket.
+  // Rebuilt here the way the live run is: the same stats pass over the same
+  // stored matches and seeds. The saved totals and awards stay the record
+  // (an older run was scored by the engine of its day).
+  const mode: string | null = run.mode ?? null
+  const hist: any[] = run.matchday_history ?? []
+  const last: any[] = hist[hist.length - 1]?.standings ?? []
+  const wc = run.wc_result ?? null
+  const cl = run.cl_result ?? null
+  const qualTies = cl?._customUclQual?.ties
+  const drafted = (run.squad ?? []) as DraftedPlayer[]
+  const useSubs = drafted.some(p => p.isBench)
+  const like: any = {
+    mode, wcResult: wc, clResult: cl,
+    simResult: hist.length ? { table: last, matchdayHistory: hist, teamsInLeague: run.teams_in_league ?? last.length } : null,
+  }
+  let regen: Awaited<ReturnType<typeof computeLeagueRunStats>> = null
+  try {
+    regen = mode === 'world_cup' && wc ? await computeWCRunStats(wc, drafted, undefined, useSubs)
+      : mode?.startsWith('champions_league') && cl ? await computeCLRunStats(cl, drafted, run.year_start ?? 2025, qualTies, useSubs)
+      : like.simResult && run.year_start ? await computeLeagueRunStats(like.simResult, drafted, { yearStart: run.year_start, leagueId: run.league_id } as any, useSubs)
+      : null
+  } catch (e) {
+    console.warn('[runData] rebuilding the saved run failed:', e)
+  }
+  const press = (run.highlights?.press ?? []) as import('@/engine/press').Story[]
   const data: RunData = {
-    key: runId, mode: run.mode ?? null,
+    key: runId, mode,
     stats: run.stats as CompetitionStats, awards: run.awards as SeasonAwards,
-    matchLog: null, rounds: null, matches: null,
+    matchLog: regen?.matchLog ?? null, rounds: regen?.rounds ?? null, matches: regen?.matches ?? null,
     yearStart: run.year_start ?? null,
-    playerClubId: null,
-    drafted: (run.squad ?? []) as DraftedPlayer[],
+    leagueId: run.league_id ?? null,
+    playerClubId: wc?.playerTeam?.clubId ?? cl?.playerTeam?.clubId ?? last.find((t: any) => t.isPlayer)?.clubId ?? null,
+    drafted,
     formation: (run.formation ?? null) as Formation | null,
-    table: ((run.matchday_history?.[run.matchday_history.length - 1]?.standings ?? []) as any[]).map((t, i) => rowOf(t, i + 1)),
-    positions: null, press: [],
+    table: like.simResult || wc || cl ? liveTable(like) : [],
+    positions: livePositions(like),
+    press,
     replacedClubName: run.replaced_team_name ?? null,
-    missing: ['match-by-match detail', 'teams of the matchday', 'the press'],
+    ownerId: run.user_id ?? null,
+    // Said plainly, and only what's really missing: a run too old to rebuild,
+    // or a league run saved before the press was kept.
+    missing: [
+      ...(regen ? [] : ['match-by-match detail', 'teams of the matchday']),
+      ...(mode && !mode.startsWith('champions_league') && mode !== 'world_cup' && !press.length ? ['the press'] : []),
+    ],
   }
   saved.set(runId, data)
   return data

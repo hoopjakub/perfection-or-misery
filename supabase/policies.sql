@@ -23,6 +23,12 @@ drop policy if exists "runs_own_insert" on public.runs;
 -- To undo (saving broke):
 --   create policy "runs_own_insert" on public.runs for insert with check (auth.uid() = user_id);
 
+-- ── Friends: answered by supabase/friends.sql (P8-90) ─────────────────────────
+-- The question below was right: accepting a friend failed silently. The fix
+-- is NOT the two insert policies it suggests (an open insert on friendships
+-- lets anyone befriend anyone without a request); friends.sql adds three
+-- checked functions instead and leaves both tables closed to direct writes.
+--
 -- ── Open questions, NOT applied ──────────────────────────────────────────────
 -- src/lib/friends.ts inserts into friendships and notifications when a request
 -- is accepted, but neither table has an INSERT policy. Either a trigger does

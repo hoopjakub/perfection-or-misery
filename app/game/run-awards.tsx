@@ -14,7 +14,7 @@ export default function RunAwardsScreen() {
   if (!view) {
     return (
       <KitScreen ground="nylon" scroll={false}>
-        <KitText t="superM" color={roles.text}>"NO AWARDS"</KitText>
+        <KitText t="superM" color={roles.text}>NO AWARDS</KitText>
         <KitText t="bodyL" color={roles.textMuted}>Open the awards from a finished run.</KitText>
         <Plate label="Go back" roles={roles} onPress={() => router.back()} />
       </KitScreen>

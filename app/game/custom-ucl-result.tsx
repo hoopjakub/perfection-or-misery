@@ -1,40 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native'
+import { Loader } from '@/components/kit'
+import { COLUMN } from '@/hooks/useSizeClass'
+import { View, StyleSheet, Pressable, Animated } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { openClub, openRunHub } from '@/lib/runNav'
 import { router, useLocalSearchParams } from 'expo-router'
 import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
+import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { formatTier, verdictOf } from '@/data/tiers'
 import { useRunSave } from '@/hooks/useRunSave'
-import { VerdictBlock, PunditsRoundTable } from '@/components/season/VerdictBlock'
-import { championsLeagueCalls } from '@/engine/cup-calls'
+import { VerdictBlock, PunditsRoundTable, PunditsTournament } from '@/components/season/VerdictBlock'
+import { championsLeagueCalls, championsLeagueTournament } from '@/engine/cup-calls'
 import { predictTable, predictChampionsLeagueRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
-import { Plate, KitScreen, KitText, Tag, ListRow } from '@/components/kit'
+import { Plate, KitScreen, KitText, ListRow, Columns } from '@/components/kit'
 import { LeagueTable, ZoneLegend, CL_PHASE_ZONES } from '@/components/season/SeasonParts'
 import { ResultFigures, ResultSection, ResultActions, YourMatches } from '@/components/season/ResultParts'
-import { KnockoutRoundsView, clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
+import { BracketTree, koRoundsToColumns } from '@/components/BracketTree'
 import { space } from '@/theme'
 import { SaveStatusLine } from '@/components/ui'
 import { saveCustomUclRun, fetchRunById } from '@/db/queries/runs'
-import { computeCLRunStats, summariseScorers, koTieLegRecord } from '@/engine/run-stats'
+import { computeCLRunStats, koTieLegRecord } from '@/engine/run-stats'
 import { mergeCareerFromRun } from '@/db/queries/career'
 import { LineupPitch } from '@/components/LineupPitch'
 import { SquadSummary } from '@/components/SquadSummary'
 import { QualifyingLadder } from '@/components/QualifyingLadder'
 import { TitleWithInfo, InfoBubble, openRules } from '@/components/InfoBubble'
-import { openLeagueTable, openLeaguesBrowser, qualTieToKoMatch } from '@/components/CustomUclViewers'
+import { openLeagueTable, openLeaguesBrowser, qualTieToKoMatch, LeagueRow } from '@/components/CustomUclViewers'
 import { koLegDetailRequest } from '@/components/MatchStatsParts'
 import { appendKnockoutRounds } from '@/engine/match-context'
 import { MedicalTable } from '@/components/MedicalTable'
 import { openMatchStats } from '@/lib/matchStats'
 import { clCompetitionMatches } from '@/engine/match-context'
 import { QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
-import { FORMAT_LABEL, isSpecialFormat } from '@/data/league-formats'
-import { flagForCountry } from '@/data/geo-iso'
-import { colors, spacing, typography, radius, shadows, MODE_THEMES, prim, font } from '@/theme'
+import { spacing, typography, MODE_THEMES, prim, font } from '@/theme'
 import { ROLES as KIT_ROLES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
@@ -85,6 +89,7 @@ export default function CustomUclResultScreen() {
     if (!params.runId) return
     let active = true
     fetchRunById(params.runId)
+      .then(run => { adoptRunCrest((run as any)?.highlights); return run })   // P8-132
       .then(run => { if (active) setDbRun(run) })
       .catch(err => console.error('[custom-ucl-result] failed to load run:', err))
       .finally(() => { if (active) setLoading(false) })
@@ -116,7 +121,7 @@ export default function CustomUclResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={prim.cotton} size="large" />
+        <Loader color={prim.cotton} wide />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -181,6 +186,7 @@ export default function CustomUclResultScreen() {
     const req = koLegDetailRequest(m, 1, {
       label, yearStart: store.clYear ?? 2025, playerClubId: playerTeam.clubId,
       drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
+      playerFormation: (fromHistory ? dbRun?.formation : store.formation) ?? undefined,
     })
     if (!req) return
     const context = qualifying ? appendKnockoutRounds([], [{ label, ties: [m] }]) : clContextMatches
@@ -309,13 +315,15 @@ export default function CustomUclResultScreen() {
   const nylon = KIT_ROLES.nylon
 
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground="nylon" width="wide">
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}
         meta={`UEFA Champions League · the full path · ` + `${playerTeam.clubName} · ${entryText}`}
         punditsText={punditsText}
         shareText={`${resultLabel} — UEFA Champions League · the full path. Perfection or Misery.`}
+        runId={params.runId}
+        ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
       />
       <ResultFigures items={reachedLeaguePhase ? [
         ['League phase', `${playerPos}${ordinal(playerPos)}`], ['Pts', playerTeam.stats.points],
@@ -332,7 +340,10 @@ export default function CustomUclResultScreen() {
 
       {/* P8-24 for the cups — every side's call, checked against how far it got. */}
       {store.predictionSeed != null && store.clTeams && store.clResult && (
-        <PunditsRoundTable rows={championsLeagueCalls(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+        <>
+          <PunditsRoundTable rows={championsLeagueCalls(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+          <PunditsTournament calls={championsLeagueTournament(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+        </>
       )}
 
       <View style={styles.kitPlates}>
@@ -341,25 +352,29 @@ export default function CustomUclResultScreen() {
           if (!src) return null
           const night = buildAwardsNight({
             awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
-            clubs: [], playerClubId: playerTeam?.clubId,
+            clubs: [], playerClubId: playerTeam?.clubId, mode: 'champions_league_custom',
           })
           return <Plate label="See the awards" icon="trophy" variant="secondary" roles={nylon} onPress={() => openAwardsView(night, params.runId)} />
         })()}
         {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={nylon} onPress={() => openRunHub(undefined, hubRunId)} />}
+        {/* P8-108: every round's team of the matchday, in the run hub. */}
+        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={nylon} onPress={() => openRunHub('teams', hubRunId)} />}
       </View>
+      {/* Expanded (10-ADAPT §2.2): the sections as two newspaper columns. */}
+      <Columns>
 
       {winner && (
         <ResultSection title="Champions of Europe">
           <View style={styles.kitWinner}>
             <KitText t="superM" color={nylon.text}>{winner.clubName.toUpperCase()}</KitText>
-            {winner.clubId === playerTeam.clubId && <Tag roles={nylon} variant="you">YOU</Tag>}
           </View>
         </ResultSection>
       )}
 
       {koRounds.length > 0 && (
         <ResultSection title="Knockouts" right={<InfoBubble topic="knockout_bracket" accent={nylon.text} />}>
-          <KnockoutRoundsView title="" rounds={koRounds} maxHeight={100000} />
+          {/* P8-79: the full bracket, the same tree as the preview and the run hub. */}
+          <BracketTree {...koRoundsToColumns(koRounds)} playerClubId={playerTeam?.clubId} />
           <KitText t="tag" color={nylon.textMuted}>SEED · entered the Round of 16 directly (1st–8th)</KitText>
         </ResultSection>
       )}
@@ -388,8 +403,8 @@ export default function CustomUclResultScreen() {
         <ResultSection title="Domestic leagues">
           <KitText t="body" color={nylon.textMuted}>Every league was played this run; the field came from these tables.</KitText>
           {associations.slice(0, 6).map(a => (
-            <ListRow key={a.rank} roles={nylon} label={`#${a.rank} ${flagForCountry(a.country) || ''} ${a.name}`.replace(/\s+/g, ' ')}
-              value={`${a.standings[0]?.clubName ?? '—'}${isSpecialFormat(a.format) ? ` · ${FORMAT_LABEL[a.format!]}` : ''}`}
+            // One row shape for a league everywhere: its flag, its champion's crest.
+            <LeagueRow key={a.rank} roles={nylon} table={a} yours={a.standings.some(s => s.clubId === playerTeam.clubId)}
               onPress={() => openLeagueTable(a, playerTeam.clubId)} />
           ))}
           <ListRow roles={nylon} tier="t1" label={`All ${associations.length} leagues`} onPress={() => openLeaguesBrowser(associations, playerTeam.clubId)} />
@@ -414,79 +429,12 @@ export default function CustomUclResultScreen() {
         )
       })()}
 
+      </Columns>
       <View style={styles.kitPlates}>
         <ListRow roles={nylon} icon="guide" label="How this competition works" onPress={() => openRules()} />
       </View>
       <ResultActions fromHistory={fromHistory} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>
-  )
-}
-
-// ── Shared sub-components (from the CL result page) ──────────────────────────
-function StatBox({ label, value }: { label: string; value: string }) {
-  return <View style={styles.statBox}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>
-}
-
-function StandingsRow({ team, pos }: { team: any; pos: number }) {
-  const gd = team.stats.goalsFor - team.stats.goalsAgainst
-  const zone = pos <= 8 ? prim.volt : pos <= 24 ? colors.warning : '#DC2626'
-  return (
-    <View style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer]}>
-      <View style={[styles.colPos, styles.posCell]}>
-        <View style={[styles.zoneDot, { backgroundColor: zone }]} />
-        <Text style={[styles.tableColData, team.isPlayer && styles.playerText]}>{pos}</Text>
-      </View>
-      <Text style={[styles.tableColData, styles.colName, team.isPlayer && styles.playerText]} numberOfLines={1}>{team.clubName}</Text>
-      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{team.stats.played}</Text>
-      <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-      <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerText]}>{team.stats.points}</Text>
-    </View>
-  )
-}
-
-function TeamMatchdays({ matches, clubId, onOpenMatch }: { matches: CLLeagueMatch[]; clubId: string; onOpenMatch?: (m: CLLeagueMatch) => void }) {
-  const own = matches.filter(m => m.home.clubId === clubId || m.away.clubId === clubId).sort((a, b) => a.matchday - b.matchday)
-  if (own.length === 0) return <Text style={styles.phaseNote}>No matchday data.</Text>
-  return (
-    <View style={styles.mdList}>
-      {own.map((m, i) => {
-        const atHome = m.home.clubId === clubId
-        const oppName = atHome ? m.away.clubName : m.home.clubName
-        const gf = atHome ? m.homeGoals : m.awayGoals
-        const ga = atHome ? m.awayGoals : m.homeGoals
-        const rc = gf > ga ? prim.volt : gf < ga ? '#DC2626' : colors.warning
-        const myS = summariseScorers(atHome ? m.scorers?.home : m.scorers?.away)
-        const oppS = summariseScorers(atHome ? m.scorers?.away : m.scorers?.home)
-        return (
-          <Pressable key={i} onPress={onOpenMatch ? () => onOpenMatch(m) : undefined} disabled={!onOpenMatch}>
-            <View style={styles.mdRow}>
-              <Text style={styles.mdNum}>MD{m.matchday}</Text>
-              <Text style={styles.mdVenue}>{atHome ? 'vs' : '@'}</Text>
-              <Text style={styles.mdOpp} numberOfLines={1}>{oppName}</Text>
-              <View style={[styles.mdScoreBadge, { backgroundColor: rc + '22' }]}><Text style={[styles.mdScoreText, { color: rc }]}>{gf}-{ga}</Text></View>
-            </View>
-            {(myS || oppS) && <Text style={styles.mdScorerLine} numberOfLines={2}>{[myS && `${myS}`, oppS && `· ${oppS}`].filter(Boolean).join('  ')}</Text>}
-          </Pressable>
-        )
-      })}
-    </View>
-  )
-}
-
-type BracketRound = { key: string; label: string; sub: string; matches: CLKnockoutMatch[]; showDirect?: boolean }
-
-const BRACKET_ROW_H = 72
-
-
-
-function BracketTeam({ team, won, goals, direct }: { team: any; won: boolean; goals: number; direct: boolean }) {
-  return (
-    <View style={styles.bracketTeamRow}>
-      <Text style={[styles.bracketTeamName, won && styles.bracketTeamWon, team.isPlayer && styles.bracketTeamPlayer]} numberOfLines={1}>
-        {direct && <Text style={styles.bracketDirect}>◆ </Text>}{team.clubName}
-      </Text>
-      <Text style={[styles.bracketTeamGoals, won && styles.bracketTeamWon]}>{goals}</Text>
-    </View>
   )
 }
 
@@ -497,114 +445,9 @@ function ordinal(n: number): string {
 }
 
 const styles = StyleSheet.create({
-  kitPlates: { gap: space[3], marginTop: space[5] },
+  kitPlates: { gap: space[3], marginTop: space[5], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
   kitNote: { marginTop: space[2] },
   kitWinner: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
-  container: { flex: 1, backgroundColor: prim.nylon },
-  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, backgroundColor: prim.nylon, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: typography.md, color: prim.cottonMuted },
-  header: { alignItems: 'center', paddingTop: 56, paddingBottom: spacing.xl, gap: spacing.sm },
-  competitionLabel: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cotton, letterSpacing: 3, textTransform: 'uppercase' },
-  resultBanner: { fontSize: typography.xxl, fontFamily: font.bodyBlack, textAlign: 'center', letterSpacing: 1 },
-  trophy: { fontSize: 56 },
-  card: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.lg, gap: spacing.md, ...shadows.sm },
-  playerTeamRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  playerTeamName: { fontSize: typography.xl, fontFamily: font.bodyBlack, color: prim.cotton },
-  playerTeamMeta: { fontSize: typography.sm, color: prim.cottonMuted, marginTop: 2 },
-  potPill: { borderRadius: 0, borderWidth: 2, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  potPillText: { fontSize: typography.sm, fontFamily: font.bodyBlack },
-  entryBanner: { borderWidth: 1, borderRadius: 0, padding: spacing.sm },
-  domesticLine: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center' },
-  rulesBtn: { alignSelf: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, backgroundColor: prim.nylonSunken, marginBottom: spacing.md },
-  rulesBtnText: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold },
-  entryText: { fontSize: typography.xs, fontFamily: font.bodyBold, textAlign: 'center' },
-  statsRow: { flexDirection: 'row', gap: spacing.sm, borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.md },
-  statBox: { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: typography.md, fontFamily: font.bodyBlack, color: prim.cotton },
-  statLabel: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center' },
-  sectionTitle: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
-  phaseNote: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center', marginTop: spacing.xs },
-
-  // domestic leagues
-  leagueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  leagueRank: { width: 34, fontSize: 12, fontFamily: font.bodyBlack, color: prim.cotton },
-  leagueFlag: { fontSize: 16, width: 24, textAlign: 'center' },
-  leaguesScroll: { maxHeight: 340 },
-  browseAllBtn: { marginTop: spacing.sm, borderWidth: 1, borderColor: prim.cotton, borderRadius: 0, paddingVertical: spacing.md, alignItems: 'center' },
-  browseAllText: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton, letterSpacing: 0.5 },
-  leagueName: { fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cotton },
-  leagueChamp: { fontSize: typography.xs, color: prim.cottonMuted, marginTop: 1 },
-  leagueCount: { fontSize: 10, color: prim.cottonMuted },
-  fmtTag: { backgroundColor: prim.cotton + '22', borderRadius: 0, paddingHorizontal: 6, paddingVertical: 2 },
-  fmtTagText: { fontSize: 8, color: prim.cotton, fontFamily: font.bodyBold },
-  fmtExplainer: { fontSize: typography.xs, color: prim.cottonMuted, lineHeight: 17, marginTop: spacing.xs, marginBottom: spacing.sm },
-  leagueTableHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  leagueTableHeadTxt: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase' },
-  leagueTableRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  leagueTablePos: { width: 22, fontSize: 12, color: prim.cottonMuted, textAlign: 'center' },
-  leagueTableName: { flex: 1, fontSize: typography.sm, color: prim.cotton },
-  leagueTableWdl: { width: 56, fontSize: 11, color: prim.cottonMuted, textAlign: 'center' },
-  leagueTablePts: { width: 30, fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cotton, textAlign: 'right' },
-
-  tableHeaderRow: { flexDirection: 'row', paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  standingsScroll: { maxHeight: 360 },
-  tableRow: { flexDirection: 'row', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon, alignItems: 'center' },
-  tableRowPlayer: { backgroundColor: prim.cotton + '11', borderColor: prim.cotton, borderWidth: 1, borderRadius: 0 },
-  tableCol: { fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  tableColData: { fontSize: 11, color: prim.cottonMuted },
-  playerText: { color: prim.cotton, fontFamily: font.bodyBold },
-  colPos: { width: 34, textAlign: 'center' as any },
-  posCell: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  zoneDot: { width: 6, height: 6, borderRadius: 3 },
-  colName: { flex: 1, paddingLeft: spacing.xs },
-  colStat: { width: 28, textAlign: 'center' as any },
-  colPts: { width: 32, fontFamily: font.bodyBold },
-
-  mdList: { gap: spacing.xs },
-  mdRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
-  mdNum: { width: 34, fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  mdVenue: { width: 16, fontSize: 10, color: prim.cottonMuted },
-  mdOpp: { flex: 1, fontSize: 12, color: prim.cottonMuted },
-  mdScoreBadge: { borderRadius: 0, paddingHorizontal: spacing.sm, paddingVertical: 2, minWidth: 40, alignItems: 'center' },
-  mdScoreText: { fontSize: 12, fontFamily: font.bodyBlack },
-  mdScorerLine: { fontSize: 9, color: prim.cottonMuted, paddingLeft: 34, paddingBottom: 4 },
-  koTieAgg: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton, textAlign: 'center', marginVertical: spacing.xs },
-  koModalNote: { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
-  koModalPens: { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold, textAlign: 'center', marginBottom: spacing.sm },
-  koLegBlock: { borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
-  koLegLabel: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
-  koLegScore: { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
-  koLegScorer: { fontSize: typography.xs, color: prim.cottonMuted },
-
-  bracketScroll: { marginHorizontal: -spacing.xs, marginTop: spacing.sm },
-  bracketRow: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xs },
-  bracketCol: { width: 158 },
-  bracketColLabel: { fontSize: typography.xs, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' },
-  bracketColSub: { fontSize: 8, color: prim.cotton, textAlign: 'center', marginBottom: spacing.xs },
-  bracketColBody: { justifyContent: 'space-around' },
-  bracketCard: { backgroundColor: prim.nylonSunken, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, paddingVertical: 4, paddingHorizontal: spacing.sm },
-  bracketCardPlayer: { borderColor: prim.cotton, backgroundColor: prim.cotton + '11' },
-  bracketTeamRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
-  bracketTeamName: { flex: 1, fontSize: 10, color: prim.cottonMuted },
-  bracketTeamWon: { color: prim.cotton, fontFamily: font.bodyBlack },
-  bracketTeamPlayer: { color: prim.cotton },
-  bracketTeamGoals: { fontSize: 11, fontFamily: font.bodyBold, color: prim.cottonMuted, width: 14, textAlign: 'right' },
-  bracketDirect: { color: colors.tiers.perfection },
-  bracketDivider: { minHeight: 10, alignItems: 'center', justifyContent: 'center' },
-  bracketSuffix: { fontSize: 8, color: colors.warning, fontFamily: font.bodyBold },
-  bracketLegs: { fontSize: 8, color: prim.cottonMuted },
-  winnerCard: { alignItems: 'center', backgroundColor: colors.tiers.perfection + '11', borderColor: colors.tiers.perfection },
-  winnerLabel: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
-  winnerName: { fontSize: typography.xxl, fontFamily: font.bodyBlack, color: colors.tiers.perfection },
-  winnerOvr: { fontSize: typography.sm, color: prim.cottonMuted },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  modalCard: { width: '100%', maxHeight: '80%', backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.lg, gap: spacing.sm },
-  modalTitle: { fontSize: typography.lg, fontFamily: font.bodyBlack, color: prim.cotton },
-  modalClose: { marginTop: spacing.md, backgroundColor: prim.nylonSunken, borderRadius: 0, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: prim.ruleNylon },
-  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
-  buttonRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  actionBtn: { flex: 1, backgroundColor: prim.cotton, borderRadius: 0, paddingVertical: spacing.lg, alignItems: 'center', ...shadows.md },
-  actionBtnSecondary: { backgroundColor: prim.nylonSunken, borderWidth: 1, borderColor: prim.ruleNylon },
-  actionBtnText: { fontSize: typography.md, fontFamily: font.bodyBlack, color: prim.cotton, letterSpacing: 1.5 },
 })

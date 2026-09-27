@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { ROLES, space, border, font } from '@/theme'
-import { KitScreen, KitText, BackControl } from '@/components/kit'
+import { KitScreen, KitText, BackControl, H2 } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 
 // Privacy and Terms share one plain page (Phase 6). Written from what the code
@@ -25,7 +25,7 @@ export function LegalPage({ title, path, intro, sections }: {
       <KitText t="bodyL" color={roles.text} style={styles.intro}>{intro}</KitText>
       {sections.map(s => (
         <View key={s.heading} style={[styles.block, { borderTopColor: roles.rule }]}>
-          <KitText t="bodyL" color={roles.text} style={styles.heading} accessibilityRole="header">{s.heading}</KitText>
+          <KitText t="bodyL" color={roles.text} style={styles.heading} accessibilityRole="header" {...H2}>{s.heading}</KitText>
           {s.body.map((p, i) => <KitText key={i} t="body" color={roles.textMuted}>{p}</KitText>)}
         </View>
       ))}

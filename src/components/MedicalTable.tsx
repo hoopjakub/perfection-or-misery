@@ -8,15 +8,23 @@
 //
 // Availability is sequential, so this list is built once by the ledger during
 // the sim and travels on the result. Nothing here recomputes anything.
+//
+// P8-104: rebuilt on the kit (it was a rounded, bordered card in the old type,
+// with the reasons in the old red and yellow). A row of yours carries the
+// orange edge, the one mark that always means "you"; the reason is words, so
+// it never depends on a colour.
 
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { colors, spacing, typography, radius, prim, font } from '@/theme'
+import { View, StyleSheet, Pressable } from 'react-native'
+import { ROLES, space, border } from '@/theme'
+import { KitText, SectionTag } from '@/components/kit'
 import type { Absence } from '@/engine/availability'
 
 const COLLAPSED_ROWS = 8
+const roles = ROLES.nylon
 
-export function MedicalTable({ absences, accent }: { absences?: Absence[]; accent: string }) {
+// `accent` is kept for the callers; the kit's own roles colour the table now.
+export function MedicalTable({ absences }: { absences?: Absence[]; accent?: string }) {
   const [expanded, setExpanded] = useState(false)
   if (!absences?.length) return null
 
@@ -29,58 +37,42 @@ export function MedicalTable({ absences, accent }: { absences?: Absence[]; accen
   const mine = rows.filter(a => a.isPlayerClub).length
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Medical & Suspensions</Text>
-      <Text style={styles.subtitle}>
-        {rows.length} absence{rows.length === 1 ? '' : 's'} across the competition
-        {mine > 0 ? ` · ${mine} of yours` : ''}
-      </Text>
+    <View style={styles.wrap}>
+      <SectionTag roles={roles}>Medical & suspensions</SectionTag>
+      <KitText t="body" color={roles.textMuted}>
+        {`${rows.length} absence${rows.length === 1 ? '' : 's'} across the competition${mine > 0 ? ` · ${mine} of yours` : ''}`}
+      </KitText>
 
-      <View style={styles.headRow}>
-        <Text style={[styles.cell, styles.colPlayer, styles.headText]}>Player</Text>
-        <Text style={[styles.cell, styles.colReason, styles.headText]}>Reason</Text>
-        <Text style={[styles.cell, styles.colSpan, styles.headText]}>Matchdays</Text>
+      <View style={[styles.head, { borderBottomColor: roles.line }]}>
+        <KitText t="tag" color={roles.textMuted} style={styles.colPlayer}>Player</KitText>
+        <KitText t="tag" color={roles.textMuted} style={styles.colReason}>Reason</KitText>
+        <KitText t="tag" color={roles.textMuted} style={styles.colSpan}>Out</KitText>
       </View>
 
       {shown.map(a => (
-        <View
-          key={`${a.playerId}-${a.fromMatchday}-${a.reason}`}
-          style={[styles.row, a.isPlayerClub && { backgroundColor: accent + '14' }]}
-        >
-          {/* A side bar rather than colour alone, so which club a row belongs to
-              never depends on hue. */}
-          <View style={[styles.sideBar, { backgroundColor: a.isPlayerClub ? accent : prim.ruleNylon }]} />
-          <View style={[styles.cell, styles.colPlayer]}>
-            <Text style={styles.name} numberOfLines={1}>{a.playerName}</Text>
-            <Text style={styles.meta} numberOfLines={1}>{a.position} · {a.clubName}</Text>
+        <View key={`${a.playerId}-${a.fromMatchday}-${a.reason}`}
+          style={[styles.row, { borderBottomColor: roles.rule, borderLeftColor: a.isPlayerClub ? roles.you : 'transparent' },
+            a.isPlayerClub && { backgroundColor: roles.yours }]}>
+          <View style={styles.colPlayer}>
+            <KitText t="body" color={roles.text} numberOfLines={1}>{a.playerName}</KitText>
+            <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${a.position} · ${a.clubName}`}</KitText>
             {a.standInName ? (
-              <Text style={styles.standIn} numberOfLines={1}>
-                stand-in: {a.standInName} ({a.standInOvr})
-              </Text>
+              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`Stand-in: ${a.standInName} (${a.standInOvr})`}</KitText>
             ) : null}
           </View>
-          <Text
-            style={[styles.cell, styles.colReason, styles.reason,
-              { color: a.reason === 'injury' ? colors.danger : colors.warning }]}
-            numberOfLines={2}
-          >
-            {a.reason === 'injury'
-              ? `Injury${a.minute ? ` · ${a.minute}'` : ''}`
-              : 'Suspended'}
-          </Text>
-          <Text style={[styles.cell, styles.colSpan, styles.span]}>
-            {a.fromMatchday === a.toMatchday
-              ? `MD ${a.fromMatchday}`
-              : `MD ${a.fromMatchday}–${a.toMatchday}`}
-          </Text>
+          <KitText t="tag" color={roles.text} numberOfLines={2} style={styles.colReason}>
+            {a.reason === 'injury' ? `Injury${a.minute ? ` · ${a.minute}'` : ''}` : 'Suspended'}
+          </KitText>
+          <KitText t="figure" color={roles.text} style={styles.colSpan}>
+            {a.fromMatchday === a.toMatchday ? `MD ${a.fromMatchday}` : `MD ${a.fromMatchday}–${a.toMatchday}`}
+          </KitText>
         </View>
       ))}
 
       {rows.length > COLLAPSED_ROWS && (
-        <Pressable onPress={() => setExpanded(v => !v)} style={styles.more}>
-          <Text style={[styles.moreText, { color: accent }]}>
-            {expanded ? 'Show less' : `Show all ${rows.length}`}
-          </Text>
+        <Pressable onPress={() => setExpanded(v => !v)} accessibilityRole="button" accessibilityState={{ expanded }}
+          style={({ pressed }) => [styles.more, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
+          <KitText t="tag" color={roles.text}>{expanded ? 'Show fewer' : `Show all ${rows.length}`}</KitText>
         </Pressable>
       )}
     </View>
@@ -88,35 +80,14 @@ export function MedicalTable({ absences, accent }: { absences?: Absence[]; accen
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: prim.nylonRaised, borderRadius: 0, padding: spacing.lg,
-    borderWidth: 1, borderColor: prim.ruleNylon, gap: 2,
-  },
-  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
-  subtitle: { fontSize: typography.xs, color: prim.cottonMuted, marginBottom: spacing.sm },
-  headRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon,
-  },
-  headText: {
-    fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5,
-  },
+  wrap: { gap: space[2] },
+  head: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingBottom: space[1], borderBottomWidth: border.hair, paddingLeft: space[2] + 3 },
   row: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon,
-    borderRadius: 0,
+    flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 48,
+    paddingVertical: space[1], paddingLeft: space[2], borderBottomWidth: border.hair, borderLeftWidth: 3,
   },
-  sideBar: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
-  cell: { justifyContent: 'center' },
-  colPlayer: { flex: 1 },
-  colReason: { width: 78 },
-  colSpan:   { width: 74, textAlign: 'right' },
-  name: { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
-  meta: { fontSize: 10, color: prim.cottonMuted },
-  standIn: { fontSize: 10, color: prim.cottonMuted, },
-  reason: { fontSize: 10, fontFamily: font.bodyBold },
-  span: { fontSize: 11, color: prim.cottonMuted, fontFamily: font.bodyBold },
-  more: { paddingTop: spacing.sm, alignItems: 'center' },
-  moreText: { fontSize: typography.xs, fontFamily: font.bodyBold },
+  colPlayer: { flex: 1, minWidth: 0 },
+  colReason: { width: 96 },
+  colSpan: { width: 80, textAlign: 'right' },
+  more: { alignSelf: 'center', paddingHorizontal: space[4], paddingVertical: space[2], borderWidth: border.hair, marginTop: space[1] },
 })

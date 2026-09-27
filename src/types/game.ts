@@ -30,6 +30,8 @@ export type DraftedPlayer = {
   attack?: number             // real attacking attribute (not OVR) — drives goal/assist odds
   isBench?: boolean           // a substitute, not part of the starting XI
   clubName: string
+  /** P8-125: the club season's club id, for its crest behind him. Runs drafted before it have none. */
+  clubId?: string
   season: string
   slotIndex: number
   isIcon: boolean

@@ -51,6 +51,47 @@ export type ContextMatch = {
   // (a 3-3 that went to a shootout leaves no trace in the goals), and the
   // bracket has to be able to say who advanced.
   tieWinnerClubId?: string
+  // P8-103: the shootout that settled the tie, on the match it followed (a
+  // single match, or a tie's second leg). The timeline used to drop it, so a
+  // leg opened from the tie card said nothing about penalties at all.
+  pensNote?: string
+  shootout?: ShootoutView
+}
+
+/** A shootout from one match's home/away point of view: raw make/miss always,
+ *  the named kicks when the reveal attached them. */
+export type ShootoutView = {
+  home: boolean[]; away: boolean[]
+  homeKicks?: import('./knockout-match').PenKick[]; awayKicks?: import('./knockout-match').PenKick[]
+}
+
+/**
+ * The shootout that settled a Champions League tie, told from ONE match's side
+ * (P8-103). A single match (a final) and leg 1 are at teamA's ground; leg 2 is
+ * at teamB's, so its home side is B. One helper, so the sheet opened from the
+ * result page, from the timeline and from the run hub all say the same thing.
+ * A live tie keeps only the named kicks, so the raw sequence is read off them.
+ */
+export function clTieShootout(t: import('./cl-sim').CLKnockoutMatch, homeIsA: boolean): { pensNote?: string; shootout?: ShootoutView } {
+  if (t.aPens === undefined || t.bPens === undefined) return {}
+  const raw = (r?: boolean[], named?: import('./knockout-match').PenKick[]) => r ?? named?.map(k => k.scored)
+  const a = { pens: t.aPens, raw: raw(t.aPenKicks, t.penKicksA), named: t.penKicksA }
+  const b = { pens: t.bPens, raw: raw(t.bPenKicks, t.penKicksB), named: t.penKicksB }
+  const [h, w] = homeIsA ? [a, b] : [b, a]
+  return {
+    pensNote: `Penalties ${h.pens} – ${w.pens} · ${t.winner.clubName} advance`,
+    shootout: h.raw && w.raw ? { home: h.raw, away: w.raw, homeKicks: h.named, awayKicks: w.named } : undefined,
+  }
+}
+
+/** The same for a World Cup knockout match (always one match, teamA at home). */
+export function wcTieShootout(m: import('./world-cup-sim').WCKnockoutMatch): { pensNote?: string; shootout?: ShootoutView } {
+  const r = m.result
+  if (r.homePens === null || r.awayPens === null) return {}
+  return {
+    pensNote: `Penalties ${r.homePens} – ${r.awayPens} · ${m.winner.clubName} advance`,
+    shootout: r.homePenKicks && r.awayPenKicks ? { home: r.homePenKicks, away: r.awayPenKicks, homeKicks: m.penKicksA, awayKicks: m.penKicksB } : undefined,
+  }
 }
 
 const isPlayed = (m: ContextMatch): m is ContextMatch & { homeGoals: number; awayGoals: number } =>
@@ -227,6 +268,7 @@ export function appendKnockoutRounds(
             scorers: t.leg1Scorers, seed: t.leg1Seed, extraTime: t.extraTime,
             absent: t.leg1Absent, standIns: t.leg1StandIns,
             tieWinnerClubId: t.winner?.clubId,
+            ...clTieShootout(t, true),
           })
         } else if (leg === 1 && t.leg1) {
           out.push({
@@ -257,6 +299,7 @@ export function appendKnockoutRounds(
             scorers: merged, seed: t.leg2Seed, extraTime: !!et || t.extraTime,
             absent: t.leg2Absent, standIns: t.leg2StandIns,
             tieWinnerClubId: t.winner?.clubId,
+            ...clTieShootout(t, false),
           })
         }
       }

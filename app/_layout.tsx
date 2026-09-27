@@ -2,12 +2,16 @@ import { useEffect } from 'react'
 import { View, Platform } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
+import { installNavGuard } from '@/lib/navGuard'
+import { startRunKeeper } from '@/lib/runKeeper'
+import { NavGuard } from '@/components/NavGuard'
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated'
+import { useSettingsStore } from '@/store/settingsStore'
 import { Asset } from 'expo-asset'
 import { getDb } from '@/db/setup'
 import { initAuthListener } from '@/store/userStore'
 import { ensureGuestSession } from '@/lib/auth'
 import { useFonts } from 'expo-font'
-import { MAX_CONTENT } from '@/hooks/useSizeClass'
 import { PageMeta } from '@/components/PageMeta'
 import { OfflineStrip } from '@/components/OfflineStrip'
 import { installEscBack } from '@/lib/webKeys'
@@ -72,7 +76,13 @@ const KIT_FONTS = {
   'Kit-BodyBlack':   require('@expo-google-fonts/archivo/800ExtraBold/Archivo_800ExtraBold.ttf'),
 }
 
+// Before any screen can navigate: see src/lib/navGuard.ts.
+installNavGuard()
+// P8-149: the run up to its kick-off is kept on the device as it's played.
+startRunKeeper()
+
 export default function RootLayout() {
+  const reduceMotion = useSettingsStore(st => st.reduceMotion)
   // Fonts are local files, so this resolves in a frame or two. A load error
   // still renders the app (on the system face) rather than a blank screen.
   const [fontsLoaded, fontError] = useFonts(KIT_FONTS)
@@ -83,11 +93,18 @@ export default function RootLayout() {
       // deserialized (web) — every query module calls it independently too,
       // and they all share the same in-flight init, so this is just the
       // earliest of those calls, not a required first step. See db/setup.ts.
-      await getDb()
+      //
+      // Phase 6 (Lighthouse): NOT on web. There the db is a 10.6 MB download,
+      // and fetching it at boot made it race the fonts and the code for the
+      // first screen (28 s to first paint on a throttled phone). Home never
+      // queries it; the first screen that does (Where you play) opens it then.
       initAuthListener()
+      if (Platform.OS !== 'web') await getDb()
       await ensureGuestSession()
 
       if (Platform.OS === 'web') {
+        // Warm the db once Home has painted, so starting a run doesn't wait on it.
+        setTimeout(() => { getDb().catch(console.error) }, 2500)
         installWebChrome()
         installEscBack()
         installFlagFont().catch(console.error)
@@ -96,19 +113,27 @@ export default function RootLayout() {
     boot().catch(console.error)
   }, [])
 
-  // Phase 6 (docs/ui-overhaul/10-ADAPT-OPTIMIZE-A11Y.md §2): the old 480px
-  // phone column is gone. The frame now only stops at MAX_CONTENT on very
-  // wide monitors; each screen decides its own width (KitScreen's 'column'
-  // or 'wide', WebColumn for the old screens), and from 1024px the tabs turn
-  // into the left rail, which the 480 cap made impossible.
-  const webFrame = Platform.OS === 'web'
-    ? { maxWidth: MAX_CONTENT, width: '100%' as const, alignSelf: 'center' as const, flex: 1 }
-    : { flex: 1 }
+  // Phase 6 (docs/ui-overhaul/10-ADAPT-OPTIMIZE-A11Y.md §2): no frame cap at
+  // all. The grounds and the rail run to the window's edges; each SCREEN caps
+  // its own content (KitScreen's 'column' or 'wide' up to MAX_CONTENT,
+  // WebColumn for the old screens). A 1440 frame here left dead bars either
+  // side on a 1920 monitor, with the rail floating inside them.
+  const webFrame = { flex: 1 }
 
-  if (!fontsLoaded && !fontError) return null
+  // Native: the fonts are local files, a frame or two away, so wait for them.
+  // Web (Phase 6, Lighthouse): don't. The static HTML already holds the page,
+  // and hiding it until nine font files arrived put first paint at 4.5 s on a
+  // throttled phone; the text shows in the fallback face and swaps once loaded.
+  if (Platform.OS !== 'web' && !fontsLoaded && !fontError) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* P8-45: Settings' "Less motion" stills every spring and transition in
+          the app; off, the phone's own setting decides, as before. */}
+      {/* Mounted only when on: Reanimated warns every time the config mounts
+          ("Reduced motion setting is overwritten with mode 'system'"), and with
+          it off the phone's own setting is the default anyway. */}
+      {reduceMotion && <ReducedMotionConfig mode={ReduceMotion.Always} />}
       <StatusBar style="light" />
       <PageMeta />
       {/* transparent outer layer lets +html.tsx's page ground show beside the column */}
@@ -120,6 +145,8 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: '#0A0E1A' },
             animation:    'fade',
           }} />
+          {/* One tap, one screen: blocks taps while a navigation lands. */}
+          <NavGuard />
         </View>
       </View>
     </GestureHandlerRootView>

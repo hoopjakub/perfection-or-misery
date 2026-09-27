@@ -229,3 +229,32 @@ export async function getClubSeasonsForMode(
      ORDER BY cs.historical_ovr DESC`
   )
 }
+/** Each club's own colours, by id (P8-49's team colours on the match sheet). */
+export async function getClubColours(ids: string[]): Promise<Map<string, { primary: string; secondary: string | null }>> {
+  const out = new Map<string, { primary: string; secondary: string | null }>()
+  const wanted = [...new Set(ids.filter(Boolean))]
+  if (wanted.length === 0) return out
+  const db = await getDb()
+  // The scrapers write a slate placeholder (#1E293B / #94A3B8) when a crest's
+  // colours couldn't be read — 58 clubs, mostly the Champions League copies of
+  // a club (`real_madrid_ucl`) whose domestic row has the real colours. Those
+  // borrow from the same club by name, so Real Madrid is Real Madrid in every mode.
+  const PLACEHOLDER = '#1E293B'
+  const rows = await db.getAllAsync<{ id: string; name: string; primary_color: string; secondary_color: string | null }>(
+    `SELECT id, name, primary_color, secondary_color FROM clubs WHERE id IN (${wanted.map(() => '?').join(',')})`, wanted,
+  )
+  const missing = rows.filter(r => r.primary_color.toUpperCase() === PLACEHOLDER).map(r => r.name)
+  const byName = new Map<string, { primary: string; secondary: string | null }>()
+  if (missing.length) {
+    const found = await db.getAllAsync<{ name: string; primary_color: string; secondary_color: string | null }>(
+      `SELECT name, primary_color, secondary_color FROM clubs WHERE upper(primary_color) != ? AND name IN (${missing.map(() => '?').join(',')})`,
+      [PLACEHOLDER, ...missing],
+    )
+    for (const f of found) byName.set(f.name, { primary: f.primary_color, secondary: f.secondary_color })
+  }
+  for (const r of rows) {
+    const real = r.primary_color.toUpperCase() === PLACEHOLDER ? byName.get(r.name) : undefined
+    out.set(r.id, real ?? { primary: r.primary_color, secondary: r.secondary_color })
+  }
+  return out
+}

@@ -13,7 +13,7 @@
 
 import type { CLSeasonResult } from './cl-sim'
 import type { WCSeasonResult } from './world-cup-sim'
-import { predictTable, predictChampionsLeagueRound, predictWorldCupRound, type PredictionTeam } from './predictions'
+import { predictTable, predictChampionsLeagueRound, predictWorldCupRound, punditRatings, expectedPoints, type PredictionTeam } from './predictions'
 
 export type CupCallRow = {
   clubId: string
@@ -85,4 +85,69 @@ export function worldCupCalls(result: WCSeasonResult, field: PredictionTeam[], s
   }
   reached.set(result.winner.clubId, 'winner')
   return rows(field, seed, reached, WC_LADDER, predictWorldCupRound, 'groups')
+}
+
+// ── The whole tournament, as the pundits saw it (P8-56) ──────────────────────
+// Before a cup starts the pundits can't know the groups or the bracket — they
+// are drawn after the preview. So the check applies the same belief they had
+// (`punditRatings`, the same seed) to what was actually drawn: every real group
+// in the order they rated its sides, with the points they'd expect, beside how
+// it finished; every real knockout tie with who they'd have picked (the side
+// they rated higher — pundits back the favourite) and whether it went through;
+// and their champion. Checkable, and never a second opinion that disagrees
+// with the pre-season table.
+type Side = { clubId: string; clubName: string; isPlayer?: boolean }
+
+export type GroupCall = {
+  id: string
+  rows: { clubId: string; clubName: string; isPlayer: boolean; predicted: number; points: number; actual: number }[]
+}
+export type TieCall = { round: string; a: Side; b: Side; pick: string; winner: string; right: boolean }
+export type TournamentCalls = {
+  groups: GroupCall[]
+  ties: TieCall[]
+  champion: Side | null
+  /** Ties they called right, of all ties. */
+  right: number
+}
+
+const tieCall = (rating: Map<string, number>, round: string, a: Side, b: Side, winner: string): TieCall => {
+  const ra = rating.get(a.clubId) ?? 0, rb = rating.get(b.clubId) ?? 0
+  const pick = ra > rb || (ra === rb && a.clubId < b.clubId) ? a.clubId : b.clubId
+  return { round, a, b, pick, winner, right: pick === winner }
+}
+
+const championPick = (field: PredictionTeam[], rating: Map<string, number>): Side | null => {
+  const top = [...field].sort((x, y) => (rating.get(y.clubId) ?? 0) - (rating.get(x.clubId) ?? 0) || x.clubId.localeCompare(y.clubId))[0]
+  return top ? { clubId: top.clubId, clubName: top.clubName, isPlayer: top.isPlayer } : null
+}
+
+export function worldCupTournament(result: WCSeasonResult, field: PredictionTeam[], seed: number): TournamentCalls {
+  const rating = punditRatings(field, seed)
+  const groups: GroupCall[] = result.groups.map(g => {
+    const ids = g.teams.map(t => t.clubId)
+    const predicted = [...g.teams].sort((x, y) => (rating.get(y.clubId) ?? 0) - (rating.get(x.clubId) ?? 0) || x.clubId.localeCompare(y.clubId))
+    return {
+      id: g.id,
+      rows: predicted.map((t, i) => ({
+        clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, predicted: i + 1,
+        points: expectedPoints(rating.get(t.clubId) ?? t.ovr, predicted.filter(o => o.clubId !== t.clubId).map(o => rating.get(o.clubId) ?? o.ovr), g.teams.length - 1),
+        actual: ids.indexOf(t.clubId) + 1,
+      })),
+    }
+  })
+  const ties = result.knockoutRounds
+    .filter(r => r.round !== 'third')
+    .flatMap(r => r.matches.map(m => tieCall(rating, r.round, m.teamA, m.teamB, m.winner.clubId)))
+  return { groups, ties, champion: championPick(field, rating), right: ties.filter(t => t.right).length }
+}
+
+export function championsLeagueTournament(result: CLSeasonResult, field: PredictionTeam[], seed: number): TournamentCalls {
+  const rating = punditRatings(field, seed)
+  const rounds: [string, { teamA: Side; teamB: Side; winner: { clubId: string } }[]][] = [
+    ['playoff', result.playoffRound], ['r16', result.r16], ['qf', result.qf], ['sf', result.sf],
+    ['final', result.final ? [result.final] : []],
+  ]
+  const ties = rounds.flatMap(([round, ms]) => ms.map(m => tieCall(rating, round, m.teamA, m.teamB, m.winner.clubId)))
+  return { groups: [], ties, champion: championPick(field, rating), right: ties.filter(t => t.right).length }
 }

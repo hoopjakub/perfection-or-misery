@@ -51,8 +51,9 @@ Every figure is computed (`src/lib/contrast.ts`, the same formula as the deep-au
 ### 2.2 What colours mean
 
 - **Orange means you.** One orange thing per screen: your row, the thing you hold, or the one primary action.
+- **One "you" marker per region, never one that repeats the region** (P8-23). A `YOU` tag is for finding yourself in a crowd; it's wrong on something that is already yours (your result card, your group's card, your own tie) or on every row of a list. In a list, your row is marked by its surface — or, where the left edge is free, a 3px orange edge — not a tag.
 - **Volt means the good end.** Perfection, wins, through. Never a button, never text on cotton.
-- **Out is a pattern.** The hazard stripe (`Stripe`) marks loss, eliminated, relegated, disabled. There is no red role.
+- **A bad outcome is red; the stripe is "not available".** Misery red (`roles.loss`) marks a defeat, elimination, relegation, a red card, a penalty missed, a destructive action and a failure. The hazard stripe (`Stripe`) marks what you can't use — an unavailable player, a hanger out of position, offline — and warnings that aren't results; it also dresses the awards' header band, a title's underline and the Chaos/Cursed labels. (Until P8-111 the stripe meant "bad" as well, so a loss was marked twice, in red and in stripes.)
 - **Colourways are location, not meaning** (`colourwayFor(mode, clubColour)`): World Cup tricolour `#3CAC3B #2A398D #E61D25`, Champions League cobalt `#2F4BFF`, Chaos `#C8261B`, Cursed `#7234F0`, league runs the replaced club's colour. They appear on tape only, never behind text.
 - **Nothing is colour-only.** Every coloured state also has a word, a letter or a pattern.
 
@@ -90,7 +91,7 @@ Every figure is computed (`src/lib/contrast.ts`, the same formula as the deep-au
 - All kit text goes through `KitText`. It caps supers at `maxFontSizeMultiplier` 1.3 and turns off Android font padding.
 - **Never set `fontWeight` on kit text.** Each weight is its own family; Android silently falls back when a weight is requested for a custom font.
 - Italic belongs to the super. Caps belong to supers, tags and buttons (the scale applies them; write copy in sentence case).
-- Straight quotes around one- to three-word names and states only: `"YOU"`, `"WRONG PITCH"`. At most one quoted label per region.
+- Straight quotation marks only where someone is speaking: the press and the commentary (P8-105, 19 September 2026). Headlines, stamps and labels are never quoted: `YOU`, `WRONG PITCH`, `OUT`. (They used to be, on every one- to three-word label; in practice it read wrong in most places.)
 - Tabular figures on any number that shares a column.
 
 ---
@@ -121,10 +122,10 @@ States listed are the ones built; the full lists are in `docs/ui-overhaul/08-COM
 | `BackControl`, `SectionTag` | |
 | `ListRow` | T1/T2 · link, value, trailing slot · pressed · danger edge |
 | `Toggle` | on, off, pressed |
-| `Field` | default, focused, error (striped edge + message), secure with SHOW/HIDE |
+| `Field` | default, focused, error (red edge + message), secure with SHOW/HIDE |
 | `Checkbox` | unchecked, checked |
-| `Tag` | data, you, win, draw, loss (striped), selected, hidden (`??`) |
-| `RunLabel` | default, pressed, perfection (volt edge), misery (striped edge) · `RunLabelSkeleton` |
+| `Tag` | data, you, win, draw, loss (misery red), selected, hidden (`??`) |
+| `RunLabel` | default, pressed, perfection (volt edge), misery (red edge) · `RunLabelSkeleton` |
 | `Wordmark` | superL, superM |
 | `IdTag` | registered (with zip tag), guest |
 | `RoundFlag` | flag, unknown nation |
@@ -142,8 +143,8 @@ States listed are the ones built; the full lists are in `docs/ui-overhaul/08-COM
 | Awards (`src/components/season/AwardsParts.tsx`) | `FormationPitch` (the team in its chosen shape, your players edged in orange, bench of honourable mentions) · `PlayerAwardCard` (winner, the numbers that won it, the pundits' pick, runners-up) · `ClubAwardCard` · `AwardsSection` (the plain, no-ceremony version) |
 | `PunditsTable`, `PunditsRoundTable` | league: final place against the pundits' place · cups: round called against round reached, shortlist or the whole field |
 | Pitch views (`src/components/match/PitchViews.tsx`) | `ShotMap` (goal volt, saved cotton, off target outline, blocked muted, woodwork orange; size is xG) · `AveragePositions` · `HeatMap` (volt at strength) |
-| `VerdictBlock` | perfection (volt tape) · misery (hazard stripe) · middle (colourway) · score with its multiplier · the pundits' call · share |
-| Zone tones | `top` volt, `mid` solid muted cotton, `low` broken muted cotton, `out` hazard stripe. The code (CHAMP, UCL, UEL, UECL, PO, DOWN, R16, IN, 3RD, OUT) always sits beside the tape |
+| `VerdictBlock` | perfection (volt tape) · misery (red edge) · middle (colourway) · score with its multiplier · the pundits' call · share |
+| Zone tones | `title` volt, `top` solid cotton, `mid` solid muted cotton, `low` broken muted cotton, `out` misery red. The code (C, UCL, UEL, UECL, PO, DOWN, R16, IN, 3RD, OUT) always sits beside the tape |
 | ConfirmScreen | `app/confirm.tsx`, opened with `openConfirm()` from `src/lib/confirm.ts` |
 
 **Icons** use semantic names (`Icon name="runs"`), mapped to Ionicons' Sharp set in `primitives.tsx`. Sizes 16, 20, 24 only. An icon that is the only content of a control takes a `label`.

@@ -77,7 +77,7 @@ Three voices, each with one job. Exact faces are provisional until the first bui
 - **The tag.** A mono, set small in caps, for garment-label data: `ID BAR-11/12`, `POS ST`, `OVR 91`, `MD 23/38`.
 - **The workhorse.** A plain grotesque with tabular figures for tables, stats, stories and every sentence a player has to read.
 
-Straight quotation marks name the obvious: `"YOUR XI"`, `"MISERY"`. They are used on names and states of one to three words, never on sentences.
+Straight quotation marks name the obvious: `"YOUR XI"`, `"MISERY"`. They are used on names and states of one to three words, never on sentences. *(Revised 19 September 2026, P8-105: after playtesting, quotes are kept only where someone is speaking: the press and the commentary; labels and headlines are unquoted.)*
 
 ### 2.5 Surfaces
 

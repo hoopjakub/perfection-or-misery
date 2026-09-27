@@ -1,4 +1,4 @@
-import { StyleSheet, type TextStyle } from 'react-native'
+import { StyleSheet, Platform, type TextStyle } from 'react-native'
 
 export const colors = {
   // base
@@ -199,13 +199,44 @@ export function withAlpha(hex: string, pct: number): string {
   return `${hex}${alpha}`
 }
 
+/** A 6-digit hex mixed toward ink: `amount` 0 is the colour, 1 is ink. The
+ *  landed club's near-black tint behind its card (P8-05). */
+export function towardInk(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return '#0C0C0D'
+  const n = parseInt(m[1], 16), ink = [0x0c, 0x0c, 0x0d]
+  const mix = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c, i) => Math.round(c + (ink[i] - c) * amount))
+  return '#' + mix.map(c => c.toString(16).padStart(2, '0')).join('')
+}
+
 // Match-rating 0–10 → band color. Was implemented identically in both
 // SquadSummary.tsx and MatchStatsParts.tsx — single source now.
+// Match ratings in SofaScore's scale (P8-44), the one football fans already
+// read at a glance. Bands and colours taken from SofaScore's published scale
+// image (files.sofascore.com/news/2024/10/03-Sofascore-News_Ratings-Scale):
+// below 6.0 red, 6.0 orange, 6.5 yellow, 7.0 green, 8.0 teal, 9.0 and up blue.
+// These are the only hex values outside the Kit palette on purpose: the point
+// is that they're SofaScore's, not ours.
 export function ratingColor(r: number): string {
-  if (r >= 8) return '#9F5BFF'
-  if (r >= 7) return colors.success
-  if (r >= 6) return colors.warning
-  return colors.danger
+  if (r >= 9) return '#374DF5'
+  if (r >= 8) return '#00ADC4'
+  if (r >= 7) return '#00C424'
+  if (r >= 6.5) return '#D9AF00'
+  if (r >= 6) return '#ED7E07'
+  return '#DC0C00'
+}
+
+/** The figure's colour on a ratingColor chip. Red and blue need light text
+ *  (5.1:1 and 5.9:1 against cotton); the four bright bands need ink (7:1 and up). */
+/** A rating as it's written everywhere (P8-144's rule): one decimal, or two for
+ *  a season average, but a whole number stays whole — "10", never "10.0". */
+export function formatRating(r: number, decimals: 1 | 2 = 1): string {
+  const f = r.toFixed(decimals)
+  return Number(f) % 1 === 0 ? String(Number(f)) : f
+}
+
+export function ratingInk(r: number): string {
+  return r >= 9 || r < 6 ? prim.cotton : prim.ink
 }
 
 export const shadows = {
@@ -257,10 +288,32 @@ export const prim = {
   cottonMuted: '#A4A4AB',
   nylonFaint:  '#6C6C73',
   orange:      '#FF5A00',  // safety orange — the zip-tie tag, always "you"
-  volt:        '#D5FF3F',  // boot volt — the good end, Perfection
+  volt:        '#4FFF3F',  // boot volt — the good end, Perfection
   draw:        '#6E6E74',
+  // Misery red (P8-74 / P8-87): loss and danger where a hazard stripe can't
+  // fit. Leans pink so it never reads as the orange "you" or Chaos's brick.
+  misery:      '#FF2E4D',  // fill, and text on nylon (5.0:1); ink on it 5.4:1
+  miseryDeep:  '#D1123F',  // the same red as TEXT on cotton (4.9:1)
+  // The floodlit pitch (P8-04, from the colour brief): a very dark, warm green,
+  // not FIFA-menu green, with lines that are barely there. Cotton text on it
+  // reads at about 14:1.
+  pitch:       '#14271B',
+  pitchLine:   '#2F4A38',
   black:       '#000000',
+  // Spot on (P8-38): a pundit's exact call. Gold is for being exactly right,
+  // nowhere else; on nylon it reads at 13:1, so it can be text.
+  gold:        '#FFD23F',
+  // The referee's yellow card (P8-46), for the card mark only. Warmer than
+  // gold so the two never read as one another.
+  cardYellow:  '#F5C518',
 } as const
+
+// P8-95: the lines a graph compares yours against. Identity only (this club,
+// that player), never meaning, so none of them is volt, misery red or the
+// orange that means "you". Each measured at 3:1 or better against both
+// grounds, the contrast a line on a chart needs (scripts/contrast.py:
+// cotton 3.61 / 4.11 / 3.09 / 3.83, nylon 4.58 / 4.03 / 5.36 / 4.32).
+export const SERIES = ['#2F7FE0', '#8B5CD6', '#1E9E62', '#D8436B'] as const
 
 export type Ground = 'cotton' | 'nylon'
 
@@ -269,6 +322,9 @@ export type Roles = {
   bg: string
   surface: string
   sunken: string
+  /** Your row in a list or table (P8-23): a quiet background, since the YOU tag
+   *  went. `surface` couldn't do it — on cotton it IS the background. */
+  yours: string
   text: string          // body text
   textMuted: string     // secondary text
   textFaint: string     // placeholders, disabled; large text only on cotton
@@ -281,6 +337,8 @@ export type Roles = {
   perfection: string    // volt FILL
   perfectionText: string | null  // volt as TEXT — null on cotton (1.04:1)
   draw: string
+  loss: string          // misery red FILL
+  lossText: string      // misery red as TEXT on this ground
   stripe: [string, string]  // hazard stripe bands
   focus: string
 }
@@ -288,26 +346,43 @@ export type Roles = {
 // Contrast (computed): text 17.59 / 16.55 · textMuted 6.16 / 7.43 ·
 // ink on orange 6.25 · ink on volt 16.95 · orange on nylon 5.88 ·
 // volt on nylon 15.95 · draw 4.56 on cotton.
+// The Champions League's four pots, each its own colour (P8-114's draw: the
+// pot's spine, and a drawn opponent's name). The same four the old Champions
+// League screens used, so a pot keeps its colour everywhere; each reads as
+// text on nylon at 6.5:1 or better.
+export const POT_COLOURS: Record<number, string> = colors.pots
+
+// The colours a player can choose, by id (P8-132's crest, P8-142's side
+// colours): the palette's own, never a free hex, so a palette change moves
+// every choice with it. The ids live in src/lib/yourCrest.ts (CREST_COLOURS).
+const PALETTE_HEX: Record<string, string> = {
+  ink: prim.ink, cotton: prim.cotton, orange: prim.orange, volt: prim.volt, red: prim.misery,
+  gold: prim.gold, pitch: prim.pitch, amber: POT_COLOURS[1], violet: POT_COLOURS[2], green: POT_COLOURS[3], blue: POT_COLOURS[4],
+}
+export const paletteHex = (id: string) => PALETTE_HEX[id] ?? prim.ink
+
 export const ROLES: Record<Ground, Roles> = {
   cotton: {
     ground: 'cotton',
-    bg: prim.cotton, surface: prim.cotton, sunken: prim.label,
+    bg: prim.cotton, surface: prim.cotton, sunken: prim.label, yours: prim.label,
     text: prim.ink, textMuted: prim.inkMuted, textFaint: prim.inkFaint,
     rule: prim.ruleCotton, line: prim.ink, offset: prim.ink, onFill: prim.ink,
     you: prim.orange, youText: null,
     perfection: prim.volt, perfectionText: null,
     draw: prim.draw,
+    loss: prim.misery, lossText: prim.miseryDeep,
     stripe: [prim.ink, prim.cotton],
     focus: prim.ink,
   },
   nylon: {
     ground: 'nylon',
-    bg: prim.nylon, surface: prim.nylonRaised, sunken: prim.nylonSunken,
+    bg: prim.nylon, surface: prim.nylonRaised, sunken: prim.nylonSunken, yours: prim.nylonRaised,
     text: prim.cotton, textMuted: prim.cottonMuted, textFaint: prim.nylonFaint,
     rule: prim.ruleNylon, line: prim.cotton, offset: prim.black, onFill: prim.ink,
     you: prim.orange, youText: prim.orange,
     perfection: prim.volt, perfectionText: prim.volt,
     draw: prim.cottonMuted,
+    loss: prim.misery, lossText: prim.misery,
     stripe: [prim.cotton, prim.nylon],
     focus: prim.cotton,
   },
@@ -315,17 +390,37 @@ export const ROLES: Record<Ground, Roles> = {
 
 // Colourways: the woven tape that says WHERE you are. Location, never meaning.
 // League runs use the replaced club's colour instead (see colourwayFor).
+// P8-98: one treatment for every tape — a woven band of three. It was a mix:
+// the World Cup's three stripes, the Champions League's one solid block, and
+// Chaos and Cursed a single dark colour that barely read on the dark ground.
+// Now each is three bands with a light one in the middle, so every tape reads
+// on both grounds and none is plainer than the others.
 export const COLOURWAYS: Record<string, string[]> = {
   world_cup:               ['#3CAC3B', '#2A398D', '#E61D25'],  // set by the maintainer
   world_cup_full:          ['#3CAC3B', '#2A398D', '#E61D25'],
-  champions_league:        ['#2F4BFF'],
-  champions_league_custom: ['#2F4BFF'],
-  chaos:                   ['#C8261B'],  // darkened from #FF3B30 so cotton text passes
-  cursed:                  ['#7234F0'],  // darkened from #A855F7 for the same reason
+  champions_league:        ['#2F4BFF', '#F3F3F0', '#0B1650'],  // the starball's blue, white and navy
+  champions_league_custom: ['#2F4BFF', '#F3F3F0', '#0B1650'],
+  chaos:                   ['#E0301E', '#F3F3F0', '#141416'],  // a warning: red, white, black
+  cursed:                  ['#7234F0', '#B98CFF', '#141416'],  // two purples going dark
 }
 
-export function colourwayFor(mode: string | null | undefined, clubColour?: string | null): string[] {
+// P8-55: a league run's tape was plain ink — the season screen's colourway is
+// meant to say WHERE you are, and "a league" isn't a where. Each league's own
+// brand colours (as its competition marks wear them), checked after the mode
+// (chaos and cursed keep theirs whatever league they're played in). A league
+// not listed falls back as before. The Tape stitches an edge on any colour
+// too close to its ground, so a dark brand colour still reads on nylon.
+export const LEAGUE_COLOURWAYS: Record<string, string[]> = {
+  premier_league: ['#37003C', '#00FF85'],   // purple and green
+  la_liga:        ['#FF4B44', '#1B1B1B'],   // LaLiga red
+  serie_a:        ['#0068A8', '#00B4E6'],   // the Serie A blues
+  bundesliga:     ['#D20515', '#FFFFFF'],   // Bundesliga red
+  ligue_1:        ['#DAE025', '#091C3E'],   // Ligue 1's lime and navy
+}
+
+export function colourwayFor(mode: string | null | undefined, clubColour?: string | null, leagueId?: string | null): string[] {
   if (mode && COLOURWAYS[mode]) return COLOURWAYS[mode]
+  if (leagueId && LEAGUE_COLOURWAYS[leagueId]) return LEAGUE_COLOURWAYS[leagueId]
   return [clubColour ?? prim.ink]
 }
 
@@ -337,16 +432,23 @@ export function colourwayFor(mode: string | null | undefined, clubColour?: strin
 // Google Fonts builds only ship Archivo at normal width. The style guide's
 // fallback rule ("an extra-condensed grotesque with a true italic") picks
 // Barlow Condensed Black Italic — a real drawn italic, not a slanted roman.
+// Web gets a fallback stack after each face (Phase 7): the page now paints
+// before the font files arrive, and without one the browser drew Times New
+// Roman in the gap. Native resolves by exact family name, so it keeps the bare key.
+const withFallback = (family: string, stack: string) => (Platform.OS === 'web' ? `${family}, ${stack}` : family)
+const CONDENSED = '"Arial Narrow", "Roboto Condensed", sans-serif'
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, monospace'
+const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
 export const font = {
-  super:       'Kit-Super',        // Barlow Condensed 900 Italic
-  superPlain:  'Kit-SuperPlain',   // Barlow Condensed 800 (upright; tags on plates)
-  tag:         'Kit-Tag',          // Martian Mono 500
-  tagBold:     'Kit-TagBold',      // Martian Mono 700
-  body:        'Kit-Body',         // Archivo 400
-  bodyMedium:  'Kit-BodyMedium',   // Archivo 500
-  bodyBold:    'Kit-BodyBold',     // Archivo 700
-  bodyBlack:   'Kit-BodyBlack',    // Archivo 800
-} as const
+  super:       withFallback('Kit-Super', CONDENSED),        // Barlow Condensed 900 Italic
+  superPlain:  withFallback('Kit-SuperPlain', CONDENSED),   // Barlow Condensed 800 (upright; tags on plates)
+  tag:         withFallback('Kit-Tag', MONO),               // Martian Mono 500
+  tagBold:     withFallback('Kit-TagBold', MONO),           // Martian Mono 700
+  body:        withFallback('Kit-Body', SANS),              // Archivo 400
+  bodyMedium:  withFallback('Kit-BodyMedium', SANS),        // Archivo 500
+  bodyBold:    withFallback('Kit-BodyBold', SANS),          // Archivo 700
+  bodyBlack:   withFallback('Kit-BodyBlack', SANS),         // Archivo 800
+}
 
 // Type scale (style guide §3.2). Supers use lineHeight = size: the guide's
 // tighter 72/64 clips the italic's ascenders on Android.

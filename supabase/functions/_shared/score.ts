@@ -26,10 +26,17 @@ export type RunRow = {
 // ── Difficulty ────────────────────────────────────────────────────────────────
 // Harder settings are worth more points. Anchored so a "medium" run (hardness
 // 3.9) is neutral (1.0×); easier runs are penalised, harder ones rewarded.
-// Going from 0 → 10 rerolls drops hardness by a full point, about a 12% cut.
+//
+// P8-106: the multiplier DOUBLES every 3.55 points of hardness (curve A,
+// chosen by the maintainer 19 September 2026). It used to be linear, 0.12 a
+// point capped at 1.9×, so 11/11 paid 1.85× while the pain multiplied: against
+// an equal side your win rate falls from 33.5% at medium to 9.3% at level 10.
+// Now: easiest 0.47×, easy 0.65×, medium 1.00×, hard 1.83×, 9/11 2.71×, 11/11 4.00×.
+// Going from 0 → 10 rerolls drops hardness by a full point, about an 18% cut.
 export const MEDIUM_HARDNESS = 3.9
+const DOUBLING_HARDNESS = 3.55
 export function scoreMultiplierFor(hardness: number): number {
-  return Math.min(1.9, Math.max(0.45, 1 + (hardness - MEDIUM_HARDNESS) * 0.12))
+  return 2 ** ((hardness - MEDIUM_HARDNESS) / DOUBLING_HARDNESS)
 }
 /** A run saved without difficulty resolves to medium, exactly as resolveDifficulty(null) does. */
 const multiplierOf = (row: RunRow) => scoreMultiplierFor(row.difficulty_meta?.hardness ?? MEDIUM_HARDNESS)

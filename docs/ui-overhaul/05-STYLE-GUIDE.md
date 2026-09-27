@@ -73,7 +73,7 @@ component   where it's used             plate.primary.bg = role.you
 | `you` (text) | **never** | `safetyOrange` | orange on nylon 5.88 · on cotton 2.81 ✗ |
 | `perfection` (fill) | `bootVolt`, ink text | `bootVolt`, ink text | 16.95 |
 | `perfection` (text) | **never** | `bootVolt` | volt on nylon 15.95 · on cotton 1.04 ✗ |
-| `out` | hazard stripe, ink/cotton | hazard stripe, cotton/nylon | pattern, see §7.1 |
+| `out` | misery red `#D1123F` | misery red `#FF2E4D` | P8-111: was the hazard stripe |
 | `draw` / neutral result | `#6E6E74` | `cottonMuted` | 4.56 / 7.43 |
 | `focus` | 2px ink outline, 2px offset | 2px cotton outline | n/a |
 
@@ -83,13 +83,13 @@ component   where it's used             plate.primary.bg = role.you
 - **Orange is never text on cotton**, and never used for errors.
 - **Volt means the good end.** Wins, "through", promoted, Perfection. Volt is never a button colour and never text on cotton.
 - **Out is a pattern.** Loss, eliminated, relegated, suspended, disabled. Never a red fill.
-- **Red is not a role.** The only reds in the system are the Chaos colourway and the World Cup band, both tape. Destructive actions (delete account) use an ink plate with a hazard stripe and a verb label.
+- **Red IS a role, since P8-74 and P8-111.** Misery red (`#FF2E4D` on nylon, `#D1123F` as text on cotton) marks a bad outcome or a destructive action: a defeat, elimination, relegation, a red card, a penalty missed, delete account, abandoning a run, a failure. It leans pink so it never reads as the safety orange that means *you*, or as Chaos's brick. The hazard stripe no longer means "bad": it means "not available, handle with care".
 - **Colourways are location, not meaning.** They appear on tapes, run labels and the mode's own screens, never on results or states.
 - **Nothing is colour-only.** Every coloured state also has a label, a glyph or a pattern.
 
 ### 2.4 Result and rating scales
 
-**Match results (W / D / L):** a square tag with the letter in the tag mono. W on volt, D on neutral, L on hazard stripe. The letter carries the meaning; the fill confirms it.
+**Match results (W / D / L):** a square tag with the letter in the tag mono. W on volt, D on neutral, L on misery red (P8-111: it was the hazard stripe, which said the same thing twice once red arrived). The letter carries the meaning; the fill confirms it.
 
 **Player ratings (0–10):**
 
@@ -110,7 +110,7 @@ component   where it's used             plate.primary.bg = role.you
 | Europa League | cobalt, dashed | `UEL` |
 | Conference League | cobalt, dotted | `UECL` |
 | Promotion or play-off | ink, dashed | `PO` |
-| Relegation | hazard stripe | `DOWN` |
+| Relegation | misery red | `DOWN` |
 
 Europe shares one hue on purpose; the pattern and the code separate the three, and orange stays free to mean you. Every table carries a one-line legend.
 
@@ -154,7 +154,7 @@ Roles follow Material's structure (display, headline, title, body, label) so And
 
 - **Italic belongs to the super.** Body text is never italic; a story's standfirst uses muted colour, not slant.
 - **Caps belong to supers, tags and buttons.** Sentences are sentence case.
-- **Straight quotes, not curly, and only around names and states of one to three words.** `"YOUR XI"`, `"MISERY"`, `"OUT"`. At most one quoted label per region of a screen. Never around a sentence.
+- **Straight quotes, not curly, and only where someone is speaking: the press and the commentary (P8-105, 19 September 2026).** Names and states are no longer quoted: `YOUR XI`, `MISERY`, `OUT`.
 - **Tabular figures on every number that shares a column** (`fontVariant: ['tabular-nums']`).
 - **Supers cap their scaling.** Set `maxFontSizeMultiplier` around 1.3 on supers so a large system font setting enlarges the workhorse, not the verdict word off the screen.
 - **Measure.** Stories and guide text run 60–70 characters a line; on wide web they sit in a column, never full width.
@@ -308,7 +308,7 @@ The full deck with rewrites is [`09-COPY-DECK.md`](09-COPY-DECK.md).
 
 | Voice | Where | Sounds like |
 |---|---|---|
-| **The label** | Quoted names and states | `"YOUR XI"` `"OUT"` `"HOLDING"` |
+| **The label** | Names and states, unquoted since P8-105 | `YOUR XI` `OUT` `HOLDING` |
 | **The super** | Verdicts and moments | `MISERY.` `STAYS UP.` `WALKS.` |
 | **The press** | Stories, the ticker | A sports desk: "Six clubs, two points, one relegation place." |
 | **The tag** | Data | `MD 23/38` `OVR 88` `ID BAR-11/12` |
@@ -323,10 +323,10 @@ System copy never uses exclamation marks. Buttons are verbs.
 | Do | Don't |
 |---|---|
 | Put one orange action on a screen | Colour a second button orange "for balance" |
-| Mark a loss with a hazard stripe and an L | Mark a loss with red alone |
+| Mark a loss with red and an L | Mark a loss with red AND the hazard stripe (P8-111: that was marking it twice) |
 | Use rules between rows | Wrap each row in a bordered card |
 | Keep the super at 22px or bigger | Set a table header in the super |
-| Quote a one-word state: `"OUT"` | Quote a sentence: `"Your run has ended"` |
+| Quote a line someone says, in the press or the commentary | Quote a headline, stamp or label: `"OUT"` |
 | Square every corner | Round a plate "just a little" |
 | Use the club's colour as a tape | Set text on a club colour |
 | Show the verdict huge, once | Repeat the super on every section title |

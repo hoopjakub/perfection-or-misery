@@ -1,4 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { openSheet } from '@/lib/sheet'
+import { BracketTree } from '@/components/BracketTree'
+import { liveBracket, liveProgress } from '@/lib/liveBracket'
+import { kickoffFor } from '@/engine/schedule'
+import { punditPanel, panelLineFor } from '@/engine/predictions'
+import { CL_LEAGUE_MATCHDAYS } from '@/engine/knockout-availability'
+import { RoundTeam } from '@/components/season/RoundTeam'
+import { usePauseOnBlur } from '@/hooks/usePauseOnBlur'
+import { useIsFocused } from '@react-navigation/native'
+import { useSizeClass } from '@/hooks/useSizeClass'
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,12 +17,15 @@ import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { simulateMatch, setMatchTilt } from '@/engine/match'
 import { resolveDifficulty } from '@/engine/difficulty'
-import { rotationFor } from '@/engine/rotation'
-import { effectiveMatchOvrs } from '@/engine/lineup'
+import { playFixture } from '@/engine/play-fixture'
 import {
-  createAvailabilityLedger, availabilityFor, recordMatchOutcome, type AvailabilityLedger,
+  createAvailabilityLedger, type AvailabilityLedger,
 } from '@/engine/availability'
-import { generateCLLeagueFixtures, simulateCLKnockoutsOnly } from '@/engine/cl-sim'
+import { drawCLLeaguePhase, simulateCLKnockoutsOnly, type CLLeaguePhase } from '@/engine/cl-sim'
+import { LeaguePhaseDraw } from '@/components/season/LeaguePhaseDraw'
+import { withMoves } from '@/components/season/SeasonParts'
+import { ManOfTheMatch } from '@/components/MatchStatsParts'
+import { countryForClClub } from '@/data/geo-iso'
 import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/engine/cl-sim'
 import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
 import { simulateWCKnockoutsForceToFinal } from '@/engine/quick-sim'
@@ -23,12 +36,12 @@ import { colors, spacing, typography, radius, shadows, MODE_THEMES } from '@/the
 import { useModeTheme } from '@/hooks/useModeTheme'
 import type { SimTeam, Fixture, SeasonResult, MatchResult } from '@/types/simulation'
 import type { DraftedPlayer } from '@/types/game'
-import { LiveMatch, type LivePeriod, type LiveRedCard } from '@/components/LiveMatch'
+import { LiveMatch, LIVE_MS_PER_MIN, periodsForTwoLegTie, type LivePeriod, type LiveRedCard } from '@/components/LiveMatch'
 import { generateMatchDetail } from '@/engine/match-detail'
 import { BracketPreview } from '@/components/BracketPreview'
 import { getFlag } from '@/lib/flagMap'
 import {
-  loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResultScorers, attributeWCResultScorers, summariseScorers,
+  loadLeaguePools, lineupCtxOf, attributeCLResultScorers, attributeWCResultScorers, summariseScorers,
   attachCLShootoutNames, attachWCShootoutNames,
 } from '@/engine/run-stats'
 import {
@@ -46,13 +59,13 @@ import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import LeagueSeason from '@/components/season/LeagueSeason'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ROLES, space, border, colourwayFor } from '@/theme'
-import { KitScreen, KitText, RunHeader, Plate, Icon, SectionTag, Tag, EmptyState } from '@/components/kit'
+import { KitScreen, KitText, RunHeader, Plate, Icon, SectionTag, Tag, EmptyState, PaneRow, Pane } from '@/components/kit'
 import {
   LeagueTable, ZoneLegend, StandingFigure, SeasonStrip, ScorelineCard, ResultRow, SegmentSwitch,
   FixtureRow, GroupWall, StampLabel, TieCard, TieRow, CL_PHASE_ZONES, WC_GROUP_ZONES, WC_THIRD_ZONES,
   type TableRowVM, type TableZone, type Mark, type MiniGroup, type TieVM,
 } from '@/components/season/SeasonParts'
-import { ThumbBar, CloseRun, BackToLive, askSkip, askAbandon } from '@/components/season/RunChrome'
+import { ThumbBar, CloseRun, BackToLive, SkipPlate, askAbandon } from '@/components/season/RunChrome'
 
 const WC_GROUP_MATCHDAYS = 3
 
@@ -108,6 +121,7 @@ const SPEED_MS: Record<Speed, number> = {
 
 // ── Kit Drop pieces shared by the Champions League and World Cup screens ────
 const nylon = ROLES.nylon
+const clCountryOf = (t: CLTeam) => countryForClClub(t.clubName)
 
 
 const teamRow = (t: SimTeam): TableRowVM => ({
@@ -167,6 +181,11 @@ export default function SimulationScreen() {
 
 function CLSimulation() {
   const { draftedPlayers, benchPlayers, useSubstitutes, formation, clTeams, clYear, setClResult } = useGameStore()
+  // P8-57: the same panel the pundits screen showed (same seed, same field).
+  const predictionSeed = useGameStore(s => s.predictionSeed)
+  const clPanel = useMemo(() => clTeams && predictionSeed != null
+    ? punditPanel(clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), predictionSeed, undefined, CL_LEAGUE_MATCHDAYS)
+    : [], [clTeams, predictionSeed])
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const clPoolYear = clYear ?? 2025   // UCL edition you were placed in (for scorer rosters)
 
@@ -179,12 +198,21 @@ function CLSimulation() {
   const [currentMD,              setCurrentMD]              = useState(1)
   const [simTeams,               setSimTeams]               = useState<CLTeam[]>([])
   const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
+  const [lpDraw,                 setLpDraw]                 = useState<CLLeaguePhase | null>(null)   // P8-114
   const [recentResults,          setRecentResults]          = useState<CompMatchResult[]>([])
   const [clViewMD,               setClViewMD]               = useState<number | null>(null)  // MD-results lookback
   // Two-legged ties need the leg-picker modal (Big Fixes feedback: tapping a
   // live tie used to jump straight to Leg 1 stats with no way to reach Leg 2 —
   // Custom UCL's tie modal already gets this right, so reuse it here).
   const [isPlaying,              setIsPlaying]              = useState(false)
+  usePauseOnBlur(setIsPlaying)   // P8-32
+  // The reveals below advance on their own timers, and they held while you'd
+  // scrolled away from the top (P8-63) but not while another screen was on
+  // top: out of the knockouts, See the bracket let the rest of the rounds
+  // play out underneath (the maintainer, 26 Sept). The playing loops already
+  // stop on leaving (P8-32); these wait, and carry on when you come back.
+  const focused = useIsFocused()
+  const wide = useSizeClass() === 'expanded'   // tabs → side-by-side panes (10-ADAPT §2.2)
   // League phase always runs at "slow" — the pace is locked (matches WC).
   const speed: Speed = 'slow'
   const theme = MODE_THEMES.champions_league
@@ -229,6 +257,8 @@ function CLSimulation() {
   // there is deliberately no way back into it.
   const [deepFinalWatched, setDeepFinalWatched] = useState(false)
   const [koVisibleCount, setKoVisibleCount] = useState(0)
+  // P8-63: scrolled away from the live round — the next round waits for you.
+  const [koAway, setKoAway] = useState(false)
   const [koLiveDone, setKoLiveDone]         = useState<Record<string, boolean>>({})
   const koStoredResultRef = useRef<CLSeasonResult | null>(null)
   const koFinishedRef = useRef(false)
@@ -237,7 +267,7 @@ function CLSimulation() {
   // out fully. If the player has a tie in the current round, we only advance once
   // its LiveMatch calls onLiveDone; other rounds advance on a short timer.
   useEffect(() => {
-    if (phase !== 'knockout_phase' || koVisibleCount < 1) return
+    if (phase !== 'knockout_phase' || koVisibleCount < 1 || koAway || !focused) return
     const currentRound = koRounds[koVisibleCount - 1]
     if (!currentRound) return
     const playerTie = currentRound.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
@@ -246,7 +276,7 @@ function CLSimulation() {
       const t = setTimeout(() => setKoVisibleCount(p => p + 1), playerTie ? 1600 : (currentRound.autoDelay ?? 3000))
       return () => clearTimeout(t)
     }
-  }, [phase, koVisibleCount, koRounds, koLiveDone])
+  }, [phase, koVisibleCount, koRounds, koLiveDone, koAway, focused])
 
   const totalMatchdays = 8
 
@@ -259,7 +289,11 @@ function CLSimulation() {
       stats: { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
     }))
     setSimTeams(teams)
-    setFixtures(generateCLLeagueFixtures(teams))
+    // P8-114: drawn for real, the country rule read from the club's name (the
+    // classic editions carry no country of their own; geo-iso knows them all).
+    const draw = drawCLLeaguePhase(teams, clCountryOf)
+    setLpDraw(draw)
+    setFixtures(draw.fixtures)
   }, [clTeams, totalTeamOvr])
 
   useEffect(() => {
@@ -294,62 +328,8 @@ function CLSimulation() {
     mdFixtures.forEach(({ home: h, away: a }) => {
       const home = teams.find(t => t.clubId === h.clubId)!
       const away = teams.find(t => t.clubId === a.clubId)!
-      // §10.5 — seed and rotation BEFORE the result: in the league phase the
-      // stakes are simply whether a club is mathematically into (or out of) the
-      // top 24, so a side already through can rest people.
-      const seed = randomSeed()
-      const clStakes = {
-        standings: teams.map(t => ({ clubId: t.clubId, points: t.stats.points })),
-        totalMatchdays, playedMatchdays: currentMD - 1, qualifyCutoff: 24,
-      }
-      const rot = {
-        home: home.isPlayer ? 0 : rotationFor({ ...clStakes, clubId: home.clubId }),
-        away: away.isPlayer ? 0 : rotationFor({ ...clStakes, clubId: away.clubId }),
-      }
-      // §10.5 phase 4 — see the league sim: absences for this matchday, stored
-      // on the match, priced into the OVR that decides the scoreline.
-      const av = availabilityFor(availabilityRef.current, currentMD, home.clubId, away.clubId)
-      const lineupOpts = {
-        ...lineupCtxRef.current, homeRotation: rot.home, awayRotation: rot.away,
-        unavailableIds: av.unavailableIds, standIns: av.standIns,
-      }
-      const eff = effectiveMatchOvrs(
-        poolByClubRef.current.get(home.clubId) ?? [], poolByClubRef.current.get(away.clubId) ?? [],
-        {
-          seed, ...lineupOpts,
-          homeBaseOvr: home.ovr + av.homeOvrDelta, awayBaseOvr: away.ovr + av.awayOvrDelta,
-        },
-      )
-      const r    = simulateMatch({ ...home, ovr: eff.homeOvr }, { ...away, ovr: eff.awayOvr })
-
-      home.stats.played++; away.stats.played++
-      home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
-      away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
-
-      if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
-      else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
-      else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-
-      const upd = (t: CLTeam, out: 'win' | 'draw' | 'loss') => {
-        t.form = Math.max(-1, Math.min(1, t.form * 0.85 + (out === 'win' ? 0.15 : out === 'draw' ? 0 : -0.15)))
-      }
-      upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-      upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed })
-      leagueHistoryRef.current.push({
-        matchday: currentMD,
-        home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
-        away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-        homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
-        homeRotation: rot.home, awayRotation: rot.away,
-        absent: av.absent, standIns: av.standIns,
-      })
-      if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
-        matchday: currentMD, homeClubId: home.clubId, awayClubId: away.clubId,
-        seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
-      })
+      const played = playCLFixture(teams, home, away, currentMD)
+      results.push({ home, away, homeGoals: played.result.homeGoals, awayGoals: played.result.awayGoals, outcome: played.result.outcome, scorers: played.scorers, seed: played.seed })
     })
 
     clSnapshotsRef.current.push((sortByStats(teams) as CLTeam[]).map(t => ({ ...t, stats: { ...t.stats } })))
@@ -361,37 +341,34 @@ function CLSimulation() {
     else { setCurrentMD(prev => prev + 1) }
   }
 
+  // P8-27: one fixture, played the same way live and skipped (play-fixture.ts):
+  // rotation, availability and the lineup-based rating all apply, and the
+  // match is recorded on the history the result screen reads.
+  function playCLFixture(teams: CLTeam[], home: CLTeam, away: CLTeam, md: number) {
+    // In the league phase the stakes are simply whether a club is
+    // mathematically into (or out of) the top 24, so a side already through can rest people.
+    const played = playFixture(home, away, {
+      matchday: md, seed: randomSeed(), poolByClub: poolByClubRef.current, ledger: availabilityRef.current,
+      lineupCtx: lineupCtxRef.current,
+      stakes: { standings: teams.map(t => ({ clubId: t.clubId, points: t.stats.points })), totalMatchdays, playedMatchdays: md - 1, qualifyCutoff: 24 },
+    })
+    leagueHistoryRef.current.push({
+      matchday: md,
+      home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
+      away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
+      homeGoals: played.result.homeGoals, awayGoals: played.result.awayGoals, scorers: played.scorers, seed: played.seed,
+      homeRotation: played.homeRotation, awayRotation: played.awayRotation,
+      absent: played.absent, standIns: played.standIns,
+    })
+    return played
+  }
+
   function skipAll() {
     setIsPlaying(false)
-    let teams = [...simTeams]
+    const teams = [...simTeams]
     for (let md = currentMD; md <= totalMatchdays; md++) {
       fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
-        const home = teams.find(t => t.clubId === h.clubId)!
-        const away = teams.find(t => t.clubId === a.clubId)!
-        const r = simulateMatch(home, away)
-        home.stats.played++; away.stats.played++
-        home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
-        away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
-        if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
-        else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
-        else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-        const seed = randomSeed()
-        // §10.5 phase 4 — a skipped matchday still respects who's out, and still
-        // feeds the ledger, or a skip mid-season would quietly heal everybody.
-        const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
-        const lineupOpts = { ...lineupCtxRef.current, unavailableIds: av.unavailableIds, standIns: av.standIns }
-        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
-        if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
-          matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
-          seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
-        })
-        leagueHistoryRef.current.push({
-          matchday: md,
-          home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
-          away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-          homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
-          absent: av.absent, standIns: av.standIns,
-        })
+        playCLFixture(teams, teams.find(t => t.clubId === h.clubId)!, teams.find(t => t.clubId === a.clubId)!, md)
       })
       clSnapshotsRef.current.push((sortByStats(teams) as CLTeam[]).map(t => ({ ...t, stats: { ...t.stats } })))
     }
@@ -561,7 +538,7 @@ function CLSimulation() {
         absent: played?.absent, standIns: played?.standIns,
       }
     })
-    return appendKnockoutRounds(phase, koRounds.slice(0, koVisibleCount).map(r => ({
+    return appendKnockoutRounds(phase, playedRounds(koRounds, koVisibleCount, koLiveDone).map(r => ({
       label: r.label, ties: r.ties.map(t => knockoutTieToCLMatch(t, r.round)),
     })))
   }
@@ -595,7 +572,9 @@ function CLSimulation() {
   // C2 (docs/ui-overhaul/07c) — the league phase on nylon, as the league
   // season: your result first, the table with the phase's three zones a beat
   // later, your eight as a strip. Knockouts keep their own view (C5).
-  const clRows: TableRowVM[] = (clRestMD > 0 ? clSnapshotsRef.current[clRestMD - 1] : sortByStats(simTeams)).map(teamRow)
+  // P8-136: the movement column against the matchday before, not sliding rows.
+  const orderAt = (md: number) => (md > 0 ? clSnapshotsRef.current[md - 1]?.map(t => t.clubId) : undefined)
+  const clRows: TableRowVM[] = withMoves((clRestMD > 0 ? clSnapshotsRef.current[clRestMD - 1] : sortByStats(simTeams)).map(teamRow), orderAt(clRestMD - 1))
   const clYouPos = clRows.findIndex(r => r.isPlayer) + 1
   const clPrevPos = clRestMD > 1 ? clSnapshotsRef.current[clRestMD - 2].findIndex(t => t.isPlayer) + 1 : clYouPos
   const clHistoryYours = leagueHistoryRef.current.filter(m => m.home.isPlayer || m.away.isPlayer)
@@ -604,19 +583,22 @@ function CLSimulation() {
   const clCard = clHistoryYours.find(m => m.matchday === clCardMD)
   const clTableMD = clViewMD ?? clRestMD
   const clTableRows = clViewMD != null && clSnapshotsRef.current[clViewMD - 1]
-    ? clSnapshotsRef.current[clViewMD - 1].map(teamRow) : clRows
+    ? withMoves(clSnapshotsRef.current[clViewMD - 1].map(teamRow), orderAt(clViewMD - 1)) : clRows
   const clOthers = clShown.filter(m => !(m.home.isPlayer || m.away.isPlayer))
   const clPending = clViewMD == null && clLatestMD > clRestMD
-  const openClLeagueMatch = (m: CLLeagueMatch) => openMatchStats({
+  const clMatchRequest = (m: CLLeagueMatch) => ({
     homeClubId: m.home.clubId, homeName: m.home.clubName,
     awayClubId: m.away.clubId, awayName: m.away.clubName,
     homeGoals: m.homeGoals, awayGoals: m.awayGoals,
     scorers: m.scorers, seed: m.seed, yearStart: clPoolYear,
     homeRotation: m.homeRotation, awayRotation: m.awayRotation,
     absent: m.absent, standIns: m.standIns,
-    competitionLabel: `League Phase · Matchday ${m.matchday}`,
     playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
     playerFormation: formation ?? undefined,
+  })
+  const openClLeagueMatch = (m: CLLeagueMatch) => openMatchStats({
+    ...clMatchRequest(m),
+    competitionLabel: `League Phase · Matchday ${m.matchday}`,
     matchday: m.matchday, contextMatches: clTimeline(),
   }, theme.accent)
   const yourEight = fixtures
@@ -633,15 +615,18 @@ function CLSimulation() {
             rounds={koRounds}
             visibleCount={koVisibleCount}
             competitionLabel="UEFA Champions League"
+            yearStart={clPoolYear}
             colourway={colourwayFor('champions_league')}
             onAbandon={() => askAbandon(() => {})}
             onFinish={finishKnockoutPhase}
             deepFinal={clPlayerFinal ? { watched: deepFinalWatched, onSeeLineups: openClDeepFinal } : undefined}
-            onSkipToRound={(idx) => { setKoVisibleCount(idx + 1) }}
+            onSkipToRound={(idx) => { setKoLiveDone(d => ({ ...d, ...settledThrough(koRounds, idx) })); setKoVisibleCount(idx + 1) }}
             onLiveDone={(k) => setKoLiveDone(d => ({ ...d, [k]: true }))}
+            onAwayChange={setKoAway}
+            panelLine={(a, b) => panelLineFor(clPanel, a, b)}
             liveDone={koLiveDone}
             onTiePress={(tie, label) => tie.leg1
-              ? openKoTie(knockoutTieToCLMatch(tie, label), { label, playerClubId: simTeams.find(t => t.isPlayer)?.clubId, drafted: fullSquad, yearStart: clPoolYear, accent: theme.accent })
+              ? openKoTie(knockoutTieToCLMatch(tie, label), { label, playerClubId: simTeams.find(t => t.isPlayer)?.clubId, drafted: fullSquad, yearStart: clPoolYear, playerFormation: formation ?? undefined, accent: theme.accent })
               : openMatchStats((() => {
                   // §10.5 — the tie's REAL slot in the timeline: the bracket-so-far
                   // and "what did they play next" both hang off it.
@@ -662,8 +647,8 @@ function CLSimulation() {
   const clStarted = phase !== 'review'
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
-      <KitScreen ground="nylon" contentStyle={{ paddingBottom: space[4] }}>
-        <RunHeader roles={nylon} stage={6} colourway={colourwayFor('champions_league')} back={false}
+      <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+        <RunHeader roles={nylon} stage={6} colourway={colourwayFor('champions_league')} back={false} tournament
           title={clStarted ? undefined : 'The league phase'}
           right={<CloseRun onPress={() => askAbandon(() => setIsPlaying(false))} />} />
         <KitText t="tag" color={nylon.textMuted}>
@@ -672,16 +657,20 @@ function CLSimulation() {
 
         {!clStarted ? (
           <>
-            <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>
-              Top eight go straight to the round of 16. Ninth to 24th play a knockout play-off. The bottom twelve are out.
-            </KitText>
-            <SectionTag roles={nylon}>Your eight</SectionTag>
-            {yourEight.map(f => (
-              <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday}
-                home={f.home.isPlayer} opponent={(f.home.isPlayer ? f.away : f.home).clubName}
-                pot={(f.home.isPlayer ? f.away : f.home).pot} />
-            ))}
-            <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+            {lpDraw && (
+              <LeaguePhaseDraw roles={nylon} teams={simTeams} draw={lpDraw} countryOf={clCountryOf} after={(
+                <>
+                  <SectionTag roles={nylon}>Your eight</SectionTag>
+                  {yourEight.map(f => (
+                    <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday}
+                      home={f.home.isPlayer} opponent={(f.home.isPlayer ? f.away : f.home).clubName} you={(f.home.isPlayer ? f.home : f.away).clubName}
+                      pot={(f.home.isPlayer ? f.away : f.home).pot}
+                      when={kickoffFor({ label: `League Phase · MD ${f.matchday}`, yearStart: clPoolYear, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short} />
+                  ))}
+                  <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+                </>
+              )} />
+            )}
           </>
         ) : (
           <>
@@ -693,49 +682,65 @@ function CLSimulation() {
               onPick={md => { setClViewMD(md); if (md != null) setIsPlaying(false) }} />
             {clViewMD != null && <BackToLive md={clViewMD} onPress={() => setClViewMD(null)} />}
             {clCard && (
-              <ScorelineCard roles={nylon} label={`MD ${clCard.matchday} · ${clCard.home.isPlayer ? 'HOME' : 'AWAY'}`}
-                homeName={clCard.home.clubName} awayName={clCard.away.clubName}
+              <ScorelineCard roles={nylon} label={[`MD ${clCard.matchday}`, kickoffFor({ label: `League Phase · MD ${clCard.matchday}`, yearStart: clPoolYear, homeClubId: clCard.home.clubId, awayClubId: clCard.away.clubId })?.short].filter(Boolean).join(' · ')}
+                homeName={clCard.home.clubName} awayName={clCard.away.clubName} homeClubId={clCard.home.clubId} awayClubId={clCard.away.clubId}
                 homeGoals={clCard.homeGoals} awayGoals={clCard.awayGoals} youHome={clCard.home.isPlayer}
                 homeScorers={summariseScorers(clCard.scorers?.home) || undefined}
                 awayScorers={summariseScorers(clCard.scorers?.away) || undefined}
-                onPress={() => openClLeagueMatch(clCard)} />
+                onPress={() => openClLeagueMatch(clCard)}
+                footer={<ManOfTheMatch roles={nylon} req={clMatchRequest(clCard)} />} />
             )}
-            <SegmentSwitch<'table' | 'results' | 'fixtures'> roles={nylon} value={clTab} onChange={setClTab} options={[
+            {!wide && <SegmentSwitch<'table' | 'results' | 'fixtures'> roles={nylon} value={clTab} onChange={setClTab} options={[
               { id: 'table', label: 'Table' },
               { id: 'results', label: clTableMD > 0 ? `Results MD ${clViewMD ?? clLatestMD}` : 'Results' },
               { id: 'fixtures', label: 'Your eight' },
-            ]} />
-            {clTab === 'table' && (
-              <>
-                <LeagueTable roles={nylon} rows={clTableRows} zones={CL_PHASE_ZONES} moveMs={clViewMD == null ? 700 : undefined} muted={clRestMD === 0} />
-                <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
-              </>
-            )}
-            {clTab === 'results' && (clPending
+            ]} />}
+            <PaneRow wide={wide}>
+            {(wide || clTab === 'results') && <Pane wide={wide} title={clTableMD > 0 ? `Results · MD ${clViewMD ?? clLatestMD}` : 'Results'}>
+            {clPending
               ? <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>Your match first. The rest of the matchday is coming in.</KitText>
               : clOthers.map((m, i) => (
                   <ResultRow key={i} roles={nylon} homeName={m.home.clubName} awayName={m.away.clubName}
                     homeGoals={m.homeGoals} awayGoals={m.awayGoals} youSide={null}
-                    scorers={[summariseScorers(m.scorers?.home), summariseScorers(m.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+                    homeClubId={m.home.clubId} awayClubId={m.away.clubId}
+                    homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
                     onPress={() => openClLeagueMatch(m)} />
-                )))}
-            {clTab === 'fixtures' && yourEight.map(f => {
+                ))}
+            {!clPending && clShown.length > 0 && (
+              <RoundTeam roles={nylon} roundKey={`cl-${clShown[0].matchday}`} label={`Team of matchday ${clShown[0].matchday}`}
+                poolByClub={poolByClubRef.current} ctx={lineupCtxRef.current}
+                fixtures={clShown.map(m => ({
+                  homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName,
+                  homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers: m.scorers, seed: m.seed,
+                  homeRotation: m.homeRotation, awayRotation: m.awayRotation, absent: m.absent, standIns: m.standIns,
+                }))} />
+            )}
+            </Pane>}
+            {(wide || clTab === 'table') && <Pane wide={wide} title="League phase" flex={1.4}>
+              <>
+                <LeagueTable roles={nylon} rows={clTableRows} zones={CL_PHASE_ZONES} muted={clRestMD === 0} />
+                <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+              </>
+            </Pane>}
+            {(wide || clTab === 'fixtures') && <Pane wide={wide} title="Your eight">{yourEight.map(f => {
               const played = clHistoryYours.find(m => m.matchday === f.matchday)
               const youHome = f.home.isPlayer
               return (
                 <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday} home={youHome}
-                  opponent={(youHome ? f.away : f.home).clubName} pot={(youHome ? f.away : f.home).pot}
+                  opponent={(youHome ? f.away : f.home).clubName} pot={(youHome ? f.away : f.home).pot} you={(youHome ? f.home : f.away).clubName}
+                  when={kickoffFor({ label: `League Phase · MD ${f.matchday}`, yearStart: clPoolYear, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short}
                   result={played ? { mine: youHome ? played.homeGoals : played.awayGoals, theirs: youHome ? played.awayGoals : played.homeGoals } : undefined} />
               )
-            })}
+            })}</Pane>}
+            </PaneRow>
           </>
         )}
       </KitScreen>
 
       <ThumbBar>
         {clStarted && !clDone && (
-          <Plate label="Skip to the last matchday" icon="skip" variant="secondary" roles={nylon}
-            onPress={() => askSkip(`Matchdays ${currentMD} to ${totalMatchdays} are played at once.`, () => setIsPlaying(false), () => clSkipRef.current())} />
+          <SkipPlate label="Skip to the last matchday" consequence={`Matchdays ${currentMD} to ${totalMatchdays} are played at once.`}
+            pause={() => setIsPlaying(false)} run={() => clSkipRef.current()} />
         )}
         {!clStarted ? (
           <Plate label="Start the league phase" icon="play" roles={nylon}
@@ -756,6 +761,10 @@ function CLSimulation() {
 
 function WCSimulation() {
   const { draftedPlayers, benchPlayers, useSubstitutes, formation, wcTeams, setWcResult, testForceWinUntilFinal } = useGameStore()
+  const predictionSeed = useGameStore(s => s.predictionSeed)
+  const wcPanel = useMemo(() => wcTeams && predictionSeed != null
+    ? punditPanel(wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), predictionSeed, undefined, WC_GROUP_MATCHDAYS)
+    : [], [wcTeams, predictionSeed])
   const fullSquad = [...draftedPlayers, ...benchPlayers]
 
   const slots        = formation ? getSlotsForFormation(formation) : []
@@ -770,6 +779,14 @@ function WCSimulation() {
   const [fixtures,      setFixtures]      = useState<{ matchday: number; home: WCTeam; away: WCTeam }[]>([])
   const [recentResults, setRecentResults] = useState<CompMatchResult[]>([])
   const [isPlaying,     setIsPlaying]     = useState(false)
+  usePauseOnBlur(setIsPlaying)   // P8-32
+  // The reveals below advance on their own timers, and they held while you'd
+  // scrolled away from the top (P8-63) but not while another screen was on
+  // top: out of the knockouts, See the bracket let the rest of the rounds
+  // play out underneath (the maintainer, 26 Sept). The playing loops already
+  // stop on leaving (P8-32); these wait, and carry on when you come back.
+  const focused = useIsFocused()
+  const wide = useSizeClass() === 'expanded'   // tabs → side-by-side panes (10-ADAPT §2.2)
   // Your group match plays out on a live clock each matchday before the board
   // updates. playedMD = last matchday simulated; pending holds the computed
   // result until the clock finishes (so the standings don't spoil the score).
@@ -788,6 +805,7 @@ function WCSimulation() {
   // §7 R6 — see the UCL screen above: watched once, then never again.
   const [wcDeepFinalWatched, setWcDeepFinalWatched] = useState(false)
   const [wcKoVisibleCount, setWcKoVisibleCount] = useState(0)
+  const [koAway, setKoAway] = useState(false)   // P8-63: scrolled away — the next round waits
   const [wcKoLiveDone,     setWcKoLiveDone]     = useState<Record<string, boolean>>({})
   const wcKoStoredResultRef = useRef<WCSeasonResult | null>(null)
   const wcKoFinishedRef = useRef(false)
@@ -817,7 +835,7 @@ function WCSimulation() {
   }, [wcTeams])
 
   useEffect(() => {
-    if (phase !== 'knockout_phase' || wcKoVisibleCount < 1) return
+    if (phase !== 'knockout_phase' || wcKoVisibleCount < 1 || koAway || !focused) return
     const currentRound = wcKoRounds[wcKoVisibleCount - 1]
     if (!currentRound) return
     const playerTie = currentRound.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
@@ -826,7 +844,7 @@ function WCSimulation() {
       const t = setTimeout(() => setWcKoVisibleCount(p => p + 1), playerTie ? 1600 : (currentRound.autoDelay ?? 3000))
       return () => clearTimeout(t)
     }
-  }, [phase, wcKoVisibleCount, wcKoRounds, wcKoLiveDone])
+  }, [phase, wcKoVisibleCount, wcKoRounds, wcKoLiveDone, koAway, focused])
 
   const totalMatchdays = 3
 
@@ -909,53 +927,8 @@ function WCSimulation() {
     mdFixtures.forEach(({ home: h, away: a }) => {
       const home = teams.find(t => t.clubId === h.clubId)!
       const away = teams.find(t => t.clubId === a.clubId)!
-      // §10.5 — stakes are decided INSIDE the group: top two go through, so a
-      // nation already mathematically qualified (or already out) can rest
-      // people, which in a three-game group is realistically the last round.
-      const seed = randomSeed()
-      const wcStakes = {
-        standings: teams.filter(t => t.groupId === home.groupId).map(t => ({ clubId: t.clubId, points: t.stats.points })),
-        totalMatchdays: WC_GROUP_MATCHDAYS, playedMatchdays: md - 1, qualifyCutoff: 2,
-      }
-      const rot = {
-        home: home.isPlayer ? 0 : rotationFor({ ...wcStakes, clubId: home.clubId }),
-        away: away.isPlayer ? 0 : rotationFor({ ...wcStakes, clubId: away.clubId }),
-      }
-      // §10.5 phase 4 — see the league sim.
-      const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
-      const lineupOpts = {
-        ...lineupCtxRef.current, homeRotation: rot.home, awayRotation: rot.away,
-        unavailableIds: av.unavailableIds, standIns: av.standIns,
-      }
-      const eff = effectiveMatchOvrs(
-        poolByClubRef.current.get(home.clubId) ?? [], poolByClubRef.current.get(away.clubId) ?? [],
-        {
-          seed, ...lineupOpts,
-          homeBaseOvr: home.ovr + av.homeOvrDelta, awayBaseOvr: away.ovr + av.awayOvrDelta,
-        },
-      )
-      const r    = simGroupMatch({ ...home, ovr: eff.homeOvr }, { ...away, ovr: eff.awayOvr })
-
-      home.stats.played++; away.stats.played++
-      home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
-      away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
-
-      if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
-      else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
-      else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-
-      const upd = (t: WCTeam, out: 'win' | 'draw' | 'loss') => {
-        t.form = Math.max(-1, Math.min(1, t.form * 0.85 + (out === 'win' ? 0.15 : out === 'draw' ? 0 : -0.15)))
-      }
-      upd(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-      upd(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-
-      const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
-      results.push({ home, away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, outcome: r.outcome, scorers, seed, homeRotation: rot.home, awayRotation: rot.away, absent: av.absent, standIns: av.standIns })
-      if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
-        matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
-        seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
-      })
+      const p = playWCFixture(teams, home, away, md)
+      results.push({ home, away, homeGoals: p.result.homeGoals, awayGoals: p.result.awayGoals, outcome: p.result.outcome, scorers: p.scorers, seed: p.seed, homeRotation: p.homeRotation, awayRotation: p.awayRotation, absent: p.absent, standIns: p.standIns })
     })
 
     const sorted = [...results].sort((a, b) => Number(b.home.isPlayer || b.away.isPlayer) - Number(a.home.isPlayer || a.away.isPlayer))
@@ -996,40 +969,51 @@ function WCSimulation() {
     pendingMDRef.current = null
   }
 
+  // P8-27: one fixture, played the same way live and skipped (play-fixture.ts).
+  // Stakes are decided INSIDE the group: top two go through, so a nation
+  // already mathematically qualified (or already out) can rest people, which
+  // in a three-game group is realistically the last round.
+  function playWCFixture(teams: WCTeam[], home: WCTeam, away: WCTeam, md: number) {
+    return playFixture(home, away, {
+      matchday: md, seed: randomSeed(), poolByClub: poolByClubRef.current, ledger: availabilityRef.current,
+      lineupCtx: lineupCtxRef.current, simulate: (x, y) => simGroupMatch(x as WCTeam, y as WCTeam),
+      stakes: {
+        standings: teams.filter(t => t.groupId === home.groupId).map(t => ({ clubId: t.clubId, points: t.stats.points })),
+        totalMatchdays: WC_GROUP_MATCHDAYS, playedMatchdays: md - 1, qualifyCutoff: 2,
+      },
+    })
+  }
+
   function skipAll() {
     setIsPlaying(false)
     setLivePlayerMatch(null)
+    // A matchday already played but still on the clock is COMMITTED, not
+    // replayed: its results are decided and already in the ledger. Replaying
+    // it counted its injuries twice and threw away the match being watched.
+    const pend = pendingMDRef.current
     pendingMDRef.current = null
-    // Resume from the next UNPLAYED matchday (simTeams is the source of truth for
-    // what's been applied), so a mid-clock skip never double-counts.
-    const startMd = (simTeams.find(t => t.isPlayer)?.stats.played ?? currentMD - 1) + 1
-    let teams = simTeams.map(t => ({ ...t, stats: { ...t.stats } }))
+    let teams = (pend?.teams ?? simTeams).map(t => ({ ...t, stats: { ...t.stats } }))
+    if (pend) pend.results.forEach(r => groupHistoryRef.current.push({
+      groupId: (r.home as WCTeam).groupId, matchday: pend.md,
+      home: { clubId: r.home.clubId, clubName: r.home.clubName, isPlayer: r.home.isPlayer },
+      away: { clubId: r.away.clubId, clubName: r.away.clubName, isPlayer: r.away.isPlayer },
+      homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers: r.scorers, seed: r.seed,
+      homeRotation: r.homeRotation, awayRotation: r.awayRotation, absent: r.absent, standIns: r.standIns,
+    }))
+    // Resume from the next UNPLAYED matchday (the table is the source of truth
+    // for what's been applied), so nothing is ever played twice.
+    const startMd = (teams.find(t => t.isPlayer)?.stats.played ?? currentMD - 1) + 1
     for (let md = startMd; md <= totalMatchdays; md++) {
       fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
         const home = teams.find(t => t.clubId === h.clubId)!
         const away = teams.find(t => t.clubId === a.clubId)!
-        const r = simGroupMatch(home, away)
-        home.stats.played++; away.stats.played++
-        home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
-        away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
-        if (r.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
-        else if (r.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
-        else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-        const seed = randomSeed()
-        // §10.5 phase 4 — see the CL skip: a skip still respects availability.
-        const av = availabilityFor(availabilityRef.current, md, home.clubId, away.clubId)
-        const lineupOpts = { ...lineupCtxRef.current, unavailableIds: av.unavailableIds, standIns: av.standIns }
-        const scorers = attributeFixtureScorers(poolByClubRef.current, home.clubId, away.clubId, r.homeGoals, r.awayGoals, false, false, seed, lineupOpts)
-        if (availabilityRef.current) recordMatchOutcome(availabilityRef.current, poolByClubRef.current, {
-          matchday: md, homeClubId: home.clubId, awayClubId: away.clubId,
-          seed, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, lineups: lineupOpts,
-        })
+        const p = playWCFixture(teams, home, away, md)
         groupHistoryRef.current.push({
           groupId: home.groupId, matchday: md,
           home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer },
           away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer },
-          homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, seed,
-          absent: av.absent, standIns: av.standIns,
+          homeGoals: p.result.homeGoals, awayGoals: p.result.awayGoals, scorers: p.scorers, seed: p.seed,
+          homeRotation: p.homeRotation, awayRotation: p.awayRotation, absent: p.absent, standIns: p.standIns,
         })
       })
     }
@@ -1205,7 +1189,7 @@ function WCSimulation() {
         absent: played?.absent, standIns: played?.standIns,
       }
     })
-    return appendKnockoutRounds(phase, wcKoRounds.slice(0, wcKoVisibleCount).map(r => ({
+    return appendKnockoutRounds(phase, playedRounds(wcKoRounds, wcKoVisibleCount, wcKoLiveDone).map(r => ({
       label: r.label, ties: r.ties.map(t => knockoutTieToCLMatch(t, r.round)),
     })))
   }
@@ -1286,12 +1270,15 @@ function WCSimulation() {
             rounds={wcKoRounds}
             visibleCount={wcKoVisibleCount}
             competitionLabel="FIFA World Cup"
+            yearStart={2026}
             colourway={colourwayFor('world_cup')}
             onAbandon={() => askAbandon(() => {})}
             onFinish={finishWCKnockoutPhase}
             deepFinal={wcPlayerFinal ? { watched: wcDeepFinalWatched, onSeeLineups: openWcDeepFinal } : undefined}
-            onSkipToRound={(idx) => { setWcKoVisibleCount(idx + 1) }}
+            onSkipToRound={(idx) => { setWcKoLiveDone(d => ({ ...d, ...settledThrough(wcKoRounds, idx) })); setWcKoVisibleCount(idx + 1) }}
             onLiveDone={(k) => setWcKoLiveDone(d => ({ ...d, [k]: true }))}
+            onAwayChange={setKoAway}
+            panelLine={(a, b) => panelLineFor(wcPanel, a, b)}
             liveDone={wcKoLiveDone}
             onTiePress={(tie, label) => openMatchStats((() => {
               // The tie's real slot in the timeline (see clTimeline).
@@ -1311,8 +1298,8 @@ function WCSimulation() {
   const wcStage = phase === 'review' ? 'draw' : phase === 'group_review' ? 'done' : 'live'
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
-      <KitScreen ground="nylon" contentStyle={{ paddingBottom: space[4] }}>
-        <RunHeader roles={nylon} stage={6} colourway={colourwayFor('world_cup')} back={false}
+      <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+        <RunHeader roles={nylon} stage={6} colourway={colourwayFor('world_cup')} back={false} tournament
           title={wcStage === 'draw' ? 'The group draw' : undefined}
           right={<CloseRun onPress={() => askAbandon(() => {})} />} />
         <KitText t="tag" color={nylon.textMuted}>
@@ -1328,7 +1315,8 @@ function WCSimulation() {
                 <SectionTag roles={nylon}>{`Your group · ${playerGroup.id}`}</SectionTag>
                 {fixtures.filter(f => f.home.isPlayer || f.away.isPlayer).sort((a, b) => a.matchday - b.matchday).map(f => {
                   const opp = f.home.isPlayer ? f.away : f.home
-                  return <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday} home={f.home.isPlayer} opponent={opp.clubName} flag={getFlag(opp.clubId)} />
+                  return <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday} home={null} opponent={opp.clubName} flag={getFlag(opp.clubId)}
+                    when={kickoffFor({ label: `Group ${playerGroup.id} · MD ${f.matchday}`, yearStart: 2026, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short} />
                 })}
               </>
             )}
@@ -1354,42 +1342,53 @@ function WCSimulation() {
                 }]}
                 accent={theme.accent}
                 onDone={applyMatchday}
+                // The page's Pause stopped the matchdays but never the match
+                // being played (the maintainer, 27 Sept); and its speed never
+                // reached the live clock (P8-137).
+                hold={!isPlaying}
+                msPerMin={LIVE_MS_PER_MIN[speed]}
               />
             ) : (
               <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>
                 {playedCount === 0 ? 'Your first match is about to kick off.' : 'Your next match is about to kick off.'}
               </KitText>
             )}
-            <SegmentSwitch<'group' | 'thirds' | 'results' | 'groups'> roles={nylon} value={wcTab} onChange={setWcTab} options={[
+            {!wide && <SegmentSwitch<'group' | 'thirds' | 'results' | 'groups'> roles={nylon} value={wcTab} onChange={setWcTab} options={[
               { id: 'group', label: 'Your group' },
               { id: 'thirds', label: '3rd race' },
               { id: 'results', label: 'Results' },
               { id: 'groups', label: 'All groups' },
-            ]} />
-            {wcTab === 'group' && (
+            ]} />}
+            <PaneRow wide={wide}>
+            {(wide || wcTab === 'group' || wcTab === 'thirds') && <Pane wide={wide} title="Your group" flex={1.2}>
+            {(wide || wcTab === 'group') && (
               <>
                 <LeagueTable roles={nylon} rows={playerGroupSorted.map(t => wcFlagRow(t))} zones={WC_GROUP_ZONES} muted={playedCount === 0} />
                 <ZoneLegend roles={nylon} zones={WC_GROUP_ZONES} />
               </>
             )}
-            {wcTab === 'thirds' && (
+            {(wide || wcTab === 'thirds') && (
               <>
+                {wide && <SectionTag roles={nylon}>The race for third</SectionTag>}
                 <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[2] }}>Every group's third-placed team, as it stands. The top eight go through.</KitText>
                 <LeagueTable roles={nylon} rows={wcThirds.map(t => wcFlagRow(t, t.groupId))} zones={WC_THIRD_ZONES} muted={playedCount === 0} />
               </>
             )}
-            {wcTab === 'results' && (wcOthers.length === 0
+            </Pane>}
+            {(wide || wcTab === 'results') && <Pane wide={wide} title="Results">{wcOthers.length === 0
               ? <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>No other results yet.</KitText>
               : wcOthers.map((m, i) => (
                   <View key={i}>
                     {(i === 0 || wcOthers[i - 1].groupId !== m.groupId) && <SectionTag roles={nylon}>{`Group ${m.groupId} · MD ${m.matchday}`}</SectionTag>}
                     <ResultRow roles={nylon} homeName={m.home.clubName} awayName={m.away.clubName}
                       homeGoals={m.homeGoals} awayGoals={m.awayGoals} youSide={null}
-                      scorers={[summariseScorers(m.scorers?.home), summariseScorers(m.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+                      homeClubId={m.home.clubId} awayClubId={m.away.clubId}
+                    homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
                       onPress={() => openWcGroupMatch(m)} />
                   </View>
-                )))}
-            {wcTab === 'groups' && <GroupWall roles={nylon} groups={wcWall} onOpen={openGroupSim} />}
+                ))}</Pane>}
+            {(wide || wcTab === 'groups') && <Pane wide={wide} title="All groups"><GroupWall roles={nylon} groups={wcWall} onOpen={openGroupSim} /></Pane>}
+            </PaneRow>
           </>
         )}
 
@@ -1403,8 +1402,9 @@ function WCSimulation() {
               const youHome = m.home.isPlayer
               const opp = youHome ? m.away : m.home
               return (
-                <FixtureRow key={m.matchday} roles={nylon} matchday={m.matchday} home={youHome} opponent={opp.clubName} flag={getFlag(opp.clubId)}
-                  result={{ mine: youHome ? m.homeGoals : m.awayGoals, theirs: youHome ? m.awayGoals : m.homeGoals }} />
+                <FixtureRow key={m.matchday} roles={nylon} matchday={m.matchday} home={null} opponent={opp.clubName} flag={getFlag(opp.clubId)}
+                  result={{ mine: youHome ? m.homeGoals : m.awayGoals, theirs: youHome ? m.awayGoals : m.homeGoals }}
+                  when={kickoffFor({ label: `Group ${m.groupId} · MD ${m.matchday}`, yearStart: 2026, homeClubId: m.home.clubId, awayClubId: m.away.clubId })?.short} />
               )
             })}
             <SectionTag roles={nylon}>The best third-placed teams</SectionTag>
@@ -1421,8 +1421,8 @@ function WCSimulation() {
           <Plate label="Start the group stage" icon="play" roles={nylon} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
         )}
         {wcStage === 'live' && (
-          <Plate label="Skip to the end of the groups" icon="skip" variant="secondary" roles={nylon}
-            onPress={() => askSkip("Your remaining group matches and every other group's are played at once.", () => {}, () => wcSkipRef.current())} />
+          <SkipPlate label="Skip to the end of the groups" consequence="Your remaining group matches and every other group's are played at once."
+            pause={() => {}} run={() => wcSkipRef.current()} />
         )}
         {wcStage === 'done' && (
           <Plate label={wcFate.good ? 'Open the knockout draw' : 'See how it ends'} icon="forward" roles={nylon}
@@ -1457,16 +1457,11 @@ function liveRedsFor(
 
 // Convert a KnockoutTie (WC single match OR CL two-legged) into LiveMatch periods.
 function liveePeriodsFromTie(tie: KnockoutTie, label: string): LivePeriod[] {
-  if (tie.leg1) {
-    // Two-legged CL tie.
-    const periods: LivePeriod[] = [
-      { label: 'Leg 1', homeId: tie.teamA.clubId, awayId: tie.teamB.clubId, fromMin: 0, toMin: 90, scorers: tie.leg1Scorers },
-    ]
-    if (tie.leg2) periods.push({ label: 'Leg 2', homeId: tie.teamB.clubId, awayId: tie.teamA.clubId, fromMin: 0, toMin: 90, scorers: tie.leg2Scorers })
-    if (tie.leg2ExtraTime && (tie.leg2ExtraTime.aGoals > 0 || tie.leg2ExtraTime.bGoals > 0))
-      periods.push({ label: 'Extra Time', homeId: tie.teamB.clubId, awayId: tie.teamA.clubId, fromMin: 90, toMin: 120, scorers: tie.leg2ExtraTimeScorers })
-    return periods
-  }
+  // Two-legged CL tie: the shared builder. This screen kept its own older copy,
+  // which only added extra time when someone scored in it — so a goalless extra
+  // time vanished and leg 2 went straight to penalties (the maintainer, 24 Sept).
+  // The shared one already had that fix; now there's only one.
+  if (tie.leg1) return periodsForTwoLegTie(tie)
   // Single match (WC / final).
   return [{ label, homeId: tie.teamA.clubId, awayId: tie.teamB.clubId, fromMin: 0, toMin: tie.extraTime ? 120 : 90, scorers: tie.leg1Scorers ?? tie.scorers }]
 }
@@ -1499,7 +1494,13 @@ type KnockoutPhaseViewProps = {
   onAbandon: () => void
   onFinish: () => void
   onSkipToRound: (idx: number) => void
+  /** P8-91: the season the knockout belongs to, for the bracket's dates. */
+  yearStart: number
   onLiveDone?: (roundKey: string) => void  // fired when the player's live match finishes
+  /** P8-63: tells the screen you've scrolled away from the live round, so it holds the next one. */
+  onAwayChange?: (away: boolean) => void
+  /** P8-57, match by match: the panel's split on a tie, shown above your live one. */
+  panelLine?: (a: { clubId: string; clubName: string }, b: { clubId: string; clubName: string }) => string | null
   liveDone?: Record<string, boolean>       // which rounds' live matches have finished
   // Tap a settled tie (yours or anyone else's) to open its deep-stats sheet —
   // ties stay clickable during simulation, the same as once the run is done.
@@ -1517,7 +1518,10 @@ const OUT_IN: Record<string, string> = {
   qf: 'Out in the quarter-finals', sf: 'Out in the semi-finals', final: 'Runners-up',
 }
 
-function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, onAbandon, onFinish, onSkipToRound, onLiveDone, liveDone = {}, onTiePress, deepFinal }: KnockoutPhaseViewProps) {
+// How far down the knockouts page counts as away from the live round.
+const AWAY_PX = 320
+
+function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, onAbandon, onFinish, onSkipToRound, yearStart, onLiveDone, onAwayChange, panelLine, liveDone = {}, onTiePress, deepFinal }: KnockoutPhaseViewProps) {
   const allVisible = visibleCount >= rounds.length
   const nextRound = rounds[visibleCount]
 
@@ -1525,22 +1529,53 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
   // World Cup plays its third-place match after the semis and before it.
   const finalIdx = rounds.findIndex(r => r.round === 'final')
   const atFinal = finalIdx >= 0 && visibleCount - 1 >= finalIdx
-  // Offered from the first revealed round: your final is the thing you're
-  // waiting for from the moment the bracket opens. Skipping still reveals
-  // every round on the way.
-  const canSkipToFinal = !!deepFinal && finalIdx > 0 && !atFinal
+  // P8-94: a skip to the end of YOUR run, not to the final. The old "Skip to
+  // the final" was only offered when you were going to reach it, which gave
+  // the result away. Now it plays every round up to the last one you're in
+  // and stops there, settled: where you went out (or your final, still to be
+  // watched in the Deep Match). Once you're out, a plain skip reveals the rest.
+  const youAreInAt = (i: number) => !!rounds[i]?.ties.some(t => t.teamA.isPlayer || t.teamB.isPlayer)
+  const endOfRun = rounds.reduce((k, _r, i) => (youAreInAt(i) ? i : k), -1)
   // The final is reached but not yet watched — nothing else may be offered
   // until it has been, or the payoff is trivially skippable.
   const awaitingDeepFinal = !!deepFinal && atFinal && !deepFinal.watched
   const youAreIn = (r?: KnockoutRound) => !!r?.ties.some(t => t.teamA.isPlayer || t.teamB.isPlayer)
 
+  // P8-63: the newest round sits on top, so the one being played is where you
+  // already are — no scrolling down after it. When a round opens, the page
+  // goes back up to it; if you've scrolled down through earlier rounds, a tag
+  // takes you back, and your live match waits while it's out of sight.
+  const scrollRef = useRef<ScrollView>(null)
+  const [scrolledAway, setScrolledAway] = useState(false)
+  useEffect(() => { onAwayChange?.(scrolledAway) }, [scrolledAway])
+  useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: true }) }, [visibleCount])
+
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
-      <KitScreen ground="nylon" contentStyle={{ paddingBottom: space[4] }}>
-        <RunHeader roles={nylon} stage={6} colourway={colourway} back={false} right={<CloseRun onPress={onAbandon} />} />
+      <KitScreen ground="nylon" contentStyle={{ paddingBottom: space[4] }} scrollRef={scrollRef} scrollEventThrottle={64}
+        onScroll={e => setScrolledAway(e.nativeEvent.contentOffset.y > AWAY_PX)}>
+        <RunHeader roles={nylon} stage={6} colourway={colourway} back={false} tournament right={<CloseRun onPress={onAbandon} />} />
         <KitText t="tag" color={nylon.textMuted}>{`${competitionLabel} · Knockouts`}</KitText>
+        {/* P8-91: the whole bracket, mid-round: results so far, and every tie of
+            this round as it stands at the same moment as yours. */}
+        <Plate label="See the bracket" icon="ranks" variant="secondary" roles={nylon} style={styles.bracketPlate} onPress={() => {
+          const current = rounds[visibleCount - 1]
+          const liveOpen = !!current && !!current.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer) && !liveDone[current.round]
+          const b = liveBracket(rounds, { visible: visibleCount, liveOpen, progress: liveProgress() ?? 0, yearStart })
+          const you = rounds.flatMap(r => r.ties).flatMap(t => [t.teamA, t.teamB]).find(x => x.isPlayer)?.clubId
+          openSheet({
+            title: 'The bracket', sub: liveOpen ? `${competitionLabel} · scores as they stand` : competitionLabel,
+            render: () => <BracketTree columns={b.columns} third={b.third} playerClubId={you} />,
+          })
+        }} />
 
-        {rounds.slice(0, visibleCount).map((round, roundIdx) => {
+        {!allVisible && visibleCount > 0 && nextRound && (
+          <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>
+            {youAreIn(nextRound) ? `Your ${nextRound.label.toLowerCase()} is next.` : `Next: the ${nextRound.label.toLowerCase()}.`}
+          </KitText>
+        )}
+
+        {rounds.slice(0, visibleCount).map((round, roundIdx) => ({ round, roundIdx })).reverse().map(({ round, roundIdx }) => {
           const isCurrent = roundIdx === visibleCount - 1
           const playerTie = round.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
           // On the live round, hold back the other ties until YOUR match is done.
@@ -1556,6 +1591,9 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
             <View key={round.round} style={styles.koKitRound}>
               <SectionTag roles={nylon}>{round.label}</SectionTag>
 
+              {playerTie && isCurrent && !isDeepFinal && !liveDone[round.round] && panelLine?.(playerTie.teamA, playerTie.teamB) && (
+                <KitText t="body" color={nylon.textMuted}>{panelLine(playerTie.teamA, playerTie.teamB)}</KitText>
+              )}
               {playerTie && isCurrent && !isDeepFinal && !liveDone[round.round] && (
                 <LiveMatch
                   key={round.round}
@@ -1564,6 +1602,7 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
                   pens={playerTie.aPens !== undefined ? { a: playerTie.aPens, b: playerTie.bPens ?? 0, kicksA: playerTie.penKicksA, kicksB: playerTie.penKicksB } : null}
                   aggregate={!!playerTie.leg1}
                   onDone={() => onLiveDone?.(round.round)}
+                  hold={scrolledAway}
                 />
               )}
 
@@ -1571,7 +1610,7 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
                   the Deep Match exists to reveal, so it isn't printed here. */}
               {playerTie && isDeepFinal && !deepFinal!.watched && (
                 <View style={[styles.koKitFinal, { borderColor: nylon.line, backgroundColor: nylon.surface }]}>
-                  <KitText t="superM" color={nylon.text}>"THE FINAL"</KitText>
+                  <KitText t="superM" color={nylon.text}>THE FINAL</KitText>
                   <KitText t="title" color={nylon.text}>{`${playerTie.teamA.clubName} v ${playerTie.teamB.clubName}`}</KitText>
                   <KitText t="body" color={nylon.textMuted}>One match, played out in full, minute by minute. You only get to watch it once.</KitText>
                 </View>
@@ -1591,16 +1630,19 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
           )
         })}
 
-        {!allVisible && visibleCount > 0 && nextRound && (
-          <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>
-            {youAreIn(nextRound) ? `Your ${nextRound.label.toLowerCase()} is next.` : `Next: the ${nextRound.label.toLowerCase()}.`}
-          </KitText>
-        )}
       </KitScreen>
+      {scrolledAway && (
+        <View style={styles.toNewest} pointerEvents="box-none">
+          <BackToLive md={0} label="Back to the newest round" onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} />
+        </View>
+      )}
 
       <ThumbBar>
-        {canSkipToFinal && (
-          <Plate label="Skip to the final" icon="skip" variant="secondary" roles={nylon} onPress={() => onSkipToRound(finalIdx)} />
+        {!awaitingDeepFinal && endOfRun > visibleCount - 1 && (
+          <Plate label="Skip to the end of your run" icon="skip" variant="secondary" roles={nylon} onPress={() => onSkipToRound(endOfRun)} />
+        )}
+        {!awaitingDeepFinal && endOfRun <= visibleCount - 1 && !allVisible && (
+          <Plate label="Skip to the end" icon="skip" variant="secondary" roles={nylon} onPress={() => onSkipToRound(rounds.length - 1)} />
         )}
         {awaitingDeepFinal && deepFinal ? (
           <Plate label="See the line-ups" icon="forward" roles={nylon} onPress={deepFinal.onSeeLineups} />
@@ -1612,6 +1654,23 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
   )
 }
 
+// The rounds that are over: the revealed ones, minus the newest while your
+// match in it is still being played. A match sheet opened mid-round used to
+// list that round's ties with their final scores — the result before it
+// happened. The same goes for tapping a tie of the round being played.
+function playedRounds(rounds: KnockoutRound[], visible: number, liveDone: Record<string, boolean>): KnockoutRound[] {
+  const shown = rounds.slice(0, visible)
+  const last = shown[shown.length - 1]
+  const live = !!last && last.ties.some(t => t.teamA.isPlayer || t.teamB.isPlayer) && !liveDone[last.round]
+  return live ? shown.slice(0, -1) : shown
+}
+
+// P8-94: every round up to `idx` marked as played, so a skip lands on a
+// settled round (the live match of the round skipped to isn't replayed).
+function settledThrough(rounds: KnockoutRound[], idx: number): Record<string, boolean> {
+  return Object.fromEntries(rounds.slice(0, idx + 1).map(r => [r.round, true]))
+}
+
 // This file's live-tie shape → the shared tie view model.
 function tieToVM(tie: KnockoutTie, onPress?: () => void): TieVM {
   const parts: string[] = []
@@ -1621,6 +1680,7 @@ function tieToVM(tie: KnockoutTie, onPress?: () => void): TieVM {
   if (tie.aPens !== undefined) parts.push(`Pens ${tie.aPens}–${tie.bPens}`)
   return {
     aName: tie.teamA.clubName, bName: tie.teamB.clubName,
+    aClubId: tie.teamA.clubId, bClubId: tie.teamB.clubId,
     aFlag: getFlag(tie.teamA.clubId), bFlag: getFlag(tie.teamB.clubId),
     score: `${tie.aGoals}–${tie.bGoals}`,
     detail: parts.join(' · ') || undefined,
@@ -1686,6 +1746,8 @@ function koTieToMatchDetailRequest(
     awayClubId: tie.teamB.clubId, awayName: tie.teamB.clubName,
     homeGoals: tie.aGoals, awayGoals: tie.bGoals,
     extraTime: tie.extraTime, pensNote,
+    // A live tie keeps only the named kicks; the raw sequence is read off them.
+    shootout: tie.penKicksA && tie.penKicksB ? { home: tie.penKicksA.map(k => k.scored), away: tie.penKicksB.map(k => k.scored), homeKicks: tie.penKicksA, awayKicks: tie.penKicksB } : undefined,
     // A World Cup tie stores its sheet on the tie; a Champions League FINAL is
     // also a single match but comes through the two-legged shape, so it stores
     // the same data under `leg1*`. Without the fallback a live CL final opened
@@ -1700,6 +1762,8 @@ function koTieToMatchDetailRequest(
 }
 
 const styles = StyleSheet.create({
+  bracketPlate: { marginTop: space[2], marginBottom: space[3] },
+  toNewest: { position: 'absolute', left: space[4], right: space[4], bottom: 120, alignItems: 'center' },
   koKitRound: { gap: space[2], marginTop: space[3] },
   koKitFinal: { borderWidth: border.plate, padding: space[3], gap: space[2] },
 

@@ -41,6 +41,79 @@ export function formationForClub(clubId: string): Formation {
   return ALL_FORMATIONS[Math.floor(rng() * ALL_FORMATIONS.length)]
 }
 
+// ── A shape for the match (P8-68) ────────────────────────────────────────────
+// Clubs used to play one shape all run. Now each has a small repertoire — its
+// usual shape and two others it knows — and picks one per match, for a reason
+// the match already stores: the squad it has that day (injuries and
+// suspensions change which shape its players fit), and the opponent (clearly
+// stronger → a shape with more defenders; clearly weaker → more attackers).
+// A side that is resting players keeps its usual shape, since re-picking its
+// eleven would bring the rested men straight back.
+//
+// The shape is chosen INSIDE the matchday squad the club already picks (the
+// same 18 as before), and only the eleven is re-drawn from them. So a scorer
+// stored on a match — even one saved before this existed — is always in the
+// squad: at worst he starts on the bench and comes on before his goal. Same
+// seed, same absences, same opponent → same shape, every time it's opened.
+export const REPERTOIRE = 3
+const STICK = 0.8       // OVR points the usual shape is worth over a new one: change needs a reason
+const LEAN_GAP = 3      // OVR gap to the opponent before a side leans one way
+// The manager's call for this opponent, this week — the reason real managers
+// change shape most, and the one the squad and the opponent's strength alone
+// don't give: on real squads, with no injuries and an even opponent, the same
+// squad fits the same shape best every week, so the Premier League changed in
+// 7.5% of matches and nobody saw it (the maintainer, 24 Sept). Up to TINKER
+// OVR points of seeded preference per alternative, per match; same match,
+// same call. Measured on three real leagues' squads (LaLiga 18/19, Premier
+// League 22/23, Serie A 20/21), counting matches away from a club's MOST
+// PLAYED shape: without the call, 12 of 20 Premier League clubs played one
+// shape all season; at 1 a club is off its usual shape in about 23% of
+// matches in all three, and only 3-5 per league never change. verify-shapes
+// checks the opponent lean still shows through it.
+const TINKER = 1
+const LEAN_PER = 1      // each extra defender (or attacker) when it leans — at 0.4 the lean didn't show (verify-shapes)
+
+export function repertoireFor(clubId: string): Formation[] {
+  const usual = formationForClub(clubId)
+  const rng = mulberry32(deriveSeed(hashSeed(clubId), 0x5A17_F00E))
+  const others = ALL_FORMATIONS.filter(f => f !== usual)
+  const out: Formation[] = [usual]
+  while (out.length < Math.min(REPERTOIRE, ALL_FORMATIONS.length)) {
+    const f = others.splice(Math.floor(rng() * others.length), 1)[0]
+    out.push(f)
+  }
+  return out
+}
+
+const countLine = (f: Formation, line: 'DEF' | 'ATT') => getSlotsForFormation(f).filter(sl => group(sl.primary) === line).length
+
+/** How well an eleven fits its shape: the fit-weighted OVR, per man. */
+function shapeQuality(l: SelectedLineup): number {
+  const slots = getSlotsForFormation(l.formation)
+  if (l.slots.length === 0) return 0
+  return l.slots.reduce((s, c, i) => s + c.player.ovr * fit(c.primary, (slots[i]?.accepts ?? []) as string[], c.player.primaryPosition), 0) / l.slots.length
+}
+
+/** The shape a side picks for this match, and the eleven for it (from its own 18). */
+export function shapeForMatch(base: SelectedLineup, clubId: string, ownOvr: number, oppOvr: number, seed: number): SelectedLineup {
+  if (base.rotated > 0 || base.slots.length < 11) return base
+  const squad = [...base.starters, ...base.bench]
+  const usual = base.formation
+  const lean = oppOvr - ownOvr
+  const call = mulberry32(deriveSeed(seed, 0x7A_C71C))
+  let best = base, bestScore = shapeQuality(base) + STICK
+  for (const f of repertoireFor(clubId)) {
+    if (f === usual) continue
+    const l = selectLineup(squad, { seed, formation: f, benchSize: base.bench.length })
+    if (l.slots.length < 11) continue
+    const leanBonus = lean >= LEAN_GAP ? (countLine(f, 'DEF') - countLine(usual, 'DEF')) * LEAN_PER
+      : lean <= -LEAN_GAP ? (countLine(f, 'ATT') - countLine(usual, 'ATT')) * LEAN_PER : 0
+    const score = shapeQuality(l) + leanBonus + call() * TINKER
+    if (score > bestScore) { best = { ...l, rotated: 0 }; bestScore = score }
+  }
+  return best
+}
+
 /** The dedicated sub-stream a match's lineups are drawn from. Both the scorer
  *  attribution and the stat-sheet generator call this with the match seed, so
  *  they independently arrive at the identical eleven. */
@@ -407,8 +480,17 @@ export function lineupsForMatch(
     })
   }
   const isPlayers = (pool: RosterPlayer[]) => !!o.playerClubId && pool[0]?.clubId === o.playerClubId
-  const homeLineup = build(homeAdj, true, o.homeRotation)
-  const awayLineup = build(awayAdj, false, o.awayRotation)
+  const homeBase = build(homeAdj, true, o.homeRotation)
+  const awayBase = build(awayAdj, false, o.awayRotation)
+  // P8-68: each AI side then picks its shape for this match, knowing its
+  // opponent's eleven. Your side is never touched: you chose your shape.
+  const strength = (l: SelectedLineup | null, pool: RosterPlayer[]) =>
+    l ? lineupOvr(l) : [...pool].sort((a, b) => b.ovr - a.ovr).slice(0, 11).reduce((s, p, _, a) => s + p.ovr / a.length, 0)
+  const hs = strength(homeBase, homeAdj), as = strength(awayBase, awayAdj)
+  const reshape = (l: SelectedLineup | null, pool: RosterPlayer[], own: number, opp: number, isHome: boolean) =>
+    l && !isPlayers(pool) && pool[0] ? shapeForMatch(l, pool[0].clubId, own, opp, lineupSeed(o.seed!, isHome)) : l
+  const homeLineup = reshape(homeBase, homeAdj, hs, as, true)
+  const awayLineup = reshape(awayBase, awayAdj, as, hs, false)
   // Your side's "lineup" is a slot assignment, not a selection — so take its
   // shape but leave your pool (bench and all) exactly as it came in. Replacing
   // it would quietly delete your substitutes from the match.

@@ -59,7 +59,8 @@ re-routing data through Supabase.
      `docs.expo.dev/versions/latest/sdk/sqlite` for the exact snippet at
      build time, since Expo's setup instructions do shift between SDKs).
   2. **Vercel must send two response headers on every request** (see below)
-     — `Cross-Origin-Embedder-Policy: require-corp` and
+     — `Cross-Origin-Embedder-Policy: credentialless` (not `require-corp`,
+     which blocks the Supabase-hosted profile pictures, P8-88) and
      `Cross-Origin-Opener-Policy: same-origin`. These enable
      `SharedArrayBuffer`, which the WASM SQLite build needs.
   3. **The load path needs a web equivalent.** On native, `db/setup.ts` copies
@@ -98,7 +99,7 @@ non-default step is the COOP/COEP headers the WASM SQLite path needs — add a
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "credentialless" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     }

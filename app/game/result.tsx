@@ -1,12 +1,17 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
+import { kickoffFor } from '@/engine/schedule'
+import { SafeSection } from '@/components/kit'
+import { FormationPitch } from '@/components/season/AwardsParts'
+import { COLUMN } from '@/hooks/useSizeClass'
 import {
-  View, Text, StyleSheet, Pressable, ScrollView, Dimensions, ActivityIndicator
+  View, Text, StyleSheet, Pressable, ScrollView, Dimensions
 } from 'react-native'
 import { openRunHub, openClub } from '@/lib/runNav'
 import Svg, { Line, Polyline, Text as SvgText, G } from 'react-native-svg'
 import { router, useLocalSearchParams } from 'expo-router'
 import { restartToModeSelect, exitToHome } from '@/lib/nav'
 import { useGameStore } from '@/store/gameStore'
+import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { saveRun, fetchRunById } from '@/db/queries/runs'
 import { mergeCareerFromRun } from '@/db/queries/career'
@@ -25,8 +30,8 @@ import { useModeTheme } from '@/hooks/useModeTheme'
 import { useRunSave } from '@/hooks/useRunSave'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
-import { Plate, KitScreen, KitText, SectionTag, Tag, ListRow, EmptyState } from '@/components/kit'
-import { SeasonStrip, PositionGraph, ResultRow, LeagueTable, ZoneLegend, leagueTableZones, type Mark, type TableRowVM } from '@/components/season/SeasonParts'
+import { Plate, KitScreen, KitText, SectionTag, Tag, ListRow, EmptyState, Columns } from '@/components/kit'
+import { SeasonStrip, PositionCompare, ResultRow, LeagueTable, ZoneLegend, leagueTableZones, type Mark, type TableRowVM } from '@/components/season/SeasonParts'
 import { zonesFor } from '@/data/qualification-bands'
 import { ResultFigures, ResultActions } from '@/components/season/ResultParts'
 import { space } from '@/theme'
@@ -197,6 +202,7 @@ export default function ResultScreen() {
         setLoadingRun(true)
         try {
           const run = await fetchRunById(params.runId)
+          adoptRunCrest((run as any)?.highlights)   // P8-132: the crest it was played with
           setDbRunData(run)
         } catch (error) {
           console.error('[result] Failed to load run:', error)
@@ -286,7 +292,10 @@ export default function ResultScreen() {
     const season = ys ? `${ys}/${String(ys + 1).slice(-2)}` : null
     const rawClub = (playerTeam as any)?.clubName
     const club = placedLeague?.replacedTeamName ?? dbRunData?.replaced_team_name
-      ?? (rawClub && rawClub !== 'Your XI' ? rawClub : null)
+      // A league run always stores the club it replaced, so this fallback only
+      // meets the other modes: "Brazil XI" is the nation you took over (so
+      // "Brazil"), and a bare "Your XI" names nobody.
+      ?? (rawClub && rawClub !== 'Your XI' ? rawClub.replace(/ XI$/, '') : null)
     if (!lg && !club) return null
     return `${[lg, season].filter(Boolean).join(' ')}${club ? ` · You took over ${club}` : ''}`
   })()
@@ -299,10 +308,21 @@ export default function ResultScreen() {
     mode: mode ?? 'league', finalPosition, teamsInLeague, teamOvr: playerTeam.ovr,
     losses, draws, difficultyMultiplier,
   })
+  // P8-96: the pundits' calls — worked out from the live run's seed, or read
+  // back from a saved run (which keeps them since P8-96).
+  const livePrediction = store.predictionSeed != null && placedLeague ? predictTable(placedLeague.teams, store.predictionSeed) : null
+  const punditPlaces: Map<string, number> | null = livePrediction
+    ? new Map(livePrediction.table.map(r => [r.clubId, r.predicted]))
+    : dbRunData?.highlights?.pundits ? new Map(Object.entries(dbRunData.highlights.pundits as Record<string, number>)) : null
+  // P8-122: and the points they tipped (P8-13). A run saved before this kept
+  // only the places, so its table has no points column.
+  const punditPoints: Map<string, number> | null = livePrediction
+    ? new Map(livePrediction.table.map(r => [r.clubId, r.points]))
+    : dbRunData?.highlights?.punditPoints ? new Map(Object.entries(dbRunData.highlights.punditPoints as Record<string, number>)) : null
   const punditCheck = (() => {
-    if (store.predictionSeed == null || !placedLeague) return null
-    const you = predictTable(placedLeague.teams, store.predictionSeed).player
-    return you ? { predicted: you.predicted, actual: finalPosition, field: teamsInLeague } : null
+    const you = (table as any[] | undefined)?.find((t: any) => t.isPlayer)?.clubId
+    const predicted = you ? punditPlaces?.get(you) : undefined
+    return predicted != null ? { predicted, actual: finalPosition, field: teamsInLeague } : null
   })()
 
   // Default to final matchday if not selected
@@ -340,6 +360,8 @@ export default function ResultScreen() {
         difficulty, custom: customDifficulty,
         stats: runStats?.stats,
         awards: runStats?.awards,
+        pundits: livePrediction ? Object.fromEntries(livePrediction.table.map(r => [r.clubId, r.predicted])) : null,
+        punditPoints: livePrediction ? Object.fromEntries(livePrediction.table.map(r => [r.clubId, r.points])) : null,
       })
     }
     persistCareer()
@@ -382,13 +404,30 @@ export default function ResultScreen() {
   const yearStart = placedLeague?.yearStart ?? dbRunData?.year_start
   const standings = ((snap?.standings ?? table) as any[])
   const tableZones = leagueId && yearStart ? leagueTableZones(zonesFor(leagueId, yearStart, standings.length)) : standings.map(() => null)
-  const rows: TableRowVM[] = standings.map((t: any) => ({
+  // P8-22: the same movement column as the live season, from the matchday
+  // before the one being looked at (none on the first, and none when a saved
+  // run kept no history to compare against).
+  const before = prevSnap ? new Map((prevSnap.standings as any[]).map((t: any, i: number) => [t.clubId, i + 1])) : null
+  const rows: TableRowVM[] = standings.map((t: any, i: number) => ({
     clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer,
     played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
+    ...(snap ? { move: before ? (before.get(t.clubId) ?? i + 1) - (i + 1) : 0 } : {}),
   }))
   const positions = youId ? history.map(h => h.standings.findIndex((t: any) => t.clubId === youId) + 1) : []
+  // P8-95: every club's line, so any of them can be compared with yours.
+  const allPositions = new Map<string, number[]>(
+    (history[history.length - 1]?.standings ?? []).map((t: any) => [t.clubId, history.map(h => h.standings.findIndex((x: any) => x.clubId === t.clubId) + 1)]))
   const move = snap && prevSnap && youId ? prevSnap.standings.findIndex((t: any) => t.clubId === youId) - snap.standings.findIndex((t: any) => t.clubId === youId) : null
   const hasHub = isFreshRun || !!(params.runId && dbRunData?.stats)
+  // The awards night, once: the "See the awards" button opens it, and the
+  // matchday section below reads its team of that matchday from it.
+  const awardsSrc = runStats ?? (dbRunData?.stats && dbRunData?.awards ? { stats: dbRunData.stats, awards: dbRunData.awards } : null)
+  const night = awardsSrc ? buildAwardsNight({
+    awards: awardsSrc.awards, stats: awardsSrc.stats, rounds: (awardsSrc as RunStats).rounds,
+    clubs: clubsForManagerAward(placedLeague?.teams, simResult?.table, store.predictionSeed), playerClubId: youId,
+    managerName: useUserStore.getState().profile?.username ?? undefined,
+  }) : null
+  const mdTeam = night?.teamsOfTheRound.find(r => r.label === `Matchday ${viewMD}`)?.team ?? null
   const highlights = [
     biggestWin && { key: 'win', label: 'Biggest win', opponent: biggestWin.opponent, score: biggestWin.score },
     worstLoss && { key: 'loss', label: 'Worst defeat', opponent: worstLoss.opponent, score: worstLoss.score },
@@ -396,7 +435,7 @@ export default function ResultScreen() {
   ].filter(Boolean) as { key: string; label: string; opponent: string; score: string }[]
 
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground="nylon" width="wide">
       <VerdictBlock
         tone={verdictOf(tier)}
         title={meta.title}
@@ -406,53 +445,71 @@ export default function ResultScreen() {
         multiplier={difficultyMultiplier}
         pundits={punditCheck ?? undefined}
         shareText={`${meta.title} — ${finalPosition} of ${teamsInLeague}${takeoverLine ? `, ${takeoverLine}` : ''}. Perfection or Misery.`}
+        runId={params.runId}
+        ownerId={params.runId ? dbRunData?.user_id ?? null : undefined}
       />
 
       <ResultFigures items={[['Pts', playerTeam.stats.points], ['W', wins], ['D', draws], ['L', losses], ['GD', gd > 0 ? `+${gd}` : gd], ['For', goalsFor], ['Ag', goalsAgainst]]} />
 
       {/* P8-24 — the pundits' whole table beside the real one. */}
       {(() => {
-        if (store.predictionSeed == null || !placedLeague || !table?.length) return null
-        const predicted = new Map(predictTable(placedLeague.teams, store.predictionSeed).table.map(r => [r.clubId, r.predicted]))
+        if (!punditPlaces || !table?.length) return null
+        const predicted = punditPlaces
         return (
           <PunditsTable rows={(table as any[]).map((t, i) => ({
             clubId: t.clubId, clubName: t.clubName, finalPosition: i + 1,
             predicted: predicted.get(t.clubId) ?? i + 1, isPlayer: !!t.isPlayer,
+            points: t.stats?.points, predictedPoints: punditPoints?.get(t.clubId),
           }))} />
         )
       })()}
 
       <View style={styles.kitPlates}>
-        {(() => {
-          const src = runStats ?? (dbRunData?.stats && dbRunData?.awards ? { stats: dbRunData.stats, awards: dbRunData.awards } : null)
-          if (!src) return null
-          const night = buildAwardsNight({
-            awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
-            clubs: clubsForManagerAward(placedLeague?.teams, simResult?.table, store.predictionSeed), playerClubId: youId,
-          })
-          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={nylon} onPress={() => openAwardsView(night, params.runId)} />
-        })()}
+        {night && <Plate label="See the awards" icon="trophy" variant="secondary" roles={nylon} onPress={() => openAwardsView(night, params.runId)} />}
         {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={nylon} onPress={() => openRunHub(undefined, params.runId)} accessibilityHint="Every club, player, match and story" />}
       </View>
+      {/* Expanded (10-ADAPT §2.2): the sections as two newspaper columns. */}
+      <Columns>
 
       {history.length > 0 && (
         <View style={styles.kitSection}>
           <SectionTag roles={nylon}>Your season</SectionTag>
           <SeasonStrip roles={nylon} marks={marks} total={history.length} viewing={selectedMatchday} onPick={setSelectedMatchday} />
-          {positions.length > 1 && <PositionGraph roles={nylon} values={positions.slice(0, viewMD)} clubs={standings.length} />}
+          {/* The whole season stays drawn; tapping a point picks that matchday for the results and table below (P8-66). */}
+          {positions.length > 1 && youId && (
+            <PositionCompare roles={nylon} clubId={youId} positions={allPositions} table={standings.map((t: any) => ({ clubId: t.clubId, clubName: t.clubName }))}
+              clubs={standings.length} selected={viewMD - 1} onPoint={i => setSelectedMatchday(i + 1 === history.length ? null : i + 1)} />
+          )}
         </View>
       )}
 
       {snap && (
         <View style={styles.kitSection}>
-          <SectionTag roles={nylon}>{`Matchday ${viewMD}${viewMD === history.length ? ' · the last day' : ''}`}</SectionTag>
+          {/* P8-92: the day of your match that round. */}
+          <SectionTag roles={nylon}>{[`Matchday ${viewMD}`, (() => {
+            const f = (snap.fixtures ?? []).find((x: any) => x.home.isPlayer || x.away.isPlayer)
+            return f ? kickoffFor({ label: `Matchday ${viewMD}`, yearStart: placedLeague?.yearStart ?? dbRunData?.year_start, matchdays: history.length, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short : undefined
+          })(), viewMD === history.length ? 'the last day' : null].filter(Boolean).join(' · ')}</SectionTag>
           {(snap.fixtures ?? []).filter((f: any) => f.result).map((f: any, k: number) => (
             <ResultRow key={k} roles={nylon} homeName={f.home.clubName} awayName={f.away.clubName}
               homeGoals={f.result.homeGoals} awayGoals={f.result.awayGoals}
               youSide={f.home.isPlayer ? 'home' : f.away.isPlayer ? 'away' : null}
-              scorers={[summariseScorers(f.scorers?.home), summariseScorers(f.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+              homeClubId={(f.home as any).clubId} awayClubId={(f.away as any).clubId}
+              homeScorers={summariseScorers(f.scorers?.home) || undefined} awayScorers={summariseScorers(f.scorers?.away) || undefined}
               onPress={() => openFixtureDetail(f, `Matchday ${viewMD}`, viewMD)} />
           ))}
+          {/* Under the round's games, its team of the matchday (23 Sept) — the
+              same team Awards Night picked for that round. Saved runs without
+              match-by-match detail have no rounds, and simply don't show one. */}
+          {mdTeam && (
+            <SafeSection name="team of the matchday">
+              <View style={styles.kitSection}>
+                <SectionTag roles={nylon}>{`Team of matchday ${viewMD}`}</SectionTag>
+                <FormationPitch roles={nylon} team={mdTeam} showScores="rating"
+                  caption="The best-rated player in every position this round." benchLabel="Close calls" />
+              </View>
+            </SafeSection>
+          )}
         </View>
       )}
 
@@ -461,7 +518,7 @@ export default function ResultScreen() {
           <SectionTag roles={nylon}>{viewMD === history.length || !snap ? 'Final table' : `Table after matchday ${viewMD}`}</SectionTag>
           {move ? <Tag roles={nylon} variant={move > 0 ? 'win' : 'loss'}>{move > 0 ? `UP ${move}` : `DOWN ${-move}`}</Tag> : null}
         </View>
-        <LeagueTable roles={nylon} rows={rows} zones={tableZones} onRowPress={hasHub ? id => openClub(id, params.runId) : undefined} />
+        <LeagueTable roles={nylon} rows={rows} zones={tableZones} crowned onRowPress={hasHub ? id => openClub(id, params.runId) : undefined} />
         <ZoneLegend roles={nylon} zones={tableZones} />
       </View>
 
@@ -496,6 +553,7 @@ export default function ResultScreen() {
         )
       })()}
 
+      </Columns>
       <ResultActions fromHistory={!!params.runId} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>
   )
@@ -504,7 +562,7 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   kitFigures: { flexDirection: 'row', flexWrap: 'wrap', gap: space[4], marginTop: space[5] },
   kitFigure: { minWidth: 44 },
-  kitPlates: { gap: space[3], marginTop: space[5] },
+  kitPlates: { gap: space[3], marginTop: space[5], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
   kitSection: { gap: space[2], marginTop: space[6] },
   kitHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   container: {

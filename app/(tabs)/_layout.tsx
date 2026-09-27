@@ -1,6 +1,9 @@
 import { Tabs } from 'expo-router'
 import { Platform, useWindowDimensions } from 'react-native'
 import { useEffect } from 'react'
+import { AppState } from 'react-native'
+import { useNoticeStore } from '@/store/noticeStore'
+import { useUserStore } from '@/store/userStore'
 import * as NavigationBar from 'expo-navigation-bar'
 import { KitTabBar, RAIL_MIN_WIDTH } from '@/components/kit'
 
@@ -11,6 +14,16 @@ import { KitTabBar, RAIL_MIN_WIDTH } from '@/components/kit'
 // 1024px. The order below is the order on screen.
 export default function TabsLayout() {
   const { width } = useWindowDimensions()
+  // P8-90: the You tab counts your unread notifications (friend requests).
+  const unread = useNoticeStore(s => s.unread)
+  const userId = useUserStore(s => s.user?.id)
+  // The You tab carries your name once you're signed in (batch 16).
+  const username = useUserStore(s => (s.isGuest ? null : s.profile?.username ?? null))
+  useEffect(() => {
+    useNoticeStore.getState().refresh()
+    const sub = AppState.addEventListener('change', st => { if (st === 'active') useNoticeStore.getState().refresh() })
+    return () => sub.remove()
+  }, [userId])
 
   useEffect(() => {
     if (Platform.OS === 'android') NavigationBar.setVisibilityAsync('hidden')
@@ -27,7 +40,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="runs" />
       <Tabs.Screen name="leaderboard" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="profile" options={{ title: username ?? 'You', tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined }} />
     </Tabs>
   )
 }

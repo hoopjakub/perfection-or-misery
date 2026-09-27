@@ -12,7 +12,7 @@ const SITE = process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, '')
 const NAME = 'Perfection or Misery'
 const DEFAULT_DESC = 'Draft an XI from random real club-seasons, get dropped into a league or cup, and find out: Perfection or Misery.'
 
-export function PageMeta({ title, description = DEFAULT_DESC, path }: { title?: string; description?: string; path?: string }) {
+export function PageMeta({ title, description = DEFAULT_DESC, path, jsonLd }: { title?: string; description?: string; path?: string; jsonLd?: object }) {
   if (Platform.OS !== 'web') return null
   const full = title ? `${title} · ${NAME}` : NAME
   const url = SITE && path != null ? `${SITE}${path}` : undefined
@@ -28,6 +28,21 @@ export function PageMeta({ title, description = DEFAULT_DESC, path }: { title?: 
       <meta name="twitter:card" content="summary" />
       {url ? <link rel="canonical" href={url} /> : null}
       {url ? <meta property="og:url" content={url} /> : null}
+      {jsonLd ? <script type="application/ld+json">{JSON.stringify(jsonLd)}</script> : null}
     </Head>
   )
+}
+
+/** Structured data for the home page: the game itself, for search results. */
+export const GAME_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'VideoGame',
+  name: NAME,
+  description: DEFAULT_DESC,
+  genre: ['Sports', 'Football management', 'Roguelike'],
+  gamePlatform: ['Web browser', 'Android'],
+  applicationCategory: 'Game',
+  operatingSystem: 'Android, Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  ...(SITE ? { url: SITE } : {}),
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { VersionButton } from '@/components/VersionButton'
 import { View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
@@ -94,6 +95,8 @@ export default function CustomDifficultyScreen() {
       </View>
 
       <Plate label="Use these rules" icon="forward" roles={roles} onPress={useThese} style={styles.plate} />
+      {/* P8-73: the version on every menu before a run starts. */}
+      <VersionButton roles={roles} style={{ marginTop: space[4] }} />
     </KitScreen>
   )
 }

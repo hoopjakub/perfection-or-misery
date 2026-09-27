@@ -2,24 +2,26 @@
 // zone tapes, its legend, the season strip, your result as a scoreline, the
 // results list, the two-way switch, the press ticker and its stories. Every
 // piece stands on whatever `roles` it's given; the season itself is nylon.
-import React, { memo, useEffect, useRef } from 'react'
+import React, { memo, useEffect, useRef, useState } from 'react'
 import { View, Pressable, ScrollView, StyleSheet } from 'react-native'
 import Animated, { LinearTransition, FadeIn } from 'react-native-reanimated'
-import { type Roles, space, border, density } from '@/theme'
+import { type Roles, space, border, density, SERIES } from '@/theme'
 import Svg, { Polyline, Line, Circle } from 'react-native-svg'
-import { KitText, Stripe, Tape, Icon, Tag, RoundFlag } from '@/components/kit'
+import { KitText, Stripe, Tape, Icon, Tag, RoundFlag, VenueMark, TeamMark, Field, Twinkle } from '@/components/kit'
 import { ZONES, type ZoneKey } from '@/data/qualification-bands'
 import { storyText, type Story } from '@/engine/press'
 
 // ── Zones ────────────────────────────────────────────────────────────────────
-// How a zone is drawn. Volt is the good end, the hazard stripe is out, and the
-// places in between are cotton, solid for the bigger prize and broken for the
+// How a zone is drawn. Volt is the title and nothing else (P8-16: the champion
+// used to share the Champions League's tape, though winning the league and
+// finishing fourth are not the same thing), the hazard stripe is out, and the
+// places between are cotton — solid for the bigger prize, broken for the
 // smaller. The code always sits beside the tape, so nothing is colour-only.
-export type ZoneTone = 'top' | 'mid' | 'low' | 'out'
+export type ZoneTone = 'title' | 'top' | 'mid' | 'low' | 'out'
 export type TableZone = { code: string; label: string; tone: ZoneTone }
 
 const LEAGUE_TONE: Record<ZoneKey, ZoneTone> = {
-  champ: 'top', ucl: 'top', uel: 'mid', uecl: 'low', playoff: 'out', down: 'out',
+  champ: 'title', ucl: 'top', uel: 'mid', uecl: 'low', playoff: 'out', down: 'out',
 }
 
 // The Champions League league phase's three zones, by place.
@@ -43,7 +45,9 @@ export function leagueTableZones(zones: (ZoneKey | null)[]): (TableZone | null)[
 }
 
 function ZoneEdge({ roles, tone }: { roles: Roles; tone: ZoneTone | null }) {
-  if (tone === 'out') return <Stripe roles={roles} band={4} style={styles.edge} />
+  // P8-111: going down is red, the mirror of the title's volt. It was the
+  // hazard stripe, which now only means "not available", never an outcome.
+  if (tone === 'out') return <View style={[styles.edge, { backgroundColor: roles.loss }]} />
   if (tone === 'low') {
     return (
       <View style={styles.edge}>
@@ -51,7 +55,7 @@ function ZoneEdge({ roles, tone }: { roles: Roles; tone: ZoneTone | null }) {
       </View>
     )
   }
-  const bg = tone === 'top' ? roles.perfection : tone === 'mid' ? roles.textMuted : 'transparent'
+  const bg = tone === 'title' ? roles.perfection : tone === 'top' ? roles.line : tone === 'mid' ? roles.textMuted : 'transparent'
   return <View style={[styles.edge, { backgroundColor: bg }]} />
 }
 
@@ -64,7 +68,8 @@ export function ZoneLegend({ roles, zones }: { roles: Roles; zones: (TableZone |
       {[...seen.values()].map(z => (
         <View key={z.code} style={styles.legendItem}>
           <View style={styles.legendEdge}><ZoneEdge roles={roles} tone={z.tone} /></View>
-          <KitText t="tag" color={roles.textMuted}>{`${z.code} ${z.label}`}</KitText>
+          {/* A label that only repeats its code ("OUT" / "Out") is said once (P8-107). */}
+          <KitText t="tag" color={roles.textMuted}>{z.label.toUpperCase() === z.code ? z.code : `${z.code} ${z.label}`}</KitText>
         </View>
       ))}
     </View>
@@ -78,20 +83,35 @@ export type TableRowVM = {
   ovr?: number             // shown instead of the results in a strength preview
   flag?: string | null     // nations get a round flag
   note?: string            // a short tag after the name: the group letter
+  /** P8-22: places gained (+) or lost (−) since the matchday before. Left out
+   *  where a table doesn't track movement, and then no column is drawn. */
+  move?: number
 }
 
-export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveMs, muted, flashId, strength, breakAfter, breakLabel, onRowPress }: {
+/** P8-136: each row's places moved since `before` (the club ids in the order
+ *  of the matchday before), for the table's movement column (P8-22). The
+ *  Champions League tables slid their rows instead; now they say it the league
+ *  mode's way. No order before (the first matchday): no column. */
+export function withMoves(rows: TableRowVM[], before?: string[] | null): TableRowVM[] {
+  if (!before?.length) return rows
+  const was = new Map(before.map((id, i) => [id, i + 1]))
+  return rows.map((r, i) => ({ ...r, move: (was.get(r.clubId) ?? i + 1) - (i + 1) }))
+}
+
+export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveMs, muted, strength, breakAfter, breakLabel, onRowPress, crowned }: {
   roles: Roles
   rows: TableRowVM[]
   zones: (TableZone | null)[]
   moveMs?: number        // rows slide to their new place over this long; undefined = jump
   muted?: boolean        // before a ball is kicked: the order is the pundits', not a result
-  flashId?: string | null
   strength?: boolean     // a preview of the field: one OVR column, no results
   breakAfter?: number    // a split league: a heading after this many rows
   breakLabel?: string
   onRowPress?: (clubId: string) => void   // a finished table: each row opens its club
+  /** P8-145: a finished table's champion twinkles beside its name. */
+  crowned?: boolean
 }) {
+  const tracksMoves = rows.some(r => r.move !== undefined)
   const layout = moveMs ? LinearTransition.duration(moveMs) : undefined
   const fig = muted ? roles.textFaint : roles.text
   return (
@@ -101,6 +121,7 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
         <KitText t="tag" color={roles.textMuted} style={styles.code}> </KitText>
         <KitText t="tag" color={roles.textMuted} style={styles.pos}>#</KitText>
         <KitText t="tag" color={roles.textMuted} style={styles.name}>Club</KitText>
+        {tracksMoves && <View style={styles.moveCell} />}
         {strength
           ? <KitText t="tag" color={roles.textMuted} style={styles.pts}>OVR</KitText>
           : <>
@@ -127,20 +148,36 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
             style={[
               styles.row,
               { borderTopColor: cut ? roles.line : roles.rule, borderTopWidth: cut ? border.thin : border.hair },
-              r.isPlayer && { backgroundColor: roles.surface },
+              r.isPlayer && { backgroundColor: roles.yours },
             ]}
             accessible
             accessibilityLabel={`${i + 1}, ${r.clubName}${r.isPlayer ? ', you' : ''}, ${r.points} points, goal difference ${r.gd}${z ? `, ${z.label}` : ''}`}
           >
             <View style={styles.edgeSlot}><ZoneEdge roles={roles} tone={z?.tone ?? null} /></View>
-            <KitText t="tag" color={roles.textMuted} style={styles.code}>{z?.code ?? ''}</KitText>
+            <KitText t="tag" color={roles.textMuted} style={styles.code} numberOfLines={1}>{z?.code ?? ''}</KitText>
             <KitText t="figure" color={fig} style={styles.pos}>{String(i + 1)}</KitText>
             <View style={[styles.name, styles.nameRow]}>
-              {r.flag !== undefined && <RoundFlag emoji={r.flag} code={r.clubName.slice(0, 3)} size={16} roles={roles} />}
+              {/* P8-12: a club wears its crest, a nation its flag. */}
+              {r.flag !== undefined
+                ? <RoundFlag emoji={r.flag} code={r.clubName.slice(0, 3)} size={16} roles={roles} />
+                : <TeamMark roles={roles} clubId={r.clubId} name={r.clubName} size={16} />}
               <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.clubName}</KitText>
+              {crowned && i === 0 ? <Twinkle /> : null}
               {r.note ? <KitText t="tag" color={roles.textMuted}>{r.note}</KitText> : null}
-              {r.isPlayer && <Tag roles={roles} variant="you">YOU</Tag>}
+              {/* P8-23: no YOU tag — your row is marked by its background (the left
+                  edge belongs to the zone tape). */}
             </View>
+            {/* P8-22: places moved since the matchday before, a caret and a number. */}
+            {tracksMoves && (
+              <View style={styles.moveCell} accessibilityLabel={r.move ? `${r.move > 0 ? 'up' : 'down'} ${Math.abs(r.move)}` : undefined}>
+                {r.move ? (
+                  <>
+                    <Icon name={r.move > 0 ? 'up' : 'down'} size={16} color={r.move > 0 ? (roles.perfectionText ?? roles.text) : roles.lossText} />
+                    <KitText t="tag" color={r.move > 0 ? (roles.perfectionText ?? roles.text) : roles.lossText}>{String(Math.abs(r.move))}</KitText>
+                  </>
+                ) : null}
+              </View>
+            )}
             {strength
               ? <KitText t="figure" color={fig} style={styles.pts}>{String(r.ovr ?? 0)}</KitText>
               : <>
@@ -148,11 +185,6 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
                   <KitText t="figure" color={fig} style={styles.num}>{r.gd > 0 ? `+${r.gd}` : String(r.gd)}</KitText>
                   <KitText t="figure" color={fig} style={styles.pts}>{String(r.points)}</KitText>
                 </>}
-            {flashId === r.clubId && (
-              <Animated.View entering={FadeIn.duration(120)} style={styles.flash} pointerEvents="none">
-                <Tape colours={[roles.you]} roles={roles} />
-              </Animated.View>
-            )}
           </Animated.View>
           </Pressable>
           </React.Fragment>
@@ -173,11 +205,15 @@ export function StandingFigure({ roles, pos, delta, zone, points }: {
 }) {
   // null = we don't track movement on this screen; say nothing rather than "no change".
   const move = delta == null ? null : delta > 0 ? `UP ${delta}` : delta < 0 ? `DOWN ${-delta}` : 'NO CHANGE'
+  // P8-22: going up is volt and going down is misery red, on the words AND the
+  // place itself (only UP used to be coloured, and the number never was).
+  // Volt can't be text on cotton, so there a climb stays in ink.
+  const tone = delta == null || delta === 0 ? roles.text : delta > 0 ? (roles.perfectionText ?? roles.text) : roles.lossText
   return (
     <View style={styles.standing} accessible accessibilityLabel={`You're ${ordinal(pos)}${move ? `, ${move.toLowerCase()}` : ''}, ${points} points${zone ? `, ${zone.label}` : ''}`}>
-      <KitText t="superL" color={roles.text}>{ordinal(pos).toUpperCase()}</KitText>
+      <KitText t="superL" color={tone}>{ordinal(pos).toUpperCase()}</KitText>
       <View style={styles.standingSide}>
-        {move ? <KitText t="tag" color={(delta ?? 0) > 0 ? (roles.perfectionText ?? roles.text) : roles.textMuted}>{move}</KitText> : null}
+        {move ? <KitText t="tag" color={delta === 0 ? roles.textMuted : tone}>{move}</KitText> : null}
         <KitText t="figure" color={roles.text}>{`${points} PTS`}</KitText>
         {zone && <Tag roles={roles}>{zone.code}</Tag>}
       </View>
@@ -190,6 +226,11 @@ export function StandingFigure({ roles, pos, delta, zone, points }: {
 // played matchday looks back at it; the live end is always the last one.
 export type Mark = 'W' | 'D' | 'L'
 
+// One matchday cell, and the gap between two of them — the scroll maths (P8-15)
+// and the styles read the same numbers.
+const CELL_W = 26
+const CELL_GAP = 4
+
 export function SeasonStrip({ roles, marks, total, viewing, onPick }: {
   roles: Roles
   marks: Mark[]
@@ -198,7 +239,15 @@ export function SeasonStrip({ roles, marks, total, viewing, onPick }: {
   onPick: (md: number | null) => void
 }) {
   const ref = useRef<ScrollView>(null)
-  useEffect(() => { if (viewing == null) ref.current?.scrollToEnd({ animated: true }) }, [marks.length, viewing])
+  // P8-15: follow the matchday just played, not the end of the strip. It used
+  // to scroll to the end, which is the LAST matchday of the season — so before
+  // a ball was kicked you were looking at May. Matchday 1 sits at x = 0, and
+  // each one after that scrolls just enough to keep it in view.
+  useEffect(() => {
+    if (viewing != null) return
+    const x = Math.max(0, (marks.length - 1) * (CELL_W + CELL_GAP) - CELL_W * 3)
+    ref.current?.scrollTo({ x, animated: marks.length > 1 })
+  }, [marks.length, viewing])
   return (
     <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}
       accessibilityLabel={`Your season: ${marks.filter(m => m === 'W').length} won, ${marks.filter(m => m === 'D').length} drawn, ${marks.filter(m => m === 'L').length} lost`}>
@@ -209,14 +258,10 @@ export function SeasonStrip({ roles, marks, total, viewing, onPick }: {
         const cell = (
           <View style={[styles.cell, {
             borderColor: m ? (m === 'D' ? roles.draw : roles.line) : roles.rule,
-            backgroundColor: m === 'W' ? roles.perfection : 'transparent',
+            backgroundColor: m === 'W' ? roles.perfection : m === 'L' ? roles.loss : 'transparent',
           }]}>
-            {m === 'L' && <Stripe roles={roles} band={4} style={styles.cellStripe} />}
-            {m && (
-              <View style={m === 'L' ? [styles.cellInset, { backgroundColor: roles.bg }] : null}>
-                <KitText t="tag" color={m === 'W' ? roles.onFill : m === 'D' ? roles.draw : roles.text}>{m}</KitText>
-              </View>
-            )}
+            {/* W volt, L misery red (P8-74), D grey outline; the letter says it without colour. */}
+            {m && <KitText t="tag" color={m === 'D' ? roles.draw : roles.onFill}>{m}</KitText>}
           </View>
         )
         return (
@@ -235,14 +280,18 @@ export function SeasonStrip({ roles, marks, total, viewing, onPick }: {
 }
 
 // ── Your result ──────────────────────────────────────────────────────────────
-export function ScorelineCard({ roles, label, homeName, awayName, homeGoals, awayGoals, youHome, homeScorers, awayScorers, onPress }: {
+export function ScorelineCard({ roles, label, homeName, awayName, homeClubId, awayClubId, homeGoals, awayGoals, youHome, homeScorers, awayScorers, onPress, footer }: {
   roles: Roles
   label: string
   homeName: string; awayName: string
+  /** Each side's crest (or a nation's flag) over its name. */
+  homeClubId?: string; awayClubId?: string
   homeGoals: number; awayGoals: number
   youHome: boolean
   homeScorers?: string; awayScorers?: string
   onPress?: () => void
+  /** Under the scorers: the man of the match (P8-129). */
+  footer?: React.ReactNode
 }) {
   const mine = youHome ? homeGoals - awayGoals : awayGoals - homeGoals
   const mark: Mark = mine > 0 ? 'W' : mine < 0 ? 'L' : 'D'
@@ -252,6 +301,8 @@ export function ScorelineCard({ roles, label, homeName, awayName, homeGoals, awa
       accessibilityHint="Opens the match sheet"
       style={({ pressed }) => [styles.scoreCard, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
       <View style={styles.scoreTop}>
+        {/* P8-134: home or away as the house or the plane (P8-09), not the word. */}
+        <VenueMark roles={roles} home={youHome} />
         <KitText t="tag" color={roles.textMuted}>{label}</KitText>
         <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag>
         <View style={{ flex: 1 }} />
@@ -259,13 +310,14 @@ export function ScorelineCard({ roles, label, homeName, awayName, homeGoals, awa
       </View>
       <View style={styles.scoreRow}>
         <View style={[styles.scoreSide, { alignItems: 'flex-end' }]}>
+          {/* P8-20/23: this card is your result already; a YOU tag said it twice. */}
+          <TeamMark roles={roles} clubId={homeClubId} name={homeName} size={24} />
           <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{homeName}</KitText>
-          {youHome && <Tag roles={roles} variant="you">YOU</Tag>}
         </View>
         <KitText t="superL" color={roles.text} style={styles.scoreFig}>{`${homeGoals}–${awayGoals}`}</KitText>
         <View style={[styles.scoreSide, { alignItems: 'flex-start' }]}>
+          <TeamMark roles={roles} clubId={awayClubId} name={awayName} size={24} />
           <KitText t="title" color={roles.text} numberOfLines={2}>{awayName}</KitText>
-          {!youHome && <Tag roles={roles} variant="you">YOU</Tag>}
         </View>
       </View>
       {(homeScorers || awayScorers) ? (
@@ -275,54 +327,270 @@ export function ScorelineCard({ roles, label, homeName, awayName, homeGoals, awa
           <KitText t="body" color={roles.textMuted} style={styles.scoreSide}>{awayScorers ?? ''}</KitText>
         </View>
       ) : null}
+      {footer}
     </Pressable>
   )
 }
 
 // ── ResultRow ────────────────────────────────────────────────────────────────
-export const ResultRow = memo(function ResultRow({ roles, homeName, awayName, homeGoals, awayGoals, youSide, scorers, onPress }: {
+// P8-17: each side's scorers sit UNDER that side, lined up with the names and
+// the score. They used to be one centred line ("Haaland 12' · Saka 40'"), which
+// never said who scored for whom.
+export const ResultRow = memo(function ResultRow({ roles, homeName, awayName, homeClubId, awayClubId, homeGoals, awayGoals, youSide, homeScorers, awayScorers, onPress, round, neutral }: {
   roles: Roles
   homeName: string; awayName: string
+  /** P8-12: their crests, where the caller has the ids to hand. */
+  homeClubId?: string; awayClubId?: string
   homeGoals: number; awayGoals: number
   youSide: 'home' | 'away' | null
-  scorers?: string
+  homeScorers?: string; awayScorers?: string
   onPress?: () => void
+  /** Which round it was, where a list mixes them ("ROUND OF 16", "GROUP B · MD 2"). */
+  round?: string
+  /** Neutral ground (the World Cup, P8-59): your row carries no home or away mark. */
+  neutral?: boolean
 }) {
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button"
-      accessibilityLabel={`${homeName} ${homeGoals}, ${awayName} ${awayGoals}`}
-      style={({ pressed }) => [styles.resultRow, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
+      accessibilityLabel={`${round ? `${round}, ` : ''}${homeName} ${homeGoals}, ${awayName} ${awayGoals}`}
+      style={({ pressed }) => [styles.resultRow, { borderBottomColor: roles.rule }, youSide && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <View style={{ flex: 1 }}>
+        {round ? <KitText t="tag" color={roles.textMuted} style={styles.resultRound}>{round}</KitText> : null}
         <View style={styles.resultLine}>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={[styles.resultSide, { textAlign: 'right' }]}>{homeName}</KitText>
+          <View style={[styles.resultTeam, styles.resultHome]}>
+            <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultName}>{homeName}</KitText>
+            {/* P8-79: a nation's flag, a club's crest — decided by the id. */}
+            <TeamMark roles={roles} clubId={homeClubId} name={homeName} size={16} />
+          </View>
           <KitText t="figure" color={roles.text} style={styles.resultFig}>{`${homeGoals}–${awayGoals}`}</KitText>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultSide}>{awayName}</KitText>
+          <View style={styles.resultTeam}>
+            <TeamMark roles={roles} clubId={awayClubId} name={awayName} size={16} />
+            <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultName}>{awayName}</KitText>
+          </View>
         </View>
-        {scorers ? <KitText t="body" color={roles.textMuted} numberOfLines={2} style={styles.resultScorers}>{scorers}</KitText> : null}
+        {homeScorers || awayScorers ? (
+          <View style={styles.resultLine}>
+            <KitText t="body" color={roles.textMuted} numberOfLines={2} style={[styles.resultSide, { textAlign: 'right' }]}>{homeScorers ?? ''}</KitText>
+            <View style={styles.resultFig} />
+            <KitText t="body" color={roles.textMuted} numberOfLines={2} style={styles.resultSide}>{awayScorers ?? ''}</KitText>
+          </View>
+        ) : null}
       </View>
-      {youSide && <Tag roles={roles} variant="you">YOU</Tag>}
+      {/* P8-23: your match is marked by its background, not a tag on every
+          list; P8-134: and whether you were at home, by the house or the plane. */}
+      {youSide && !neutral && <VenueMark roles={roles} home={youSide === 'home'} />}
       {onPress && <Icon name="chevron" size={16} color={roles.textMuted} />}
     </Pressable>
   )
 })
 
-// ── PositionGraph ────────────────────────────────────────────────────────────
+// ── LineGraph ────────────────────────────────────────────────────────────────
+// One line over the run's matches, with ALL its reference values written on it
+// (P8-66, the maintainer's spec): down the left, the scale's top, the line's
+// best, its worst and the scale's bottom, each with its own guide line (solid
+// for the scale, dashed for the line's own extremes). Where the best IS the
+// top (or the worst the bottom) one label says both. Labels never overlap:
+// ones that would are pushed apart. Taller than before (200) so four labels
+// breathe. `onPoint` makes every point tappable (a 28px target round each).
+export type GraphSeries = { key: string; label: string; values: number[] }
+
+export function LineGraph({ roles, values, min, max, invert, fmt, topWord = 'MAX', bottomWord = 'MIN', legend, xLabel = 'MD', dot, onPoint, selected, compare = [] }: {
+  roles: Roles
+  values: number[]
+  min: number
+  max: number
+  invert?: boolean               // smaller is better and sits at the top (league position)
+  fmt: (v: number) => string     // how a value is written on the scale
+  topWord?: string               // what the scale's top is called ('MAX', or 'TOP' for positions)
+  bottomWord?: string
+  legend: string
+  xLabel?: string
+  dot?: (v: number) => string    // a colour per point, when the points carry meaning (ratings)
+  onPoint?: (i: number) => void
+  selected?: number | null       // a point to ring, e.g. the match slid to
+  /** P8-95: other lines to compare against, each in its own colour (SERIES) and
+   *  named in the legend. The reference values stay yours. */
+  compare?: GraphSeries[]
+}) {
+  const w = 320, h = 200, padY = 10, LABEL = 16
+  // The longest line sets the x axis, so a compared line of another length
+  // (a player with more matches) is drawn to scale, not stretched.
+  const n = Math.max(values.length, ...compare.map(c => c.values.length))
+  const x = (i: number) => (n === 1 ? w / 2 : (i / (n - 1)) * (w - 16) + 8)
+  const norm = (v: number) => (Math.max(min, Math.min(max, v)) - min) / Math.max(1e-6, max - min)
+  const y = (v: number) => padY + (invert ? norm(v) : 1 - norm(v)) * (h - padY * 2)
+  const last = values[values.length - 1]
+  const top = invert ? min : max, bottom = invert ? max : min
+  const best = invert ? Math.min(...values) : Math.max(...values)
+  const worst = invert ? Math.max(...values) : Math.min(...values)
+
+  // The four reference values, merged where they coincide.
+  type Ref = { v: number; label: string; dashed: boolean }
+  const refs: Ref[] = []
+  refs.push({ v: top, label: best === top ? `${fmt(top)} ${topWord} = BEST` : `${fmt(top)} ${topWord}`, dashed: false })
+  if (best !== top) refs.push({ v: best, label: `${fmt(best)} BEST`, dashed: true })
+  if (worst !== bottom && worst !== best) refs.push({ v: worst, label: `${fmt(worst)} WORST`, dashed: true })
+  refs.push({ v: bottom, label: worst === bottom ? `${fmt(bottom)} ${bottomWord} = WORST` : `${fmt(bottom)} ${bottomWord}`, dashed: false })
+
+  // Label positions, top to bottom, pushed apart so none overlap, then pulled
+  // back up from the bottom edge if the push ran them off the graph.
+  const placed = refs.map(r => ({ ...r, ly: y(r.v) - LABEL / 2 })).sort((a, b) => a.ly - b.ly)
+  for (let k = 0; k < placed.length; k++) placed[k].ly = Math.max(placed[k].ly, k === 0 ? 0 : placed[k - 1].ly + LABEL)
+  for (let k = placed.length - 1; k >= 0; k--) {
+    const floor = k === placed.length - 1 ? h - LABEL : placed[k + 1].ly - LABEL
+    placed[k].ly = Math.min(placed[k].ly, floor)
+  }
+
+  return (
+    <View style={styles.graph} accessible={!onPoint} accessibilityLabel={`${legend}. From ${fmt(values[0])} to ${fmt(last)}; best ${fmt(best)}, worst ${fmt(worst)}.`}>
+      <View style={styles.graphBody}>
+        <View style={[styles.graphGutter, { height: h }]}>
+          {placed.map(r => (
+            <KitText key={r.label} t="tag" color={r.dashed ? roles.text : roles.textMuted} numberOfLines={1}
+              style={[styles.graphTick, { top: r.ly }]}>{r.label}</KitText>
+          ))}
+        </View>
+        <View style={[styles.graphPlot, { borderColor: roles.rule, height: h }]}>
+          <Svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+            {refs.map(r => (
+              <Line key={r.label} x1={0} y1={y(r.v)} x2={w} y2={y(r.v)} stroke={r.dashed ? roles.textMuted : roles.rule} strokeWidth={1}
+                strokeDasharray={r.dashed ? '4 4' : undefined} />
+            ))}
+            {compare.map((c, k) => c.values.length > 0 && (
+              <React.Fragment key={c.key}>
+                <Polyline points={c.values.map((v, i) => `${x(i)},${y(v)}`).join(' ')} fill="none" stroke={SERIES[k % SERIES.length]} strokeWidth={1.5} />
+                {/* Where the points mean something (ratings), theirs wear it too:
+                    the line says whose, the point says how good. */}
+                {dot && c.values.map((v, i) => <Circle key={i} cx={x(i)} cy={y(v)} r={3} fill={dot(v)} />)}
+              </React.Fragment>
+            ))}
+            <Polyline points={values.map((v, i) => `${x(i)},${y(v)}`).join(' ')} fill="none" stroke={roles.text} strokeWidth={1.5} />
+            {(dot || onPoint) && values.map((v, i) => <Circle key={i} cx={x(i)} cy={y(v)} r={3} fill={dot ? dot(v) : roles.textMuted} />)}
+            {selected != null && values[selected] != null && <Circle cx={x(selected)} cy={y(values[selected])} r={6} fill="none" stroke={roles.you} strokeWidth={2} />}
+            <Circle cx={x(values.length - 1)} cy={y(last)} r={4} fill={roles.you} />
+          </Svg>
+          {/* Tappable points, laid over the drawing (x in %, since the SVG stretches to the width). */}
+          {onPoint && values.map((v, i) => (
+            <Pressable key={i} onPress={() => onPoint(i)} hitSlop={4} accessibilityRole="button"
+              accessibilityLabel={`${xLabel} ${i + 1}: ${fmt(v)}`}
+              style={[styles.graphHit, { left: `${(x(i) / w) * 100}%`, top: y(v) - 14 }]} />
+          ))}
+        </View>
+      </View>
+      <View style={styles.graphFoot}>
+        <KitText t="tag" color={roles.textMuted}>{`${xLabel} 1`}</KitText>
+        <KitText t="tag" color={roles.textMuted}>{`${xLabel} ${n}`}</KitText>
+      </View>
+      <View style={styles.graphLegend}>
+        <View style={[styles.graphSwatch, { backgroundColor: roles.you }]} />
+        <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{legend}</KitText>
+      </View>
+      {compare.map((c, k) => (
+        <View key={c.key} style={styles.graphLegend}>
+          <View style={[styles.graphSwatch, { backgroundColor: SERIES[k % SERIES.length] }]} />
+          <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }} numberOfLines={1}>
+            {`${c.label} · now ${fmt(c.values[c.values.length - 1])}`}
+          </KitText>
+        </View>
+      ))}
+      {onPoint ? <KitText t="tag" color={roles.textMuted} style={styles.graphLegendPad}>Tap a point to go to that match</KitText> : null}
+    </View>
+  )
+}
+
+const ordinalOf = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
+}
+
 // A club's league position after each matchday; first place at the top. One
 // piece for the club page, the run hub and the result screen (P8-67).
-// ponytail: no axis labels yet; P8-66 adds the scale and a legend.
-export function PositionGraph({ roles, values, clubs }: { roles: Roles; values: number[]; clubs: number }) {
-  const w = 320, h = 120
-  const x = (i: number) => (values.length === 1 ? w / 2 : (i / (values.length - 1)) * (w - 12) + 6)
-  const y = (pos: number) => ((pos - 1) / Math.max(1, clubs - 1)) * (h - 12) + 6
+export function PositionGraph({ roles, values, clubs, onPoint, selected, compare }: {
+  roles: Roles; values: number[]; clubs: number; onPoint?: (i: number) => void; selected?: number | null; compare?: GraphSeries[]
+}) {
   return (
-    <View style={{ borderWidth: border.thin, borderColor: roles.rule }}
-      accessible accessibilityLabel={`Position from ${values[0]} to ${values[values.length - 1]}`}>
-      <Svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`}>
-        <Line x1={0} y1={y(1)} x2={w} y2={y(1)} stroke={roles.rule} strokeWidth={1} />
-        <Line x1={0} y1={y(clubs)} x2={w} y2={y(clubs)} stroke={roles.rule} strokeWidth={1} />
-        <Polyline points={values.map((v, i) => `${x(i)},${y(v)}`).join(' ')} fill="none" stroke={roles.text} strokeWidth={1.5} />
-        <Circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={3} fill={roles.you} />
-      </Svg>
+    <LineGraph roles={roles} values={values} min={1} max={clubs} invert fmt={v => ordinalOf(v).toUpperCase()}
+      topWord="TOP" bottomWord="LAST" onPoint={onPoint} selected={selected} compare={compare}
+      legend={`League position after each matchday · now ${ordinalOf(values[values.length - 1])} of ${clubs}`} />
+  )
+}
+
+// ── PositionCompare (P8-95) ──────────────────────────────────────────────────
+// A club's position graph with the picker under it: add other clubs from the
+// same table and each gets its line, colour and legend entry. One piece for
+// the run hub, the club page and the result screen.
+export function PositionCompare({ roles, clubId, positions, table, clubs, onPoint, selected }: {
+  roles: Roles
+  clubId: string
+  positions: Map<string, number[]>
+  /** The clubs to offer, in table order. */
+  table: { clubId: string; clubName: string }[]
+  clubs: number
+  onPoint?: (i: number) => void
+  selected?: number | null
+}) {
+  const [picked, setPicked] = useState<string[]>([])
+  const mine = positions.get(clubId)
+  if (!mine || mine.length < 2) return null
+  const names = new Map(table.map(t => [t.clubId, t.clubName]))
+  const compare = picked.filter(id => positions.has(id)).map(id => ({ key: id, label: names.get(id) ?? id, values: positions.get(id)! }))
+  return (
+    <View>
+      <PositionGraph roles={roles} values={mine} clubs={clubs} onPoint={onPoint} selected={selected} compare={compare} />
+      <ComparePicker roles={roles} selected={picked} onChange={setPicked}
+        options={table.filter(t => t.clubId !== clubId && positions.has(t.clubId)).map(t => ({ id: t.clubId, label: t.clubName }))} />
+    </View>
+  )
+}
+
+// ── ComparePicker (P8-95) ────────────────────────────────────────────────────
+// What to draw beside your line: a row of chips to switch on and off, up to
+// four (one per SERIES colour). A chip that's on wears its line's colour.
+export const MAX_COMPARE = SERIES.length
+
+export function ComparePicker({ roles, options, selected, onChange, label = 'Compare with' }: {
+  roles: Roles
+  /** Everyone who can be compared; found by typing, never listed in full. */
+  options: { id: string; label: string }[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+  label?: string
+}) {
+  const [query, setQuery] = useState('')
+  if (!options.length) return null
+  // Accents fold, so "muller" finds Müller.
+  const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const q = fold(query.trim())
+  const found = q.length >= 2 ? options.filter(o => !selected.includes(o.id) && fold(o.label).includes(q)).slice(0, 6) : []
+  const add = (id: string) => { if (selected.length < MAX_COMPARE) onChange([...selected, id]); setQuery('') }
+  const names = new Map(options.map(o => [o.id, o.label]))
+  return (
+    <View style={styles.compare}>
+      {/* What's on the graph now: its colour, and a tap takes it off. */}
+      {selected.length > 0 && (
+        <View style={styles.compareRow}>
+          {selected.map((id, k) => (
+            <Pressable key={id} onPress={() => onChange(selected.filter(x => x !== id))} accessibilityRole="button"
+              accessibilityLabel={`Stop comparing with ${names.get(id) ?? id}`}
+              style={({ pressed }) => [styles.compareChip, { borderColor: SERIES[k] }, pressed && { backgroundColor: roles.sunken }]}>
+              <View style={[styles.graphSwatch, { backgroundColor: SERIES[k] }]} />
+              <KitText t="tag" color={roles.text} numberOfLines={1}>{names.get(id) ?? id}</KitText>
+              <Icon name="close" size={16} color={roles.textMuted} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {selected.length < MAX_COMPARE && (
+        <Field roles={roles} label={`${label} · up to ${MAX_COMPARE}`} value={query} onChangeText={setQuery} autoCorrect={false} autoCapitalize="none" />
+      )}
+      {found.map(o => (
+        <Pressable key={o.id} onPress={() => add(o.id)} accessibilityRole="button"
+          style={({ pressed }) => [styles.compareHit, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{o.label}</KitText>
+          <Icon name="forward" size={16} color={roles.textMuted} />
+        </Pressable>
+      ))}
+      {q.length >= 2 && found.length === 0 ? <KitText t="tag" color={roles.textMuted}>NOBODY BY THAT NAME</KitText> : null}
     </View>
   )
 }
@@ -356,11 +624,18 @@ export function SegmentSwitch<T extends string>({ roles, options, value, onChang
 // ── FixtureRow ───────────────────────────────────────────────────────────────
 // One of your fixtures before or as it's played: matchday, home or away, the
 // opponent, and the pot they came from.
-export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result }: {
+export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result, when, you }: {
   roles: Roles
   matchday: number
+  /** P8-117: your club's name. Given, the row reads like the scoreline it
+   *  becomes: your side on the left at home and on the right away, the score
+   *  home–away between them. Without it, only the opponent shows. */
+  you?: string
+  /** P8-92: the day it's played ("TUE 17 SEP"), under the matchday. */
+  when?: string
   opponent: string
-  home: boolean
+  /** null = a neutral venue (the World Cup, P8-59): no HOME or AWAY tag. */
+  home: boolean | null
   pot?: number
   flag?: string | null
   result?: { mine: number; theirs: number }
@@ -368,18 +643,35 @@ export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result 
   const mark: Mark | null = result ? (result.mine > result.theirs ? 'W' : result.mine < result.theirs ? 'L' : 'D') : null
   return (
     <View style={[styles.fixture, { borderBottomColor: roles.rule }]} accessible
-      accessibilityLabel={`Matchday ${matchday}, ${home ? 'home to' : 'away at'} ${opponent}${pot ? `, pot ${pot}` : ''}${result ? `, ${result.mine} ${result.theirs}` : ''}`}>
-      <KitText t="tag" color={roles.textMuted} style={styles.fixtureMd}>{`MD ${matchday}`}</KitText>
-      <Tag roles={roles}>{home ? 'HOME' : 'AWAY'}</Tag>
+      accessibilityLabel={`Matchday ${matchday}, ${home == null ? 'against' : home ? 'home to' : 'away at'} ${opponent}${pot ? `, pot ${pot}` : ''}${result ? `, ${result.mine} ${result.theirs}` : ''}`}>
+      <View style={styles.fixtureMd}>
+        <KitText t="tag" color={roles.textMuted}>{`MD ${matchday}`}</KitText>
+        {when ? <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{when}</KitText> : null}
+      </View>
+      {home != null && <VenueMark roles={roles} home={home} />}
       {flag !== undefined && <RoundFlag emoji={flag} code={opponent.slice(0, 3)} size={16} roles={roles} />}
-      <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{opponent}</KitText>
-      {pot ? <Tag roles={roles}>{`POT ${pot}`}</Tag> : null}
-      {result && mark ? (
+      {you && home != null ? (
         <>
-          <KitText t="figure" color={roles.text}>{`${result.mine}–${result.theirs}`}</KitText>
-          <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={styles.fixtureLeft}>{home ? you : opponent}</KitText>
+          <KitText t="figure" color={result ? roles.text : roles.textMuted} style={styles.fixtureScore}>
+            {result ? (home ? `${result.mine}–${result.theirs}` : `${result.theirs}–${result.mine}`) : 'v'}
+          </KitText>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{home ? opponent : you}</KitText>
+          {pot ? <Tag roles={roles}>{`POT ${pot}`}</Tag> : null}
+          {mark ? <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag> : null}
         </>
-      ) : null}
+      ) : (
+        <>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{opponent}</KitText>
+          {pot ? <Tag roles={roles}>{`POT ${pot}`}</Tag> : null}
+          {result && mark ? (
+            <>
+              <KitText t="figure" color={roles.text}>{`${result.mine}–${result.theirs}`}</KitText>
+              <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag>
+            </>
+          ) : null}
+        </>
+      )}
     </View>
   )
 }
@@ -402,7 +694,6 @@ export function GroupWall({ roles, groups, onOpen, cut = 2 }: {
           style={({ pressed }) => [styles.mini, { borderColor: g.you ? roles.line : roles.rule, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
           <View style={styles.miniTop}>
             <KitText t="tag" color={roles.text}>{`GROUP ${g.id}`}</KitText>
-            {g.you && <Tag roles={roles} variant="you">YOU</Tag>}
             <View style={{ flex: 1 }} />
             <Icon name="chevron" size={16} color={roles.textMuted} />
           </View>
@@ -420,17 +711,17 @@ export function GroupWall({ roles, groups, onOpen, cut = 2 }: {
 }
 
 // ── StampLabel ───────────────────────────────────────────────────────────────
-// A fate, stamped: THROUGH AS WINNERS, OUT. Volt edge for good news, the
-// stripe for bad.
+// A fate, stamped: THROUGH AS WINNERS, OUT. Volt edge for good news, misery
+// red for bad (P8-74); the stamp's word says which without colour.
 export function StampLabel({ roles, text, good, sub }: { roles: Roles; text: string; good: boolean; sub?: string }) {
   return (
     <Animated.View entering={FadeIn.duration(180)} style={[styles.stamp, { borderColor: roles.line, backgroundColor: roles.surface }]}
       accessible accessibilityRole="header" accessibilityLabel={`${text}${sub ? `. ${sub}` : ''}`}>
       {good
         ? <View style={[styles.stampEdge, { backgroundColor: roles.perfection }]} />
-        : <Stripe roles={roles} band={6} style={styles.stampEdge} />}
+        : <View style={[styles.stampEdge, { backgroundColor: roles.loss }]} />}
       <View style={styles.stampBody}>
-        <KitText t="superM" color={roles.text}>{`"${text.toUpperCase()}"`}</KitText>
+        <KitText t="superM" color={roles.text}>{text.toUpperCase()}</KitText>
         {sub ? <KitText t="body" color={roles.textMuted}>{sub}</KitText> : null}
       </View>
     </Animated.View>
@@ -465,6 +756,9 @@ export type TieVM = {
   bName: string
   aFlag?: string | null
   bFlag?: string | null
+  /** P8-12: their crests, where the caller has the ids (a nation shows its flag). */
+  aClubId?: string
+  bClubId?: string
   score?: string          // "3–2", the aggregate for a two-legged tie
   detail?: string         // "Leg 1 2–1 · Leg 2 0–0 · AET · Pens 4–3", or "AET"
   winnerIsA: boolean
@@ -477,12 +771,14 @@ export type TieVM = {
   onPress?: () => void
 }
 
-function Flagged({ roles, name, flag, direct, muted, align }: {
-  roles: Roles; name: string; flag?: string | null; direct?: boolean; muted?: boolean; align: 'left' | 'right'
+function Flagged({ roles, name, flag, clubId, direct, muted, align }: {
+  roles: Roles; name: string; flag?: string | null; clubId?: string; direct?: boolean; muted?: boolean; align: 'left' | 'right'
 }) {
   const body = (
     <>
-      {flag ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={16} roles={roles} /> : null}
+      {flag
+        ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={16} roles={roles} />
+        : <TeamMark roles={roles} clubId={clubId} name={name} size={16} />}
       {direct && <Tag roles={roles}>SEED</Tag>}
       <KitText t="body" color={muted ? roles.textMuted : roles.text} numberOfLines={1} style={{ flexShrink: 1, textAlign: align }}>{name}</KitText>
     </>
@@ -498,7 +794,7 @@ export function TieRow({ roles, tie }: { roles: Roles; tie: TieVM }) {
   if (tie.bye) {
     return (
       <View style={[styles.tieRow, { borderBottomColor: roles.rule }]} accessible accessibilityLabel={`${tie.aName} advance without playing`}>
-        <Flagged roles={roles} name={tie.aName} flag={tie.aFlag} direct={tie.directA} align="left" />
+        <Flagged roles={roles} name={tie.aName} flag={tie.aFlag} clubId={tie.aClubId} direct={tie.directA} align="left" />
         <Tag roles={roles}>BYE</Tag>
         <KitText t="body" color={roles.textMuted} numberOfLines={1}>advances unopposed</KitText>
       </View>
@@ -507,18 +803,17 @@ export function TieRow({ roles, tie }: { roles: Roles; tie: TieVM }) {
   return (
     <Pressable onPress={tie.onPress} disabled={!tie.onPress} accessibilityRole="button"
       accessibilityLabel={`${tie.aName} ${tie.score ?? ''} ${tie.bName}${tie.detail ? `, ${tie.detail}` : ''}`}
-      style={({ pressed }) => [styles.tieRow, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
+      style={({ pressed }) => [styles.tieRow, { borderBottomColor: roles.rule }, tie.isPlayerTie && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <View style={{ flex: 1 }}>
         <View style={styles.tieLine}>
-          <Flagged roles={roles} name={tie.aName} flag={tie.aFlag} direct={tie.directA} muted={!tie.winnerIsA} align="right" />
+          <Flagged roles={roles} name={tie.aName} flag={tie.aFlag} clubId={tie.aClubId} direct={tie.directA} muted={!tie.winnerIsA} align="right" />
           <KitText t="figure" color={roles.text} style={styles.tieFig}>{tie.score ?? ''}</KitText>
-          <Flagged roles={roles} name={tie.bName} flag={tie.bFlag} direct={tie.directB} muted={tie.winnerIsA} align="left" />
+          <Flagged roles={roles} name={tie.bName} flag={tie.bFlag} clubId={tie.bClubId} direct={tie.directB} muted={tie.winnerIsA} align="left" />
         </View>
         {tie.detail ? <KitText t="tag" color={roles.textMuted} style={styles.tieCentre}>{tie.detail}</KitText> : null}
         {tie.scorers ? <KitText t="body" color={roles.textMuted} style={styles.tieCentre} numberOfLines={2}>{tie.scorers}</KitText> : null}
         {tie.note ? <KitText t="tag" color={roles.text} style={styles.tieCentre}>{tie.note}</KitText> : null}
       </View>
-      {tie.isPlayerTie && <Tag roles={roles} variant="you">YOURS</Tag>}
       {tie.onPress && <Icon name="chevron" size={16} color={roles.textMuted} />}
     </Pressable>
   )
@@ -531,20 +826,25 @@ export function TieCard({ roles, tie, label, tone }: {
     <Pressable onPress={tie.onPress} disabled={!tie.onPress} accessibilityRole="button"
       accessibilityLabel={`${label}. ${tie.aName} ${tie.score ?? ''} ${tie.bName}${tie.detail ? `, ${tie.detail}` : ''}`}
       style={({ pressed }) => [styles.tieCard, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
+      {/* The round's name is the section heading right above the card (with
+          its explainer); said here too it read twice (the maintainer, 26 Sept).
+          It stays in the card's spoken label. */}
       <View style={styles.tieCardTop}>
-        <KitText t="tag" color={roles.textMuted}>{label}</KitText>
         {tie.note ? <Tag roles={roles} variant={tone ?? 'data'}>{tie.note}</Tag> : null}
         <View style={{ flex: 1 }} />
         {tie.onPress && <Icon name="chevron" size={20} color={roles.text} />}
       </View>
       <View style={styles.scoreRow}>
         <View style={[styles.scoreSide, { alignItems: 'flex-end' }]}>
-          {tie.aFlag ? <RoundFlag emoji={tie.aFlag} code={tie.aName.slice(0, 3)} size={20} roles={roles} /> : null}
+          {/* Each side's crest, or a nation's flag: the card had only flags, so a club tie had no mark. */}
+          {tie.aFlag ? <RoundFlag emoji={tie.aFlag} code={tie.aName.slice(0, 3)} size={24} roles={roles} />
+            : <TeamMark roles={roles} clubId={tie.aClubId} name={tie.aName} size={24} />}
           <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{tie.aName}</KitText>
         </View>
         <KitText t="superL" color={roles.text} style={styles.scoreFig}>{tie.score ?? ''}</KitText>
         <View style={[styles.scoreSide, { alignItems: 'flex-start' }]}>
-          {tie.bFlag ? <RoundFlag emoji={tie.bFlag} code={tie.bName.slice(0, 3)} size={20} roles={roles} /> : null}
+          {tie.bFlag ? <RoundFlag emoji={tie.bFlag} code={tie.bName.slice(0, 3)} size={24} roles={roles} />
+            : <TeamMark roles={roles} clubId={tie.bClubId} name={tie.bName} size={24} />}
           <KitText t="title" color={roles.text} numberOfLines={2}>{tie.bName}</KitText>
         </View>
       </View>
@@ -571,18 +871,34 @@ export function Ticker({ roles, story, onPress }: { roles: Roles; story: Story |
   )
 }
 
-export const StoryItem = memo(function StoryItem({ roles, story }: { roles: Roles; story: Story }) {
+const HOT_STORIES = new Set(['hotStreak', 'masterclass', 'champions', 'playerForm', 'unbeatenRun'])
+
+export const StoryItem = memo(function StoryItem({ roles, story, onPress }: { roles: Roles; story: Story; onPress?: () => void }) {
   const { headline, standfirst } = storyText(story)
+  // Tappable: it opens the story's own page (it was a plain row, so a story in
+  // the live season's press opened nothing).
   return (
-    <View style={[styles.story, { borderBottomColor: roles.rule }]} accessible
-      accessibilityLabel={`Matchday ${story.matchday}. ${headline}. ${standfirst}`}>
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'link' : undefined}
+      style={({ pressed }) => [styles.story, { borderBottomColor: roles.rule }, story.involvesPlayer && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}
+      accessibilityLabel={`Matchday ${story.matchday}. ${story.involvesPlayer ? 'About you. ' : ''}${headline}. ${standfirst}`}>
       <View style={styles.storyTop}>
         <KitText t="tag" color={roles.textMuted}>{`MD ${story.matchday}/${story.totalMatchdays}`}</KitText>
-        {story.involvesPlayer && <Tag roles={roles} variant="you">YOU</Tag>}
+        {/* P8-145: the hot ones live: a streak, a masterclass, a champion. */}
+        {HOT_STORIES.has(story.kind) ? <Twinkle i={story.matchday} /> : null}
       </View>
       <KitText t="title" color={roles.text}>{headline}</KitText>
       <KitText t="body" color={roles.textMuted}>{standfirst}</KitText>
-      {/* The rows as they stood that day, set into the story like a graphic. */}
+      {/* The rows as they stood that day, set into the story like a graphic;
+          a story about one match shows that match instead (27 Sept). */}
+      {story.match ? (
+        <View style={styles.storyRow}>
+          <TeamMark roles={roles} clubId={story.match.homeId} name={story.match.homeName} size={16} />
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{story.match.homeName}</KitText>
+          <KitText t="figure" color={roles.text}>{`${story.match.homeGoals}–${story.match.awayGoals}`}</KitText>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{story.match.awayName}</KitText>
+          <TeamMark roles={roles} clubId={story.match.awayId} name={story.match.awayName} size={16} />
+        </View>
+      ) : (
       <View style={styles.storyRows}>
         {/* P8-42 — every row the story is about, not the first five. */}
         {story.rows.map(r => (
@@ -593,11 +909,26 @@ export const StoryItem = memo(function StoryItem({ roles, story }: { roles: Role
           </View>
         ))}
       </View>
-    </View>
+      )}
+    </Pressable>
   )
 })
 
 const styles = StyleSheet.create({
+  compare: { gap: space[1], marginTop: space[2] },
+  compareRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  compareHit: { flexDirection: 'row', alignItems: 'center', minHeight: 44, borderBottomWidth: border.hair },
+  compareChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: space[2], borderWidth: border.thin },
+  graph: { gap: space[1] },
+  graphBody: { flexDirection: 'row', gap: space[2] },
+  graphGutter: { width: 118 },
+  graphTick: { position: 'absolute', right: 0, textAlign: 'right' },
+  graphPlot: { flex: 1, borderWidth: border.hair },
+  graphHit: { position: 'absolute', width: 28, height: 28, marginLeft: -14 },
+  graphFoot: { flexDirection: 'row', justifyContent: 'space-between', marginLeft: 118 + space[2] },
+  graphLegend: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginLeft: 118 + space[2] },
+  graphLegendPad: { marginLeft: 118 + space[2] },
+  graphSwatch: { width: 8, height: 8 },
   edgeSlot: { width: 4, alignSelf: 'stretch' },
   edge: { width: 4, flex: 1, justifyContent: 'space-between' },
   dash: { height: 8 },
@@ -607,22 +938,22 @@ const styles = StyleSheet.create({
 
   row: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: density.t3.row, paddingRight: space[1] },
   headRow: { borderBottomWidth: border.thin, minHeight: 28 },
-  code: { width: 36 },
+  // Wide enough for the longest code (CHAMP, UECL, DOWN) in the tag mono: at
+  // 36 it wrapped to "CHAM / P".
+  code: { width: 46 },
   pos: { width: 22, textAlign: 'right' },
   name: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   num: { width: 30, textAlign: 'right' },
   pts: { width: 34, textAlign: 'right' },
-  flash: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  moveCell: { width: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
 
   standing: { flexDirection: 'row', alignItems: 'center', gap: space[3], marginVertical: space[2] },
   standingSide: { gap: 2, alignItems: 'flex-start' },
 
-  strip: { gap: 4, paddingVertical: space[2] },
+  strip: { gap: CELL_GAP, paddingVertical: space[2] },
   cellWrap: { alignItems: 'center', gap: 3 },
-  cell: { width: 26, height: 26, borderWidth: border.thin, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  cellStripe: { ...StyleSheet.absoluteFillObject },
-  cellInset: { paddingHorizontal: 3 },
+  cell: { width: CELL_W, height: CELL_W, borderWidth: border.thin, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   cellMark: { width: 26, height: 3 },
 
   scoreCard: { borderWidth: border.thin, padding: space[3], gap: space[2], marginVertical: space[2] },
@@ -634,9 +965,16 @@ const styles = StyleSheet.create({
 
   resultRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: density.t2.row, paddingVertical: space[1], borderBottomWidth: border.hair },
   resultLine: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  resultRound: { textAlign: 'center' },
+  fixtureLeft: { flex: 1, textAlign: 'right' },
+  fixtureScore: { minWidth: 36, textAlign: 'center' },
+  resultHome: { justifyContent: 'flex-end' },
+  resultName: { flexShrink: 1 },
   resultSide: { flex: 1 },
+  // One side of the score: its name and its mark on one line (they stacked, the
+  // mark under the name, when this was a plain column).
+  resultTeam: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[1] },
   resultFig: { minWidth: 40, textAlign: 'center' },
-  resultScorers: { textAlign: 'center' },
 
   segment: { flexDirection: 'row', borderBottomWidth: border.hair, marginTop: space[3] },
   // The padding matters inside a horizontal ScrollView (the run hub): there flex has no
@@ -647,7 +985,7 @@ const styles = StyleSheet.create({
   ticker: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 44, borderTopWidth: border.hair, paddingHorizontal: space[1] },
 
   fixture: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: density.t2.row, borderBottomWidth: border.hair },
-  fixtureMd: { width: 40 },
+  fixtureMd: { width: 76 },
   wall: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
   mini: { flexBasis: '47%', flexGrow: 1, borderWidth: border.thin, padding: space[2], gap: 2 },
   miniTop: { flexDirection: 'row', alignItems: 'center', gap: space[1], minHeight: 24 },

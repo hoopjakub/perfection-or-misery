@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { forCompetition } from '@/data/competition'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet } from 'react-native'
 import { useUserStore } from '@/store/userStore'
@@ -75,7 +76,7 @@ export default function CareerScreen() {
                 <KitText t="body" color={roles.text} numberOfLines={1}>{p.name}</KitText>
                 <KitText t="tag" color={roles.textMuted}>{`${p.seasonLabel} · ${COMP_LABEL[p.competition] ?? p.competition}`}</KitText>
               </View>
-              {p.potsWins > 0 && <Tag roles={roles} variant="win">{`PLAYER OF THE SEASON ×${p.potsWins}`}</Tag>}
+              {p.potsWins > 0 && <Tag roles={roles} variant="win">{`${forCompetition('PLAYER OF THE SEASON', p.competition)} ×${p.potsWins}`}</Tag>}
               {p.u21Wins > 0 && <Tag roles={roles} variant="win">{`BEST U21 ×${p.u21Wins}`}</Tag>}
             </View>
           ))}

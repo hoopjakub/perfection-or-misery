@@ -13,11 +13,24 @@ export const WEB_CHROME_CSS = `
      in the stack for everyone. Moved here from the old public/index.html. */
   html { font-family: "Twemoji Country Flags", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-  * { scrollbar-width: thin; scrollbar-color: #5A5A60 transparent; }
-  *::-webkit-scrollbar { width: 8px; height: 8px; }
-  *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: #5A5A60; }
-  *::-webkit-scrollbar-thumb:hover { background: #8A8A90; }
+  /* The Kit scrollbar (P8-29): a hairline track and a square, solid thumb,
+     cotton on nylon and ink on cotton. KitScreen writes the focused screen's
+     ground to <html data-ground>, so every scroller on it follows.
+     Chrome 121+ drops all ::-webkit-scrollbar styling the moment the standard
+     scrollbar-color is set anywhere (that's why this used to show Chrome's own
+     rounded bar), so the standard properties are only a fallback for browsers
+     without the webkit pseudo-elements (Firefox), which can't draw it square. */
+  :root { --kit-thumb: #F3F3F0; --kit-track: #34343A; }
+  :root[data-ground="cotton"] { --kit-thumb: #0C0C0D; --kit-track: #CFCFCA; }
+  *::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+  *::-webkit-scrollbar-button { display: none; }
+  *::-webkit-scrollbar-corner { background: transparent; }
+  *::-webkit-scrollbar-track:vertical { background: linear-gradient(to right, transparent 2.5px, var(--kit-track) 2.5px, var(--kit-track) 3.5px, transparent 3.5px); }
+  *::-webkit-scrollbar-track:horizontal { background: linear-gradient(to bottom, transparent 2.5px, var(--kit-track) 2.5px, var(--kit-track) 3.5px, transparent 3.5px); }
+  *::-webkit-scrollbar-thumb { background: var(--kit-thumb); border-radius: 0; }
+  @supports not selector(::-webkit-scrollbar) {
+    * { scrollbar-width: thin; scrollbar-color: var(--kit-thumb) transparent; }
+  }
 
   ::selection { background: #FF5A00; color: #0C0C0D; }
 

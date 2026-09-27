@@ -1,0 +1,11 @@
+# The public pages are indexed; /game, /auth and /confirm are the app's own
+# in-run screens, which mean nothing without a run in memory.
+User-agent: *
+Allow: /
+Disallow: /game/
+Disallow: /auth/
+Disallow: /confirm
+Disallow: /(tabs)/
+Allow: /game/rules
+
+Sitemap: https://perfection-or-misery.vercel.app/sitemap.xml

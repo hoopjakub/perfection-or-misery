@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { USERNAME_MAX } from '@/lib/auth'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
@@ -54,7 +55,7 @@ export default function LoginScreen() {
           <Field
             label="Username" roles={roles} value={username} onChangeText={setUsername}
             placeholder="your_username" autoCapitalize="none" autoCorrect={false}
-            autoComplete="username" textContentType="username"
+            autoComplete="username" textContentType="username" maxLength={USERNAME_MAX}
           />
           <Field
             label="Password" roles={roles} value={password} onChangeText={setPassword}

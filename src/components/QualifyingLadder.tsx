@@ -1,19 +1,19 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { colors, spacing, typography, MODE_THEMES, prim, font } from '@/theme'
+import { View, StyleSheet } from 'react-native'
+import { MODE_THEMES, ROLES, prim, space } from '@/theme'
+import { KitText, SectionTag } from '@/components/kit'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
 import { KnockoutTieRow, qualTieToKoRow } from '@/components/KnockoutRoundsView'
 import type { QualTie } from '@/engine/cl-qualifying'
 
 const CL = MODE_THEMES.champions_league
+const roles = ROLES.nylon
 
-// What winning a round actually gets you — shown under each round header so
-// the ladder reads like a story, not just a list of scorelines.
+// What winning a round gets you, under each round's heading, so the ladder
+// reads like a story. One short line (P8-113: "too much text"); it was a
+// sentence per round plus "losers are out of the UEFA Champions League".
 const ROUND_NEXT: Record<string, string> = {
-  q1: 'winners climb to the Second Qualifying Round',
-  q2: 'winners climb to the Third Qualifying Round',
-  q3: 'winners reach the Play-off Round — one tie from the League Phase',
-  playoff: 'winners claim a place in the 36-club League Phase',
+  q1: 'WINNERS TO Q2', q2: 'WINNERS TO Q3', q3: 'WINNERS TO THE PLAY-OFF', playoff: 'WINNERS TO THE LEAGUE PHASE',
 }
 
 // Shared renderer for the custom Champions League qualifying ladder — used by
@@ -31,19 +31,20 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
   justDecidedTie?: QualTie
 }) {
   return (
-    <View style={{ gap: spacing.md }}>
-      {QUAL_ROUND_ORDER.map(round => {
+    <View style={{ gap: space[3] }}>
+      {/* The newest round on top, as the knockouts are (P8-63): the round being
+          played is the one you want, and it was at the bottom of a long list. */}
+      {[...QUAL_ROUND_ORDER].reverse().map(round => {
         const inRound = ties.filter(t => t.round === round)
         if (inRound.length === 0) return null
         const realTies = inRound.filter(t => t.teamB && t.legs).length
         const byes = inRound.length - realTies
         return (
           <View key={round} style={styles.qualRoundBlock}>
-            <Text style={styles.qualRoundLabel}>{QUAL_ROUND_LABEL[round]}</Text>
-            <Text style={styles.qualRoundDetail}>
-              {realTies} two-legged {realTies === 1 ? 'tie' : 'ties'}
-              {byes > 0 ? ` + ${byes} bye${byes > 1 ? 's' : ''}` : ''} · {ROUND_NEXT[round] ?? ''} · losers are out of the UEFA Champions League
-            </Text>
+            <SectionTag roles={roles}>{QUAL_ROUND_LABEL[round]}</SectionTag>
+            <KitText t="tag" color={roles.textMuted}>
+              {[`${realTies} ${realTies === 1 ? 'TIE' : 'TIES'}`, byes > 0 ? `${byes} ${byes === 1 ? 'BYE' : 'BYES'}` : null, ROUND_NEXT[round]].filter(Boolean).join(' · ')}
+            </KitText>
             {(['champions', 'league'] as const).map(path => {
               const inPath = inRound.filter(t => t.path === path)
               if (inPath.length === 0) return null
@@ -53,7 +54,7 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
               const sorted = [...inPath].sort((a, b) => Number(isPlayerTie(b)) - Number(isPlayerTie(a)))
               return (
                 <View key={path} style={styles.qualPathBlock}>
-                  <Text style={styles.qualPathLabel}>{PATH_LABEL[path]}</Text>
+                  <KitText t="tag" color={roles.text}>{PATH_LABEL[path].toUpperCase()}</KitText>
                   {sorted.map((t, i) => {
                     const decided = justDecidedTie === t
                     const winnerIsPlayer = (t.teamA.isPlayer && t.winnerId === t.teamA.clubId) || (!!t.teamB?.isPlayer && t.winnerId === t.teamB.clubId)
@@ -63,7 +64,7 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
                         accent={CL.accent}
                         tie={qualTieToKoRow(t, onTiePress ? () => onTiePress(t) : undefined, decided ? {
                           outcomeLine: winnerIsPlayer ? 'YOU ADVANCE' : "YOU'RE ELIMINATED",
-                          outcomeColor: winnerIsPlayer ? prim.volt : colors.danger,
+                          outcomeColor: winnerIsPlayer ? prim.volt : prim.misery,   // knocked out: misery red (P8-74)
                         } : undefined)}
                       />
                     )
@@ -79,9 +80,6 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
 }
 
 const styles = StyleSheet.create({
-  qualRoundBlock: { gap: spacing.xs },
-  qualRoundLabel: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton },
-  qualRoundDetail: { fontSize: 9, color: prim.cottonMuted, lineHeight: 13 },
-  qualPathBlock: { gap: 3, paddingLeft: spacing.xs, marginTop: 2 },
-  qualPathLabel: { fontSize: 9, fontFamily: font.bodyBold, color: CL.accent, textTransform: 'uppercase', letterSpacing: 1 },
+  qualRoundBlock: { gap: space[1] },
+  qualPathBlock: { gap: 2, marginTop: space[2] },
 })

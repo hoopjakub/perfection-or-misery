@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { USERNAME_MAX } from '@/lib/auth'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
@@ -23,6 +24,7 @@ export default function RegisterScreen() {
   function validate(): Errors {
     const name = username.trim()
     if (name.length < 3) return { username: 'Usernames need at least 3 characters.' }
+    if (name.length > USERNAME_MAX) return { username: `Usernames are ${USERNAME_MAX} characters at most.` }
     if (!/^[a-zA-Z0-9_]+$/.test(name)) return { username: 'Letters, numbers and underscores only.' }
     if (password.length < 6) return { password: 'Passwords need at least 6 characters.' }
     if (password !== confirm) return { confirm: "The passwords don't match." }
@@ -71,7 +73,7 @@ export default function RegisterScreen() {
       <KitScreen ground="cotton" keyboardShouldPersistTaps="handled">
         <PageMeta title="Create an account" path="/auth/register" />
         <BackControl roles={roles} />
-        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>"KEEP YOUR RUNS"</KitText>
+        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>KEEP YOUR RUNS</KitText>
         {/* Was "Your guest runs stay." — false: guest runs are never saved. */}
         <KitText t="bodyL" color={roles.textMuted}>Pick a username and a password.</KitText>
 
@@ -79,7 +81,7 @@ export default function RegisterScreen() {
           <Field
             label="Username" roles={roles} value={username} onChangeText={setUsername}
             placeholder="your_username" autoCapitalize="none" autoCorrect={false}
-            autoComplete="username-new" textContentType="username" error={errors.username}
+            autoComplete="username-new" textContentType="username" error={errors.username} maxLength={USERNAME_MAX}
           />
           <Field
             label="Password" roles={roles} value={password} onChangeText={setPassword}
@@ -95,7 +97,7 @@ export default function RegisterScreen() {
           </StripedNotice>
           <Checkbox checked={accepted} onChange={setAccepted} roles={roles}>I'll remember it</Checkbox>
 
-          {errors.form ? <StripedNotice roles={roles}>{errors.form}</StripedNotice> : null}
+          {errors.form ? <StripedNotice roles={roles} failed>{errors.form}</StripedNotice> : null}
 
           <Plate
             label="Already have one? Sign in" variant="quiet" roles={roles}

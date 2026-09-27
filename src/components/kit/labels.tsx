@@ -1,9 +1,13 @@
 // Kit Drop labels: the Tag (small facts), garment Labels (a whole outcome),
 // the Wordmark, the ID tag, and the typographic stand-ins for crests and flags.
+import { flagImageOf } from '@/lib/flags'
+import { useCrestStore } from '@/store/crestStore'
+import { getFlag } from '@/lib/flagMap'
+import { clubCode } from '@/data/club-codes'
 import React from 'react'
-import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle, Image } from 'react-native'
 import { type Roles, space, border, OFFSET } from '@/theme'
-import { KitText, Stripe, Tape, Rivets, ZipTag } from './primitives'
+import { KitText, Stripe, Tape, Rivets, ZipTag, Icon, Crest, YourCrest } from './primitives'
 
 // ── Tag ──────────────────────────────────────────────────────────────────────
 // Garment-label data: `OVR 88`, `W`, `"SAVED"`. Never a sentence, never a button.
@@ -18,21 +22,92 @@ export function Tag({ children, roles, variant = 'data', style }: {
   const fill =
     variant === 'you' ? roles.you
     : variant === 'win' ? roles.perfection
+    : variant === 'loss' ? roles.loss
     : variant === 'selected' ? roles.line
     : 'transparent'
   const text =
-    variant === 'you' || variant === 'win' ? roles.onFill
+    variant === 'you' || variant === 'win' || variant === 'loss' ? roles.onFill
     : variant === 'selected' ? roles.bg
     : variant === 'draw' ? roles.draw
     : roles.text
+  // P8-10: the caller's style goes on a thin row wrapper, and the visible box
+  // sits inside it. The box used to carry alignSelf: 'flex-start', which kept
+  // it from stretching in a column but also overrode a row's alignItems, so
+  // every tag in a row sat high and off-centre. The wrapper centres like any
+  // other row child; in a column it spans the width while the box keeps to its
+  // text, left-aligned.
   return (
-    <View style={[styles.tag, { backgroundColor: fill, borderColor: variant === 'draw' ? roles.draw : roles.line }, style]}>
-      {/* "Out" is a pattern, not a colour: the loss tag gets a striped edge
-          and keeps its letter on a solid inset. */}
-      {variant === 'loss' && <Stripe roles={roles} band={4} style={styles.tagStripe} />}
-      <KitText t="tag" color={text} style={variant === 'loss' && { marginLeft: 8 }}>
+    <View style={[styles.tagWrap, style]}>
+    <View style={[styles.tag, { backgroundColor: fill, borderColor: variant === 'draw' ? roles.draw : roles.line }]}>
+      {/* A loss is misery red (P8-74), ink on it at 5.4:1. It carried a striped
+          edge as well until P8-111: red and the stripe both meant "bad", so a
+          lost result was marked twice over. The letter (L) is what reads
+          without colour. */}
+      <KitText t="tag" color={text}>
         {variant === 'hidden' ? '??' : children}
       </KitText>
+    </View>
+    </View>
+  )
+}
+
+// ── VenueMark ────────────────────────────────────────────────────────────────
+// Home or away as an icon in a tag's box (P8-09): a house at home, filled; a
+// plane away, outlined. The word stays as its accessibility label.
+export function VenueMark({ roles, home, style }: { roles: Roles; home: boolean; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[styles.tagWrap, style]} accessible accessibilityLabel={home ? 'Home' : 'Away'}>
+      <View style={[styles.tag, styles.venue, { borderColor: roles.line, backgroundColor: home ? roles.line : 'transparent' }]}>
+        <Icon name={home ? 'home' : 'away'} size={16} color={home ? roles.bg : roles.text} />
+      </View>
+    </View>
+  )
+}
+
+// ── TeamMark ─────────────────────────────────────────────────────────────────
+// A team's mark, decided by its id in one place (P8-79; docs/centralisation
+// 05 A-01): a national side (a `<nation>_nt` id) wears its flag, a club its
+// crest. Before this, seventeen places each decided for themselves, and a
+// caller that forgot to pass a flag drew a nation as an initials badge — the
+// "nation logos are still breaking" report. Callers pass the id and nothing else.
+export function TeamMark({ roles, clubId, name, size = 20 }: {
+  roles: Roles
+  clubId?: string | null
+  name: string
+  size?: 16 | 20 | 24
+}) {
+  const flag = getFlag(clubId)
+  // P8-132: your crest on your side, a nation's flag included (with "everywhere").
+  const yours = useCrestStore(st => (clubId && st.active?.clubId === clubId && (st.active.choice.design || st.active.choice.imagePath) ? st.active.choice : null))
+  if (yours) return <YourCrest choice={yours} size={size} name={name} />
+  return flag
+    ? <RoundFlag roles={roles} emoji={flag} code={clubCode(name)} size={size} />
+    : <Crest roles={roles} clubId={clubId} name={name} size={size} />
+}
+
+// ── ClubName ─────────────────────────────────────────────────────────────────
+// A club as its crest and its name (P8-12). The crest is small and the name
+// does the reading, so nothing depends on recognising a badge; a national side
+// shows its flag instead, which is the mark people actually know it by.
+export function ClubName({ roles, clubId, name, flag, size = 20, t = 'body', color, style, numberOfLines = 1 }: {
+  roles: Roles
+  clubId?: string | null
+  name: string
+  flag?: string | null
+  size?: 16 | 20 | 24
+  t?: 'body' | 'bodyL' | 'title' | 'tag'
+  color?: string
+  style?: StyleProp<ViewStyle>
+  numberOfLines?: number
+}) {
+  return (
+    <View style={[styles.clubName, style]}>
+      {/* A caller's own flag still wins (a country, not a team); otherwise the
+          mark comes from the id, so a nation is never drawn as a crest. */}
+      {flag
+        ? <RoundFlag roles={roles} emoji={flag} code={name} size={size} />
+        : <TeamMark roles={roles} clubId={clubId} name={name} size={size} />}
+      <KitText t={t} color={color ?? roles.text} numberOfLines={numberOfLines} style={styles.clubNameText}>{name}</KitText>
     </View>
   )
 }
@@ -60,7 +135,7 @@ export function RunLabel({ roles, colourway, title, meta, score, verdict = 'midd
         onPress={onPress}
         disabled={!onPress}
         accessibilityRole={onPress ? 'button' : undefined}
-        accessibilityLabel={accessibilityLabel ?? `${title}, ${meta}${score ? `, score ${score}` : ''}`}
+        accessibilityLabel={accessibilityLabel ?? `${title}, ${meta}${score ? `, score ${score}` : ''}${verdict !== 'middle' ? `, ${verdict}` : ''}`}
         style={({ pressed }) => [
           styles.label,
           { backgroundColor: roles.surface, borderColor: roles.line },
@@ -72,14 +147,19 @@ export function RunLabel({ roles, colourway, title, meta, score, verdict = 'midd
         <View style={styles.labelBody}>
           <View style={styles.labelTop}>
             <KitText t="superS" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>
-              {`"${title.toUpperCase()}"`}
+              {title.toUpperCase()}
             </KitText>
             {score ? <KitText t="figure" color={roles.text} style={styles.score}>{score}</KitText> : null}
           </View>
-          <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{meta}</KitText>
+          {/* Two lines: on a phone one line cut the mode and difficulty off (Phase 7). */}
+          <KitText t="tag" color={roles.textMuted} numberOfLines={2}>{meta}</KitText>
         </View>
-        {verdict === 'perfection' && <View style={[styles.verdictEdge, { backgroundColor: roles.perfection }]} />}
-        {verdict === 'misery' && <Stripe roles={roles} band={4} style={styles.verdictEdge} />}
+        {/* P8-128: every run's label says its outcome the same way, one edge
+            each: volt for Perfection, red for Misery (P8-111), and the draw's
+            grey for everything between. Only the ends had an edge, so a few
+            runs wore a strip and most didn't, which read as a glitch rather
+            than a verdict. */}
+        <View style={[styles.verdictEdge, { backgroundColor: verdict === 'perfection' ? roles.perfection : verdict === 'misery' ? roles.loss : roles.draw }]} />
       </Pressable>
     </View>
   )
@@ -110,22 +190,30 @@ export function Wordmark({ roles, size = 'superL' }: { roles: Roles; size?: 'sup
 
 // ── IdTag ────────────────────────────────────────────────────────────────────
 // The player as a garment ID tag, not a profile card.
-export function IdTag({ roles, name, state, detail }: {
+export function IdTag({ roles, name, state, detail, mark, badge }: {
   roles: Roles
   name: string
   state: 'REG' | 'GUEST'
   detail?: string
+  /** Your picture in place of the initial (the You redesign): with both, the
+   *  tag showed a second "M" square right beside the picture. */
+  mark?: React.ReactNode
+  /** The favourite team's badge, beside the name. */
+  badge?: React.ReactNode
 }) {
   return (
     <View style={[styles.idTag, { borderColor: roles.line, backgroundColor: roles.surface }]}
       accessible accessibilityLabel={`${name}, ${state === 'REG' ? 'registered' : 'guest'}${detail ? `, ${detail}` : ''}`}>
-      <View style={[styles.initial, { backgroundColor: roles.line }]}>
-        <KitText t="superS" color={roles.bg}>{(name.charAt(0) || '?').toUpperCase()}</KitText>
-      </View>
+      {mark ?? (
+        <View style={[styles.initial, { backgroundColor: roles.line }]}>
+          <KitText t="superS" color={roles.bg}>{(name.charAt(0) || '?').toUpperCase()}</KitText>
+        </View>
+      )}
       <View style={{ flex: 1, gap: 2 }}>
         <View style={styles.idTop}>
           <KitText t="tag" color={roles.textMuted}>ID</KitText>
           <KitText t="title" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{name}</KitText>
+          {badge}
           <Tag roles={roles} variant={state === 'REG' ? 'selected' : 'data'}>{state}</Tag>
         </View>
         {detail ? <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{detail}</KitText> : null}
@@ -142,7 +230,7 @@ export function IdTag({ roles, name, state, detail }: {
 export function RoundFlag({ emoji, code, size = 20, roles }: {
   emoji?: string | null
   code?: string
-  size?: 16 | 20 | 24
+  size?: 16 | 20 | 24 | 64   // 64: the draw's landed label (P8-118)
   roles: Roles
 }) {
   const circle = { width: size, height: size, borderRadius: size / 2 }
@@ -154,9 +242,14 @@ export function RoundFlag({ emoji, code, size = 20, roles }: {
       </View>
     )
   }
+  // P8-58: the real flag, cropped to the circle; the emoji only when there's
+  // no bundled flag for it (src/lib/flags.ts).
+  const image = flagImageOf(emoji)
   return (
     <View style={[circle, styles.flag, { borderColor: roles.rule }]} accessibilityLabel={code}>
-      <Text style={{ fontSize: size * 1.25, lineHeight: size * 1.4, textAlign: 'center' }} allowFontScaling={false}>{emoji}</Text>
+      {image
+        ? <Image source={image} resizeMode="cover" style={{ width: size * 1.5, height: size, alignSelf: 'center' }} accessibilityIgnoresInvertColors />
+        : <Text style={{ fontSize: size * 1.25, lineHeight: size * 1.4, textAlign: 'center' }} allowFontScaling={false}>{emoji}</Text>}
     </View>
   )
 }
@@ -174,7 +267,7 @@ export function ClubTag({ roles, code, colour, you, eliminated }: {
   return (
     <View style={[styles.clubTag, { borderColor: roles.line }]} accessibilityLabel={code}>
       <Tape colours={[colour]} roles={roles} vertical thickness={6} />
-      {eliminated && <Stripe roles={roles} band={4} style={styles.clubStripe} />}
+      {eliminated && <View style={[styles.clubStripe, { backgroundColor: roles.loss }]} />}
       <KitText t="tag" color={roles.text} style={styles.clubCode}>{code}</KitText>
       {you && <ZipTag size={10} style={styles.clubZip} />}
     </View>
@@ -182,11 +275,15 @@ export function ClubTag({ roles, code, colour, you, eliminated }: {
 }
 
 const styles = StyleSheet.create({
+  tagWrap: { flexDirection: 'row' },
+  clubName: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexShrink: 1, minWidth: 0 },
+  clubNameText: { flexShrink: 1 },
   tag: {
     borderWidth: border.thin, paddingHorizontal: 6, paddingVertical: 2,
-    alignSelf: 'flex-start', overflow: 'hidden', justifyContent: 'center',
+    overflow: 'hidden', justifyContent: 'center',
   },
-  tagStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
+  // A tag's height with a 16px icon in it (the tag text is 14 tall).
+  venue: { alignItems: 'center', minWidth: 30, paddingVertical: 1 },
 
   labelWrap: { paddingRight: OFFSET, paddingBottom: OFFSET },
   labelOffset: { position: 'absolute', left: OFFSET, top: OFFSET, right: 0, bottom: 0 },

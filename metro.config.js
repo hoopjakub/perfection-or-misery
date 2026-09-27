@@ -13,7 +13,12 @@ const originalEnhance = config.server.enhanceMiddleware
 config.server.enhanceMiddleware = (metroMiddleware, server) => {
   const withHeaders = (req, res, next) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
-    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp')
+    // credentialless, not require-corp: require-corp blocks every cross-origin
+    // image that doesn't send a Cross-Origin-Resource-Policy header, and
+    // Supabase Storage doesn't, so profile pictures (P8-88) drew as empty boxes
+    // on the local web. credentialless loads them without cookies and keeps the
+    // page cross-origin isolated (Chrome, Edge, Firefox).
+    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
     metroMiddleware(req, res, next)
   }
   return originalEnhance ? originalEnhance(withHeaders, server) : withHeaders

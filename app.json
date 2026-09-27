@@ -2,7 +2,7 @@
   "expo": {
     "name": "Perfection or Misery",
     "slug": "perfection-or-misery",
-    "version": "0.0.1",
+    "version": "0.8.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -19,6 +19,14 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.yolotime4564.perfectionormisery",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "perfection-or-misery.vercel.app", "pathPrefix": "/r/" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "backgroundColor": "#141416"
     },
     "web": {
@@ -41,6 +49,14 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#141416"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a picture for your profile.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],

@@ -2,7 +2,7 @@
 // Works off the stored match results (no need to wire into the live sim loop),
 // so the same path serves real runs, the quick-sim tester, and history loads.
 
-import type { RosterPlayer, CompetitionStats, SeasonAwards, MatchScorers, GoalEvent } from '@/types/stats'
+import type { RosterPlayer, CompetitionStats, SeasonAwards, MatchScorers, GoalEvent, AwardCandidate } from '@/types/stats'
 import type { DraftedPlayer } from '@/types/game'
 import {
   attributeMatchScorers, createStatsAccumulator, computeAwards, buildClubGKMap,
@@ -10,12 +10,15 @@ import {
 import { getRostersForClubs, getTopKickers } from '@/db/queries/seasons'
 import { mulberry32, deriveSeed, randomSeed, hashSeed } from '@/lib/rng'
 import { generateMatchDetail } from './match-detail'
+import { pickTeam, type Pick, type PickedTeam } from './awards'
 import type { PlayerMatchLine } from '@/types/match-stats'
 import type { SeasonResult } from '@/types/simulation'
 import type { LeagueSeason } from '@/types/game'
 import type { CLSeasonResult, CLKnockoutMatch } from '@/engine/cl-sim'
 import type { WCSeasonResult, WCKnockoutMatch } from '@/engine/world-cup-sim'
 import type { QualTie } from '@/engine/cl-qualifying'
+import { roundKeyOf, leagueRunMatches, clRunMatches, wcRunMatches, type RunMatch } from './run-matches'
+export type { RunMatch } from './run-matches'
 import { expandPenaltyKicks } from '@/engine/knockout-match'
 
 export type LeaguePools = {
@@ -70,66 +73,22 @@ export function summariseScorers(events?: GoalEvent[]): string {
   return [...byScorer.values()].map(s => `${s.name} ${s.mins.join(', ')}`).join(', ')
 }
 
-// Attribute one match's scorers from the pools (used live, during the sim).
-// `seed` (deep-stats): attribution becomes reproducible from it — store the same
-// seed on the match so the match-detail screen regenerates a consistent sheet.
-export function attributeFixtureScorers(
-  poolByClub: Map<string, RosterPlayer[]>,
-  homeClubId: string, awayClubId: string,
-  homeGoals: number, awayGoals: number, extraTime = false, etOnly = false,
-  seed?: number,
-  lineupCtx?: {
-    playerClubId?: string; benchSize?: number; homeRotation?: number; awayRotation?: number
-    // §10.5 phase 4 — who was unavailable for this match, and your stand-ins.
-    unavailableIds?: Set<string>; standIns?: RosterPlayer[]
-  },
-): MatchScorers {
-  return attributeMatchScorers(
-    poolByClub.get(homeClubId) ?? [], poolByClub.get(awayClubId) ?? [],
-    homeGoals, awayGoals, {
-      extraTime, etOnly,
-      rng: seed !== undefined ? mulberry32(seed) : undefined,
-      // §10.5 — only the eleven that lined up can score. Same seed the
-      // stat-sheet generator uses, so the two never disagree.
-      lineups: seed !== undefined ? { seed, ...lineupCtx } : undefined,
-    },
-  )
-}
+// Moved to play-fixture.ts (P8-27) so the fixture player stays free of the
+// database; re-exported here for everything that already imports it.
+import { attributeFixtureScorers } from './play-fixture'
+export { attributeFixtureScorers }
+
 
 // Defined in engine/stats.ts so the headless scripts can reach it; re-exported
 // here because every caller already imports it from run-stats.
 export { etSeed } from './stats'
 import { etSeed } from './stats'
+import { applyImportance, matchWeight, lastMatchdayOf } from './importance'
 
 // §10.5 — who the player is and how big a bench there is, so post-hoc
 // attribution selects exactly the eleven the stat sheet will regenerate.
 export type LineupCtx = { playerClubId?: string; benchSize?: number }
 export const lineupCtxOf = (p: LeaguePools): LineupCtx => ({ playerClubId: p.playerClubId, benchSize: p.benchSize })
-
-// Merge two scorer sets that share the same home/away orientation (e.g. a second
-// leg's regulation scorers + its extra-time scorers) into one for stats totals.
-function mergeScorers(a?: MatchScorers, b?: MatchScorers): MatchScorers | undefined {
-  if (!a && !b) return undefined
-  return { home: [...(a?.home ?? []), ...(b?.home ?? [])], away: [...(a?.away ?? []), ...(b?.away ?? [])] }
-}
-
-export type RunMatch = {
-  homeClubId:   string
-  awayClubId:   string
-  homeClubName: string
-  awayClubName: string
-  homeGoals:    number
-  awayGoals:    number
-  extraTime?:   boolean
-  scorers?:     MatchScorers   // if already attributed (during sim), reuse — keeps it deterministic
-  seed?:        number         // deep-stat seed — same detail as the match modal
-  label?:       string         // "Matchday 12", "Quarter-final · Leg 1", … (player game log)
-  // §10.5 — carried so the aggregation regenerates the eleven that played.
-  homeRotation?: number
-  awayRotation?: number
-  absent?:      string[]
-  standIns?:    RosterPlayer[]
-}
 
 // One entry of a player's per-run game log — regenerated from seeds during
 // computeRunStats, kept IN MEMORY only (never persisted; the saved run JSON
@@ -177,6 +136,19 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
   const acc = createStatsAccumulator({
     rosterIndex, clubGK, playerPool: p.playerPool, playerClubId: p.playerClubId,
   })
+  // P8-116: where a run has qualifying rounds (the full path), its awards are
+  // measured apart. A club can play two matches (out in the first qualifying
+  // round) or seventeen (into the final), and every award term is a season
+  // total, so the whole-run awards were a list of who went furthest. The
+  // maintainer's call: the tournament's awards over the league phase and the
+  // knockouts, as UEFA's own are, and qualifying its own player and team. The
+  // run's stats (player pages, the game log, the teams of the matchday) still
+  // count every match; only the awards are split. Same pass, two more
+  // accumulators, so no match sheet is generated twice.
+  const staged = p.matches.some(m => m.stage === 'qualifying')
+  const accCtx = { rosterIndex, clubGK, playerPool: p.playerPool, playerClubId: p.playerClubId }
+  const mainAcc = staged ? createStatsAccumulator(accCtx) : null
+  const qualAcc = staged ? createStatsAccumulator(accCtx) : null
   const matchLog: PlayerMatchLog = new Map()
   const rounds = new Map<string, RoundLine[]>()
 
@@ -212,13 +184,19 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
       unavailableIds: lineups.unavailableIds, standIns: m.standIns,
     })
     const played = detail?.players.filter(l => l.minutes > 0) ?? []
-    acc.recordMatch({
+    // P8-70: the shapes played, kept on the match for the club page.
+    m.homeFormation = detail?.homeShape?.formation
+    m.awayFormation = detail?.awayShape?.formation
+    const record = {
       homeClubId: m.homeClubId, awayClubId: m.awayClubId,
       homeClubName: m.homeClubName, awayClubName: m.awayClubName,
       homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers,
       lines: played,
-    })
-    const roundKey = m.label ?? `Match ${idx + 1}`
+      sheet: detail ? { home: detail.home, away: detail.away } : undefined,
+    }
+    acc.recordMatch(record)
+    ;(m.stage === 'qualifying' ? qualAcc : mainAcc)?.recordMatch(record)
+    const roundKey = roundKeyOf(m, idx)
     const roundArr = rounds.get(roundKey) ?? []
     for (const l of played) {
       const clubId = l.isHome ? m.homeClubId : m.awayClubId
@@ -244,10 +222,42 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
   })
 
   const stats = acc.build()
-  const awards = computeAwards(stats, {
+  const mainStats = mainAcc?.build()
+  const awards: SeasonAwards = computeAwards(mainStats ?? stats, {
     rosterIndex, finalPositionByClub: p.finalPositionByClub, teamsInComp: p.teamsInComp,
   })
+  // P8-130: the big matches count for more (importance.ts). Weighed over the
+  // games the awards are for: the full path's qualifying has its own.
+  const qualLabels = new Set(p.matches.filter(m => m.stage === 'qualifying').map(m => m.label ?? ''))
+  const lastMd = lastMatchdayOf(p.matches.map(m => m.label ?? ''))
+  const gamesOf = (id: string) => (matchLog.get(id) ?? [])
+    .filter(e => !qualLabels.has(e.label)).map(e => ({ label: e.label, rating: e.line.rating }))
+  awards.playerOfTheSeason = applyImportance(awards.playerOfTheSeason, gamesOf, l => matchWeight(l, lastMd))
+  // The same candidates (applyImportance changed their scores), re-ranked.
+  awards.bestU21 = [...awards.bestU21].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  if (mainStats && qualAcc) {
+    awards.teams = mainStats.teams
+    // Qualifying has no finishing order to carry anyone (a club out in Q1 and
+    // one through to the league phase both "finished" qualifying), so no carry.
+    const qual = computeAwards(qualAcc.build(), {
+      rosterIndex, finalPositionByClub: new Map(), teamsInComp: 1, carryWeight: 0,
+    })
+    awards.qualifying = bestPerPosition(qual.playerOfTheSeason, QUAL_KEEP)
+  }
   return { stats, awards, matchLog, rounds: [...rounds.entries()].map(([label, lines]) => ({ label, lines })), matches: p.matches }
+}
+
+// Kept with the run, so only what the qualifying player and team need: the
+// team is picked from the best few at each position (awards.ts shortlists 5).
+const QUAL_KEEP = 6
+function bestPerPosition(cands: AwardCandidate[], keep: number): AwardCandidate[] {
+  const sorted = [...cands].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  const count = new Map<string, number>()
+  return sorted.filter(c => {
+    const n = count.get(c.position) ?? 0
+    count.set(c.position, n + 1)
+    return n < keep
+  })
 }
 
 // One-call league stats: fetch rosters, reuse stored scorers, aggregate + awards.
@@ -265,15 +275,7 @@ export async function computeLeagueRunStats(
   const yearStart = placedLeague.yearStart
   const rosters    = await getRostersForClubs(table.map(t => t.clubId), yearStart)
   const playerPool = draftedToPool(draftedPlayers, playerClub.clubId, playerClub.clubName, yearStart)
-  const matches: RunMatch[] = (simResult.matchdayHistory ?? []).flatMap(s =>
-    s.fixtures.filter(f => f.result).map(f => ({
-      homeClubId: (f.home as any).clubId, awayClubId: (f.away as any).clubId,
-      homeClubName: f.home.clubName, awayClubName: f.away.clubName,
-      homeGoals: f.result!.homeGoals, awayGoals: f.result!.awayGoals,
-      scorers: f.scorers, seed: f.seed, label: `Matchday ${s.matchday}`,
-      homeRotation: f.homeRotation, awayRotation: f.awayRotation,
-      absent: f.absent, standIns: f.standIns,
-    })))
+  const matches = leagueRunMatches(simResult)
   const finalPositionByClub = new Map(table.map((t, i) => [t.clubId, i + 1]))
   return computeRunStats({
     matches, rosters, playerPool, playerClubId: playerClub.clubId,
@@ -338,10 +340,6 @@ export function attributeWCResultScorers(result: WCSeasonResult, poolByClub: Map
 // ── Champions League ────────────────────────────────────────────────────────
 // `qualTies` (custom path): the qualifying-round ties count toward stats/awards
 // too — the whole competition, not just the league phase + knockouts.
-const CL_ROUND_LABEL: Record<string, string> = {
-  playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-final', sf: 'Semi-final', final: 'Final',
-}
-
 export async function computeCLRunStats(
   result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[], useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
@@ -353,30 +351,7 @@ export async function computeCLRunStats(
   const rosters    = await getRostersForClubs([...clubIds], yearStart)
   const playerPool = draftedToPool(draftedPlayers, playerClubId, result.playerTeam.clubName, yearStart)
 
-  const matches: RunMatch[] = []
-  // Qualifying ties (both legs + ET, same folding as the knockout legs below).
-  for (const t of qualTies ?? []) {
-    if (!t.teamB || !t.legs) continue
-    const l = t.legs
-    matches.push({ homeClubId: t.teamA.clubId, awayClubId: t.teamB.clubId, homeClubName: t.teamA.clubName, awayClubName: t.teamB.clubName, homeGoals: l.leg1.homeGoals, awayGoals: l.leg1.awayGoals, scorers: t.leg1Scorers, seed: t.leg1Seed, label: 'Qualifying · Leg 1' })
-    const etH = l.leg2ExtraTime?.homeGoals ?? 0, etA = l.leg2ExtraTime?.awayGoals ?? 0
-    matches.push({ homeClubId: t.teamB.clubId, awayClubId: t.teamA.clubId, homeClubName: t.teamB.clubName, awayClubName: t.teamA.clubName, homeGoals: l.leg2.homeGoals + etH, awayGoals: l.leg2.awayGoals + etA, scorers: mergeScorers(t.leg2Scorers, t.leg2ExtraTimeScorers), seed: t.leg2Seed, extraTime: !!l.leg2ExtraTime, label: 'Qualifying · Leg 2' })
-  }
-  for (const m of result.leagueMatchdays ?? [])
-    matches.push({ homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName, homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers: m.scorers, seed: m.seed, label: `League Phase · MD ${m.matchday}`, homeRotation: m.homeRotation, awayRotation: m.awayRotation, absent: m.absent, standIns: m.standIns })
-  // two-legged ties → two matches (shootout pens are excluded — leg scores are 90'/ET only)
-  for (const k of [...result.playoffRound, ...result.r16, ...result.qf, ...result.sf]) {
-    const roundLabel = CL_ROUND_LABEL[k.round] ?? k.round
-    if (k.leg1) matches.push({ homeClubId: k.teamA.clubId, awayClubId: k.teamB.clubId, homeClubName: k.teamA.clubName, awayClubName: k.teamB.clubName, homeGoals: k.leg1.aGoals, awayGoals: k.leg1.bGoals, scorers: k.leg1Scorers, seed: k.leg1Seed, label: `${roundLabel} · Leg 1`, absent: k.leg1Absent, standIns: k.leg1StandIns })
-    // Leg 2 = regulation + extra time folded together (one match, so clean sheets
-    // and match counts stay right), with both scorer sets merged for totals.
-    if (k.leg2) {
-      const etB = k.leg2ExtraTime?.bGoals ?? 0, etA = k.leg2ExtraTime?.aGoals ?? 0
-      matches.push({ homeClubId: k.teamB.clubId, awayClubId: k.teamA.clubId, homeClubName: k.teamB.clubName, awayClubName: k.teamA.clubName, homeGoals: k.leg2.bGoals + etB, awayGoals: k.leg2.aGoals + etA, scorers: mergeScorers(k.leg2Scorers, k.leg2ExtraTimeScorers), seed: k.leg2Seed, extraTime: !!k.leg2ExtraTime, label: `${roundLabel} · Leg 2`, absent: k.leg2Absent, standIns: k.leg2StandIns })
-    }
-  }
-  if (result.final)
-    matches.push({ homeClubId: result.final.teamA.clubId, awayClubId: result.final.teamB.clubId, homeClubName: result.final.teamA.clubName, awayClubName: result.final.teamB.clubName, homeGoals: result.final.aGoals, awayGoals: result.final.bGoals, extraTime: result.final.extraTime, scorers: result.final.leg1Scorers, seed: result.final.leg1Seed, label: 'Final', absent: result.final.leg1Absent, standIns: result.final.leg1StandIns })
+  const matches = clRunMatches(result, qualTies)
 
   const finalPositionByClub = new Map(standings.map((t, i) => [t.clubId, i + 1]))
   return computeRunStats({
@@ -388,11 +363,6 @@ export async function computeCLRunStats(
 // ── World Cup ───────────────────────────────────────────────────────────────
 const WC_ROUND_POS: Record<string, number> = { r32: 17, r16: 9, qf: 5, sf: 3, final: 2 }
 
-const WC_ROUND_LABEL: Record<string, string> = {
-  r32: 'Round of 32', r16: 'Round of 16', qf: 'Quarter-final', sf: 'Semi-final',
-  third: '3rd-Place Playoff', final: 'Final',
-}
-
 export async function computeWCRunStats(
   result: WCSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2026, useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
@@ -402,11 +372,7 @@ export async function computeWCRunStats(
   const rosters    = await getRostersForClubs(allTeams.map(t => t.clubId), yearStart)
   const playerPool = draftedToPool(draftedPlayers, playerClubId, result.playerTeam.clubName, yearStart)
 
-  const matches: RunMatch[] = []
-  for (const m of result.groupMatchdays ?? [])
-    matches.push({ homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName, homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers: m.scorers, seed: m.seed, label: `Group ${m.groupId} · MD ${m.matchday}`, homeRotation: m.homeRotation, awayRotation: m.awayRotation, absent: m.absent, standIns: m.standIns })
-  for (const round of result.knockoutRounds) for (const k of round.matches)
-    matches.push({ homeClubId: k.teamA.clubId, awayClubId: k.teamB.clubId, homeClubName: k.teamA.clubName, awayClubName: k.teamB.clubName, homeGoals: k.result.homeGoals, awayGoals: k.result.awayGoals, extraTime: k.result.extraTime, scorers: k.scorers, seed: k.seed, label: WC_ROUND_LABEL[round.round] ?? round.round, absent: k.absent, standIns: k.standIns })
+  const matches = wcRunMatches(result)
 
   // Final-position proxy from how far each team went (drives the award carry modifier).
   const pos = new Map<string, number>()
@@ -457,6 +423,20 @@ async function fetchShootoutKickerNames(
     map[id] = (id === playerClubId && draftedPlayers?.length) ? kickerNamesFromDrafted(draftedPlayers) : await getTopKickers(id)
   }))
   return map
+}
+
+/**
+ * One match's shootout, named (P8-81): the match sheet opens any penalty
+ * match, including ones the live reveal never showed, so it names the kicks
+ * itself through the same fetch every mode uses.
+ */
+export async function nameShootout(
+  homeClubId: string, awayClubId: string, home: boolean[], away: boolean[],
+  playerClubId?: string, draftedPlayers?: DraftedPlayer[],
+): Promise<{ home: import('./knockout-match').PenKick[]; away: import('./knockout-match').PenKick[] }> {
+  const names = await fetchShootoutKickerNames([{ teamAClubId: homeClubId, teamBClubId: awayClubId }], playerClubId, draftedPlayers)
+  const e = expandPenaltyKicks(names[homeClubId] ?? [], names[awayClubId] ?? [], home, away)
+  return { home: e.kicksA, away: e.kicksB }
 }
 
 // Classic + custom UCL share CLKnockoutMatch's flat aPens/aPenKicks shape.
@@ -533,4 +513,71 @@ export function draftedToPool(
     clubId:          playerClubId,
     clubName:        playerClubName,
   }))
+}
+
+// ── Team of the matchday, mid-season (P8-41) ─────────────────────────────────
+// Awards Night picks a team of every round from the run's aggregated lines.
+// The season screen wants the same team the moment a round lands, before any
+// run stats exist, so this regenerates just that round's sheets — with the
+// same seed, rotation and absences the match sheet uses, so the ratings are
+// the ones you'd see opening each match — and picks the side with the same
+// `pickTeam`. Same round, same team as Awards Night will show.
+export type RoundFixture = {
+  homeClubId: string; awayClubId: string; homeClubName: string; awayClubName: string
+  homeGoals: number; awayGoals: number
+  scorers?: MatchScorers; seed?: number
+  homeRotation?: number; awayRotation?: number
+  absent?: string[]; standIns?: RosterPlayer[]
+}
+
+/** One player's match in a round: who, for whom, and his rating. */
+export type RoundPlayer = { playerId: string; name: string; position: string; rating: number; clubId: string; clubName: string; isPlayerClub: boolean }
+
+// A round's match sheets are regenerated once and kept (by the pools the run
+// uses, and the round's key): the team of the matchday and the press both read
+// them (P8-138), and the second never pays for the sheets again.
+const roundCache = new WeakMap<Map<string, RosterPlayer[]>, Map<string, RoundPlayer[]>>()
+
+/** Every player who played in the round, with his rating, from the same seeds the match sheet uses. */
+export function roundLines(
+  key: string | null, fixtures: RoundFixture[], poolByClub: Map<string, RosterPlayer[]>, ctx: { playerClubId?: string; benchSize?: number },
+): RoundPlayer[] {
+  const cached = key ? roundCache.get(poolByClub)?.get(key) : undefined
+  if (cached) return cached
+  const out: RoundPlayer[] = []
+  for (const f of fixtures) {
+    const homePool = poolByClub.get(f.homeClubId), awayPool = poolByClub.get(f.awayClubId)
+    if (!homePool?.length || !awayPool?.length || f.seed == null) continue
+    const detail = generateMatchDetail({
+      seed: f.seed, homePool, awayPool, homeGoals: f.homeGoals, awayGoals: f.awayGoals, scorers: f.scorers,
+      playerClubId: ctx.playerClubId, benchSize: ctx.benchSize,
+      homeRotation: f.homeRotation, awayRotation: f.awayRotation,
+      unavailableIds: f.absent?.length ? new Set(f.absent) : undefined, standIns: f.standIns,
+    })
+    for (const l of detail?.players ?? []) {
+      if (l.minutes <= 0) continue
+      const clubId = l.isHome ? f.homeClubId : f.awayClubId
+      out.push({ playerId: l.playerId, name: l.name, position: l.position, rating: l.rating, clubId,
+        clubName: l.isHome ? f.homeClubName : f.awayClubName, isPlayerClub: clubId === ctx.playerClubId })
+    }
+  }
+  if (key && out.length) {
+    const byKey = roundCache.get(poolByClub) ?? new Map<string, RoundPlayer[]>()
+    byKey.set(key, out); roundCache.set(poolByClub, byKey)
+  }
+  return out
+}
+
+export function teamOfTheRound(
+  fixtures: RoundFixture[], poolByClub: Map<string, RosterPlayer[]>, ctx: { playerClubId?: string; benchSize?: number }, key: string | null = null,
+): PickedTeam | null {
+  const best = new Map<string, Pick>()
+  for (const l of roundLines(key, fixtures, poolByClub, ctx)) {
+    const cur = best.get(l.playerId)
+    if (!cur || l.rating > cur.score) best.set(l.playerId, {
+      id: l.playerId, name: l.name, position: l.position, score: l.rating, rating: l.rating,
+      clubName: l.clubName, isPlayerClub: l.isPlayerClub,
+    })
+  }
+  return pickTeam([...best.values()])
 }

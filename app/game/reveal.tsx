@@ -1,20 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { useReducedMotion } from 'react-native-reanimated'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useGameStore } from '@/store/gameStore'
 import { getSlotsForFormation } from '@/engine/formations'
 import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
-import { haptic } from '@/lib/haptics'
 import { ROLES, space, colourwayFor } from '@/theme'
-import { KitScreen, KitText, RunHeader, Plate, Tag, ListRow } from '@/components/kit'
+import { KitScreen, KitText, RunHeader, Plate, Tag } from '@/components/kit'
+import { LineupPitch } from '@/components/LineupPitch'
 
 // The ratings reveal — docs/ui-overhaul/07b B6. Only for runs that drafted
 // blind (Hard, Chaos, Cursed, Custom with ratings off). It used to leak: the
 // placement header showed Team OVR the moment the draft finished. Now the
 // numbers arrive here, on nylon, one position at a time, and can be skipped.
+// The eleven stand on the pitch in their shape with a ?? each, and the
+// figures turn over from the keeper forwards, slowly enough to read each one.
+// It was a list that counted through in well under a second.
 const roles = ROLES.nylon
-const STEP_MS = 60
+const STEP_MS = 650
+const LEAD_MS = 900   // a beat on the all-?? pitch before the first figure
 
 export default function RevealScreen() {
   const { mode, formation, draftedPlayers } = useGameStore()
@@ -31,11 +35,9 @@ export default function RevealScreen() {
 
   useEffect(() => {
     if (done) return
-    const t = setTimeout(() => setShown(n => n + 1), STEP_MS)
+    const t = setTimeout(() => setShown(n => n + 1), shown === 0 ? LEAD_MS : STEP_MS)
     return () => clearTimeout(t)
   }, [shown, done])
-
-  useEffect(() => { if (done && rows.length) haptic('medium') }, [done])
 
   if (!formation || rows.length === 0) {
     return (
@@ -50,20 +52,23 @@ export default function RevealScreen() {
   const best = rows.reduce((a, b) => (b.eff > a.eff ? b : a))
   const worst = rows.reduce((a, b) => (b.eff < a.eff ? b : a))
   const surname = (n: string) => n.split(' ').slice(-1)[0].toUpperCase()
+  const revealed = new Set(rows.slice(0, shown).map(r => r.player.playerId))
+  const latest = shown > 0 && !done ? rows[shown - 1] : null
 
   return (
     <KitScreen ground="nylon">
       <RunHeader roles={roles} stage={4} colourway={colourwayFor(mode)} title="Your ratings"
         skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} back={false} />
 
-      {rows.map((r, i) => (
-        <ListRow
-          key={r.slot.slotIndex}
-          roles={roles}
-          label={`${r.slot.label}  ${r.player.name}`}
-          value={i < shown ? String(r.eff) : '??'}
-        />
-      ))}
+      <LineupPitch formation={formation} draftedPlayers={draftedPlayers}
+        caption="Each player's OVR in the slot you put him in."
+        scoreText={(id, ovr) => (revealed.has(id) ? String(ovr) : '??')} />
+      {/* The figure that just turned over, said once more in words. */}
+      {latest && (
+        <KitText t="bodyL" color={roles.text} accessibilityLiveRegion="polite">
+          {`${latest.slot.label} · ${latest.player.name} · ${latest.eff}`}
+        </KitText>
+      )}
 
       {done ? (
         <View style={styles.verdict} accessibilityLiveRegion="polite">

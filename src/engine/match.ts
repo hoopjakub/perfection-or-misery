@@ -1,7 +1,7 @@
 import { SimTeam, MatchResult } from '@/types/simulation'
 import { sigmoid, poissonSample, clamp } from '@/lib/math'
 
-const HOME_ADVANTAGE = 3.5
+export const HOME_ADVANTAGE = 3.5
 const FORM_WEIGHT    = 4.0
 const UPSET_THRESHOLD = 8
 
@@ -31,15 +31,25 @@ export function setMatchTilt(tilt: number): void {
   activeTilt = Number.isFinite(tilt) ? tilt : 0
 }
 
+/**
+ * The odds of one match from the two effective ratings. Exported because the
+ * pundits work out the points they expect from the SAME odds the match is
+ * decided by (P8-13) — a prediction made with different maths would be a
+ * different game's prediction.
+ */
+export function matchOdds(homeEff: number, awayEff: number): { home: number; draw: number; away: number } {
+  const delta = (homeEff - awayEff) / OVR_DELTA_DIVISOR
+  const home = sigmoid(delta) * MAX_WIN_PROB
+  // Tighter matches (small delta) draw more; lopsided ones almost never do.
+  const draw = clamp(0.27 - Math.abs(delta) * 0.05, 0.04, 0.27)
+  return { home, draw, away: 1 - home - draw }
+}
+
 export function simulateMatch(home: SimTeam, away: SimTeam): MatchResult {
   const homeEff = home.ovr + HOME_ADVANTAGE + home.form * FORM_WEIGHT + (home.isPlayer ? activeTilt : 0)
   const awayEff = away.ovr + away.form * FORM_WEIGHT + (away.isPlayer ? activeTilt : 0)
 
-  const delta = (homeEff - awayEff) / OVR_DELTA_DIVISOR
-  const homeWinProb = sigmoid(delta) * MAX_WIN_PROB
-  // Tighter matches (small delta) draw more; lopsided ones almost never do.
-  const drawProb    = clamp(0.27 - Math.abs(delta) * 0.05, 0.04, 0.27)
-  const awayWinProb = 1 - homeWinProb - drawProb
+  const { home: homeWinProb, draw: drawProb } = matchOdds(homeEff, awayEff)
 
   const roll = Math.random()
   const outcome: MatchResult['outcome'] =

@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { setLiveProgress } from '@/lib/liveBracket'
+import { useIsFocused } from '@react-navigation/native'
+import { EventMark } from '@/components/kit'
 import { View, StyleSheet, Pressable } from 'react-native'
 import Animated, { FadeInLeft, FadeInRight } from 'react-native-reanimated'
 import { ROLES, space, border } from '@/theme'
-import { KitText, Tag, Icon, Stripe, RoundFlag } from '@/components/kit'
-import { getFlag } from '@/lib/flagMap'
+import { KitText, Tag, Icon, Stripe, TeamMark } from '@/components/kit'
 import { summariseScorers } from '@/engine/run-stats'
 import type { MatchScorers } from '@/types/stats'
 import type { PenKick } from '@/engine/knockout-match'
@@ -61,11 +63,24 @@ function goalsForPeriod(p: LivePeriod, teamAId: string): Goal[] {
 const lastName = (n: string) => n.split(' ').slice(-1)[0]
 
 // ── The live match/tie player ───────────────────────────────────────────────
+// P8-137: a minute of football on the live clock, the same on every device.
+// It was 26 ms, which a PC kept to and a phone didn't (its render time added to
+// every minute, about doubling it). Wall-clock pacing makes every device keep
+// to this number, so it's set near the phone's real pace, as the maintainer
+// asked: slower on a PC than before, never faster than the phone. 42 ms was
+// still too quick on a PC (27 Sept), and the speed setting never reached the
+// clock at all; 60 ms is about 5.4 s a match plus the beats on goals, near a
+// phone's old pace, and a screen with a speed setting passes its own
+// (LIVE_MS_PER_MIN). The dev log line at full time gives the real duration.
+export const MS_PER_MIN = 60
+/** The live clock for each speed setting (P8-137): the setting means the same on every device. */
+export const LIVE_MS_PER_MIN = { slow: 90, normal: 60, fast: 35 } as const
+
 // Plays each period on a fast clock, revealing goals as the minute passes and
 // updating the running aggregate. For a single match pass one period; for a
 // two-legged tie pass leg1, leg2 (+ optional ET). Calls onDone when finished.
 export function LiveMatch({
-  teamA, teamB, periods, pens, aggregate = false, msPerMin = 26, onDone,
+  teamA, teamB, periods, pens, aggregate = false, msPerMin = MS_PER_MIN, onDone, hold = false,
 }: {
   teamA: LiveTeam
   teamB: LiveTeam
@@ -75,6 +90,9 @@ export function LiveMatch({
   msPerMin?: number
   accent?: string          // no longer drawn; kept so callers needn't change
   onDone?: () => void
+  /** P8-63: held from outside — the match is out of view (you scrolled away),
+   *  so it waits for you instead of playing on unseen. */
+  hold?: boolean
 }) {
   const [periodIdx, setPeriodIdx] = useState(0)
   const [clock, setClock] = useState(periods[0]?.fromMin ?? 0)
@@ -85,7 +103,22 @@ export function LiveMatch({
   const [feed, setFeed] = useState<FeedLine[]>([])
   const [showPens, setShowPens] = useState(false)
   const [penTick, setPenTick] = useState(0)     // number of shootout kicks revealed so far
-  const [paused, setPaused] = useState(false)   // stop-time: freezes the clock + pen reveal
+  const [userPaused, setPaused] = useState(false)   // stop-time: freezes the clock + pen reveal
+  // P8-91: leaving the live screen (the bracket, a match sheet) pauses the
+  // match; it carries on when you come back.
+  const focused = useIsFocused()
+  const paused = userPaused || hold || !focused
+  // P8-63: a goal or a red card holds the clock for a beat, the way a broadcast
+  // lingers on the moment, instead of the next minute ticking straight past it.
+  const BIG_MOMENT_MS = 900
+  // P8-137: the clock keeps wall time. Each tick used to wait `msPerMin` AFTER
+  // the render the last one caused, so a phone's slower render added to every
+  // minute and a PC played the same match about twice as fast. Now each tick
+  // works out when it was due and, when it's late, moves on by as many minutes
+  // as have passed: the same pace on every device.
+  const dueAt = useRef(Date.now())
+  const startedAt = useRef(Date.now())
+  const beat = useRef(false)
   const doneRef = useRef(false)
   // finish() is called from inside an already-fired setTimeout, so a pause
   // click can't cancel it via the usual effect-cleanup path — check the
@@ -95,6 +128,16 @@ export function LiveMatch({
   useEffect(() => { pausedRef.current = paused }, [paused])
 
   const totalKicks = (pens?.kicksA?.length ?? 0) + (pens?.kicksB?.length ?? 0)
+
+  // P8-91: how far through the tie the clock is (0…1), for the bracket that
+  // shows every other tie's score at the same moment (src/lib/liveBracket.ts).
+  useEffect(() => {
+    const p = periods[periodIdx]
+    if (!p) return
+    const within = Math.min(1, Math.max(0, (clock - p.fromMin) / Math.max(1, p.toMin - p.fromMin)))
+    setLiveProgress(showPens ? 1 : (periodIdx + within) / periods.length)
+  }, [clock, periodIdx, showPens])
+  useEffect(() => () => setLiveProgress(null), [])
 
   const goalsRef = useRef<Goal[]>([])
   const goalCursor = useRef(0)
@@ -115,6 +158,14 @@ export function LiveMatch({
     setLegHome(0); setLegAway(0)
     setFeed([])
   }, [periodIdx])
+
+  // The clock's wall time restarts with each period and after a pause, so
+  // coming back from a pause never fast-forwards through what you didn't see.
+  // It has to run BEFORE the tick below (effects run in order): after it, the
+  // tick read the time from before the pause, took the whole pause as lateness
+  // and jumped the clock forward by it (the maintainer, 27 Sept: pausing "does
+  // nothing, the time then just advances").
+  useEffect(() => { dueAt.current = Date.now() }, [periodIdx, paused])
 
   // The clock tick. While paused nothing advances — the match freezes exactly
   // where it is (mid-period, between periods, or mid-shootout) until resumed.
@@ -137,8 +188,14 @@ export function LiveMatch({
       }, 500)
       return () => clearTimeout(t)
     }
+    const wait = beat.current ? msPerMin + BIG_MOMENT_MS : msPerMin
+    beat.current = false
+    const due = dueAt.current + wait
     const t = setTimeout(() => {
-      const next = clock + 1
+      // Late (a slow render): the minutes that have passed go by at once.
+      const late = Math.max(0, Math.floor((Date.now() - due) / msPerMin))
+      dueAt.current = due + late * msPerMin
+      const next = Math.min(p.toMin, clock + 1 + late)
       // reveal any goals at/under the new minute
       while (goalCursor.current < goalsRef.current.length && goalsRef.current[goalCursor.current].min <= next) {
         const g = goalsRef.current[goalCursor.current]; goalCursor.current++
@@ -150,6 +207,7 @@ export function LiveMatch({
         const kind = g.isOg ? 'OG' : g.isPen ? 'PEN' : 'GOAL'
         const id = `g${periodIdx}-${goalCursor.current}`
         setFeed(f => [{ id, kind, text: `${g.scorer} ${mm}`, isHome: g.isHome, isBench: g.isOg ? false : g.isBench } as FeedLine, ...f].slice(0, 6))
+        beat.current = true
       }
       // reveal any red cards at/under the new minute (down to 10 men)
       while (cardCursor.current < cardsRef.current.length && cardsRef.current[cardCursor.current].minute <= next) {
@@ -157,15 +215,17 @@ export function LiveMatch({
         const mm = `${c.minute}${c.plus ? `+${c.plus}` : ''}'`
         const id = `r${periodIdx}-${cardCursor.current}`
         setFeed(f => [{ id, kind: 'RED', text: `${lastName(c.player)} ${mm}`, isHome: c.isHome } as FeedLine, ...f].slice(0, 6))
+        beat.current = true
       }
       setClock(next)
-    }, msPerMin)
+    }, Math.max(0, due - Date.now()))
     return () => clearTimeout(t)
   }, [clock, periodIdx, paused])
 
   function finish(delay: number) {
     if (doneRef.current) return
     doneRef.current = true
+    if (__DEV__) console.log(`[live] ${teamA.clubName} v ${teamB.clubName}: ${((Date.now() - startedAt.current) / 1000).toFixed(1)} s, ${msPerMin} ms a minute`)
     const fire = () => {
       if (pausedRef.current) { setTimeout(fire, 200); return }   // still frozen — keep waiting
       onDone?.()
@@ -210,6 +270,10 @@ export function LiveMatch({
   const awayName = homeIsA ? teamB.clubName : teamA.clubName
   const shownA = pens?.kicksA ? pens.kicksA.slice(0, Math.ceil(penTick / 2)) : []
   const shownB = pens?.kicksB ? pens.kicksB.slice(0, Math.floor(penTick / 2)) : []
+  // The kick just taken: A shoots first, so an odd count ends on A's.
+  const lastKick = penTick === 0 ? null
+    : penTick % 2 === 1 ? (shownA.length ? { kick: shownA[shownA.length - 1], team: teamA.clubName } : null)
+    : (shownB.length ? { kick: shownB[shownB.length - 1], team: teamB.clubName } : null)
 
   return (
     <View style={[styles.card, { borderColor: roles.line, backgroundColor: roles.surface }]}>
@@ -261,14 +325,10 @@ export function LiveMatch({
           {feed.map(f => (
             <Animated.View key={f.id} entering={(f.isHome ? FadeInLeft : FadeInRight).duration(220)}
               style={[styles.feedLine, { justifyContent: f.isHome ? 'flex-start' : 'flex-end' }]}>
-              {f.kind === 'RED' ? (
-                <View style={[styles.redTag, { borderColor: roles.line }]}>
-                  <Stripe roles={roles} band={4} style={styles.redStripe} />
-                  <KitText t="tag" color={roles.text} style={styles.redText}>RED</KitText>
-                </View>
-              ) : (
-                <Tag roles={roles} variant={f.kind === 'OG' ? 'data' : 'selected'}>{f.kind}</Tag>
-              )}
+              {/* P8-46: the mark, not a word — a red card is a red card
+                  (P8-111), a goal a ball, an own goal a ball in misery red. */}
+              <EventMark kind={f.kind === 'RED' ? 'red' : f.kind === 'OG' ? 'ownGoal' : 'goal'} size={16} />
+              {f.kind === 'PEN' && <KitText t="tag" color={roles.textMuted}>PEN</KitText>}
               <KitText t="body" color={roles.text} numberOfLines={1}>{f.text}</KitText>
               {f.isBench && <Tag roles={roles}>SUB</Tag>}
             </Animated.View>
@@ -279,8 +339,15 @@ export function LiveMatch({
       {showPens && pens?.kicksA && pens?.kicksB && (
         <View style={styles.pens}>
           <KitText t="title" color={roles.text} style={styles.center}>{`PENALTIES ${penScoredA}–${penScoredB}`}</KitText>
-          <PenRow name={teamA.clubName} kicks={shownA} total={pens.kicksA.length} />
-          <PenRow name={teamB.clubName} kicks={shownB} total={pens.kicksB.length} />
+          <PenRow name={teamA.clubName} kicks={shownA} />
+          <PenRow name={teamB.clubName} kicks={shownB} />
+          {/* Who just stepped up, and how it went — the shootout as it's taken. */}
+          {lastKick && (
+            <KitText t="title" color={lastKick.kick.scored ? (roles.perfectionText ?? roles.text) : roles.lossText} style={styles.center}
+              accessibilityLiveRegion="polite">
+              {`${lastKick.kick.playerName} (${lastKick.team}) ${lastKick.kick.scored ? 'scores' : 'misses'}`}
+            </KitText>
+          )}
         </View>
       )}
     </View>
@@ -289,11 +356,13 @@ export function LiveMatch({
 
 type FeedLine = { id: string; kind: 'GOAL' | 'OG' | 'PEN' | 'RED'; text: string; isHome: boolean; isBench?: boolean }
 
+// Each side wears its mark: a nation its flag, a club its crest (TeamMark
+// decides by the id). It showed only a nation's flag, so every club tie, the
+// qualifiers and the Champions League knockouts, had no mark at all.
 function Side({ name, clubId, align }: { name: string; clubId: string; align: 'left' | 'right' }) {
-  const flag = getFlag(clubId)
   return (
     <View style={[styles.side, { alignItems: align === 'right' ? 'flex-end' : 'flex-start' }]}>
-      {flag ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={20} roles={roles} /> : null}
+      <TeamMark roles={roles} clubId={clubId} name={name} size={24} />
       <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{name}</KitText>
     </View>
   )
@@ -301,7 +370,13 @@ function Side({ name, clubId, align }: { name: string; clubId: string; align: 'l
 
 // A shootout as a row of kit tags per side: filled for scored, striped for
 // missed, empty for still to come. The kickers' names are in the label.
-function PenRow({ name, kicks, total }: { name: string; kicks: PenKick[]; total: number }) {
+// Five slots for the regulation kicks, and a sudden-death kick only once it's
+// taken: drawing a slot for every kick the shootout WOULD have told you, before
+// it started, how long it went on (the maintainer, 24 Sept).
+const REGULATION_KICKS = 5
+
+function PenRow({ name, kicks }: { name: string; kicks: PenKick[] }) {
+  const total = Math.max(REGULATION_KICKS, kicks.length)
   return (
     <View style={styles.penRow} accessible
       accessibilityLabel={`${name}: ${kicks.map(k => `${k.playerName} ${k.scored ? 'scored' : 'missed'}`).join(', ') || 'no kicks yet'}`}>
@@ -313,7 +388,8 @@ function PenRow({ name, kicks, total }: { name: string; kicks: PenKick[]; total:
             borderColor: k ? roles.line : roles.rule,
             backgroundColor: k?.scored ? roles.perfection : 'transparent',
           }]}>
-            {k && !k.scored && <Stripe roles={roles} band={4} style={StyleSheet.absoluteFillObject} />}
+            {/* Scored is volt, missed is red (P8-111), not yet taken is empty. */}
+            {k && !k.scored && <View style={[StyleSheet.absoluteFillObject, { backgroundColor: roles.loss }]} />}
           </View>
         )
       })}

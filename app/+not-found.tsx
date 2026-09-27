@@ -11,7 +11,7 @@ const roles = ROLES.cotton
 export default function NotFoundScreen() {
   return (
     <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
-      <KitText t="superXl" color={roles.text} accessibilityRole="header">"WRONG PITCH"</KitText>
+      <KitText t="superXl" color={roles.text} accessibilityRole="header">WRONG PITCH</KitText>
       <KitText t="bodyL" color={roles.textMuted}>There's nothing at this address.</KitText>
       <Plate label="Back to Play" icon="forward" roles={roles} onPress={() => router.replace('/(tabs)')} style={styles.plate} />
     </KitScreen>

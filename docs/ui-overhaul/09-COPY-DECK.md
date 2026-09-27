@@ -18,7 +18,7 @@ Where the source said something wrong, the rewrite does not quietly fix it. It's
 
 | Voice | Rules | Example |
 |---|---|---|
-| **The label** | One to three words, caps, straight quotes around names and states | `"YOUR XI"` `"OUT"` |
+| **The label** | One to three words, caps, no quotes (P8-105) | `YOUR XI` `OUT` |
 | **The super** | Verdicts and moments. Short. Full stop allowed. Never a question | `MISERY.` |
 | **The press** | Sports desk. Specific numbers. No cheerleading | "Four clubs, three points, one relegation place." |
 | **The tag** | Data, abbreviated the way a kit label is | `MD 12/38 · OVR 88` |
@@ -29,7 +29,7 @@ Where the source said something wrong, the rewrite does not quietly fix it. It's
 - A disabled button names what's missing.
 - Every empty state says what to do next.
 - Numbers are figures with units: "3 rerolls", "38 matchdays".
-- Straight quotes in labels, proper apostrophes in sentences.
+- Straight quotes only where someone is speaking: the press and the commentary (P8-105, 19 September 2026); proper apostrophes in sentences.
 
 **Never**
 - Exclamation marks in system copy.

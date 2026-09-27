@@ -91,7 +91,10 @@ Transfermarkt scrapers → `scripts/seed/<comp>.json` → `npm run build-db` (be
 ## 6. Current state (accurate as of this writing)
 
 - **Working tree clean and pushed.** Branch `master` (remote: github `hoopjakub/perfection-or-misery`).
-- **Data is fully scraped & built:** DB **v10**, 7 leagues, ~24,935 player-seasons.
+- **Data is fully scraped & built:** DB **v14** (P8-157's colour fix), 7 leagues, ~24,935 player-seasons.
+- **Friends (P8-90, 25 Sept 2026):** `supabase/friends.sql` is written but NOT applied — three checked functions (send, respond, remove), no open insert policies; until it's applied the friends screen says it needs the update.
+- **What a run keeps (P8-96):** `docs/storage-audit.md`. Saved runs are rebuilt from their stored matches in `src/lib/runData.ts`; the press and the pundits' calls are saved in `highlights`.
+- **Profiles (P8-88, 25 Sept 2026):** `supabase/profile.sql` is applied (profile details, looks, `public_profile()`, `runs.duration_seconds`, the avatars bucket). `expo-image-picker` + `expo-image-manipulator` are installed (native: a dev build made after 25 Sept is needed). `submit-run` allows `duration_seconds` in the repo; redeploy it with `supabase functions deploy submit-run`.
   - Top-5 domestic leagues: **8 seasons each (2018–2025)**.
   - Champions League: **2024 + 2025** editions (you're randomly placed into one via `clYear`).
   - World Cup: 2026 (48 nations).
@@ -113,6 +116,7 @@ Transfermarkt scrapers → `scripts/seed/<comp>.json` → `npm run build-db` (be
 - `docs/ui-overhaul/` — **the UI/UX overhaul plan (Sept 2026), direction locked: Kit Drop, "Winner Stays" cut.** Start at `00-README.md`. Critique, vibecode audit, The Dugout comparison, direction, style guide (becomes `DESIGN.md`), motion, screen-by-screen plans, components, copy deck, adapt/optimize/a11y, and a seven-phase roadmap.
 - `docs/maturita/` — **the maturita (PČOZ MS) project plan (Sept 2026).** The school's template and assignment sheet (in `zdroje/`), requirements and marking, a chapter-by-chapter thesis map, the game design / digital media / web / economics viewpoints, licensing and release issues, and the timeline to the 22 March 2027 handover. Start at `00-README.md`.
 - `docs/diagnostics/` — **the Diagnostics screen plan (Sept 2026, not built).** How The Dugout's version works and where it fails, budgets with exact call sites, the self-test and engine fingerprint, the screen in Kit Drop, the report format, and a five-step build order. Start at `00-README.md`.
+- `docs/centralisation/` — **P8-71 phase one: the centralisation research (24 Sept 2026, phase two not started).** 72 items where the four mode families (league season, classic Champions League, full path, World Cup) draw, compute or offer the same thing differently, why nation flags still break (`ClubName` defaults to a crest), two wrong helpers ("21th", "Dijk"), and an eight-step plan to one base (a stage model, `TeamMark`, one knockout view; step 6 is P8-54). Start at `00-README.md`.
 - `docs/Major Overhaul + Bug fixes.md` — the stats/awards/career/penalty/globe systems, as built.
 - `docs/More Competitions & Modes.md` — available leagues (TM codes), league-format quirks needing code (Belgium/Scotland/split-season), UCL/WC **format-era** handling (old groups vs Swiss; 32 vs 48), cup/EURO roadmap, the UCL-globe idea, and known caveats.
 - Persistent cross-session memory lives in the Claude memory dir (`MEMORY.md` index) — covers build/deps traps, DB versioning, mode theming, scorer attribution, globe, scrapers.

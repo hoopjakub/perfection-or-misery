@@ -3,6 +3,9 @@ import { positionPenalty } from './rating'
 
 export type ClubSeasonRow = {
   id: string
+  /** The club behind this season (the same club across every season it played).
+   *  Optional here because the draft only needs it to show a crest (P8-12). */
+  club_id?: string
   club_name: string
   short_name: string
   year_start: number
@@ -14,6 +17,19 @@ export type ClubSeasonRow = {
   // UEFA association coefficient rank (cucl_% leagues only) — see
   // db/queries/seasons.ts. Drives the weighted-picks top-leagues filter.
   assoc_rank?: number | null
+}
+
+/**
+ * One of each footballer per run (P8-30: "two Oyarzabals up top"). Different
+ * seasons of a club are different spins, and the same footballer is also stored
+ * more than once in the players table (the full-path pool keeps its own
+ * `…_cucl` copies, and some names have up to four rows), so neither the
+ * season row nor the player id identifies a person. Name plus birth year does;
+ * nationality stands in when the year is unknown.
+ */
+export function footballerKey(name: string, birthYear?: number | null, nationality?: string | null): string {
+  const n = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return `${n}|${birthYear ?? (nationality ?? '').toLowerCase()}`
 }
 
 export function isPlayerAvailable(

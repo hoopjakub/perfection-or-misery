@@ -1,5 +1,7 @@
 import React from 'react'
-import { Pressable, View, Text, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, View, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'

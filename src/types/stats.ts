@@ -107,6 +107,21 @@ export type TeamGoalRecord = {
   goalsFor:     number
   goalsAgainst: number
   cleanSheets:  number       // matches this club conceded 0
+  // P8-80 — totals from every match sheet the run regenerated. Optional: saved
+  // runs from before 19 September 2026 don't have them, and the screens then
+  // show only the goal record above.
+  matches?:        number
+  xg?:             number
+  xgAgainst?:      number
+  shots?:          number
+  shotsOnTarget?:  number
+  bigChances?:     number
+  possessionSum?:  number   // sum of each match's possession %; average = possessionSum / matches
+  passAccuracySum?: number  // likewise
+  corners?:        number
+  fouls?:          number
+  yellowCards?:    number
+  redCards?:       number
 }
 
 export type CompetitionStats = {
@@ -141,11 +156,27 @@ export type AwardCandidate = {
   interceptions?:  number
   saves?:          number
   shotsOnTarget?:  number
+  clearances?:     number
+  blocks?:         number
+  duelsWon?:       number
+  /** P8-36: the positional awards decided on a score of their own (what makes
+   *  a defender, a full-back, a defensive midfielder), each with the parts it
+   *  was built from, carried by the club's finish like `score`. */
+  lineScores?:     Partial<Record<LineAwardKey, number>>
+  lineBreakdowns?: Partial<Record<LineAwardKey, AwardPart[]>>
 }
+export type LineAwardKey = 'defender' | 'fullback' | 'defensiveMid'
 export type AwardPart = { label: string; value: number; points: number }
 export type SeasonAwards = {
   playerOfTheSeason: AwardCandidate[]   // top 5, [0] = winner
   bestU21:           AwardCandidate[]   // top 5 aged <= 21, [0] = winner
+  /** P8-116, the full path: the awards above are measured over the league
+   *  phase and the knockouts, and the qualifying rounds get a player and a
+   *  team of their own, from these (the best few at each position). */
+  qualifying?:       AwardCandidate[]
+  /** The club lines the club awards read, where they aren't the whole run's
+   *  (the full path's: the league phase and knockouts, not qualifying). */
+  teams?:            TeamGoalRecord[]
 }
 
 // ── Career (lifetime) — YOUR drafted players only, across all runs ──

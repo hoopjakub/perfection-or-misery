@@ -1,15 +1,18 @@
 import React, { useState } from 'react'
-import { WebColumn } from '@/components/kit'
+import { Loader } from '@/components/kit'
+import { KitScreen, KitText, SectionTag, BackControl, Plate, RoundFlag } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { View, Text, StyleSheet, Pressable, Linking } from 'react-native'
 import { router } from 'expo-router'
-import Constants from 'expo-constants'
-import { BackButton } from '@/components/ui'
+import { VersionButton } from '@/components/VersionButton'
 import { useGameStore } from '@/store/gameStore'
 import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl, autoDraftForTestFinal } from '@/engine/quick-sim'
 import { SpinningGlobe } from '@/components/GlobeReveal'
-import { colors, spacing, typography, radius, shadows } from '@/theme'
+import { ROLES, space, border, font } from '@/theme'
+
+// About on the kit (P8-65: it and the guide were the last full screens still on
+// the old dark cards). Reading happens on cotton, like the You tab it opens from.
+const roles = ROLES.cotton
 
 // The Quick Sim Tester writes nothing (quickSim runs are never saved), but it
 // is a developer tool and shipped in public builds behind eight taps. It now
@@ -18,23 +21,24 @@ import { colors, spacing, typography, radius, shadows } from '@/theme'
 // set it, `production` doesn't.
 const DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1'
 
-// Read from app.json rather than typed here: About said "1.0.0" while the app
-// was 0.0.1.
-const APP_VERSION = Constants.expoConfig?.version ?? '—'
+
+type Family = 'league' | 'champions_league' | 'custom_ucl' | 'world_cup' | 'test_final'
+const TESTER_FAMILIES: [Family, string][] = [['league', 'League'], ['champions_league', 'UCL'], ['custom_ucl', 'UCL full'], ['world_cup', 'WC']]
 
 export default function AboutScreen() {
-  const insets = useSafeAreaInsets()
   const [taps, setTaps] = useState(0)
   const [showTester, setShowTester] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  function tapVersion() {
+  // P8-73: the tester is behind "Made in Slovakia" now; the version is a real
+  // button (it opens the version history), so it can't be the secret door too.
+  function tapMadeIn() {
     const n = taps + 1
     setTaps(n)
     if (n >= 8 && DEV_TOOLS) setShowTester(true)
   }
 
-  async function runQuickSim(family: 'league' | 'champions_league' | 'custom_ucl' | 'world_cup' | 'test_final') {
+  async function runQuickSim(family: Family) {
     setBusy(true)
     try {
       if (family === 'league') {
@@ -78,191 +82,118 @@ export default function AboutScreen() {
   }
 
   return (
-    <WebColumn background={colors.bg}>
+    <KitScreen ground="cotton">
       <PageMeta title="About" path="/about" />
-    <View style={styles.container}>
-      {/* header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <BackButton />
-        <Text style={styles.title}>About</Text>
-        <View style={{ width: 32 }} />
+      <BackControl roles={roles} />
+      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>ABOUT</KitText>
+
+      {/* The globe is always spinning, Slovakia always lit up. */}
+      <View style={styles.hero}>
+        <SpinningGlobe accent={roles.text} size={180} />
+        {/* Eight taps here open the Quick Sim Tester, in dev builds only. */}
+        <Pressable onPress={tapMadeIn} style={styles.madeIn} accessibilityRole="text">
+          <KitText t="title" color={roles.text}>Made in Slovakia</KitText>
+          {/* P8-58: the real flag, not the emoji. */}
+          <RoundFlag emoji="🇸🇰" code="SVK" size={24} roles={roles} />
+        </Pressable>
+        <KitText t="tag" color={roles.textMuted} style={styles.centre}>Solo dev · high school student · football obsessive</KitText>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Hero — the globe is always spinning, Slovakia always lit up */}
-        <View style={styles.hero}>
-          <SpinningGlobe accent={colors.accent} size={180} />
-          <Text style={styles.heroName}>Made in Slovakia 🇸🇰</Text>
-          <Text style={styles.heroTagline}>Solo dev · high school student · football obsessive</Text>
-        </View>
+      <View style={styles.section}>
+        <SectionTag roles={roles}>Who's behind this</SectionTag>
+        <KitText t="bodyL" color={roles.text}>
+          I'm a high school student, born and raised in Slovakia. Perfection or Misery is a solo
+          project I build in whatever spare time school leaves me. Every mode, every screen, every
+          line of the simulation engine is mine. No studio, no team: when a knockout bracket needed
+          pinch-to-zoom or the globe needed to spin, I sat down and figured out how to build it.
+        </KitText>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Who's behind this</Text>
-          <Text style={styles.content}>
-            I'm a high school student, born and raised in Slovakia. Perfection or Misery is a solo
-            project I build in whatever spare time school leaves me — every mode, every screen, every
-            line of the simulation engine. No studio, no team: when a knockout bracket needed
-            pinch-to-zoom or the globe needed to spin, I sat down and figured out how to build it.
-          </Text>
-        </View>
+      <View style={styles.section}>
+        <SectionTag roles={roles}>Why this exists</SectionTag>
+        <KitText t="bodyL" color={roles.text}>
+          I was heavily inspired by{' '}
+          <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL('https://38-0.app/')}>38-0.app ↗</Text>
+          {'. '}I loved the core idea, but kept noticing things I wanted to do differently. So I
+          decided to build my own take on it: deeper simulation, real competitions, and a lot more
+          drama along the way. What started as "38-0 but mine" has grown into a full football
+          universe: a custom UEFA Champions League journey across all 53 UEFA leagues, a 48-team
+          FIFA World Cup, live matches on a ticking clock, and now FotMob-style deep stats with player ratings
+          for every single simulated match.
+        </KitText>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Why this exists</Text>
-          <Text style={styles.content}>
-            I was heavily inspired by{' '}
-            <Text style={styles.link} onPress={() => Linking.openURL('https://38-0.app/')}>38-0.app ↗</Text>
-            {' '}— I loved the core idea, but kept noticing things I wanted to do differently. So I
-            decided to build my own take on it: deeper simulation, real competitions, and a lot more
-            drama along the way. What started as "38-0 but mine" has grown into a full football
-            universe — a custom UEFA Champions League journey across all 53 UEFA leagues, a 48-team
-            FIFA World Cup, live matches on a ticking clock, and now FotMob-style deep stats with player ratings
-            for every single simulated match.
-          </Text>
-        </View>
+      <View style={styles.section}>
+        <SectionTag roles={roles}>Under the hood</SectionTag>
+        <KitText t="bodyL" color={roles.text}>
+          • React Native + Expo Router, state managed with Zustand{'\n'}
+          • Real club and player data across 50+ leagues, scraped and bundled into a local SQLite
+          database. The whole game runs offline; you only need a connection to save runs{'\n'}
+          • Every match is decided by a custom simulation engine from team OVR, form and controlled
+          randomness, goal by goal{'\n'}
+          • On top of the result engine sits a deterministic deep-stats generator: possession, xG,
+          shot counts, pass numbers, duels, individual 0–10 ratings and a Player of the Match for
+          every fixture. That's thousands of matches per run, each rebuilt from a single stored seed,
+          so reopening a match always shows the same numbers{'\n'}
+          • UEFA Champions League and FIFA World Cup knockouts run through a full two-legged / extra-time /
+          penalty-shootout engine, with named takers pulled from your actual squad{'\n'}
+          • The country-reveal globe (in the draw, and the one spinning above)
+          is a from-scratch orthographic map projection in SVG. No map library, just spherical
+          trigonometry{'\n'}
+          • Live matches tick on a real clock (pausable mid-match), and the knockout bracket is a
+          pinch-to-zoom tree you pan around like a map
+        </KitText>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Under the hood</Text>
-          <Text style={styles.content}>
-            • React Native + Expo Router, state managed with Zustand{'\n'}
-            • Real club and player data across 50+ leagues, scraped and bundled into a local SQLite
-            database — the whole game runs offline, no server needed to play{'\n'}
-            • Every match is decided by a custom simulation engine — team OVR, form, and controlled
-            randomness, goal by goal{'\n'}
-            • On top of the result engine sits a deterministic deep-stats generator: possession, xG,
-            shot counts, pass numbers, duels, individual 0–10 ratings and a Player of the Match for
-            every fixture — thousands of matches per run, each reproducible from a single stored seed
-            so reopening a match always shows identical numbers{'\n'}
-            • UEFA Champions League and FIFA World Cup knockouts run through a full two-legged / extra-time /
-            penalty-shootout engine, with named takers pulled from your actual squad{'\n'}
-            • The country-reveal globe — draft spins, league placement, and the one spinning above —
-            is a from-scratch orthographic map projection in SVG. No map library, just spherical
-            trigonometry{'\n'}
-            • Live matches tick on a real clock (pausable mid-match), and the knockout bracket is a
-            pinch-to-zoom tree you pan around like a map
-          </Text>
-        </View>
+      <View style={styles.section}>
+        <SectionTag roles={roles}>Built with</SectionTag>
+        <KitText t="bodyL" color={roles.text}>React Native, Expo, Zustand, SQLite, and Supabase.</KitText>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Built with</Text>
-          <Text style={styles.content}>
-            React Native, Expo, Zustand, SQLite, and Supabase.
-          </Text>
-        </View>
+      <View style={styles.section}>
+        <SectionTag roles={roles}>Version</SectionTag>
+        <VersionButton roles={roles} />
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Version</Text>
-          <Pressable onPress={tapVersion}>
-            <Text style={styles.content}>{APP_VERSION}</Text>
-          </Pressable>
+      {/* Hidden tester — unlocked by tapping "Made in Slovakia" 8×, at the bottom of About */}
+      {showTester && (
+        <View style={[styles.section, styles.tester, { borderColor: roles.line }]}>
+          <SectionTag roles={roles}>Quick Sim Tester</SectionTag>
+          <KitText t="body" color={roles.text}>
+            Auto-drafts a random squad, simulates a full season with no UI, and drops you on the result screen (stats included). Not saved to your account.
+          </KitText>
+          <KitText t="body" color={roles.textMuted}>
+            Final only auto-drafts, then plays through the real World Cup flow (placement → groups → knockouts). Every match your team plays is forced to a clean 1-0 win except the final, which is always simulated for real.
+          </KitText>
+          {busy ? (
+            <View style={styles.testerBusy}>
+              <Loader color={roles.text} />
+              <KitText t="body" color={roles.textMuted}>Drafting and simulating…</KitText>
+            </View>
+          ) : (
+            <View style={styles.testerBtns}>
+              {TESTER_FAMILIES.map(([f, label]) => (
+                <Plate key={f} roles={roles} variant="secondary" label={label} onPress={() => runQuickSim(f)} style={styles.testerBtn} />
+              ))}
+              <Plate roles={roles} label="Final" onPress={() => runQuickSim('test_final')} style={styles.testerBtn} />
+            </View>
+          )}
         </View>
-
-        {/* Hidden tester — unlocked by tapping the version 8× */}
-        {showTester && (
-          <View style={[styles.section, styles.testerCard]}>
-            <Text style={styles.sectionTitle}>⚡ Quick Sim Tester</Text>
-            <Text style={styles.content}>
-              Auto-drafts a random squad, simulates a full season with no UI, and drops you on the result screen (stats included). Not saved to your account.
-              {'\n\n'}<Text style={{ fontWeight: typography.bold, color: colors.gold }}>Final</Text> only auto-drafts, then plays through the real World Cup flow (placement → groups → knockouts) — every match your team plays is forced to a clean 1-0 win except the final, which is always simulated for real. Built for testing the Deep Match/momentum/stats work without grinding a whole tournament per test.
-            </Text>
-            {busy ? (
-              <View style={styles.testerBusy}>
-                <ActivityIndicator color={colors.accent} />
-                <Text style={styles.content}>Drafting & simulating…</Text>
-              </View>
-            ) : (
-              <View style={styles.testerBtns}>
-                <Pressable style={styles.testerBtn} onPress={() => runQuickSim('league')}>
-                  <Text style={styles.testerBtnText}>League</Text>
-                </Pressable>
-                <Pressable style={styles.testerBtn} onPress={() => runQuickSim('champions_league')}>
-                  <Text style={styles.testerBtnText}>UCL</Text>
-                </Pressable>
-                <Pressable style={styles.testerBtn} onPress={() => runQuickSim('custom_ucl')}>
-                  <Text style={styles.testerBtnText}>UCL✦</Text>
-                </Pressable>
-                <Pressable style={styles.testerBtn} onPress={() => runQuickSim('world_cup')}>
-                  <Text style={styles.testerBtnText}>WC</Text>
-                </Pressable>
-                <Pressable style={[styles.testerBtn, styles.testerBtnFinal]} onPress={() => runQuickSim('test_final')}>
-                  <Text style={[styles.testerBtnText, styles.testerBtnFinalText]}>Final</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </View>
-    </WebColumn>
+      )}
+    </KitScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.xs },
-  heroName: { fontSize: typography.lg, fontWeight: typography.black, color: colors.textPrimary, marginTop: spacing.sm },
-  heroTagline: { fontSize: typography.xs, color: colors.textMuted, textAlign: 'center' },
-  link: { color: colors.accent, fontWeight: typography.bold },
-  testerCard: { borderWidth: 1, borderColor: colors.accent, borderRadius: radius.md, padding: spacing.md },
-  testerBusy: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
-  testerBtns: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  testerBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.md,
-    backgroundColor: colors.accent,
-  },
-  testerBtnDisabled: { backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border },
-  testerBtnFinal: { backgroundColor: colors.gold },
-  testerBtnFinalText: { color: '#1A1500' },
-  testerBtnText: { color: colors.textPrimary, fontWeight: typography.bold, fontSize: typography.sm },
-  testerBtnTextDisabled: { color: colors.textMuted, fontWeight: typography.medium, fontSize: typography.xs },
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  back: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backText: {
-    color: colors.textPrimary,
-    fontSize: typography.xl,
-  },
-  title: {
-    fontSize: typography.xl,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
-  },
-  scroll: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-  },
-  section: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: typography.md,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  content: {
-    fontSize: typography.sm,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
+  // A 44pt target: it's tapped eight times in a row.
+  madeIn: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 44 },
+  title: { marginTop: space[2], marginBottom: space[3] },
+  hero: { alignItems: 'center', paddingVertical: space[4], gap: space[2] },
+  centre: { textAlign: 'center' },
+  section: { gap: space[2], paddingVertical: space[4], borderTopWidth: border.hair, borderTopColor: roles.rule },
+  link: { fontFamily: font.bodyBold, color: roles.text, textDecorationLine: 'underline' },
+  tester: { borderWidth: border.thin, paddingHorizontal: space[3] },
+  testerBusy: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  testerBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  testerBtn: { flexGrow: 1, minWidth: 96 },
 })

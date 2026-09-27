@@ -1,4 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { kickoffFor } from '@/engine/schedule'
+import { RoundTeam } from '@/components/season/RoundTeam'
+import { SafeSection } from '@/components/kit'
+import { setLivePress } from '@/lib/livePress'
+import { openStory } from '@/lib/runNav'
+import { usePauseOnBlur } from '@/hooks/usePauseOnBlur'
+import { ManOfTheMatch } from '@/components/MatchStatsParts'
 import { useSizeClass, MAX_CONTENT, COLUMN } from '@/hooks/useSizeClass'
 import { WebKeys } from '@/lib/webKeys'
 import { View, Pressable, StyleSheet } from 'react-native'
@@ -9,11 +16,13 @@ import { calcTeamOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
 import { generateFixtures } from '@/engine/fixtures'
 import { simulateMatch } from '@/engine/match'
-import { rotationFor } from '@/engine/rotation'
+import { rotationFor, leagueCutoffs } from '@/engine/rotation'
 import { effectiveMatchOvrs } from '@/engine/lineup'
 import { createAvailabilityLedger, availabilityFor, recordMatchOutcome, type AvailabilityLedger } from '@/engine/availability'
 import { assignTier } from '@/engine/tier'
-import { loadLeaguePools, attributeFixtureScorers, summariseScorers } from '@/engine/run-stats'
+import { loadLeaguePools, attributeFixtureScorers, summariseScorers, teamOfTheRound, roundLines } from '@/engine/run-stats'
+import { FormationPitch } from '@/components/season/AwardsParts'
+import type { PickedTeam } from '@/engine/awards'
 import { toContextMatches } from '@/engine/match-context'
 import { predictTable } from '@/engine/predictions'
 import { writePress, type Story } from '@/engine/press'
@@ -22,8 +31,8 @@ import { useModeTheme } from '@/hooks/useModeTheme'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { openMatchStats } from '@/lib/matchStats'
 import { openConfirm } from '@/lib/confirm'
+import { SkipPlate } from '@/components/season/RunChrome'
 import { randomSeed } from '@/lib/rng'
-import { haptic } from '@/lib/haptics'
 import { ROLES, space, border, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunHeader, Plate, Chips, Icon, SectionTag, EmptyState } from '@/components/kit'
 import type { SimTeam, Fixture, SeasonResult, MatchdaySnapshot } from '@/types/simulation'
@@ -51,16 +60,14 @@ type Tab = 'table' | 'results' | 'press'
 // §10.5 — a league side rests players once the table says the game can no
 // longer change its season, and never while anything is still live. Your own
 // club is never rotated: you drafted that XI, so you field it.
-// ponytail: fixed cut-offs, not the real zones — switching them moves the
-// balance, which needs its own measured pass.
-const LEAGUE_EURO_SPOTS = 5
-const LEAGUE_RELEGATION_SPOTS = 3
-
-function leagueRotations(teams: SimTeam[], home: SimTeam, away: SimTeam, totalMatchdays: number, playedMatchdays: number) {
+// P8-28: the stakes lines come from the league's real zones for that season
+// (`leagueCutoffs`), not a fixed top 5 and bottom 3; verify-rotation measured
+// the change before it went in.
+function leagueRotations(teams: SimTeam[], home: SimTeam, away: SimTeam, totalMatchdays: number, playedMatchdays: number, zones: (string | null)[]) {
   const stakes = {
     standings: teams.map(t => ({ clubId: t.clubId, points: t.stats.points })),
     totalMatchdays, playedMatchdays,
-    qualifyCutoff: LEAGUE_EURO_SPOTS, dropCutoff: LEAGUE_RELEGATION_SPOTS, titleMatters: true,
+    ...leagueCutoffs(zones), titleMatters: true,
   }
   return {
     home: home.isPlayer ? 0 : rotationFor({ ...stakes, clubId: home.clubId }),
@@ -99,7 +106,7 @@ export default function LeagueSeason() {
   const totalTeamOvr = formation && draftedPlayers.length > 0 ? calcTeamOvr(draftedPlayers, slots) : 0
   const theme = useModeTheme()
   const insets = useSafeAreaInsets()
-  const colourway = colourwayFor(mode)
+  const colourway = colourwayFor(mode, null, placedLeague?.leagueId)   // P8-55: the league's own colours
 
   const { start } = useLocalSearchParams<{ start?: string }>()
   const [simTeams, setSimTeams] = useState<SimTeam[]>([])
@@ -108,13 +115,14 @@ export default function LeagueSeason() {
   const [landedMD, setLandedMD] = useState(0)      // your result is showing for this one
   const [restMD, setRestMD] = useState(0)          // the table and the rest of the round
   const [isPlaying, setIsPlaying] = useState(false)
+  usePauseOnBlur(setIsPlaying)   // P8-32
+  useEffect(() => { setLivePress([]) }, [])   // a new season starts with an empty press
   const [done, setDone] = useState(false)
   const [speed, setSpeed] = useState<Speed>('normal')
   const [viewMD, setViewMD] = useState<number | null>(null)
   const sizeClass = useSizeClass()
   const [tab, setTab] = useState<Tab>('table')
   const [stories, setStories] = useState<Story[]>([])
-  const [flashId, setFlashId] = useState<string | null>(null)
   const [poolsReady, setPoolsReady] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const autoStarted = useRef(false)
@@ -140,6 +148,7 @@ export default function LeagueSeason() {
   // Goalscorer pools, the lineup context and the availability ledger. See the
   // comments in engine/run-stats.ts and engine/availability.ts.
   const poolByClubRef = useRef<Map<string, RosterPlayer[]>>(new Map())
+  const roundPlayersRef = useRef<Map<number, { playerId: string; name: string; clubId: string; rating: number }[]>>(new Map())   // P8-138
   const lineupCtxRef = useRef<{ playerClubId?: string; benchSize?: number }>({})
   const availabilityRef = useRef<AvailabilityLedger | null>(null)
 
@@ -187,7 +196,7 @@ export default function LeagueSeason() {
       // Seed FIRST: the eleven each side picks has to be known before the
       // scoreline is decided, or rotation would be decoration.
       fixture.seed = randomSeed()
-      const rot = leagueRotations(teams, homeTeam, awayTeam, totalMatchdays, md - 1)
+      const rot = leagueRotations(teams, homeTeam, awayTeam, totalMatchdays, md - 1, zones)
       fixture.homeRotation = rot.home
       fixture.awayRotation = rot.away
       // §10.5 phase 4 — this matchday's absences, stored so every later
@@ -252,13 +261,29 @@ export default function LeagueSeason() {
     if (played.length === 0) return false
 
     const standings = sortTeams(teams).map(t => ({ ...t, stats: { ...t.stats } }))
+    // P8-138: the round's players and ratings, for the press's player stories.
+    // The same sheets (and key) the team of the matchday reads, so it's paid once.
+    let players: { playerId: string; name: string; clubId: string; rating: number }[] | undefined
+    try {
+      players = roundLines(`md-${md}`, played.map(f => ({
+        homeClubId: f.home.clubId, awayClubId: f.away.clubId, homeClubName: f.home.clubName, awayClubName: f.away.clubName,
+        homeGoals: f.result!.homeGoals, awayGoals: f.result!.awayGoals, scorers: f.scorers, seed: f.seed,
+        homeRotation: f.homeRotation, awayRotation: f.awayRotation, absent: f.absent, standIns: f.standIns,
+      })), poolByClubRef.current, lineupCtxRef.current).map(l => ({ playerId: l.playerId, name: l.name, clubId: l.clubId, rating: l.rating }))
+    } catch (e) { console.warn('[press] round ratings failed:', e) }
     historyRef.current.push({ matchday: md, standings, fixtures: played })
+    // Kept beside the history, not in it: the history is saved with the run,
+    // and every player's rating every round would swell it for nothing.
+    if (players) roundPlayersRef.current.set(md, players)
     // The press reads the table as it now stands; stories are written once.
-    const fresh = writePress(historyRef.current, pressRef.current, {
+    const fresh = writePress(historyRef.current.map(h => ({ ...h, players: roundPlayersRef.current.get(h.matchday) })), pressRef.current, {
       totalMatchdays, zones,
       next: allFixtures.filter(f => f.matchday === md + 1).map(f => ({ homeId: f.home.clubId, awayId: f.away.clubId })),
+      // P8-25: your players' injuries and bans make the press the round they happen.
+      absences: availabilityRef.current?.absences() ?? [],
     })
     pressRef.current = [...pressRef.current, ...fresh]
+    setLivePress(pressRef.current)   // so a story opened mid-season can be read
     return true
   }
 
@@ -305,17 +330,6 @@ export default function LeagueSeason() {
   // The confirm screen calls back after this render may be stale.
   const skipRef = useRef(skipToEnd)
   skipRef.current = skipToEnd
-
-  function askSkip() {
-    setIsPlaying(false)
-    openConfirm({
-      question: 'Skip to the last day?',
-      consequence: `Matchdays ${nextMD} to ${totalMatchdays} are played at once. You'll see the final table and every result, but not each round landing.`,
-      confirmLabel: 'Skip to the last day',
-      stayLabel: 'Keep watching',
-      onConfirm: () => skipRef.current(),
-    })
-  }
 
   function askAbandon() {
     setIsPlaying(false)
@@ -366,24 +380,17 @@ export default function LeagueSeason() {
   const shownMD = viewMD ?? restMD
   const snapshot = shownMD > 0 ? history[shownMD - 1] : null
   const prevSnapshot = shownMD > 1 ? history[shownMD - 2] : null
-  const rows = useMemo(() => (snapshot ? snapshot.standings.map(toRow) : preseasonRows), [snapshot, preseasonRows])
+  // P8-22: each row carries the places it moved since the matchday before, from
+  // the stored snapshots, so looking back at matchday 12 shows matchday 12's moves.
+  const rows = useMemo(() => {
+    if (!snapshot) return preseasonRows
+    const before = prevSnapshot ? new Map(prevSnapshot.standings.map((t, i) => [t.clubId, i + 1])) : null
+    return snapshot.standings.map((t, i) => ({ ...toRow(t), move: before ? (before.get(t.clubId) ?? i + 1) - (i + 1) : 0 }))
+  }, [snapshot, prevSnapshot, preseasonRows])
 
   const youPos = rows.findIndex(r => r.isPlayer) + 1
   const prevPos = prevSnapshot ? prevSnapshot.standings.findIndex(t => t.isPlayer) + 1 : youPos
   const youRow = rows[youPos - 1]
-
-  // Crossing a zone line gets one beat: a tape under your row and a haptic.
-  useEffect(() => {
-    if (viewMD != null || restMD < 2) return
-    const now = history[restMD - 1]?.standings.findIndex(t => t.isPlayer) ?? -1
-    const before = history[restMD - 2]?.standings.findIndex(t => t.isPlayer) ?? -1
-    if (now < 0 || before < 0 || (zones[now] ?? null) === (zones[before] ?? null)) return
-    const you = history[restMD - 1].standings[now].clubId
-    setFlashId(you)
-    haptic(now < before ? 'success' : 'warning')
-    const t = setTimeout(() => setFlashId(null), 700)
-    return () => clearTimeout(t)
-  }, [restMD])
 
   const cardMD = viewMD ?? landedMD
   const cardFixture = cardMD > 0 ? history[cardMD - 1]?.fixtures.find(isYours) : undefined
@@ -395,6 +402,19 @@ export default function LeagueSeason() {
     [landedMD],
   )
 
+  // The sheet's request for one fixture: the sheet opens with it, and your
+  // card's man of the match reads it (P8-129).
+  const fixtureRequest = (f: Fixture) => f.result && placedLeague ? ({
+    homeClubId: f.home.clubId, homeName: f.home.clubName,
+    awayClubId: f.away.clubId, awayName: f.away.clubName,
+    homeGoals: f.result.homeGoals, awayGoals: f.result.awayGoals,
+    scorers: f.scorers, seed: f.seed,
+    homeRotation: f.homeRotation, awayRotation: f.awayRotation,
+    absent: f.absent, standIns: f.standIns,
+    yearStart: placedLeague.yearStart,
+    playerClubId: simTeams.find(t => t.isPlayer)?.clubId,
+    playerFormation: formation ?? undefined,
+  }) : null
   const openFixture = useCallback((f: Fixture) => {
     if (!f.result || !placedLeague) return
     openMatchStats({
@@ -419,6 +439,7 @@ export default function LeagueSeason() {
       }))),
     }, theme.accent)
   }, [placedLeague, allFixtures, simTeams, formation, theme.accent])
+
 
   if (!formation || !placedLeague || draftedPlayers.length === 0) {
     return (
@@ -445,10 +466,11 @@ export default function LeagueSeason() {
   const tablePane = (
     <>
       <LeagueTable roles={roles} rows={rows} zones={tableZones} moveMs={viewMD == null ? moveMs : undefined}
-        muted={!snapshot} flashId={flashId} />
+        muted={!snapshot} />
       <ZoneLegend roles={roles} zones={tableZones} />
     </>
   )
+
   const resultsPane = (
     yourPending ? (
       <KitText t="body" color={roles.textMuted} style={styles.pre}>Your match first. The rest of the round is coming in.</KitText>
@@ -460,9 +482,18 @@ export default function LeagueSeason() {
           homeName={f.home.clubName} awayName={f.away.clubName}
           homeGoals={f.result!.homeGoals} awayGoals={f.result!.awayGoals}
           youSide={null}
-          scorers={[summariseScorers(f.scorers?.home), summariseScorers(f.scorers?.away)].filter(Boolean).join(' · ') || undefined}
+          homeClubId={(f.home as any).clubId} awayClubId={(f.away as any).clubId}
+          homeScorers={summariseScorers(f.scorers?.home) || undefined} awayScorers={summariseScorers(f.scorers?.away) || undefined}
           onPress={() => openFixture(f)} />
-      ))
+      )).concat(snapshot && poolsReady ? [
+        <RoundTeam key="totm" roles={roles} roundKey={`md-${snapshot.matchday}`} label={`Team of matchday ${snapshot.matchday}`}
+          poolByClub={poolByClubRef.current} ctx={lineupCtxRef.current}
+          fixtures={snapshot.fixtures.filter(f => f.result).map(f => ({
+            homeClubId: f.home.clubId, awayClubId: f.away.clubId, homeClubName: f.home.clubName, awayClubName: f.away.clubName,
+            homeGoals: f.result!.homeGoals, awayGoals: f.result!.awayGoals, scorers: f.scorers, seed: f.seed,
+            homeRotation: f.homeRotation, awayRotation: f.awayRotation, absent: f.absent, standIns: f.standIns,
+          }))} />,
+      ] : [])
     )
   )
   const pressPane = (
@@ -473,7 +504,7 @@ export default function LeagueSeason() {
     ) : (
       <>
         <SectionTag roles={roles}>Newest first</SectionTag>
-        {[...stories].reverse().map(s => <StoryItem key={s.id} roles={roles} story={s} />)}
+        {[...stories].reverse().map(s => <StoryItem key={s.id} roles={roles} story={s} onPress={() => openStory(s.id)} />)}
       </>
     )
   )
@@ -525,13 +556,15 @@ export default function LeagueSeason() {
         )}
 
         {cardFixture?.result ? (
-          <ScorelineCard roles={roles} label={`MD ${cardFixture.matchday} · ${cardFixture.home.isPlayer ? 'HOME' : 'AWAY'}`}
-            homeName={cardFixture.home.clubName} awayName={cardFixture.away.clubName}
+          <ScorelineCard roles={roles} label={[`MD ${cardFixture.matchday}`,
+              kickoffFor({ label: `Matchday ${cardFixture.matchday}`, yearStart: placedLeague?.yearStart, matchdays: totalMatchdays, homeClubId: cardFixture.home.clubId, awayClubId: cardFixture.away.clubId })?.short].filter(Boolean).join(' · ')}
+            homeName={cardFixture.home.clubName} awayName={cardFixture.away.clubName} homeClubId={cardFixture.home.clubId} awayClubId={cardFixture.away.clubId}
             homeGoals={cardFixture.result.homeGoals} awayGoals={cardFixture.result.awayGoals}
             youHome={cardFixture.home.isPlayer}
             homeScorers={summariseScorers(cardFixture.scorers?.home) || undefined}
             awayScorers={summariseScorers(cardFixture.scorers?.away) || undefined}
-            onPress={() => openFixture(cardFixture)} />
+            onPress={() => openFixture(cardFixture)}
+            footer={fixtureRequest(cardFixture) ? <ManOfTheMatch roles={roles} req={fixtureRequest(cardFixture)!} /> : null} />
         ) : !started ? (
           <KitText t="bodyL" color={roles.textMuted} style={styles.pre}>
             {poolsReady ? 'The table is in the pundits’ order until a ball is kicked.' : 'Loading the squads…'}
@@ -570,8 +603,8 @@ export default function LeagueSeason() {
             <Chips<Speed> roles={roles} label="Speed" value={speed} onChange={setSpeed}
               options={[{ id: 'slow', label: 'Slow' }, { id: 'normal', label: 'Normal' }, { id: 'fast', label: 'Fast' }]} />
             <View style={{ flex: 1 }} />
-            <Plate label="Skip to the last day" icon="skip" variant="secondary" roles={roles} onPress={askSkip}
-              disabled={!poolsReady} />
+            <SkipPlate label="Skip to the last day" consequence={`Matchdays ${nextMD} to ${totalMatchdays} are played at once.`}
+              pause={() => setIsPlaying(false)} run={() => skipRef.current()} disabled={!poolsReady} />
           </View>
         )}
         <Plate label={plateLabel} icon={done ? 'forward' : isPlaying ? 'pause' : 'play'} roles={roles}
@@ -584,6 +617,7 @@ export default function LeagueSeason() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  totm: { marginTop: space[5], gap: space[2] },
   close: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   live: { alignSelf: 'flex-start', borderWidth: border.thin, paddingHorizontal: space[2], minHeight: 32, justifyContent: 'center' },
   pre: { paddingVertical: space[3] },

@@ -1,9 +1,12 @@
 import React, { useCallback, useState } from 'react'
-import { PageMeta } from '@/components/PageMeta'
-import { View, ScrollView, StyleSheet } from 'react-native'
+import { VersionButton } from '@/components/VersionButton'
+import { PageMeta, GAME_JSON_LD } from '@/components/PageMeta'
+import { View, ScrollView, StyleSheet, Platform } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { useGameStore } from '@/store/gameStore'
+import { keptRun, resumeKeptRun, dropKeptRun, type KeptRun } from '@/lib/runKeeper'
+import { useSettingsStore } from '@/store/settingsStore'
 import { fetchUserStats, fetchRunHistory, type UserStats, type RunHistoryEntry } from '@/db/queries/leaderboard'
 import { ROLES, space, colourwayFor } from '@/theme'
 import { formatTier, verdictOf, runMeta, MODE_TAG } from '@/data/tiers'
@@ -13,7 +16,7 @@ import { applyMode } from '@/data/modes'
 import type { Difficulty } from '@/engine/difficulty'
 import type { GameMode } from '@/types/game'
 import {
-  KitScreen, KitText, Wordmark, Plate, RunLabel, RunLabelSkeleton, SectionTag, Tag, InlineError,
+  KitScreen, KitText, Wordmark, Plate, RunLabel, RunLabelSkeleton, SectionTag, Tag, InlineError, StripedNotice,
 } from '@/components/kit'
 
 // Home (Play) — docs/ui-overhaul/07a A2. The poster, your last three
@@ -64,7 +67,9 @@ export default function HomeScreen() {
     }, [user, isGuest, reloadKey])
   )
 
-  const last = recentRuns[0]
+  // The same "last run" the LAST TIME tags read (settingsStore), so Again and
+  // the tags always agree — and a guest, who has no saved runs, gets Again too.
+  const last = useSettingsStore(s => s.lastRun)
   const canAgain = !!last && AGAIN_MODES.has(last.mode)
     && (!last.difficulty || PRESETS.has(last.difficulty) || last.difficulty === last.mode)
 
@@ -75,17 +80,54 @@ export default function HomeScreen() {
     const store = useGameStore.getState()
     applyMode(store, last.mode as GameMode)
     if (last.difficulty && PRESETS.has(last.difficulty)) {
+      // The bench stays as the player last set it (P8-01): AGAIN repeats a run,
+      // it doesn't quietly switch the bench back on.
       store.setDifficulty(last.difficulty as Difficulty)
-      store.setUseSubstitutes(true)
     }
     router.push('/game/formation-select')
   }
 
+  // P8-149: a run the last launch left. A draft is offered back; a run that
+  // had been drawn into its season is only said, once (see src/lib/runKeeper).
+  const [kept, setKept] = useState<KeptRun | null>(null)
+  useFocusEffect(useCallback(() => {
+    let alive = true
+    // Only while no run is under way in this launch (the store is empty).
+    if (!useGameStore.getState().formation) keptRun().then(k => { if (alive) setKept(k) })
+    return () => { alive = false }
+  }, []))
+  function continueRun() {
+    if (!kept) return
+    resumeKeptRun(kept)
+    setKept(null)
+    router.push('/game/draft')
+  }
+  function letGo() { dropKeptRun(); setKept(null) }
+
   // The thumb zone: one orange plate, and the rematch beside it.
+  // A kept run sits above the row, never inside it (it squeezed Start a run
+  // off the screen, 27 Sept): its line with Let it go beside it, then Continue
+  // as the one orange plate, and Start a run steps down to secondary.
+  const keptDraft = kept?.stage === 'draft'
   const actions = (
+    <View style={styles.thumb}>
+      {keptDraft && (
+        <>
+          <View style={styles.keptHead}>
+            <KitText t="tag" color={roles.textMuted} numberOfLines={1} style={styles.keptTag}>{`YOUR ${(MODE_TAG[kept.mode] ?? kept.mode).toUpperCase()} RUN · ${kept.draftedPlayers.length} PICKED`}</KitText>
+            <Plate label="Let it go" variant="quiet" roles={roles} onPress={letGo} />
+          </View>
+          <Plate label="Continue your run" icon="play" roles={roles} onPress={continueRun} />
+        </>
+      )}
+      {kept?.stage === 'season' && (
+        <StripedNotice roles={roles} actionLabel="Understood" onAction={letGo}>
+          Your last run was stopped during its season, so it's gone. A season can't be picked up halfway: starting it again would play every result again.
+        </StripedNotice>
+      )}
       <View style={styles.actions}>
         <Plate
-          label="Start a run" icon="forward" roles={roles}
+          label="Start a run" icon="forward" roles={roles} variant={keptDraft ? 'secondary' : 'primary'}
           onPress={() => router.push('/game/mode-select')}
           style={styles.start}
         />
@@ -96,6 +138,7 @@ export default function HomeScreen() {
           />
         )}
       </View>
+    </View>
   )
   const record = (
     <>
@@ -144,7 +187,7 @@ export default function HomeScreen() {
   if (wide) {
     return (
       <KitScreen ground="cotton" width="wide">
-        <PageMeta path="/" />
+        <PageMeta path="/" jsonLd={GAME_JSON_LD} />
         <View style={styles.wide}>
           <View style={styles.wideLeft}>
             <Wordmark roles={roles} />
@@ -159,6 +202,8 @@ export default function HomeScreen() {
               </View>
             )}
             <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
+            {/* P8-73: the version, as a door to what's new. */}
+            <VersionButton roles={roles} style={styles.version} />
           </View>
           <View style={styles.wideRight}>{record}</View>
         </View>
@@ -168,8 +213,8 @@ export default function HomeScreen() {
 
   return (
     <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
-      <PageMeta path="/" />
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+      <PageMeta path="/" jsonLd={GAME_JSON_LD} />
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={Platform.OS === 'web'}>
         <Wordmark roles={roles} />
         <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
           Draft an XI from real seasons. Find out which one you get.
@@ -182,6 +227,8 @@ export default function HomeScreen() {
           </View>
         )}
         <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
+        {/* P8-73: the version, as a door to what's new. */}
+        <VersionButton roles={roles} style={styles.version} />
       </ScrollView>
       {actions}
     </KitScreen>
@@ -189,6 +236,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  thumb: { gap: space[2] },
+  keptHead: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  keptTag: { flex: 1 },
   screen: { flex: 1, paddingBottom: space[3] },
   body: { flex: 1 },
   bodyContent: { paddingBottom: space[5] },
@@ -198,6 +248,7 @@ const styles = StyleSheet.create({
   labels: { gap: space[3] },
   guestLine: { marginTop: space[5], gap: space[1], alignItems: 'flex-start' },
   guideLink: { alignSelf: 'flex-start', marginTop: space[4], marginLeft: -space[2] },
+  version: { marginTop: space[3] },
   actions: { flexDirection: 'row', gap: space[2], alignItems: 'stretch' },
   start: { flex: 1 },
   wide: { flexDirection: 'row', gap: space[7], marginTop: space[6], alignItems: 'flex-start' },

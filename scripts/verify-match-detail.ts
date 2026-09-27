@@ -79,6 +79,7 @@ type Sample = {
   homeXg: number; awayXg: number; homePoss: number
   ratings: { pos: string; rating: number; goals: number; assists: number; motm: boolean; minutes: number; side: 'w' | 'l' | 'd' }[]
 }
+let hatTricks = 0
 const samples: Sample[] = []
 let redMatchCount = 0
 
@@ -355,6 +356,12 @@ for (let i = 0; i < N; i++) {
     }
   }
 
+  // P8-144: a hat-trick is a 10, unless he also scored an own goal or was sent off.
+  for (const p of d.players) {
+    if (p.minutes > 0 && p.goals >= 3 && !p.redCard && !p.ownGoals) check(p.rating === 10, `a hat-trick rated ${p.rating}`)
+  }
+  hatTricks += d.players.filter(p => p.goals >= 3).length
+
   // Collect for aggregate sanity
   const outcome = result.homeGoals > result.awayGoals ? 'home' : result.awayGoals > result.homeGoals ? 'away' : 'draw'
   samples.push({
@@ -369,6 +376,7 @@ for (let i = 0; i < N; i++) {
 }
 
 const genMs = Date.now() - t0
+console.log(`Hat-tricks: ${hatTricks}, every clean one rated 10`)
 console.log(`Done in ${genMs}ms (${(genMs / N).toFixed(2)}ms/match incl. full detail)\n`)
 
 // ── 3) Rating sanity ────────────────────────────────────────────────────────

@@ -232,11 +232,10 @@ export function Ceremony({ won, kind, title, subtitle, accent, onContinue }: {
         <View style={[styles.label, { backgroundColor: won ? roles.perfection : roles.surface, borderColor: roles.line }]}
           accessible accessibilityRole="header" accessibilityLabel={`${title}. ${subtitle}`}>
           <Rivets color={won ? roles.onFill : roles.line} />
-          <KitText t="superL" color={won ? roles.onFill : roles.text} style={styles.title}>{`"${title.toUpperCase()}"`}</KitText>
+          <KitText t="superL" color={won ? roles.onFill : roles.text} style={styles.title}>{title.toUpperCase()}</KitText>
           {!won && (
-            <Animated.View style={[styles.pulled, { width: pullWidth }]} pointerEvents="none">
-              <Stripe roles={roles} band={6} style={StyleSheet.absoluteFill} />
-            </Animated.View>
+            // P8-111: the losing verdict pulls across in misery red.
+            <Animated.View style={[styles.pulled, { width: pullWidth, backgroundColor: roles.loss }]} pointerEvents="none" />
           )}
         </View>
         <KitText t="title" color={roles.text} style={styles.centre}>{subtitle}</KitText>

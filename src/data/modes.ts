@@ -4,6 +4,7 @@
 import type { GameMode } from '@/types/game'
 import { MODE_LABELS } from '@/theme'
 
+import type { IconName } from '@/components/kit'
 export type ModeGroup = 'leagues' | 'europe' | 'world_cup'
 
 // A mode can be advertised before it's playable, so its id is deliberately
@@ -20,6 +21,11 @@ export type ModeInfo = {
   hasDifficulty: boolean  // false = Chaos/Cursed, whose difficulty is their identity
   hazard?: boolean        // wears the hazard edge
   comingSoon?: boolean
+  /** The competition whose own mark this mode wears (P8-12). A league mode has
+   *  none: which league it is isn't known until it's picked. */
+  competitionId?: string
+  /** P8-86: the mode's own icon, on its card. */
+  icon: IconName
   // The legacy accent the old (not yet rebuilt) screens tint themselves with
   // via useModeTheme. League modes have no MODE_THEMES entry, so this is it.
   legacyAccent: string
@@ -32,26 +38,26 @@ export const MODE_GROUPS: { id: ModeGroup; label: string }[] = [
 ]
 
 export const MODES: ModeInfo[] = [
-  { id: 'all_time', group: 'leagues', title: 'All Time', line: 'Any club, any season, any league.',
+  { id: 'all_time', icon: 'modeAllTime', group: 'leagues', title: 'All Time', line: 'Any club, any season, any league.',
     hasDifficulty: true, legacyAccent: '#10B981' },
-  { id: 'league', group: 'leagues', title: 'League', line: 'Pick a league. Every spin and your placement come from it, across every season we have.',
+  { id: 'league', icon: 'modeLeague', group: 'leagues', title: 'League', line: 'Pick a league. Every spin and your placement come from it, across every season we have.',
     hasDifficulty: true, legacyAccent: '#3B82F6' },
-  { id: 'chaos', group: 'leagues', title: 'Chaos', line: 'You could be placed anywhere.',
-    rules: ['NO REROLLS', 'RATINGS HIDDEN'], hasDifficulty: false, hazard: true, legacyAccent: '#FF3B30' },
-  { id: 'cursed', group: 'leagues', title: 'Cursed', line: "Chaos, and you don't know the position until after you pick.",
-    rules: ['NO REROLLS', 'RATINGS HIDDEN', 'POSITION UNKNOWN'], hasDifficulty: false, hazard: true, legacyAccent: '#A855F7' },
-  { id: 'champions_league_custom', group: 'europe', title: `${MODE_LABELS.champions_league_custom} · Full path`,
+  { id: 'chaos', icon: 'modeChaos', group: 'leagues', title: 'Chaos', line: 'You could be placed anywhere, and so could your players: you pick them, chaos picks where they play.',
+    rules: ['NO REROLLS', 'RATINGS HIDDEN', 'RANDOM POSITIONS'], hasDifficulty: false, hazard: true, legacyAccent: '#FF3B30' },
+  { id: 'cursed', icon: 'modeCursed', group: 'leagues', title: 'Cursed', line: "The names won't stay still, and now and then the curse makes the pick for you.",
+    rules: ['NO REROLLS', 'RATINGS HIDDEN', 'NAMES CHANGE', 'THE CURSE PICKS'], hasDifficulty: false, hazard: true, legacyAccent: '#A855F7' },
+  { id: 'champions_league_custom', icon: 'modeClPath', group: 'europe', title: `${MODE_LABELS.champions_league_custom} · Full path`,
     line: 'Every UEFA league is played out. Qualify or go straight in, get through the league phase, then the knockouts.',
-    hasDifficulty: true, legacyAccent: '#00088E' },
-  { id: 'champions_league', group: 'europe', title: `${MODE_LABELS.champions_league} · Finals`,
+    hasDifficulty: true, competitionId: 'champions_league', legacyAccent: '#00088E' },
+  { id: 'champions_league', icon: 'modeClFinals', group: 'europe', title: `${MODE_LABELS.champions_league} · Finals`,
     line: 'The 36-club league phase and the knockouts. No qualifying.',
-    hasDifficulty: true, legacyAccent: '#4FA9FF' },
-  { id: 'world_cup', group: 'world_cup', title: `${MODE_LABELS.world_cup} · Finals`,
+    hasDifficulty: true, competitionId: 'champions_league', legacyAccent: '#4FA9FF' },
+  { id: 'world_cup', icon: 'modeWorldCup', group: 'world_cup', title: `${MODE_LABELS.world_cup} · Finals`,
     line: '48 national teams. Draft a squad and take over a country.',
-    hasDifficulty: true, legacyAccent: '#F5C518' },
-  { id: 'world_cup_full', group: 'world_cup', title: `${MODE_LABELS.world_cup} · Full route`,
+    hasDifficulty: true, competitionId: 'world_cup', legacyAccent: '#F5C518' },
+  { id: 'world_cup_full', icon: 'modeWorldCup', group: 'world_cup', title: `${MODE_LABELS.world_cup} · Full route`,
     line: 'Your confederation\'s qualifiers, the play-offs, then the tournament.',
-    hasDifficulty: false, comingSoon: true, legacyAccent: '#F5C518' },
+    hasDifficulty: false, comingSoon: true, competitionId: 'world_cup', legacyAccent: '#F5C518' },
 ]
 
 /** A score multiplier as the difficulty labels print it: ×1.37 */
@@ -71,3 +77,8 @@ export function applyMode(
   store.setSelectedLeague(league)
   store.setAccentColor(modeInfo(mode)?.legacyAccent ?? null)
 }
+
+
+// Season or tournament (P8-78) lives in ./competition (no theme import, so the
+// engine and the headless verifiers can use it too).
+export { isTournament, seasonWord, forCompetition } from './competition'

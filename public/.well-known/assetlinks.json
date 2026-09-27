@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.yolotime4564.perfectionormisery",
+      "sha256_cert_fingerprints": ["A4:0D:38:20:28:E2:CD:72:96:02:58:FF:30:40:B0:E4:C3:E2:FC:D0:FF:FE:25:84:D8:54:EE:79:8D:8B:27:67"]
+    }
+  }
+]

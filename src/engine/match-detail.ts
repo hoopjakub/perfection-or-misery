@@ -829,6 +829,10 @@ function rateSide(
 
     r += resultBump * minFrac
     r += (rng() - 0.5) * 0.3
+    // P8-144, the maintainer: a hat-trick can't be a 9.5; it's a 10. Three or
+    // more goals is the perfect match, unless he also gave one away (an own
+    // goal) or was sent off, which the lines above have already charged him for.
+    if (l.goals >= 3 && l.ownGoals === 0 && !l.redCard) r = 10
     l.rating = round1(clamp(r, 3, 10))
   }
 }

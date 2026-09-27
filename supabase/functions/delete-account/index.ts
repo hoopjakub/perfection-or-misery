@@ -34,6 +34,9 @@ Deno.serve(async (req: Request) => {
       ['friendships',     q => q.delete().or(`user_id.eq.${id},friend_id.eq.${id}`)],
       ['versus_runs',     q => q.delete().or(`challenger_id.eq.${id},opponent_id.eq.${id}`)],
       ['career_stats',    q => q.delete().eq('user_id', id)],
+      // P8-88: the profile's details and look (they cascade from profiles too).
+      ['profile_details', q => q.delete().eq('user_id', id)],
+      ['profile_looks',   q => q.delete().eq('user_id', id)],
       ['runs',            q => q.delete().eq('user_id', id)],
       ['profiles',        q => q.delete().eq('id', id)],
     ]
@@ -41,6 +44,13 @@ Deno.serve(async (req: Request) => {
     for (const [table, del] of steps) {
       const { error } = await del(admin.from(table))
       if (error) failed.push(`${table}: ${error.message}`)
+    }
+
+    // P8-88: the avatar file (avatars/<id>/…). Best-effort like the rows.
+    const { data: files } = await admin.storage.from('avatars').list(id)
+    if (files?.length) {
+      const { error: fileError } = await admin.storage.from('avatars').remove(files.map((f: { name: string }) => `${id}/${f.name}`))
+      if (fileError) failed.push(`avatars: ${fileError.message}`)
     }
 
     const { error } = await admin.auth.admin.deleteUser(id)

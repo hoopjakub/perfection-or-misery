@@ -1,9 +1,13 @@
 import React from 'react'
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import { openSheet } from '@/lib/sheet'
 import { TeamLabel } from './TeamLabel'
 import { summariseScorers } from '@/engine/run-stats'
-import { colors, spacing, typography, radius, MODE_THEMES, prim, font } from '@/theme'
+import { spacing, typography, MODE_THEMES, ROLES, prim, font } from '@/theme'
+import { LeagueTable, ZoneLegend, WC_GROUP_ZONES } from '@/components/season/SeasonParts'
+import { getFlag } from '@/lib/flagMap'
 import type { WCTeam, WCGroupMatch } from '@/engine/world-cup-sim'
 
 const WC = MODE_THEMES.world_cup
@@ -67,7 +71,7 @@ export function WCGroupMatchdays({ matches, onOpenMatch }: {
 export function openWCGroup(group: { id: string; teams: WCTeam[] }, matches: WCGroupMatch[], onOpenMatch?: (m: WCGroupMatch) => void) {
   openSheet({
     title: `Group ${group.id}`,
-    sub: 'Top two go through',
+    sub: 'Top two go through, the best eight thirds join them',
     render: () => <WCGroupView group={group} matches={matches} onOpenMatch={onOpenMatch} />,
   })
 }
@@ -78,44 +82,22 @@ function WCGroupView({ group, matches, onOpenMatch }: {
   onOpenMatch?: (m: WCGroupMatch) => void
 }) {
   const teams = [...group.teams].sort(sortGroupTeams)
+  // The same table and markers as the live group stage (P8-61): IN for the top
+  // two, 3RD for the place that goes into the best-thirds race, OUT for last.
   return (
     <View>
-      <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableCol, styles.colPos]}>#</Text>
-        <Text style={[styles.tableCol, styles.colName]}>Team</Text>
-        <Text style={[styles.tableCol, styles.colStat]}>P</Text>
-        <Text style={[styles.tableCol, styles.colStat]}>GD</Text>
-        <Text style={[styles.tableCol, styles.colStat, styles.colPts]}>Pts</Text>
-      </View>
-      {teams.map((team, idx) => {
-        const gd = team.stats.goalsFor - team.stats.goalsAgainst
-        return (
-          <View key={team.clubId} style={[styles.tableRow, team.isPlayer && styles.tableRowPlayer, idx < 2 && styles.tableRowQ]}>
-            <Text style={[styles.tableColData, styles.colPos as any, team.isPlayer && styles.playerText]}>{idx + 1}</Text>
-            <TeamLabel clubId={team.clubId} name={team.clubName} containerStyle={styles.colName} textStyle={[styles.tableColData, team.isPlayer && styles.playerText]} />
-            <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{team.stats.played}</Text>
-            <Text style={[styles.tableColData, styles.colStat, team.isPlayer && styles.playerText]}>{gd > 0 ? `+${gd}` : gd}</Text>
-            <Text style={[styles.tableColData, styles.colStat, styles.colPts, team.isPlayer && styles.playerText]}>{team.stats.points}</Text>
-          </View>
-        )
-      })}
+      <LeagueTable roles={ROLES.nylon} zones={WC_GROUP_ZONES.slice(0, teams.length)}
+        rows={teams.map(t => ({
+          clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, flag: getFlag(t.clubId),
+          played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
+        }))} />
+      <ZoneLegend roles={ROLES.nylon} zones={WC_GROUP_ZONES} />
       <WCGroupMatchdays matches={matches} onOpenMatch={onOpenMatch} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  tableHeaderRow: { flexDirection: 'row', paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  tableRow: { flexDirection: 'row', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon, alignItems: 'center' },
-  tableRowPlayer: { backgroundColor: WC.accent + '11', borderColor: WC.accent, borderWidth: 1, borderRadius: 0 },
-  tableRowQ: { borderLeftWidth: 3, borderLeftColor: prim.volt },
-  tableCol:     { fontSize: 11, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  tableColData: { fontSize: 13, color: prim.cottonMuted },
-  playerText:   { color: WC.accent, fontFamily: font.bodyBold },
-  colPos:  { width: 24, textAlign: 'center' as any },
-  colName: { flex: 1,  paddingLeft: spacing.xs },
-  colStat: { width: 28, textAlign: 'center' as any },
-  colPts:  { width: 32, fontFamily: font.bodyBold },
   mdSection: { gap: spacing.sm, marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.sm },
   mdBlock: { gap: 4 },
   mdLabel: { fontSize: typography.xs, fontFamily: font.bodyBold, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 1 },

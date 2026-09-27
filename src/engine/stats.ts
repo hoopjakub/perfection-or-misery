@@ -5,9 +5,10 @@
 import type { AwardPart,
   RosterPlayer, GoalEvent, MatchScorers, PlayerStatLine, TeamGoalRecord,
   CompetitionStats, AwardCandidate, SeasonAwards,
+  LineAwardKey,
 } from '@/types/stats'
 import { deriveSeed, type Rng } from '@/lib/rng'
-import type { PlayerMatchLine } from '@/types/match-stats'
+import type { PlayerMatchLine, TeamStatLine } from '@/types/match-stats'
 import { lineupsForMatch, type MatchLineupOpts } from './lineup'
 
 // The extra-time segment of a knockout leg shares the leg's seed but must not
@@ -319,6 +320,8 @@ export type StatsAccumulator = {
     // AND the season counters behind the statistics screen all come off these,
     // so there's exactly one source for "what did this player do".
     lines?: PlayerMatchLine[]
+    /** P8-80 — the match sheet's two team blocks, totalled per club. */
+    sheet?: { home: TeamStatLine; away: TeamStatLine }
   }) => void
   build: () => CompetitionStats
 }
@@ -345,6 +348,15 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
     if (!p) return null
     line = blankLine(p); players.set(playerId, line); return line
   }
+  function addSheet(t: TeamGoalRecord, us: TeamStatLine, them: TeamStatLine) {
+    const add = (k: keyof TeamGoalRecord, v: number) => { (t as Record<string, unknown>)[k] = ((t[k] as number | undefined) ?? 0) + v }
+    add('matches', 1)
+    add('xg', us.xg); add('xgAgainst', them.xg)
+    add('shots', us.shots); add('shotsOnTarget', us.shotsOnTarget); add('bigChances', us.bigChances)
+    add('possessionSum', us.possession); add('passAccuracySum', us.passAccuracy)
+    add('corners', us.corners); add('fouls', us.fouls)
+    add('yellowCards', us.yellowCards); add('redCards', us.redCards)
+  }
   function teamFor(clubId: string, clubName: string): TeamGoalRecord {
     let t = teams.get(clubId)
     if (!t) { t = { clubId, clubName, goalsFor: 0, goalsAgainst: 0, cleanSheets: 0 }; teams.set(clubId, t) }
@@ -358,9 +370,11 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
   for (const p of ctx.rosterIndex.values()) players.set(p.playerId, blankLine(p))
 
   return {
-    recordMatch({ homeClubId, awayClubId, homeClubName, awayClubName, homeGoals, awayGoals, scorers, lines }) {
+    recordMatch({ homeClubId, awayClubId, homeClubName, awayClubName, homeGoals, awayGoals, scorers, lines, sheet }) {
       const ht = teamFor(homeClubId, homeClubName)
       const at = teamFor(awayClubId, awayClubName)
+      // P8-80 — the club's numbers from this match's sheet (xG, possession, cards…).
+      if (sheet) { addSheet(ht, sheet.home, sheet.away); addSheet(at, sheet.away, sheet.home) }
       ht.goalsFor += homeGoals; ht.goalsAgainst += awayGoals
       at.goalsFor += awayGoals; at.goalsAgainst += homeGoals
       if (awayGoals === 0) ht.cleanSheets++
@@ -448,6 +462,25 @@ export function createStatsAccumulator(ctx: AccumulatorCtx): StatsAccumulator {
 }
 
 // ── Awards ──────────────────────────────────────────────────────────────────
+// P8-36: the defender award's weights. Tuned against scripts/verify-defender.ts,
+// which plays whole seasons through the real match sheet and checks that the
+// award goes to centre-backs about as often as the defensive numbers do.
+export const DEF_WEIGHT = {
+  tackles: 1, interceptions: 1, clearances: 0.4, blocks: 1, duels: 0.2,
+  cleanSheet: 3, error: 4, ownGoal: 4,
+  goal: 2, assist: 1.5, chance: 0.1, bigChance: 0.3,
+}
+// A full-back's award: the same defending, with his work going forward counted
+// the way a wide player's is (an assist nearly a goal, a big chance created a point).
+export const FB_WEIGHT = { goal: 3, assist: 3, chance: 0.5, bigChance: 1 }
+// A defensive midfielder's: winning the ball back and keeping it. Passing is
+// small per pass (a holding player makes 1,500+ a season), duels count more
+// than for a defender because they're most of his job.
+export const DM_WEIGHT = {
+  tackles: 1, interceptions: 1, duels: 0.3, blocks: 0.5, pass: 0.02,
+  goal: 2, assist: 2, chance: 0.3, bigChance: 0.6,
+}
+
 export type AwardsCtx = {
   rosterIndex:        Map<string, RosterPlayer>
   finalPositionByClub: Map<string, number>
@@ -484,6 +517,9 @@ export function computeAwards(stats: CompetitionStats, ctx: AwardsCtx): SeasonAw
       { label: 'Man of the match', value: p.potm ?? 0, points: (p.potm ?? 0) * 4 },
       { label: 'Penalties won', value: p.penaltiesWon ?? 0, points: (p.penaltiesWon ?? 0) * 1.5 },
       { label: 'Chances created', value: p.chancesCreated ?? 0, points: (p.chancesCreated ?? 0) * 0.5 },
+      // P8-43: a big chance created is its own, heavier term: worth double a
+      // chance created, still a third of an assist (it didn't have to be scored).
+      { label: 'Big chances created', value: p.bigChancesCreated ?? 0, points: (p.bigChancesCreated ?? 0) * 1 },
       { label: 'Shots on target', value: p.shotsOnTarget ?? 0, points: (p.shotsOnTarget ?? 0) * 0.25 },
       { label: 'Dribbles', value: p.dribbles ?? 0, points: (p.dribbles ?? 0) * 0.15 },
       { label: 'Tackles won', value: p.tacklesWon ?? 0, points: (p.tacklesWon ?? 0) * 0.3 },
@@ -500,10 +536,54 @@ export function computeAwards(stats: CompetitionStats, ctx: AwardsCtx): SeasonAw
     if (ratingPts) parts.push({ label: `Rating ${p.avgRating!.toFixed(2)} over ${p.matchesRated} games`, value: p.avgRating!, points: ratingPts })
     const contribution = parts.reduce((s, x) => s + x.points, 0) - ratingPts
     const posFactor = 1 + ((finalPosition - 1) / denom) * carry
-    const breakdown = parts
+    // P8-36: the positional awards were all decided on `score`, which rewards
+    // the assists and chances full-backs pile up, so LB and RB won Defender of
+    // the season even when a centre-back had the better defensive season, and a
+    // holding midfielder could never win anything. Each of these awards is now
+    // decided on what makes that player: a defender on winning the ball,
+    // clearing it, blocking it, clean sheets and not costing goals; a full-back
+    // on that plus what he gives going forward; a defensive midfielder on
+    // winning it back and keeping it. Goals and assists still count, at the
+    // weight that position earns them. The rating term is the season score's.
+    const defending: AwardPart[] = [
+      { label: 'Tackles won', value: p.tacklesWon ?? 0, points: (p.tacklesWon ?? 0) * DEF_WEIGHT.tackles },
+      { label: 'Interceptions', value: p.interceptions ?? 0, points: (p.interceptions ?? 0) * DEF_WEIGHT.interceptions },
+      { label: 'Clearances', value: p.clearances ?? 0, points: (p.clearances ?? 0) * DEF_WEIGHT.clearances },
+      { label: 'Blocks', value: p.blocks ?? 0, points: (p.blocks ?? 0) * DEF_WEIGHT.blocks },
+      { label: 'Duels won', value: p.duelsWon ?? 0, points: (p.duelsWon ?? 0) * DEF_WEIGHT.duels },
+      { label: 'Clean sheets', value: p.cleanSheets, points: p.cleanSheets * DEF_WEIGHT.cleanSheet },
+      { label: 'Errors leading to goals', value: p.errorsLeadingToGoal ?? 0, points: -(p.errorsLeadingToGoal ?? 0) * DEF_WEIGHT.error },
+      { label: 'Own goals', value: p.ownGoals ?? 0, points: -(p.ownGoals ?? 0) * DEF_WEIGHT.ownGoal },
+    ]
+    const going = (w: { goal: number; assist: number; chance: number; bigChance: number }): AwardPart[] => [
+      { label: 'Goals', value: p.goals, points: p.goals * w.goal },
+      { label: 'Assists', value: p.assists, points: p.assists * w.assist },
+      { label: 'Chances created', value: p.chancesCreated ?? 0, points: (p.chancesCreated ?? 0) * w.chance },
+      { label: 'Big chances created', value: p.bigChancesCreated ?? 0, points: (p.bigChancesCreated ?? 0) * w.bigChance },
+    ]
+    const holding: AwardPart[] = [
+      { label: 'Tackles won', value: p.tacklesWon ?? 0, points: (p.tacklesWon ?? 0) * DM_WEIGHT.tackles },
+      { label: 'Interceptions', value: p.interceptions ?? 0, points: (p.interceptions ?? 0) * DM_WEIGHT.interceptions },
+      { label: 'Duels won', value: p.duelsWon ?? 0, points: (p.duelsWon ?? 0) * DM_WEIGHT.duels },
+      { label: 'Blocks', value: p.blocks ?? 0, points: (p.blocks ?? 0) * DM_WEIGHT.blocks },
+      { label: 'Accurate passes', value: p.accuratePasses ?? 0, points: (p.accuratePasses ?? 0) * DM_WEIGHT.pass },
+      { label: 'Errors leading to goals', value: p.errorsLeadingToGoal ?? 0, points: -(p.errorsLeadingToGoal ?? 0) * DEF_WEIGHT.error },
+    ]
+    const shown = (list: AwardPart[]) => list
       .filter(x => x.points !== 0)
       .map(x => ({ ...x, points: Math.round(x.points * posFactor * 10) / 10 }))
       .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+    const lineScores: Partial<Record<LineAwardKey, number>> = {}
+    const lineBreakdowns: Partial<Record<LineAwardKey, AwardPart[]>> = {}
+    const rate = (key: LineAwardKey, list: AwardPart[]) => {
+      const all = ratingPts ? [...list, parts[parts.length - 1]] : list
+      lineScores[key] = Math.round(all.reduce((sum, x) => sum + x.points, 0) * posFactor * 10) / 10
+      lineBreakdowns[key] = shown(all)
+    }
+    rate('defender', [...defending, ...going(DEF_WEIGHT)])
+    rate('fullback', [...defending, ...going(FB_WEIGHT)])
+    rate('defensiveMid', [...holding, ...going(DM_WEIGHT)])
+    const breakdown = shown(parts)
     return {
       playerId: p.playerId, name: p.name, seasonLabel: p.seasonLabel,
       clubId: p.clubId, clubName: p.clubName, position: p.position,
@@ -514,6 +594,7 @@ export function computeAwards(stats: CompetitionStats, ctx: AwardsCtx): SeasonAw
       breakdown,
       chancesCreated: p.chancesCreated, tacklesWon: p.tacklesWon, interceptions: p.interceptions,
       saves: p.saves, shotsOnTarget: p.shotsOnTarget,
+      clearances: p.clearances, blocks: p.blocks, duelsWon: p.duelsWon, lineScores, lineBreakdowns,
     }
   }).filter(c => c.score > 0)
 

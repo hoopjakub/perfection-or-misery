@@ -21,7 +21,7 @@ export type ZoneKey = 'champ' | 'ucl' | 'uel' | 'uecl' | 'playoff' | 'down'
 export type Zone = { key: ZoneKey; code: string; label: string }
 
 export const ZONES: Record<ZoneKey, Zone> = {
-  champ:   { key: 'champ',   code: 'CHAMP', label: 'Champions' },
+  champ:   { key: 'champ',   code: 'C',     label: 'Champions' },   // P8-16: CHAMP was too long for the column
   ucl:     { key: 'ucl',     code: 'UCL',   label: 'Champions League' },
   uel:     { key: 'uel',     code: 'UEL',   label: 'Europa League' },
   uecl:    { key: 'uecl',    code: 'UECL',  label: 'Conference League' },

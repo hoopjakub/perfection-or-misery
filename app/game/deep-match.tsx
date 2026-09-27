@@ -18,16 +18,21 @@
 // `minute` number. Every panel selects the frame it needs from that minute, so
 // a tick re-renders numbers, never structure.
 
+import { RatingSquare } from '@/components/kit'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { TeamColoursContext, useTeamColours } from '@/lib/teamColours'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { forCompetition } from '@/data/competition'
+import { useGameStore } from '@/store/gameStore'
 import { WebColumn } from '@/components/kit'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { router } from 'expo-router'
-import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated'
-import { ROLES, space, border, prim, ratingColor } from '@/theme'
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
+import { ROLES, space, border, prim, ratingColor, ratingInk } from '@/theme'
 import { flagForCountry } from '@/data/geo-iso'
 import { KitText, Plate, Tag, SectionTag, RoundFlag } from '@/components/kit'
 import { ThumbBar } from '@/components/season/RunChrome'
-import { lineForEvent, quietLine, type CommentaryLine } from '@/engine/commentary'
+import { lineForEvent, quietLine, chanceLines, clockFromFrames, type CommentaryLine } from '@/engine/commentary'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { takeDeepMatchRequest, type DeepMatchRequest } from '@/lib/deepMatch'
 import {
@@ -62,6 +67,9 @@ const roles = ROLES.nylon
 // screen. Long enough to read as a deliberate transition rather than a stutter.
 const EXIT_SPINNER_MS = 900
 
+// How long the clock holds on a goal, a red or a missed penalty (P8-63).
+const BIG_MOMENT_MS = 1400
+
 export default function DeepMatchScreen() {
   // Taken ONCE on mount, like the stats screen: the screen owns its match for
   // as long as it's on the stack.
@@ -73,11 +81,12 @@ export default function DeepMatchScreen() {
   // window the back-guard exists for. Released at the ceremony: by then the
   // result has been delivered and there's nothing left to re-roll.
   useSimBackGuard(phase !== 'ceremony')
+  const teamColours = useTeamColours(request?.detail.homeClubId, request?.detail.awayClubId)
 
   if (!request) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <KitText t="superM" color={roles.text}>"NO FINAL"</KitText>
+        <KitText t="superM" color={roles.text}>NO FINAL</KitText>
         <KitText t="bodyL" color={roles.textMuted}>There's no final waiting to be played.</KitText>
         <Plate label="Go back" roles={roles} onPress={() => router.back()} />
       </View>
@@ -87,7 +96,7 @@ export default function DeepMatchScreen() {
   if (loading || !detail) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <KitText t="superL" color={roles.text}>"WALKING OUT"</KitText>
+        <KitText t="superL" color={roles.text}>WALKING OUT</KitText>
         <KitText t="bodyL" color={roles.textMuted}>The tunnel. The noise. The lights.</KitText>
       </View>
     )
@@ -118,10 +127,12 @@ export default function DeepMatchScreen() {
 
   return (
     <WebColumn background={ROLES.nylon.bg}>
+    <TeamColoursContext.Provider value={teamColours}>
     <MatchBeats
       request={request} detail={detail} phase={phase}
       onStart={() => setPhase('live')} onFinished={() => setPhase('ceremony')}
     />
+    </TeamColoursContext.Provider>
     </WebColumn>
   )
 }
@@ -159,8 +170,8 @@ function ExitToResults({ request }: { request: DeepMatchRequest }) {
   }, [])
   return (
     <View style={[styles.container, styles.centred]}>
-      <KitText t="superM" color={roles.text}>"AWARDS NIGHT"</KitText>
-      <KitText t="bodyL" color={roles.textMuted}>The season, counted up.</KitText>
+      <KitText t="superM" color={roles.text}>AWARDS NIGHT</KitText>
+      <KitText t="bodyL" color={roles.textMuted}>{forCompetition('The season, counted up.', useGameStore.getState().mode)}</KitText>
     </View>
   )
 }
@@ -229,12 +240,16 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
   const [minute, setMinute] = useState(0)
   const [paused, setPaused] = useState(false)
   const finishedRef = useRef(false)
+  // P8-63: a goal, a red card or a missed penalty holds the clock for a beat —
+  // the ground stops for it before the next minute ticks on.
+  const holdUntil = useRef(0)
 
   // The clock. A plain interval rather than a per-minute timeout chain, so a
   // slow render can't stretch the match: the ticks stay on the wall clock.
   useEffect(() => {
     if (paused) return
     const id = setInterval(() => {
+      if (Date.now() < holdUntil.current) return   // P8-63: the beat after a big moment
       setMinute(m => (m >= timeline.duration ? m : m + 1))
     }, MS_PER_MINUTE)
     return () => clearInterval(id)
@@ -251,6 +266,12 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
     const t = setTimeout(onFinished, WHISTLE_PAUSE_MS)
     return () => clearTimeout(t)
   }, [minute, timeline.duration])
+
+  useEffect(() => {
+    if (reduced) return
+    const big = timeline.events.some(e => e.minute === minute && (e.type === 'goal' || e.type === 'red' || e.type === 'penMissed'))
+    if (big) holdUntil.current = Date.now() + BIG_MOMENT_MS
+  }, [minute])
 
   const frame: DeepFrame | null = minute > 0 ? timeline.frames[minute - 1] : null
   const shownEvents = useMemo(
@@ -273,13 +294,23 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
   // Commentary: every event as a line, newest first, with a quiet line read
   // from the state of play whenever nothing has happened for a while.
   const home = request.detail.homeName, away = request.detail.awayName
+  // P8-33: the chances, fouls and corners too, each placed on a minute where
+  // this match's own frames moved that number, so the line lands as the stat does.
+  const chances = useMemo(
+    () => chanceLines(detail, effectiveSeed(request.detail), home, away, clockFromFrames(timeline.frames, timeline.events)),
+    [detail, request, timeline, home, away],
+  )
   const commentary = useMemo<CommentaryLine[]>(() => {
-    const said = shownEvents.map(e => lineForEvent(e, home, away)).reverse()
+    const said = [
+      ...shownEvents.map(e => ({ key: e.minute + (e.plus ?? 0) / 100, line: lineForEvent(e, home, away) })),
+      ...chances.filter(c => c.minute <= minute).map(c => ({ key: c.minute, line: c.line })),
+    ].sort((a, b) => a.key - b.key).map(x => x.line).reverse()
     const lastEvent = shownEvents[shownEvents.length - 1]
-    const quiet = !lastEvent || minute - lastEvent.minute >= 8
+    const lastSaid = Math.max(lastEvent?.minute ?? 0, ...chances.filter(c => c.minute <= minute).map(c => c.minute))
+    const quiet = lastSaid === 0 || minute - lastSaid >= 8
     const state = frame ? { homePossession: frame.home.possession, homeShots: frame.home.shots, awayShots: frame.away.shots } : null
     return quiet && minute < timeline.duration ? [quietLine(minute, state, home, away), ...said] : said
-  }, [shownEvents, minute, frame, home, away, timeline.duration])
+  }, [shownEvents, chances, minute, frame, home, away, timeline.duration])
 
   return (
     <View style={styles.container}>
@@ -320,7 +351,6 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
             series={detail.momentum.slice(0, shownDuration)} duration={shownDuration}
             markers={momentumMarkers(shownEvents)}
             revealUpTo={minute}
-            accentHome={accent}
             homeName={home} awayName={away}
           />
         </View>
@@ -369,6 +399,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
               <Timeline
                 events={shownEvents} addedTime={detail.addedTime}
                 duration={shownDuration} revealUpTo={minute}
+                varCalls={chances.flatMap(c => c.var ? [{ minute: c.minute, ...c.var }] : [])}
               />
             )}
         </View>
@@ -472,9 +503,7 @@ function SideLineup({ name, shape, isHome, players, sheet, accent, showRatings =
 
 function RatingPill({ value }: { value: number }) {
   return (
-    <View style={[styles.ratingPill, { backgroundColor: ratingColor(value) }]}>
-      <KitText t="figure" color={prim.ink}>{value.toFixed(1)}</KitText>
-    </View>
+    <RatingSquare value={value} />
   )
 }
 
@@ -503,7 +532,6 @@ const styles = StyleSheet.create({
   namePos: { width: 36 },
 
   teamRatingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[3], marginTop: space[2] },
-  ratingPill: { minWidth: 40, paddingHorizontal: 6, paddingVertical: 3, alignItems: 'center' },
 
   controls: { flexDirection: 'row', gap: space[2] },
   silence: { backgroundColor: prim.black, alignItems: 'center', justifyContent: 'center', gap: space[3], padding: space[4] },

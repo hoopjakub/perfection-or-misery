@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react'
+import { VersionButton } from '@/components/VersionButton'
+import { useSettingsStore } from '@/store/settingsStore'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
@@ -8,7 +10,7 @@ import { MODES, MODE_GROUPS, applyMode, type ModeInfo } from '@/data/modes'
 import { flagForLeague } from '@/data/geo-iso'
 import type { GameMode } from '@/types/game'
 import {
-  KitScreen, KitText, RunHeader, ChoiceLabel, SectionTag, RoundFlag, Icon, InlineError, StripedNotice,
+  KitScreen, KitText, RunHeader, ChoiceLabel, SectionTag, RoundFlag, Icon, InlineError, StripedNotice, Grid, Crest,
 } from '@/components/kit'
 
 // Stage 1 · Where you play — docs/ui-overhaul/07b B1. A rack of mode labels
@@ -20,7 +22,9 @@ const roles = ROLES.cotton
 
 export default function WhereYouPlayScreen() {
   const store = useGameStore()
-  const lastMode = store.mode
+  // LAST TIME is the last run you finished (settingsStore), the same one Home's
+  // Again repeats — not whatever mode the store holds right now.
+  const lastMode = useSettingsStore(s => s.lastRun?.mode)
   const [pickingLeague, setPickingLeague] = useState(false)
   const [leagues, setLeagues] = useState<LeagueOption[] | null>(null)
   const [leaguesFailed, setLeaguesFailed] = useState(false)
@@ -48,7 +52,7 @@ export default function WhereYouPlayScreen() {
 
   if (pickingLeague) {
     return (
-      <KitScreen ground="cotton">
+      <KitScreen ground="cotton" width="wide">
         <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title="Which league" onBack={() => setPickingLeague(false)} />
         <KitText t="bodyL" color={roles.textMuted} style={styles.lead}>
           Every spin and your placement come from this league, across every season we have.
@@ -60,7 +64,7 @@ export default function WhereYouPlayScreen() {
         ) : leagues.length === 0 ? (
           <StripedNotice roles={roles}>No leagues are available in this build.</StripedNotice>
         ) : (
-          <View style={styles.leagueGrid}>
+          <Grid medium={2} expanded={3} gap={space[2]}>
             {leagues.map(l => (
               <Pressable
                 key={l.id}
@@ -78,25 +82,34 @@ export default function WhereYouPlayScreen() {
                 <Icon name="chevron" size={16} color={roles.textMuted} />
               </Pressable>
             ))}
-          </View>
+          </Grid>
         )}
       </KitScreen>
     )
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground="cotton" width="wide">
       <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title="Where you play" />
       {MODE_GROUPS.map(group => (
         <View key={group.id}>
           <SectionTag roles={roles}>{group.label}</SectionTag>
-          <View style={styles.rack}>
+          {/* Two columns: groups hold four, two and two modes, so three columns left an orphan. */}
+          <Grid medium={2} expanded={2} style={styles.rack}>
             {MODES.filter(m => m.group === group.id).map(m => (
               <ChoiceLabel
                 key={m.id}
                 roles={roles}
                 colourway={colourwayFor(m.id)}
                 title={m.title}
+                mark={
+                  // P8-86: every mode wears its icon; a tournament also wears
+                  // its competition's own mark (P8-12) beside it.
+                  <View style={styles.mark}>
+                    <Icon name={m.icon} size={20} color={roles.text} />
+                    {m.competitionId ? <Crest roles={roles} clubId={m.competitionId} name={m.title} size={20} competition /> : null}
+                  </View>
+                }
                 note={m.line}
                 lines={m.rules}
                 hazard={m.hazard}
@@ -105,17 +118,19 @@ export default function WhereYouPlayScreen() {
                 onPress={m.comingSoon ? undefined : () => pick(m)}
               />
             ))}
-          </View>
+          </Grid>
         </View>
       ))}
+      {/* P8-73: the version on every menu before a run starts. */}
+      <VersionButton roles={roles} style={{ marginTop: space[4] }} />
     </KitScreen>
   )
 }
 
 const styles = StyleSheet.create({
   lead: { marginBottom: space[4] },
-  rack: { gap: space[3] },
-  leagueGrid: { gap: space[2] },
+  rack: { marginBottom: space[2] },
+  mark: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   leagueTag: {
     flexDirection: 'row', alignItems: 'center', gap: space[3],
     borderWidth: border.thin, minHeight: 56, paddingHorizontal: space[3],

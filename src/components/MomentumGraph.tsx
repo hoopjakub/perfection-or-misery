@@ -16,10 +16,13 @@
 // top row (home) or bottom row (away) to match.
 
 import React, { useId, useMemo, useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
+// P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
+import { ScaleText as Text } from '@/components/kit'
 import Svg, { Path, Rect, Circle, Line, G, Defs, ClipPath } from 'react-native-svg'
 import { colors, spacing, typography, radius, prim, font } from '@/theme'
 import type { MatchEvent } from '@/types/match-stats'
+import { useTeamColourPair } from '@/lib/teamColours'
 
 export type MomentumMarker = {
   minute: number
@@ -62,13 +65,15 @@ function smoothPath(pts: { x: number; y: number }[]): string {
 }
 
 export function MomentumGraph({
-  series, duration, markers = [], accentHome, accentAway = prim.orange,
+  series, duration, markers = [], accentHome: homeIn, accentAway: awayIn,
   homeName, awayName, revealUpTo, title = 'Momentum',
 }: {
   series: number[]                 // signed −100…100, one per minute
   duration: number                 // 90, or 120 for AET
   markers?: MomentumMarker[]
-  accentHome: string
+  /** Default: the match's club colours (TeamColoursContext). The away side
+   *  used to default to safety orange — which means YOU everywhere else. */
+  accentHome?: string
   accentAway?: string
   homeName?: string
   awayName?: string
@@ -76,6 +81,9 @@ export function MomentumGraph({
   revealUpTo?: number
   title?: string | null
 }) {
+  const pair = useTeamColourPair()
+  const accentHome = homeIn ?? pair?.home ?? prim.cotton
+  const accentAway = awayIn ?? pair?.away ?? prim.cottonMuted
   // Unique per instance — react-native-svg ids are global on web, so two graphs
   // on one screen would otherwise share (and fight over) the same clip paths.
   const uid = useId().replace(/:/g, '')

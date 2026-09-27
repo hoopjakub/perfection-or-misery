@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react'
-import { View, Pressable, StyleSheet } from 'react-native'
+import React, { useMemo, useRef, useState } from 'react'
+import { forCompetition } from '@/data/modes'
+import { LineGraph, ComparePicker, type GraphSeries } from '@/components/season/SeasonParts'
+import { PageMeta } from '@/components/PageMeta'
+import { View, Pressable, StyleSheet, ScrollView } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
-import Svg, { Polyline, Circle, Line } from 'react-native-svg'
-import { ROLES, space, border, prim, ratingColor } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, Chips, BackControl, EmptyState, InlineError, Icon } from '@/components/kit'
+import { ROLES, space, border, prim, ratingColor, formatRating } from '@/theme'
+import { KitScreen, KitText, Tag, SectionTag, Chips, BackControl, EmptyState, InlineError, Icon, Plate, RatingSquare, EventMark, VenueMark } from '@/components/kit'
 import { useRunData } from '@/lib/runData'
 import { openClub, openRunMatch } from '@/lib/runNav'
 import { buildAwardsNight } from '@/engine/awards'
@@ -42,6 +44,22 @@ export default function PlayerScreen() {
 
   const p = data?.stats.players.find(x => x.playerId === id) ?? null
   const log: PlayerMatchLogEntry[] = (data?.matchLog?.get(id ?? '') ?? [])
+  // P8-95: players to compare against — his teammates first, then the best
+  // rated elsewhere — each drawn from their own match log.
+  const [picked, setPicked] = useState<string[]>([])
+  const compareOptions = useMemo(() => {
+    const me = data?.stats.players.find(x => x.playerId === id)
+    return (data?.stats.players ?? [])
+      // Anyone with a match to draw. It was the top thirty with two or more,
+      // so most of the run's players were never offered (the search finds them).
+      .filter(x => x.playerId !== id && (data?.matchLog?.get(x.playerId)?.length ?? 0) > 0)
+      .sort((a, b) => Number(b.clubName === me?.clubName) - Number(a.clubName === me?.clubName) || (b.avgRating ?? 0) - (a.avgRating ?? 0))
+      .map(x => ({ id: x.playerId, label: x.name }))
+  }, [data, id])
+  const compare: GraphSeries[] = picked.map(pid => ({
+    key: pid, label: data?.stats.players.find(x => x.playerId === pid)?.name ?? pid,
+    values: (data?.matchLog?.get(pid) ?? []).map(e => e.line.rating),
+  }))
   const line = p ? lineOf(p.position) : 'MID'
   const keys = ROWS_BY_LINE[line]
 
@@ -53,7 +71,7 @@ export default function PlayerScreen() {
   // His honours from the run's awards, measured the same way Awards Night was.
   const honours = useMemo(() => {
     if (!data || !p || ceremony === '1') return []
-    const night = buildAwardsNight({ awards: data.awards, stats: data.stats, rounds: data.rounds ?? undefined })
+    const night = buildAwardsNight({ awards: data.awards, stats: data.stats, rounds: data.rounds ?? undefined, mode: data.mode })
     const out: string[] = []
     const all = [night.playerOfTheSeason, night.bestU21, ...night.players].filter(Boolean) as NonNullable<typeof night.playerOfTheSeason>[]
     for (const a of all) {
@@ -61,17 +79,28 @@ export default function PlayerScreen() {
       const ru = a.runnersUp.findIndex(c => c.playerId === p.playerId)
       if (ru >= 0) out.push(`${a.title.toUpperCase()} · ${ordinal(ru + 2)}`)
     }
-    if (night.teamOfTheSeason?.xi.some(x => x.player.id === p.playerId)) out.push('TEAM OF THE SEASON')
+    if (night.teamOfTheSeason?.xi.some(x => x.player.id === p.playerId)) out.push(forCompetition('TEAM OF THE SEASON', data?.mode))
     const totm = night.teamsOfTheRound.filter(r => r.team.xi.some(x => x.player.id === p.playerId)).length
     if (totm) out.push(`TEAM OF THE MATCHDAY ×${totm}`)
     return out
   }, [data, p, ceremony])
 
+  // P8-66 — tapping a point on the rating graph slides down to that match and
+  // opens it in place. Rows report where they sit; the screen scrolls there.
+  const scrollRef = useRef<ScrollView>(null)
+  const matchesY = useRef(0)
+  const rowY = useRef<Record<number, number>>({})
+  const [openRow, setOpenRow] = useState<number | null>(null)
+  const slideTo = (i: number) => {
+    setOpenRow(i)
+    scrollRef.current?.scrollTo({ y: Math.max(0, matchesY.current + (rowY.current[i] ?? 0) - 96), animated: true })
+  }
+
   if (loading) {
     return (
       <KitScreen ground="nylon">
         <BackControl roles={roles} />
-        <KitText t="bodyL" color={roles.textMuted}>Reading his season.</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText>
       </KitScreen>
     )
   }
@@ -94,7 +123,8 @@ export default function PlayerScreen() {
 
   const played = (p.matchesRated ?? 0) > 0
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground="nylon" scrollRef={scrollRef}>
+      <PageMeta title={p.name} description={forCompetition(`${p.name}'s season in a Perfection or Misery run.`, data.mode)} />
       <BackControl roles={roles} />
 
       {/* The player as a tag. */}
@@ -112,7 +142,10 @@ export default function PlayerScreen() {
 
       {/* The two numbers a season is read by first, and the minutes behind them. */}
       <View style={styles.bigRow}>
-        <Big label="Average rating" value={p.avgRating != null ? p.avgRating.toFixed(2) : '–'} tint={p.avgRating != null ? ratingColor(p.avgRating) : undefined} />
+        <View style={styles.big}>
+          {p.avgRating != null ? <RatingSquare value={p.avgRating} decimals={2} /> : <KitText t="figureL" color={roles.text}>–</KitText>}
+          <KitText t="tag" color={roles.textMuted}>Average rating</KitText>
+        </View>
         <Big label="Man of the match" value={String(p.potm ?? 0)} />
         <Big label="Minutes" value={String(p.minutes ?? '–')} />
         <Big label="Matches" value={String(p.matchesRated ?? 0)} />
@@ -131,7 +164,7 @@ export default function PlayerScreen() {
         <>
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <SectionTag roles={roles}>Season</SectionTag>
+              <SectionTag roles={roles}>{forCompetition('Season', data.mode)}</SectionTag>
               <View style={{ flex: 1 }} />
               <Chips<'total' | 'per90'> roles={roles} value={mode} onChange={setMode}
                 options={[{ id: 'total', label: 'Total' }, { id: 'per90', label: 'Per 90' }]} />
@@ -164,16 +197,18 @@ export default function PlayerScreen() {
           {log.length > 1 && (
             <View style={styles.section}>
               <SectionTag roles={roles}>Rating, match by match</SectionTag>
-              <Trend values={log.map(e => e.line.rating)} />
+              <Trend values={log.map(e => e.line.rating)} onPoint={slideTo} selected={openRow} compare={compare} />
+              {/* P8-95: other players' ratings beside his, teammates first. */}
+              <ComparePicker roles={roles} selected={picked} onChange={setPicked} options={compareOptions} />
             </View>
           )}
         </>
       )}
 
-      <View style={styles.section}>
+      <View style={styles.section} onLayout={e => { matchesY.current = e.nativeEvent.layout.y }}>
         <SectionTag roles={roles}>Matches</SectionTag>
         {data.missing.includes('match-by-match detail') ? (
-          <KitText t="body" color={roles.textMuted}>Saved runs don't keep match-by-match detail. The season totals above are complete.</KitText>
+          <KitText t="body" color={roles.textMuted}>{forCompetition("Saved runs don't keep match-by-match detail. The season totals above are complete.", data.mode)}</KitText>
         ) : log.length === 0 ? (
           <KitText t="body" color={roles.textMuted}>No matches.</KitText>
         ) : log.map((e, i) => {
@@ -181,24 +216,49 @@ export default function PlayerScreen() {
           const res = e.goalsFor > e.goalsAgainst ? 'W' : e.goalsFor < e.goalsAgainst ? 'L' : 'D'
           const l = e.line
           return (
-            <Pressable key={i} disabled={!m} onPress={() => m && openRunMatch(data, m)} accessibilityRole="button"
+            <View key={i} onLayout={ev => { rowY.current[i] = ev.nativeEvent.layout.y }}>
+            <Pressable onPress={() => setOpenRow(o => (o === i ? null : i))} accessibilityRole="button"
+              accessibilityState={{ expanded: openRow === i }}
               accessibilityLabel={`${e.label}, ${e.isHome ? 'v' : 'at'} ${e.opponentName}, ${e.goalsFor}–${e.goalsAgainst}, rating ${l.rating}`}
-              style={({ pressed }) => [styles.match, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
+              style={({ pressed }) => [styles.match, { borderBottomColor: roles.rule }, openRow === i && { backgroundColor: roles.surface, borderLeftColor: roles.you, borderLeftWidth: 3 }, pressed && { backgroundColor: roles.sunken }]}>
               <View style={{ flex: 1 }}>
                 <KitText t="tag" color={roles.textMuted}>{e.label}</KitText>
-                <KitText t="body" color={roles.text} numberOfLines={1}>{`${e.isHome ? 'v' : 'at'} ${e.opponentName}`}</KitText>
-                <KitText t="tag" color={roles.textMuted}>
-                  {[`${l.minutes}'`, l.goals ? `${l.goals}G` : '', l.assists ? `${l.assists}A` : '', l.yellowCard ? 'YC' : '', l.redCard ? 'RC' : '', l.injured ? 'INJ' : ''].filter(Boolean).join(' · ')}
-                </KitText>
+                {/* P8-134: home or away as the mark, the opponent's name beside it. */}
+                <View style={styles.opp}>
+                  <VenueMark roles={roles} home={e.isHome} />
+                  <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{e.opponentName}</KitText>
+                </View>
+                <View style={styles.marks}>
+                  <KitText t="tag" color={roles.textMuted}>{`${l.minutes}'`}</KitText>
+                  {l.goals > 0 && <EventMark kind="goal" count={l.goals} size={12} />}
+                  {l.assists > 0 && <EventMark kind="assist" count={l.assists} size={12} />}
+                  {l.yellowCard && !l.redCard && <EventMark kind="yellow" size={11} />}
+                  {l.redCard && <EventMark kind="red" size={11} />}
+                  {l.injured && <EventMark kind="injury" size={12} />}
+                  {l.motm && <EventMark kind="motm" size={12} />}
+                </View>
               </View>
               <Tag roles={roles} variant={res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'}>{`${res} ${e.goalsFor}–${e.goalsAgainst}`}</Tag>
               {l.minutes > 0 && (
-                <View style={[styles.rating, { backgroundColor: ratingColor(l.rating) }]}>
-                  <KitText t="figure" color={prim.ink}>{l.rating.toFixed(1)}</KitText>
-                </View>
+                <RatingSquare value={l.rating} />
               )}
-              {m && <Icon name="chevron" size={16} color={roles.textMuted} />}
+              <Icon name="chevron" size={16} color={roles.textMuted} />
             </Pressable>
+            {/* Opened in place (P8-66): that match's line, and the way into the full sheet. */}
+            {openRow === i && (
+              <View style={[styles.opened, { borderBottomColor: roles.rule, borderLeftColor: roles.you }]}>
+                <View style={styles.openedFigures}>
+                  {([['Minutes', `${l.minutes}'`], ['Goals', l.goals], ['Assists', l.assists], ['Shots', l.shots], ['Chances created', l.keyPasses], ['Tackles won', l.tacklesWon], ['Rating', formatRating(l.rating)]] as [string, string | number][]).map(([k, v]) => (
+                    <View key={k} style={styles.openedFig}>
+                      <KitText t="figure" color={roles.text}>{String(v ?? 0)}</KitText>
+                      <KitText t="tag" color={roles.textMuted}>{k}</KitText>
+                    </View>
+                  ))}
+                </View>
+                {m ? <Plate label="Open the match" icon="forward" variant="secondary" roles={roles} onPress={() => openRunMatch(data, m)} /> : null}
+              </View>
+            )}
+            </View>
           )
         })}
       </View>
@@ -215,25 +275,23 @@ function Big({ label, value, tint }: { label: string; value: string; tint?: stri
   )
 }
 
-// The one graph a player page earns: his rating across the run, the 6.0 and
-// 7.0 lines drawn so "good" and "poor" read without a legend.
-function Trend({ values }: { values: number[] }) {
-  const w = 320, h = 90, lo = 4.5, hi = 10
-  const x = (i: number) => (values.length === 1 ? w / 2 : (i / (values.length - 1)) * (w - 12) + 6)
-  const y = (v: number) => h - ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (h - 10) - 5
+// The one graph a player page earns: his rating across the run, on the shared
+// LineGraph with every reference value written on (P8-66), each point in its
+// rating colour. Tapping a point slides the page down to that match.
+function Trend({ values, onPoint, selected, compare }: { values: number[]; onPoint: (i: number) => void; selected: number | null; compare?: GraphSeries[] }) {
+  const avg = values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)
   return (
-    <View style={styles.trend} accessible accessibilityLabel={`Ratings from ${Math.min(...values).toFixed(1)} to ${Math.max(...values).toFixed(1)}`}>
-      <Svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`}>
-        <Line x1={0} y1={y(6)} x2={w} y2={y(6)} stroke={prim.ruleNylon} strokeWidth={1} />
-        <Line x1={0} y1={y(7)} x2={w} y2={y(7)} stroke={prim.ruleNylon} strokeWidth={1} strokeDasharray="4 4" />
-        <Polyline points={values.map((v, i) => `${x(i)},${y(v)}`).join(' ')} fill="none" stroke={prim.cotton} strokeWidth={1.5} />
-        {values.map((v, i) => <Circle key={i} cx={x(i)} cy={y(v)} r={2.4} fill={ratingColor(v)} />)}
-      </Svg>
-    </View>
+    <LineGraph roles={roles} values={values} min={3} max={10} fmt={v => formatRating(v)} dot={ratingColor} xLabel="Match"
+      onPoint={onPoint} selected={selected} compare={compare}
+      legend={`Match rating, match by match · average ${avg.toFixed(2)} · latest ${formatRating(values[values.length - 1])}`} />
   )
 }
 
 const styles = StyleSheet.create({
+  opp: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
+  opened: { borderBottomWidth: border.hair, borderLeftWidth: 3, paddingHorizontal: space[3], paddingVertical: space[3], gap: space[3] },
+  openedFigures: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space[5], rowGap: space[2] },
+  openedFig: { minWidth: 56 },
   head: { gap: space[2], marginTop: space[2] },
   headMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[2] },
   link: { textDecorationLine: 'underline' },
@@ -247,6 +305,7 @@ const styles = StyleSheet.create({
   num: { width: 64, textAlign: 'right' },
   rank: { width: 96, textAlign: 'right' },
   trend: { borderWidth: border.thin, borderColor: roles.rule, paddingVertical: space[1] },
+  marks: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   match: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 56, paddingVertical: space[1], borderBottomWidth: border.hair },
   rating: { minWidth: 40, paddingHorizontal: 6, paddingVertical: 3, alignItems: 'center' },
 })

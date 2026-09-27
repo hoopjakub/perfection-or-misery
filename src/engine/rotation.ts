@@ -61,3 +61,27 @@ export function rotationFor(i: StakesInput): number {
   // couple of games of a settled season are where reserves really get a run.
   return remaining <= 2 ? 0.8 : 0.6
 }
+
+/**
+ * A league's two stakes lines, read from its real zones (P8-28). They were two
+ * fixed numbers, "top 5 for Europe" and "bottom 3 down", and the zones say
+ * otherwise per league and season: seven places reach Europe in most seasons,
+ * the Bundesliga has a play-off place above its two drops, and Ligue 1 sent
+ * four down in 2022/23. So a 7th-placed side still in a Conference League race
+ * could rest players, and a 17th-placed side going down could too.
+ *
+ * `qualifyCutoff` is the last place with any European (or title) zone; the drop
+ * line counts the play-off place with the relegation places, since a play-off
+ * is a fight to stay up. A league with no zones known keeps the old numbers.
+ */
+export function leagueCutoffs(zones: (string | null)[]): { qualifyCutoff: number; dropCutoff: number } {
+  const europe = new Set(['champ', 'ucl', 'uel', 'uecl'])
+  const down = new Set(['down', 'playoff'])
+  let qualifyCutoff = 0
+  zones.forEach((z, i) => { if (z && europe.has(z)) qualifyCutoff = i + 1 })
+  const dropCutoff = zones.filter(z => z && down.has(z)).length
+  return {
+    qualifyCutoff: qualifyCutoff || 5,
+    dropCutoff: dropCutoff || 3,
+  }
+}

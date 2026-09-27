@@ -1,3 +1,4 @@
+import { useCrestStore } from '@/store/crestStore'
 import { router } from 'expo-router'
 
 // Leaving a result screen ("Play Again" / "Return to Home") must NOT leave the
@@ -14,7 +15,12 @@ import { router } from 'expo-router'
 // restart from a clean single-screen stack. canDismiss() guards the case where
 // result is itself the anchor (e.g. the quick-sim tester pushes it directly).
 
+// P8-132: leaving a run takes your crest off the side it was on; the next
+// draw puts it on the new one.
+const clearRunCrest = () => useCrestStore.getState().setActive(null)
+
 export function restartToModeSelect() {
+  clearRunCrest()
   if (router.canDismiss()) router.dismissAll()
   router.replace('/game/mode-select')
 }
@@ -28,6 +34,7 @@ export function runRoute(mode: string): '/game/wc-result' | '/game/custom-ucl-re
 }
 
 export function exitToHome() {
+  clearRunCrest()
   if (router.canDismiss()) router.dismissAll()
   router.replace('/(tabs)')
 }

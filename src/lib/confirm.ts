@@ -19,6 +19,12 @@ export type ConfirmRequest = {
   onConfirm: () => Promise<void> | void
   /** Where to go once confirmed; defaults to back. */
   thenRoute?: string
+  /** P8-26: back on this screen CONFIRMS instead of staying. The abandon screen
+   *  uses it, so back once opens it and back again abandons, with no pop-ups. */
+  backConfirms?: boolean
+  /** P8-21: a "don't ask again" box under the question. `apply` runs only when
+   *  the box is ticked AND the choice is confirmed — staying changes nothing. */
+  optOut?: { label: string; apply: () => void }
 }
 
 let pending: ConfirmRequest | null = null
