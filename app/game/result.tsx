@@ -25,7 +25,7 @@ import { MedicalTable } from '@/components/MedicalTable'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import { colors, spacing, typography, radius, shadows, prim, font } from '@/theme'
 import { ROLES as KIT_ROLES } from '@/theme'
-const nylon = KIT_ROLES.nylon
+const nylon = KIT_ROLES[FLOODLIT]
 import { useModeTheme } from '@/hooks/useModeTheme'
 import { ModeLookProvider, lookFor } from '@/components/kit'
 import { ModeBanner } from '@/components/season/ModeBanner'
@@ -47,6 +47,7 @@ import { resolveDifficulty } from '@/engine/difficulty'
 import { SaveStatusLine } from '@/components/ui'
 import type { Tier } from '@/types/simulation'
 import { TIER_LABEL, formatTier, verdictOf } from '@/data/tiers'
+import { FLOODLIT } from '@/lib/appearance'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -246,7 +247,7 @@ export default function ResultScreen() {
 
   if (loadingRun || preloading) {
     return (
-      <KitScreen ground="nylon">
+      <KitScreen ground={FLOODLIT}>
         <KitText t="bodyL" color={nylon.textMuted} style={{ marginTop: space[6] }}>{preloading ? 'Tallying the season.' : 'Loading the run.'}</KitText>
       </KitScreen>
     )
@@ -254,7 +255,7 @@ export default function ResultScreen() {
 
   if (!resultData) {
     return (
-      <KitScreen ground="nylon">
+      <KitScreen ground={FLOODLIT}>
         <EmptyState roles={nylon} title="No season here" body="This run has ended or the page was reloaded." />
         <Plate label="Back to modes" roles={nylon} variant="secondary" onPress={() => router.replace('/game/mode-select')} />
       </KitScreen>
@@ -446,7 +447,7 @@ export default function ResultScreen() {
 
   return (
     <ModeLookProvider look={lookFor(mode)}>
-    <KitScreen ground="nylon" width="wide">
+    <KitScreen ground={FLOODLIT} width="wide">
       {/* P8-169: Chaos and Cursed carry their look to the verdict. */}
       <ModeBanner roles={KIT_ROLES_NYLON} mode={mode} />
       <VerdictBlock

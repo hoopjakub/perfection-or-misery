@@ -6,6 +6,7 @@ import { ROLES, space, border } from '@/theme'
 import { KitText, Tag, Icon, TeamMark } from '@/components/kit'
 import type { KoRoundVM } from '@/components/KnockoutRoundsView'
 import { orderBracket, type BracketSide, type BracketTie, type BracketColumn } from '@/lib/bracket'
+import { useScreenRoles } from '@/lib/appearance'
 export type { BracketSide, BracketTie, BracketColumn }
 
 // One knockout, drawn as a real bracket (P8-79): rounds side by side, each tie a
@@ -19,8 +20,7 @@ export type { BracketSide, BracketTie, BracketColumn }
 // Navigation is the preview's pinch-zoom-and-pan canvas, moved here unchanged
 // (P8-62, P8-77): opens fit to the panel, pinch or wheel to zoom, drag to pan,
 // double tap or Fit to reset.
-const roles = ROLES.nylon
-
+// P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 const ROW_H = 88       // the vertical slot one tie of the busiest round gets
 const CARD_H = 74      // two sides and a note line (AET, pens, the legs)
 const COL_W = 176
@@ -61,6 +61,7 @@ export function BracketTree({ columns, third, playerClubId, height }: {
   /** The panel's height; defaults to most of the window, as the preview had. */
   height?: number
 }) {
+  const roles = useScreenRoles()
   const { height: windowH } = useWindowDimensions()
   const ordered = orderBracket(columns)
   const maxRows = Math.max(1, ...ordered.map(c => c.ties.length))
@@ -232,6 +233,7 @@ export function BracketTree({ columns, third, playerClubId, height }: {
 // Champions League play-off feeding the round of 16, where a seed waits) get a
 // straight line each. Anything else gets no lines rather than wrong ones.
 function Connectors({ from, to, centre, bodyH }: { from: number; to: number; centre: (n: number, j: number) => number; bodyH: number }) {
+  const roles = useScreenRoles()
   const line = roles.rule
   const half = GAP / 2
   const segs: React.ReactNode[] = []
@@ -257,6 +259,7 @@ function Connectors({ from, to, centre, bodyH }: { from: number; to: number; cen
 }
 
 function TieCard({ tie, playerClubId, top }: { tie: BracketTie; playerClubId?: string | null; top: number }) {
+  const roles = useScreenRoles()
   const mine = !!playerClubId && (tie.a?.clubId === playerClubId || tie.b?.clubId === playerClubId)
   const label = tie.a && tie.b
     ? `${tie.a.name} ${tie.a.goals ?? ''}, ${tie.b.name} ${tie.b.goals ?? ''}${tie.winner ? `, ${(tie.winner === 'a' ? tie.a : tie.b).name} through` : ''}`
@@ -278,6 +281,7 @@ function TieCard({ tie, playerClubId, top }: { tie: BracketTie; playerClubId?: s
 }
 
 function SideRow({ side, won, decided, you }: { side: BracketSide | null; won: boolean; decided: boolean; you: boolean }) {
+  const roles = useScreenRoles()
   if (!side) return <View style={styles.side}><Tag roles={roles} variant="hidden">?</Tag></View>
   // The loser fades once the tie is decided, so the path through reads at a glance.
   const colour = decided && !won ? roles.textMuted : roles.text

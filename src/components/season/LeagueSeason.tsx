@@ -44,6 +44,7 @@ import {
   LeagueTable, ZoneLegend, leagueTableZones, StandingFigure, SeasonStrip, ScorelineCard,
   ResultRow, SegmentSwitch, Ticker, StoryItem, type TableRowVM, type Mark,
 } from './SeasonParts'
+import { FLOODLIT } from '@/lib/appearance'
 
 // C1 · The league season (docs/ui-overhaul/07c), on nylon. Your table under
 // floodlights with the real season's zones; your match lands first and the
@@ -52,7 +53,7 @@ import {
 // screen: seed first, then rotation and availability, then the result, then
 // scorers attributed once and stored on the fixture.
 
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 
 type Speed = 'slow' | 'normal' | 'fast'
 const SPEED_MS: Record<Speed, number> = { slow: 2000, normal: 400, fast: 100 }
@@ -458,7 +459,7 @@ export default function LeagueSeason() {
 
   if (!formation || !placedLeague || draftedPlayers.length === 0) {
     return (
-      <KitScreen ground="nylon" scroll={false}>
+      <KitScreen ground={FLOODLIT} scroll={false}>
         <EmptyState roles={roles} title="No squad or draw found" body="This run lost its squad, usually after a reload. Start a new one." />
         <Plate label="Start a new run" roles={roles} onPress={() => router.replace('/game/mode-select')} />
       </KitScreen>
@@ -573,7 +574,7 @@ export default function LeagueSeason() {
   return (
     <ModeLookProvider look={lookFor(mode)}>
     <View style={[styles.fill, { backgroundColor: roles.bg }]}>
-      <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+      <KitScreen ground={FLOODLIT} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
         {/* Web keys (10-ADAPT §2.3): Space/Enter play or pause, arrows scrub the strip. */}
         <WebKeys onKey={k => {
           if (k === ' ' || k === 'Enter') onPlate()

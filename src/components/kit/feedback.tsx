@@ -8,6 +8,7 @@ import { ROLES, type Ground, type Roles, space } from '@/theme'
 import { COLUMN, MAX_CONTENT } from '@/hooks/useSizeClass'
 import { KitText, Stripe, Icon } from './primitives'
 import { Plate } from './controls'
+import { GroundContext } from '@/lib/appearance'
 
 // ── KitScreen ────────────────────────────────────────────────────────────────
 // A screen standing on one ground. Reads the top inset instead of a hardcoded
@@ -40,8 +41,11 @@ export function KitScreen({ ground, scroll = true, width = 'column', children, c
   }, [ground]))
   const cap = { maxWidth: width === 'wide' ? MAX_CONTENT : COLUMN, width: '100%' as const, alignSelf: 'center' as const }
   const pad = [{ paddingTop: underHeader ? space[3] : insets.top + space[5], paddingHorizontal: space[4] }, cap, contentStyle]
-  if (!scroll) return <View style={[styles.fill, { backgroundColor: roles.bg }, pad]}>{children}</View>
+  // P8.5-25: everything inside reads this screen's ground (useScreenRoles), so a
+  // shared component matches the page it's on instead of fixing its own.
+  if (!scroll) return <GroundContext.Provider value={ground}><View style={[styles.fill, { backgroundColor: roles.bg }, pad]}>{children}</View></GroundContext.Provider>
   return (
+    <GroundContext.Provider value={ground}>
     <View style={[styles.fill, { backgroundColor: roles.bg }]}>
       <ScrollView
         ref={scrollRef}
@@ -61,6 +65,7 @@ export function KitScreen({ ground, scroll = true, width = 'column', children, c
           behind the status bar on every scrolling screen. */}
       {insets.top > 0 && !underHeader && <View pointerEvents="none" style={[styles.statusBand, { height: insets.top, backgroundColor: roles.bg }]} />}
     </View>
+    </GroundContext.Provider>
   )
 }
 

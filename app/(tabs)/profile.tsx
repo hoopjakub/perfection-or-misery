@@ -15,6 +15,7 @@ import { formatTier } from '@/data/tiers'
 import { KitScreen, KitText, IdTag, ListRow, SectionTag, Plate, TeamMark } from '@/components/kit'
 import { Avatar, LookBand } from '@/components/profile/ProfileParts'
 import { VersionButton } from '@/components/VersionButton'
+import { EVERYDAY } from '@/lib/appearance'
 
 // You (was Profile) — docs/ui-overhaul/07a A4, redesigned in batch 16: it was
 // a title, a name tag and a list of rows. Now it greets you by name (a
@@ -22,7 +23,7 @@ import { VersionButton } from '@/components/VersionButton'
 // and team badge in the ID tag, and your record in a few numbers before the
 // rows. Privacy, Terms and Delete account arrived with Phase 6; the
 // preferences live on their own Settings screen (P8-45).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // Said when you open the tab, one at random. {name} is your username.
 const GREETINGS = [
@@ -112,7 +113,7 @@ export default function YouScreen() {
   const badgeId = profile?.badge_team_id, badgeName = profile?.badge_team_name
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="You" path="/profile" />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>{greeting.toUpperCase()}</KitText>
 

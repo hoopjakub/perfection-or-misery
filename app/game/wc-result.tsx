@@ -46,6 +46,7 @@ import { openWCGroup, WCGroupMatchdays } from '@/components/WCGroupModal'
 import { MedicalTable } from '@/components/MedicalTable'
 import { openMatchStats } from '@/lib/matchStats'
 import { wcTieShootout, type ContextMatch } from '@/engine/match-context'
+import { FLOODLIT } from '@/lib/appearance'
 
 const WC = MODE_THEMES.world_cup
 
@@ -346,7 +347,7 @@ export default function WCResultScreen() {
 
   // P8-54 — the World Cup's result as the end of the live tournament: the same
   // flagged, zoned group tables, the group wall and the shared knockout list.
-  const nylon = KIT_ROLES.nylon
+  const nylon = KIT_ROLES[FLOODLIT]
   const flagRow = (t: WCTeam, note?: string): TableRowVM => ({
     clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, flag: getFlag(t.clubId), note,
     played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
@@ -363,7 +364,7 @@ export default function WCResultScreen() {
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
 
   return (
-    <KitScreen ground="nylon" width="wide">
+    <KitScreen ground={FLOODLIT} width="wide">
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}

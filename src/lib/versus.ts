@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { uuid } from './uuid'
 
 async function getMyId(): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -67,7 +68,7 @@ export async function getMyVersusRuns() {
       challenger:profiles!versus_runs_challenger_id_fkey(username),
       opponent:profiles!versus_runs_opponent_id_fkey(username)
     `)
-    .or(`challenger_id.eq.${myId},opponent_id.eq.${myId}`)
+    .or(`challenger_id.eq.${uuid(myId)},opponent_id.eq.${uuid(myId)}`)
     .order('created_at', { ascending: false })
 
   if (error) throw error

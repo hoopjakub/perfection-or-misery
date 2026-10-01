@@ -9,10 +9,11 @@ import { useGameStore } from '@/store/gameStore'
 import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl, autoDraftForTestFinal } from '@/engine/quick-sim'
 import { SpinningGlobe } from '@/components/GlobeReveal'
 import { ROLES, space, border, font } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // About on the kit (P8-65: it and the guide were the last full screens still on
 // the old dark cards). Reading happens on cotton, like the You tab it opens from.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // The Quick Sim Tester writes nothing (quickSim runs are never saved), but it
 // is a developer tool and shipped in public builds behind eight taps. It now
@@ -82,7 +83,7 @@ export default function AboutScreen() {
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="About" path="/about" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>ABOUT</KitText>
@@ -118,7 +119,7 @@ export default function AboutScreen() {
           decided to build my own take on it: deeper simulation, real competitions, and a lot more
           drama along the way. What started as "38-0 but mine" has grown into a full football
           universe: a custom UEFA Champions League journey across all 53 UEFA leagues, a 48-team
-          FIFA World Cup, live matches on a ticking clock, and now FotMob-style deep stats with player ratings
+          FIFA World Cup, live matches on a ticking clock, and now a full match sheet with player ratings
           for every single simulated match.
         </KitText>
       </View>

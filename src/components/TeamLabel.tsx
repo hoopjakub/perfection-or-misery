@@ -4,6 +4,7 @@ import { View, StyleProp, TextStyle, ViewStyle } from 'react-native'
 import { ScaleText as Text } from '@/components/kit'
 import { getFlag } from '@/lib/flagMap'
 import { Crest, ROLES } from '@/components/kit'
+import { FLOODLIT } from '@/lib/appearance'
 
 /**
  * Renders a team's crest + name.
@@ -39,7 +40,7 @@ export function TeamLabel({
         <Text style={textStyle}>{flag}</Text>
       ) : (
         // These labels live on the dark screens; the crest reads in cotton there.
-        <Crest roles={ROLES.nylon} clubId={clubId} name={name} size={size + 4} />
+        <Crest roles={ROLES[FLOODLIT]} clubId={clubId} name={name} size={size + 4} />
       )}
       <Text style={[textStyle, { flexShrink: 1 }]} numberOfLines={numberOfLines}>
         {name}

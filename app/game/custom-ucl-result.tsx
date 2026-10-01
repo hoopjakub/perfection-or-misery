@@ -47,6 +47,7 @@ import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { DraftedPlayer } from '@/types/game'
+import { FLOODLIT } from '@/lib/appearance'
 
 const CL = MODE_THEMES.champions_league
 
@@ -323,10 +324,10 @@ export default function CustomUclResultScreen() {
   const phaseZones = leaguePhaseStandings.map((_, i) => CL_PHASE_ZONES[Math.min(i, CL_PHASE_ZONES.length - 1)])
   const hubRunId = fromHistory ? params.runId : undefined
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
-  const nylon = KIT_ROLES.nylon
+  const nylon = KIT_ROLES[FLOODLIT]
 
   return (
-    <KitScreen ground="nylon" width="wide">
+    <KitScreen ground={FLOODLIT} width="wide">
       <VerdictBlock
         tone={verdictOf(tier)}
         title={resultLabel}

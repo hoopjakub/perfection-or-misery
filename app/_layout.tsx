@@ -18,6 +18,8 @@ import { WebInsights } from '@/components/WebInsights'
 import { installEscBack } from '@/lib/webKeys'
 import { StatusBar } from 'expo-status-bar'
 import { WEB_CHROME_CSS } from '@/lib/webChrome'
+import { EVERYDAY } from '@/lib/appearance'
+import { ROLES } from '@/theme'
 
 // Windows Chromium (incl. Brave) renders color emoji but not country flags —
 // the OS/browser combo just lacks the glyphs. Fixed with a unicode-range-
@@ -135,17 +137,21 @@ export default function RootLayout() {
           ("Reduced motion setting is overwritten with mode 'system'"), and with
           it off the phone's own setting is the default anyway. */}
       {reduceMotion && <ReducedMotionConfig mode={ReduceMotion.Always} />}
-      <StatusBar style="light" />
+      {/* P8.5-25: the first frame matches the everyday ground; each KitScreen sets its own after. */}
+      <StatusBar style={EVERYDAY === 'cotton' ? 'dark' : 'light'} />
       <PageMeta />
       {/* P8-179: visits and page speed, on the web only. */}
       <WebInsights />
       {/* transparent outer layer lets +html.tsx's page ground show beside the column */}
-      <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? 'transparent' : '#0A0E1A' }}>
-        <View style={[{ backgroundColor: '#0A0E1A' }, webFrame]}>
+      {/* P8.5-25: the ground behind every screen (and behind the fade between
+          two) is the everyday one, not the old #0A0E1A navy, which flashed dark
+          between screens in light mode. */}
+      <View style={{ flex: 1, backgroundColor: Platform.OS === 'web' ? 'transparent' : ROLES[EVERYDAY].bg }}>
+        <View style={[{ backgroundColor: ROLES[EVERYDAY].bg }, webFrame]}>
           <OfflineStrip />
           <Stack screenOptions={{
             headerShown:  false,
-            contentStyle: { backgroundColor: '#0A0E1A' },
+            contentStyle: { backgroundColor: ROLES[EVERYDAY].bg },
             animation:    'fade',
           }} />
           {/* One tap, one screen: blocks taps while a navigation lands. */}

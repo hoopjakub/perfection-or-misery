@@ -7,9 +7,10 @@ import { loginWithUsername } from '@/lib/auth'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Sign in — docs/ui-overhaul/07a A3.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('')
@@ -45,7 +46,7 @@ export default function LoginScreen() {
     // Both platforms lift the form over the keyboard (the old layout only
     // adjusted on iOS, so Android hid the button).
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <KitScreen ground="cotton" keyboardShouldPersistTaps="handled">
+      <KitScreen ground={EVERYDAY} keyboardShouldPersistTaps="handled">
         <PageMeta title="Sign in" path="/auth/login" />
         <BackControl roles={roles} />
         <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>WELCOME BACK.</KitText>

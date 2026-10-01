@@ -42,6 +42,7 @@ import { ROLES as KIT_ROLES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { DraftedPlayer } from '@/types/game'
+import { FLOODLIT } from '@/lib/appearance'
 
 const CL = MODE_THEMES.champions_league
 
@@ -302,7 +303,7 @@ export default function CLResultScreen() {
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
 
   return (
-    <KitScreen ground="nylon" width="wide">
+    <KitScreen ground={FLOODLIT} width="wide">
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}
@@ -336,11 +337,11 @@ export default function CLResultScreen() {
             awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
             clubs: [], playerClubId: playerTeam?.clubId, mode: comp.mode,
           })
-          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openAwardsView(night, params.runId)} />
+          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={KIT_ROLES[FLOODLIT]} onPress={() => openAwardsView(night, params.runId)} />
         })()}
-        {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openRunHub(undefined, hubRunId)} />}
+        {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={KIT_ROLES[FLOODLIT]} onPress={() => openRunHub(undefined, hubRunId)} />}
         {/* P8-108: every round's team of the matchday, in the run hub. */}
-        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openRunHub('teams', hubRunId)} />}
+        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={KIT_ROLES[FLOODLIT]} onPress={() => openRunHub('teams', hubRunId)} />}
       </View>
       {/* Expanded (10-ADAPT §2.2): the sections as two newspaper columns. */}
       <Columns>
@@ -348,16 +349,16 @@ export default function CLResultScreen() {
       {winner && (
         <ResultSection title={comp.id === 'ucl' ? 'Champions of Europe' : `${comp.name} winners`}>
           <View style={styles.kitWinner}>
-            <KitText t="superM" color={KIT_ROLES.nylon.text}>{winner.clubName.toUpperCase()}</KitText>
+            <KitText t="superM" color={KIT_ROLES[FLOODLIT].text}>{winner.clubName.toUpperCase()}</KitText>
           </View>
         </ResultSection>
       )}
 
       {koRounds.length > 0 && (
-        <ResultSection title="Knockouts" right={<InfoBubble topic="knockout_bracket" accent={KIT_ROLES.nylon.text} />}>
+        <ResultSection title="Knockouts" right={<InfoBubble topic="knockout_bracket" accent={KIT_ROLES[FLOODLIT].text} />}>
           {/* P8-79: the full bracket, the same tree as the preview and the run hub. */}
           <BracketTree {...koRoundsToColumns(koRounds)} playerClubId={playerTeam?.clubId} />
-          <KitText t="tag" color={KIT_ROLES.nylon.textMuted}>SEED · entered the Round of 16 directly (1st–8th)</KitText>
+          <KitText t="tag" color={KIT_ROLES[FLOODLIT].textMuted}>SEED · entered the Round of 16 directly (1st–8th)</KitText>
         </ResultSection>
       )}
 
@@ -367,11 +368,11 @@ export default function CLResultScreen() {
         </ResultSection>
       )}
 
-      <ResultSection title="League phase" right={<InfoBubble topic="league_phase_zones" accent={KIT_ROLES.nylon.text} />}>
-        <LeagueTable roles={KIT_ROLES.nylon} zones={CL_PHASE_ZONES}
+      <ResultSection title="League phase" right={<InfoBubble topic="league_phase_zones" accent={KIT_ROLES[FLOODLIT].text} />}>
+        <LeagueTable roles={KIT_ROLES[FLOODLIT]} zones={CL_PHASE_ZONES}
           rows={actualLeagueTable}
           onRowPress={hasHub ? id => openClub(id, hubRunId) : undefined} />
-        <ZoneLegend roles={KIT_ROLES.nylon} zones={CL_PHASE_ZONES} />
+        <ZoneLegend roles={KIT_ROLES[FLOODLIT]} zones={CL_PHASE_ZONES} />
       </ResultSection>
 
       {/* §10.5 phase 4 (R8) — the medical table. */}
@@ -394,7 +395,7 @@ export default function CLResultScreen() {
 
       </Columns>
       <View style={styles.kitPlates}>
-        <ListRow roles={KIT_ROLES.nylon} icon="guide" label={`How the ${comp.name} works`} onPress={() => openRules()} />
+        <ListRow roles={KIT_ROLES[FLOODLIT]} icon="guide" label={`How the ${comp.name} works`} onPress={() => openRules()} />
       </View>
       <ResultActions fromHistory={fromHistory} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>

@@ -3,14 +3,15 @@ import { StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Plate } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Any unknown path (a stale link, a mistyped URL on web). Replaces expo-router's
 // default developer screen.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function NotFoundScreen() {
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       <KitText t="superXl" color={roles.text} accessibilityRole="header">WRONG PITCH</KitText>
       <KitText t="bodyL" color={roles.textMuted}>There's nothing at this address.</KitText>
       <Plate label="Back to Play" icon="forward" roles={roles} onPress={() => router.replace('/(tabs)')} style={styles.plate} />

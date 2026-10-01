@@ -12,11 +12,12 @@ import { runRoute } from '@/lib/nav'
 import { useSizeClass } from '@/hooks/useSizeClass'
 import { ROLES, space, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunLabel, RunLabelSkeleton, EmptyState, InlineError, Chips } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D8 · Runs (docs/ui-overhaul/07d). Every run as the same garment label Home
 // shows for the last three, so a run looks like itself wherever it appears.
 // Sorting is the kit's chips; the date sits in the label's tag line.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 type SortKey = 'date' | 'score' | 'difficulty' | 'wins' | 'losses' | 'tier'
 const SORTS: { id: SortKey; label: string }[] = [
@@ -89,7 +90,7 @@ export default function RunsScreen() {
   }, [runs, sortBy, seasonN])
 
   return (
-    <KitScreen ground="cotton" width={wide ? 'wide' : 'column'}>
+    <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
       <PageMeta title="Your runs" description="Every run you've played, as its label: the verdict, the score, where and how hard." path="/runs" />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>YOUR RUNS</KitText>
       {!isGuest && !loading && runs.length > 0 && (

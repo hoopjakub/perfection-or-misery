@@ -4,11 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ROLES, space, border } from '@/theme'
 import { KitText, Plate, Tag, ClubName } from '@/components/kit'
 import { BracketTree, type BracketColumn } from '@/components/BracketTree'
+import { useScreenRoles } from '@/lib/appearance'
 
 // Kit Drop (docs/ui-overhaul/07c C5): square ties on nylon, your tie tagged,
 // unknown slots as ? tags, and a visible fit control beside the gesture hint.
-const roles = ROLES.nylon
-
+// P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 // A pre-knockout overview: the whole draw as a bracket before a ball is kicked,
 // your tie highlighted. The tree itself, and its pinch-zoom-and-pan canvas, is
 // the shared BracketTree (P8-79), the same one the run hub and the result
@@ -28,6 +28,7 @@ export function BracketPreview({
   title?: string
   startLabel?: string
 }) {
+  const roles = useScreenRoles()
   const insets = useSafeAreaInsets()
   const playerTie = firstTies.find(t => t.teamA.isPlayer || t.teamB.isPlayer)
   const opponent = playerTie ? (playerTie.teamA.isPlayer ? playerTie.teamB : playerTie.teamA) : null

@@ -210,6 +210,10 @@ export async function getClubSeasonsForMode(
   const db = await getDb()
 
   let whereClause: string
+  // The league id goes in as a `?` parameter, never spliced into the SQL: the
+  // one local query that wasn't parameterised (P8.5-23, I3). The other clauses
+  // are fixed text.
+  const params: string[] = []
   if (mode === 'champions_league') {
     whereClause = `WHERE l.id LIKE 'ucl_%'`
   } else if (mode === 'europa_league') {
@@ -221,7 +225,8 @@ export async function getClubSeasonsForMode(
   } else if (mode === 'champions_league_custom') {
     whereClause = `WHERE l.id LIKE 'cucl_%'`
   } else if (mode === 'league' && leagueId) {
-    whereClause = `WHERE l.id = '${leagueId}' AND l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%' AND l.id NOT LIKE 'uel_%' AND l.id NOT LIKE 'uecl_%'`
+    whereClause = `WHERE l.id = ? AND l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%' AND l.id NOT LIKE 'uel_%' AND l.id NOT LIKE 'uecl_%'`
+    params.push(leagueId)
   } else {
     whereClause = `WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%' AND l.id NOT LIKE 'uel_%' AND l.id NOT LIKE 'uecl_%'`
   }
@@ -233,7 +238,8 @@ export async function getClubSeasonsForMode(
      JOIN clubs c ON c.id = cs.club_id
      JOIN leagues l ON l.id = c.league_id
      ${whereClause}
-     ORDER BY cs.historical_ovr DESC`
+     ORDER BY cs.historical_ovr DESC`,
+    params,
   )
 }
 /** Each club's own colours, by id (P8-49's team colours on the match sheet). */

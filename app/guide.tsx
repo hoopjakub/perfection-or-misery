@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { KitScreen, KitText, SectionTag, BackControl, ListRow, Plate } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { ROLES, space, border, font } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // The guide (P8-72): it opens on a choice, "what do you want to learn about?",
 // and each topic is its own short page, instead of one long scroll you had to
@@ -11,7 +12,7 @@ import { ROLES, space, border, font } from '@/theme'
 // guide's sections (P8-65 already split it into blocks for this), with the
 // words brought up to date where the app has moved on (the awards, the
 // pundits, the press, the bracket).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // A word in bold, inside a paragraph. The kit sets weight by font family,
 // never fontWeight, so bold is Archivo 700 inheriting the paragraph's size.
@@ -161,7 +162,7 @@ const TOPICS: Topic[] = [
     <P>
       Every finished match, anywhere in the game, is <B>tappable</B>: league matchdays, UEFA
       Champions League league-phase games, FIFA World Cup group games, knockout-tie legs, even
-      qualifying rounds. Tapping opens a FotMob-style match page:{'\n\n'}
+      qualifying rounds. Tapping opens the full match sheet:{'\n\n'}
       • <B>Team stats:</B> possession, xG (split open play / set piece), shots (on target,
       inside/outside box, blocked, woodwork), big chances, full passing numbers (accuracy, long
       balls, crosses, throw-ins), duels, tackles, corners, cards, offsides and more, drawn as
@@ -243,7 +244,7 @@ export default function GuideScreen() {
     const t = TOPICS[i]
     const next = TOPICS[i + 1]
     return (
-      <KitScreen ground="cotton">
+      <KitScreen ground={EVERYDAY}>
         <PageMeta title={`Guide: ${t.title}`} path={`/guide?topic=${t.id}`} />
         <BackControl roles={roles} />
         <KitText t="tag" color={roles.textMuted} style={styles.kicker}>{`GUIDE · ${t.group.toUpperCase()}`}</KitText>
@@ -259,7 +260,7 @@ export default function GuideScreen() {
 
   // The choice.
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Guide" path="/guide" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>GUIDE</KitText>

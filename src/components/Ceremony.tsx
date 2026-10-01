@@ -25,12 +25,13 @@ import { View, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensi
 import Svg, { Path, Circle, Rect, Ellipse, G, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { ROLES, prim, space, border } from '@/theme'
 import { KitText, Plate, Stripe, Rivets } from '@/components/kit'
+import { FLOODLIT } from '@/lib/appearance'
 
 // C6 move 5 (docs/ui-overhaul/07c) — the verdict is STITCHED ON. A win is a
 // one-frame cotton flash, then a volt label with the title on it; a loss is a
 // silver medal on the same black nylon with the hazard stripe pulled across
 // the label. The trophies stay original drawings (no licensed silhouettes).
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 
 const GOLD = '#F5C518'
 const GOLD_DEEP = '#B98900'

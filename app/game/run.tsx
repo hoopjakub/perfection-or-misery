@@ -26,13 +26,14 @@ import {
   positionRanks, percentileTag, type StatKey,
 } from '@/engine/run-aggregates'
 import type { PlayerStatLine, TeamGoalRecord } from '@/types/stats'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D2 · The run hub (docs/ui-overhaul/07d). Everything about one run on one
 // route, in tabs: the table, your season, the stats boards (D3), the press and
 // your squad. It replaces the old stats screen and its three modals — every
 // name here is a link to its own page, so any player, club, match or story is
 // two taps from the hub.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 type Tab = 'table' | 'bracket' | 'season' | 'teams' | 'stats' | 'press' | 'squad'
 
 // D3 — the boards, in families so twenty-one columns aren't one long chip row.
@@ -104,8 +105,8 @@ export default function RunHub() {
   const [tab, setTab] = useState<Tab>(params.tab ?? 'table')
   const wide = useSizeClass() === 'expanded'
 
-  if (loading) return <KitScreen ground="nylon"><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText></KitScreen>
-  if (failed || !data) return <KitScreen ground="nylon"><BackControl roles={roles} /><InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} /></KitScreen>
+  if (loading) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText></KitScreen>
+  if (failed || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} /></KitScreen>
 
   const pick = (t: Tab) => { setTab(t); router.setParams({ tab: t } as never) }   // survives a reload on web
   const tabs: { id: Tab; label: string }[] = [
@@ -136,7 +137,7 @@ export default function RunHub() {
   // Expanded (≥1024, 10-ADAPT §2.2): the tabs become a left column inside the
   // content, so the table or a board gets the full width beside them.
   return (
-    <KitScreen ground="nylon" width={wide ? 'wide' : 'column'}>
+    <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
       <PageMeta title="The run" description="One run's table, bracket, season, stats, press and squad." path="/game/run" />
       <WebKeys onKey={k => { if (k === '/') { pick('stats'); return } const n = Number(k); if (n >= 1 && n <= tabs.length) pick(tabs[n - 1].id) }} />
       <BackControl roles={roles} />

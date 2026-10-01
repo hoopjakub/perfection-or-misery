@@ -9,12 +9,13 @@ import { KitText, Tag, Icon, Stripe, TeamMark } from '@/components/kit'
 import { summariseScorers } from '@/engine/run-stats'
 import type { MatchScorers } from '@/types/stats'
 import type { PenKick } from '@/engine/knockout-match'
+import { FLOODLIT } from '@/lib/appearance'
 
 // Your match under floodlights (docs/ui-overhaul/07c C5): the scoreline as a
 // super, the round and clock in the tag mono, events sliding in from their
 // side, the aggregate under the score, penalties as a row of tags. Always
 // nylon: it's live play.
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 
 // ── Public shapes ───────────────────────────────────────────────────────────
 export type LiveTeam = { clubId: string; clubName: string }

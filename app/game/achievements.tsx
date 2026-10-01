@@ -6,12 +6,13 @@ import { fetchAchievementRuns, isRunWon, type AchievementRun } from '@/db/querie
 import { FEATS, featCounts } from '@/lib/feats'
 import { ROLES, space, border, font, colourwayFor, MODE_LABELS } from '@/theme'
 import { KitScreen, KitText, BackControl, Tag, Tape, EmptyState, SectionTag } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D10 · Achievements (docs/ui-overhaul/07d). Each mode is a strip in its own
 // colourway (the same tape its run labels wear); a difficulty won is a WIN
 // tag, one still to win is a plain one. The old per-mode hex accents and
 // Ionicons are gone: the colourway is the mode's identity everywhere now.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // Era mode is retired (Big Fixes §6) — no longer selectable from mode-select,
 // but old runs/career_stats may still carry `mode: 'era'`. Per the resolved
@@ -110,7 +111,7 @@ export default function AchievementsScreen() {
 
   const cleared = MODE_META.filter(m => ach[m.mode]?.conquered).length
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Achievements" path="/game/achievements" />
       <BackControl roles={roles} />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>ACHIEVEMENTS</KitText>

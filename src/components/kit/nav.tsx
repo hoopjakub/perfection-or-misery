@@ -7,6 +7,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { ROLES, space, border, prim } from '@/theme'
 import { KitText, Icon, type IconName } from './primitives'
 import { Wordmark } from './labels'
+import { EVERYDAY } from '@/lib/appearance'
 
 export const RAIL_MIN_WIDTH = 1024
 
@@ -20,7 +21,7 @@ const DEST: Record<string, { label: string; icon: IconName }> = {
 export function KitTabBar({ state, navigation, insets, descriptors }: BottomTabBarProps) {
   const { width } = useWindowDimensions()
   const rail = width >= RAIL_MIN_WIDTH
-  const roles = ROLES.cotton
+  const roles = ROLES[EVERYDAY]
 
   const items = state.routes
     .map((route, index) => ({ route, index, meta: DEST[route.name] }))

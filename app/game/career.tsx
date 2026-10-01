@@ -12,6 +12,7 @@ import { runRoute } from '@/lib/nav'
 import { ROLES, space, border, prim, colourwayFor } from '@/theme'
 import { KitScreen, KitText, BackControl, Chips, SectionTag, Tag, EmptyState, InlineError, RunLabel, Tape } from '@/components/kit'
 import type { CareerStats } from '@/types/stats'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D10 · Career (docs/ui-overhaul/07d). Every player you've fielded, across
 // every run: the totals, the awards they won for you, and a board per stat.
@@ -24,7 +25,7 @@ import type { CareerStats } from '@/types/stats'
 // run it came from; each mode's history with its last twelve scores; you
 // against the pundits, run by run; the players you draft most. Your players'
 // boards and awards cabinet stay underneath.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 type Tab = 'goals' | 'assists' | 'cleanSheets' | 'matchesPlayed'
 type Comp = 'all' | 'league' | 'champions_league' | 'champions_league_custom' | 'world_cup'
@@ -59,7 +60,7 @@ export default function CareerScreen() {
   }, [user, isGuest, attempt])
 
   const shell = (children: React.ReactNode) => (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Career" path="/game/career" />
       <BackControl roles={roles} />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>CAREER</KitText>

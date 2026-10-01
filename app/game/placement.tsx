@@ -27,6 +27,7 @@ import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { ROLES, space, border, colourwayFor, prim, type Roles } from '@/theme'
 import {
   KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Rivets, StripedNotice, RoundFlag, VenueMark, Crest,} from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 5 · The draw — docs/ui-overhaul/07b B7.
 //
@@ -35,7 +36,7 @@ import {
 // (with the gap stated in words, not only coloured) and, where the fixtures are
 // known up front, your first few. The draw is decided before the globe turns,
 // so every placement is back-guarded from the moment it's made (Big Fixes §3).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // The globe plays in full on the first draw of a session, at half length after.
 let drawsThisSession = 0
@@ -74,7 +75,7 @@ function DrawScreen({ title, children, cta }: { title: string; children: React.R
     const globe = items.find(c => React.isValidElement(c) && c.type === GlobePanel)
     const rest = items.filter(c => c !== globe)
     return (
-      <KitScreen ground="cotton" scroll={false} width="wide" contentStyle={styles.screen}>
+      <KitScreen ground={EVERYDAY} scroll={false} width="wide" contentStyle={styles.screen}>
         {header}
         <View style={styles.wide}>
           {globe ? <View style={styles.wideGlobe}>{globe}</View> : null}
@@ -87,7 +88,7 @@ function DrawScreen({ title, children, cta }: { title: string; children: React.R
     )
   }
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       {header}
       <ScrollView style={styles.body} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={Platform.OS === 'web'}>
         {children}
@@ -114,11 +115,13 @@ function GlobePanel({ targetId, targetName, flag, spinMs, onLock, locked }: {
       disabled={locked}
       accessibilityRole="button"
       accessibilityLabel={locked ? 'The draw has landed' : 'The globe is spinning. Tap to land it.'}
-      style={[styles.globePanel, { backgroundColor: prim.nylon }]}
+      // P8.5-12: no panel of its own. The globe is a dark sphere on either
+      // ground; the nylon square behind it was the "black box" on a cotton page.
+      style={styles.globePanel}
     >
       {/* Bigger in the wide layout's own pane; same path count, so no extra cost per frame. */}
       <GlobeReveal targetId={targetId} targetName={targetName} flag={flag} accent={prim.orange} spinMs={spinMs} onLock={onLock} skip={skip} size={wide ? 360 : 220} />
-      {!locked && <KitText t="tag" color={ROLES.nylon.textMuted}>TAP TO LAND IT</KitText>}
+      {!locked && <KitText t="tag" color={roles.textMuted}>TAP TO LAND IT</KitText>}
     </Pressable>
   )
 }
@@ -203,7 +206,7 @@ function Fixtures({ items, more }: { items: { md: number; opponent: string; home
 
 function Loading({ text }: { text: string }) {
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.center}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
       <Loader color={roles.text} />
       <KitText t="tag" color={roles.textMuted}>{text}</KitText>
     </KitScreen>
@@ -212,7 +215,7 @@ function Loading({ text }: { text: string }) {
 
 function Failed({ noSquad, message }: { noSquad: boolean; message: string }) {
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.center}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
       <StripedNotice roles={roles} failed>{noSquad ? "There's no squad yet." : message}</StripedNotice>
       <Plate
         label={noSquad ? 'Back to the draft' : 'Change mode'}

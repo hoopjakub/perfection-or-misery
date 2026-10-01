@@ -16,6 +16,7 @@ import { flagImageOf } from '@/lib/flags'
 import { flagForNationality } from '@/data/geo-iso'
 import { crestFor, markColoursOf } from '@/lib/brand'
 import { ratio } from '@/lib/contrast'
+import { EVERYDAY } from '@/lib/appearance'
 
 // ── SwingTag ─────────────────────────────────────────────────────────────────
 // The zip tag, attached with the app's one overshoot. Remounting it (a new
@@ -193,7 +194,8 @@ export function ClubCard({ roles, name, sub, colour, flag, fact, onReroll, rerol
   useEffect(() => { if (!reduced) flash.value = withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) }) }, [])
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }))
   // The card reads in cotton on the club's near-black tint, whatever the ground.
-  const on = ROLES.nylon
+  // The selected chip is the page's opposite ground (P8.5-25: whichever that is).
+  const on = ROLES[EVERYDAY === 'cotton' ? 'nylon' : 'cotton']
   return (
     <View style={[styles.club, { borderColor: roles.line, backgroundColor: towardInk(colour ?? prim.nylon, 0.82) }]}>
       {flag ? <View style={styles.clubFlag}><RoundFlag roles={on} emoji={flag} code={name} size={24} /></View>
@@ -366,19 +368,20 @@ export function PlayerTag({ roles, name, position, nationality, rating, availabl
         pressed && available && { opacity: 0.85, transform: [{ scale: 0.98 }] },
       ]}
     >
-      {/* The flag is the card: full-bleed, a little oversized and tilted so it
-          reads as a flag waved behind him, not a picture pasted in. */}
+      {/* The flag is the card, edge to edge and level (P8.5-11: the tilted,
+          oversized flag lost its corners and read as a small thing behind him). */}
       {flag != null && (
         <Image source={flag} resizeMode="cover" accessibilityIgnoresInvertColors
           style={[styles.playerFlag, !available && { opacity: 0.3 }]} />
       )}
       {/* A shade rising from the foot, so the name reads on any flag (white
-          stripes included) without a flat black band cutting the card in two. */}
+          stripes included) without a flat black band cutting the card in two.
+          It starts halfway down: the top half is all flag (P8.5-11). */}
       <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 1 1">
         <Defs>
           <LinearGradient id="tagShade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={prim.ink} stopOpacity={0.05} />
-            <Stop offset="0.45" stopColor={prim.ink} stopOpacity={0.25} />
+            <Stop offset="0" stopColor={prim.ink} stopOpacity={0} />
+            <Stop offset="0.5" stopColor={prim.ink} stopOpacity={0.1} />
             <Stop offset="1" stopColor={prim.ink} stopOpacity={0.92} />
           </LinearGradient>
         </Defs>
@@ -455,7 +458,7 @@ const styles = StyleSheet.create({
   hangerTag: { position: 'absolute', top: -14, right: 2 },
 
   player: { flex: 1, minHeight: 108, overflow: 'hidden', justifyContent: 'space-between' },
-  playerFlag: { position: 'absolute', left: '-12%', right: '-12%', top: '-18%', bottom: '-18%', transform: [{ rotate: '-5deg' }] },
+  playerFlag: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   playerRating: { paddingHorizontal: 6, paddingVertical: 1, borderWidth: border.thin },
   playerFoot: { height: 4 },
   playerStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },

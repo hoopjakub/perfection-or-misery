@@ -3,7 +3,8 @@
 import React from 'react'
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { useSizeClass } from '@/hooks/useSizeClass'
-import { space, ROLES } from '@/theme'
+import { space } from '@/theme'
+import { useScreenRoles } from '@/lib/appearance'
 import { SectionTag } from './controls'
 
 /**
@@ -79,10 +80,12 @@ export function PaneRow({ wide, children }: { wide: boolean; children: React.Rea
   return <View style={[styles.row, { gap: space[5], marginTop: space[3] }]}>{children}</View>
 }
 export function Pane({ wide, title, flex = 1, children }: { wide: boolean; title: string; flex?: number; children: React.ReactNode }) {
+  // P8.5-25: the pane's title takes the screen's ground (it fixed nylon before).
+  const roles = useScreenRoles()
   if (!wide) return <>{children}</>
   return (
     <View style={{ flex, minWidth: 0, gap: space[1] }}>
-      <SectionTag roles={ROLES.nylon}>{title}</SectionTag>
+      <SectionTag roles={roles}>{title}</SectionTag>
       {children}
     </View>
   )

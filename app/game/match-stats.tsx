@@ -46,6 +46,7 @@ import {
 } from '@/engine/match-context'
 import type { MatchEvent, PlayerMatchLine, MatchStats } from '@/types/match-stats'
 import { lineForEvent, chanceLines, timedShots } from '@/engine/commentary'
+import { FLOODLIT } from '@/lib/appearance'
 
 type Tab = 'facts' | 'commentary' | 'lineup' | 'map' | 'stats'
 
@@ -376,12 +377,12 @@ export default function MatchStatsScreen() {
           {venue ? <Text style={styles.compLabel} numberOfLines={1}>{venue.city ? `${venue.name}, ${venue.city}` : venue.name}</Text> : null}
           {/* P8-134: your match, from your side: at home or away. */}
           {r.playerClubId && (r.playerClubId === r.homeClubId || r.playerClubId === r.awayClubId) && !isNeutral(r.competitionLabel) ? (
-            <View style={styles.venueLine}><VenueMark roles={ROLES.nylon} home={r.playerClubId === r.homeClubId} /></View>
+            <View style={styles.venueLine}><VenueMark roles={ROLES[FLOODLIT]} home={r.playerClubId === r.homeClubId} /></View>
           ) : null}
           <View style={styles.headerRow}>
             {/* P8-12: a club's crest beside its name; a national side already
                 carries its flag through withFlag. */}
-            {flagForCountry(r.homeName) ? null : <Crest roles={ROLES.nylon} clubId={r.homeClubId} name={r.homeName} size={20} />}
+            {flagForCountry(r.homeName) ? null : <Crest roles={ROLES[FLOODLIT]} clubId={r.homeClubId} name={r.homeName} size={20} />}
             <Text style={[[styles.headerTeam, { textAlign: 'right' }], r.linkPages && styles.linked]} numberOfLines={2} onPress={r.linkPages ? () => openClub(r.homeClubId) : undefined} accessibilityRole={r.linkPages ? 'link' : undefined}>{withFlag(r.homeName)}</Text>
             <View style={styles.headerScoreCol}>
               <Text style={[styles.headerScore, { color: accent }]} numberOfLines={1}>{r.homeGoals} – {r.awayGoals}</Text>
@@ -390,7 +391,7 @@ export default function MatchStatsScreen() {
               </Text>
             </View>
             <Text style={[styles.headerTeam, r.linkPages && styles.linked]} numberOfLines={2} onPress={r.linkPages ? () => openClub(r.awayClubId) : undefined} accessibilityRole={r.linkPages ? 'link' : undefined}>{withFlag(r.awayName)}</Text>
-            {flagForCountry(r.awayName) ? null : <Crest roles={ROLES.nylon} clubId={r.awayClubId} name={r.awayName} size={20} />}
+            {flagForCountry(r.awayName) ? null : <Crest roles={ROLES[FLOODLIT]} clubId={r.awayClubId} name={r.awayName} size={20} />}
           </View>
           {r.pensNote ? <Text style={[styles.pensNote, { color: accent }]}>{r.pensNote}</Text> : null}
           {detail && (
@@ -469,7 +470,7 @@ export default function MatchStatsScreen() {
 // from the match's own seed on a separate stream (src/engine/match-geometry.ts),
 // so it can never disagree with the numbers elsewhere on the sheet.
 function MapTab({ detail, seed, homeName, awayName }: { detail: MatchStats; seed: number; homeName: string; awayName: string }) {
-  const kit = ROLES.nylon
+  const kit = ROLES[FLOODLIT]
   const [side, setSide] = useState<'home' | 'away'>('home')
   // P8-47: in time order, each with its minute and where it ended.
   const shots = useMemo(() => timedShots(detail, seed), [detail, seed])
@@ -822,7 +823,7 @@ function PlayerStatsTable({ detail, accent, homeName, awayName, onOpenPlayer }: 
           <Text style={styles.psPos}>{l.position}</Text>
           <Text style={styles.psName} numberOfLines={1}>{l.name}</Text>
           <Text style={styles.psTeam} numberOfLines={1}>{l.isHome ? homeName : awayName}</Text>
-          {/* Sorted by rating, the figure is the rating chip, in SofaScore's colours (P8-44). */}
+          {/* Sorted by rating, the figure is the rating chip, in PoM's own rating colours (P8.5-33). */}
           {col.key === 'rating'
             ? <RatingChip value={l.rating} />
             : <Text style={[styles.psValue, { color: accent }]} numberOfLines={1}>{col.render(l)}</Text>}
@@ -1133,7 +1134,7 @@ function NextMatch({ name, clubId, match, accent, onOpenMatch }: {
 
 // Kit Drop's result colours (P8-74): volt a win, misery red a loss, grey a draw.
 const outcomeColor = (o: 'W' | 'D' | 'L') =>
-  o === 'W' ? prim.volt : o === 'L' ? prim.misery : ROLES.nylon.draw
+  o === 'W' ? prim.volt : o === 'L' ? prim.misery : ROLES[FLOODLIT].draw
 
 // A World Cup match and a final are on neutral ground: no home or away to mark.
 const isNeutral = (label?: string) => !!label && (/^Final\b/.test(label) || /Group [A-L]|Round of 32|World Cup/.test(label))

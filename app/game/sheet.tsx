@@ -3,15 +3,16 @@ import { StyleSheet } from 'react-native'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, BackControl, EmptyState } from '@/components/kit'
 import { takeSheet } from '@/lib/sheet'
+import { EVERYDAY } from '@/lib/appearance'
 
 // The page behind `openSheet` (src/lib/sheet.ts): a title and whatever view the
 // caller handed over. Replaces the group, league-table and leagues-browser modals.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 export default function SheetScreen() {
   const [sheet] = useState(takeSheet)
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground={EVERYDAY}>
       <BackControl roles={roles} />
       {sheet ? (
         <>

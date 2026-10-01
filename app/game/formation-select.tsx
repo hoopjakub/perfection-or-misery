@@ -8,6 +8,7 @@ import { getSlotsForFormation, getFormationRows, ALL_FORMATIONS, shirtNumbers } 
 import { ROLES, space, border, colourwayFor, prim, type Roles } from '@/theme'
 import type { Formation } from '@/types/game'
 import { KitScreen, KitText, RunHeader, Plate, Tag, StripedNotice, Pitch } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 3 · Your shape — docs/ui-overhaul/07b B3. The selected shape fills the
 // top as a pitch of numbered shirts; the rest sit in a rack you swipe.
@@ -15,7 +16,7 @@ import { KitScreen, KitText, RunHeader, Plate, Tag, StripedNotice, Pitch } from 
 // each player against his slot and has no tactical model, so promises like
 // "dominates midfield" would be untrue. The substitutes toggle moved to the
 // difficulty rules (app/game/difficulty-custom.tsx).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 const LINES: Record<Formation, string> = {
   '4-3-3':     'Three up front, three in midfield, a back four.',
@@ -110,7 +111,7 @@ export default function YourShapeScreen() {
   // plate on the right. Compact is the phone column.
   if (wide) {
     return (
-      <KitScreen ground="cotton" width="wide">
+      <KitScreen ground={EVERYDAY} width="wide">
         <RunHeader roles={roles} stage={3} colourway={colourwayFor(mode)} title="Your shape" skipped={fixedMode ? [2] : []} />
         <View style={styles.wide}>
           <View style={styles.widePitch}><PitchShape roles={roles} formation={selected} tall /></View>
@@ -126,7 +127,7 @@ export default function YourShapeScreen() {
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <RunHeader roles={roles} stage={3} colourway={colourwayFor(mode)} title="Your shape" skipped={fixedMode ? [2] : []} />
       <PitchShape roles={roles} formation={selected} />
       {details}

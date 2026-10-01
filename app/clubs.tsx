@@ -7,11 +7,12 @@ import { ClubHeader, ClubTag, ClubForm } from '@/components/ClubParts'
 import { fetchClubOf, fetchClub, searchClubs, createClub, joinClub, clubErrorText, ClubsUnavailable, type Club } from '@/db/queries/clubs'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space, border } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-181: clubs. In one: your club, and the way into its page and chat. In
 // none: start one, or find one to join. The tag on your ID tag and beside your
 // name is the club's; you have none until you join.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 const openClubPage = (id: string) => router.push({ pathname: '/club/[id]', params: { id } })
 
 export default function ClubsScreen() {
@@ -62,7 +63,7 @@ export default function ClubsScreen() {
 
   if (!me) {
     return (
-      <KitScreen ground="cotton">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <EmptyState roles={roles} icon="lock" title="Sign in for a club" body="A club is kept with your account, so a guest can't join one." />
       </KitScreen>
@@ -70,7 +71,7 @@ export default function ClubsScreen() {
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Clubs" path="/clubs" />
       <BackControl roles={roles} />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>CLUBS</KitText>

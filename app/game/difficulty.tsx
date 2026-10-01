@@ -8,13 +8,14 @@ import { resolveDifficulty, type Difficulty } from '@/engine/difficulty'
 import { ROLES, space, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunHeader, ChoiceLabel, Grid, SectionTag, ListRow, Toggle } from '@/components/kit'
 import { multiplierText } from '@/data/modes'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 2 · How hard — docs/ui-overhaul/07b B2, split out of mode select.
 // Each difficulty is a care label listing exactly what it changes, with the
 // score multiplier beside it (difficulty changes the score, so it's shown
 // where the choice is made). Every number comes from resolveDifficulty — this
 // screen never restates what "easy" means on its own.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 const PRESETS: { id: Exclude<Difficulty, 'custom'>; title: string; tilt: string }[] = [
   { id: 'easy',   title: 'Easy',   tilt: 'YOUR MATCHES TILT YOUR WAY' },
@@ -39,7 +40,7 @@ export default function HowHardScreen() {
   const custom = resolveDifficulty('custom', customDifficulty, mode, weightedPicksOverride)
 
   return (
-    <KitScreen ground="cotton" width="wide">
+    <KitScreen ground={EVERYDAY} width="wide">
       <RunHeader roles={roles} stage={2} colourway={colourwayFor(mode)} title="How hard" />
       <KitText t="bodyL" color={roles.textMuted} style={styles.lead}>
         Difficulty only touches your own matches and your draft. Everyone else plays it straight.

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { fetchMyPlace } from '@/db/queries/leaderboard'
+import { isUuid, uuid } from './uuid'
 
 // P8-90: friends. Requests, accepting and removing go through the database
 // functions in supabase/friends.sql, which check the request and write every
@@ -74,7 +75,7 @@ export async function getRequests(): Promise<{ incoming: FriendRequest[]; outgoi
   const me = await myId()
   const { data, error } = await (supabase as any).from('friend_requests')
     .select('id, from_user_id, to_user_id, created_at')
-    .or(`from_user_id.eq.${me},to_user_id.eq.${me}`).eq('status', 'pending')
+    .or(`from_user_id.eq.${uuid(me)},to_user_id.eq.${uuid(me)}`).eq('status', 'pending')
     .order('created_at', { ascending: false })
   if (error) throw error
   const rows = (data ?? []) as { id: string; from_user_id: string; to_user_id: string; created_at: string }[]
@@ -123,11 +124,14 @@ export async function friendIds(): Promise<string[]> {
 export async function relationshipWith(targetId: string): Promise<{ state: Relationship; requestId?: string }> {
   const me = await myId()
   if (me === targetId) return { state: 'self' }
+  // targetId comes from the /u/[id] link, which anyone can write: a value that
+  // isn't an id is nobody, so there's no relationship to look up.
+  if (!isUuid(targetId)) return { state: 'none' }
   const { data: f, error } = await supabase.from('friendships').select('friend_id').eq('user_id', me).eq('friend_id', targetId).maybeSingle()
   if (error) throw error
   if (f) return { state: 'friends' }
   const { data: r, error: rError } = await (supabase as any).from('friend_requests').select('id, from_user_id')
-    .or(`and(from_user_id.eq.${me},to_user_id.eq.${targetId}),and(from_user_id.eq.${targetId},to_user_id.eq.${me})`)
+    .or(`and(from_user_id.eq.${uuid(me)},to_user_id.eq.${uuid(targetId)}),and(from_user_id.eq.${uuid(targetId)},to_user_id.eq.${uuid(me)})`)
     .eq('status', 'pending').maybeSingle()
   if (rError) throw rError
   if (!r) return { state: 'none' }

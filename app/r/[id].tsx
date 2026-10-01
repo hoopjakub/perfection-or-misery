@@ -4,13 +4,14 @@ import { KitScreen, KitText, Loader, EmptyState, Plate } from '@/components/kit'
 import { fetchRunById } from '@/db/queries/runs'
 import { runRoute, exitToHome } from '@/lib/nav'
 import { ROLES } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-121: a shared run's link, opened in the app. A link is `/r/<run id>`
 // (src/lib/shareRun.ts); on the web the site answers it (api/r.ts, with the
 // run's preview), and on a phone that page hands it to the app as
 // pom://r/<run id>, which lands here. The run is public to read (P8-89), so
 // this only needs its mode to know which result screen rebuilds it.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 export default function SharedRunScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -31,7 +32,7 @@ export default function SharedRunScreen() {
   }, [id])
 
   return (
-    <KitScreen ground="nylon" scroll={false}>
+    <KitScreen ground={EVERYDAY} scroll={false}>
       {failed ? (
         <>
           <EmptyState roles={roles} title="Run not found" body="This link doesn't lead to a saved run. It may have been deleted, or the link was cut short." />

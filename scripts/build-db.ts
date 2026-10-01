@@ -249,3 +249,26 @@ db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', ?)`)
 
 console.log(`✓ built ${DB_PATH} (v${newVersion})`)
 db.close()
+
+// P8.5-30: the LEGAL flavour's database, beside the full one: the same data
+// with every competition and league under its plain descriptive name
+// (src/data/legal-names.js; metro.config.js bundles this one in the legal
+// build). Club and player names are unchanged until their tables are written
+// (docs/release/01-NAMES-MARKS-AND-THE-LAW.md §5.2). Same DB_VERSION: an
+// installed app is one flavour or the other.
+const { legalLeagueName, renameText } = require('../src/data/legal-names') as {
+  legalLeagueName: (name: string, country: string) => string; renameText: (s: string) => string
+}
+const LEGAL_PATH = DB_OUT ? DB_OUT.replace(/\.db$/, '') + '_legal.db' : path.join(__dirname, '../assets/db/players_legal.db')
+fs.copyFileSync(DB_PATH, LEGAL_PATH)
+const legal = new Database(LEGAL_PATH)
+const leagues = legal.prepare('SELECT id, name, country FROM leagues').all() as { id: string; name: string; country: string }[]
+const renameLeague = legal.prepare('UPDATE leagues SET name = ? WHERE id = ?')
+legal.transaction(() => { for (const l of leagues) renameLeague.run(legalLeagueName(l.name, l.country), l.id) })()
+// Any club whose name carries a competition's mark (none today; a reserve or
+// youth side would) goes through the same table.
+const clubs = legal.prepare('SELECT id, name FROM clubs').all() as { id: string; name: string }[]
+const renameClub = legal.prepare('UPDATE clubs SET name = ? WHERE id = ?')
+legal.transaction(() => { for (const c of clubs) { const n = renameText(c.name); if (n !== c.name) renameClub.run(n, c.id) } })()
+legal.close()
+console.log(`✓ built ${LEGAL_PATH} (legal names: ${leagues.length} leagues)`)

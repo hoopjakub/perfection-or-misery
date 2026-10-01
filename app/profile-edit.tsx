@@ -16,6 +16,7 @@ import { fetchRunHistory, fetchAchievementRuns, type RunHistoryEntry } from '@/d
 import { formatTier, runMeta, verdictOf } from '@/data/tiers'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space, border, colourwayFor, choiceHex } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-88: shaping your profile — your picture, the team you support and your
 // favourite player, the look of the page, what others may see, and the runs
@@ -26,7 +27,7 @@ import { ROLES, space, border, colourwayFor, choiceHex } from '@/theme'
 // picture, a banner (a colour, a gradient or a picture), a profile theme of two
 // colours that tints the whole card, your status, pronouns and an about-me.
 // Every colour is any colour (P8-177's picker), the palette's as quick picks.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 const MAX_PINS = 3
 const SIDE_SWATCHES = CREST_COLOURS.map(c => ({ ...c, hex: crestHex(c.id) }))
 const BANNER_KINDS: { id: BannerKind; label: string }[] = [{ id: 'colour', label: 'Colour' }, { id: 'gradient', label: 'Gradient' }, { id: 'picture', label: 'Picture' }]
@@ -157,11 +158,11 @@ export default function ProfileEditScreen() {
 
   const name = profile?.username ?? 'You'
   if (!uid) {
-    return <KitScreen ground="cotton"><BackControl roles={roles} /><StripedNotice roles={roles}>Sign in to shape a profile.</StripedNotice></KitScreen>
+    return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><StripedNotice roles={roles}>Sign in to shape a profile.</StripedNotice></KitScreen>
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Edit your profile" path="/profile-edit" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>YOUR PROFILE</KitText>

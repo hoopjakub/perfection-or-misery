@@ -21,6 +21,7 @@ import { worldCupPunditTournament, championsLeaguePunditTournament } from '@/eng
 import { getFlag } from '@/lib/flagMap'
 import type { Panellist } from '@/engine/predictions'
 import { WC_GROUP_MATCHDAYS } from '@/engine/knockout-availability'
+import { EVERYDAY, FLOODLIT } from '@/lib/appearance'
 
 // Stage 6 · Pre-season: the pundits' predictions — docs/ui-overhaul/07b B8.
 // A predicted table from squad strength (with the pundits' deliberate noise),
@@ -30,7 +31,7 @@ import { WC_GROUP_MATCHDAYS } from '@/engine/knockout-availability'
 //
 // Champions League and World Cup keep their own pre-season step after this
 // one, because that's where their fixtures and group draw are made.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'], v = n % 100
@@ -95,7 +96,7 @@ export default function PunditsScreen() {
 
   if (!pred?.player) {
     return (
-      <KitScreen ground="cotton" scroll={false} contentStyle={styles.center}>
+      <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
         <KitText t="bodyL" color={roles.textMuted}>This run has no draw yet.</KitText>
         <Plate label="Back to the draw" roles={roles} onPress={() => router.replace('/game/placement')} />
       </KitScreen>
@@ -135,7 +136,7 @@ export default function PunditsScreen() {
 
   return (
     <View style={styles.fill}>
-      <KitScreen ground="cotton">
+      <KitScreen ground={EVERYDAY}>
         <RunHeader roles={roles} stage={6} colourway={colourwayFor(mode)} title={headline} back={false}
           skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} />
         {round && (
@@ -259,7 +260,7 @@ function LightsOn({ colourway, onDone }: { colourway: string[]; onDone: () => vo
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: prim.nylon }]} accessibilityLabel={forCompetition('The season is starting', useGameStore.getState().mode)}>
       <Animated.View style={[styles.lightsTape, { transformOrigin: 'left' } as any, tape]}>
-        <Tape colours={colourway} roles={ROLES.nylon} thickness={border.tape} />
+        <Tape colours={colourway} roles={ROLES[FLOODLIT]} thickness={border.tape} />
       </Animated.View>
     </View>
   )

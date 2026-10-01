@@ -1,26 +1,48 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { StyleSheet } from 'react-native'
-import { KitScreen, KitText, SectionTag, BackControl, ListRow, Toggle } from '@/components/kit'
+import { KitScreen, KitText, SectionTag, BackControl, ListRow, Toggle, Chips } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { ROLES, space } from '@/theme'
-import { useSettingsStore } from '@/store/settingsStore'
+import { useSettingsStore, type AppearanceChoice } from '@/store/settingsStore'
+import { EVERYDAY, appearanceChangesGround, reloadForAppearance } from '@/lib/appearance'
 
 // P8-45 · Settings, a screen of its own instead of two switches on You. Every
 // preference is in src/store/settingsStore.ts and kept on the device; every
 // "you can turn it back on in Settings" line in the app points here. Reading
-// happens on cotton, like the You tab it opens from.
+// happens on the everyday ground, like the You tab it opens from.
 //
-// Not here yet, on purpose: sound (the app has none) and light or dark
-// (P8-65's question isn't decided). Each gets a row when it exists.
-const roles = ROLES.cotton
+// Not here yet, on purpose: sound (the app has none). Light or dark is here
+// since P8.5-25.
+const roles = ROLES[EVERYDAY]
+
+const APPEARANCE_OPTIONS: { id: AppearanceChoice; label: string }[] = [
+  { id: 'system', label: 'System' }, { id: 'dark', label: 'Dark' }, { id: 'light', label: 'Light' },
+]
 
 export default function SettingsScreen() {
   const s = useSettingsStore()
+  // The ground is decided at start-up (src/lib/appearance.ts): on the phone a
+  // new choice shows from the next launch, and the line under the chips says so.
+  const [pending, setPending] = useState(false)
+  const chooseAppearance = (a: AppearanceChoice) => {
+    s.setAppearance(a)
+    const changes = appearanceChangesGround(a)
+    if (changes && reloadForAppearance()) return
+    setPending(changes)
+  }
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Settings" path="/settings" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>SETTINGS</KitText>
+
+      <SectionTag roles={roles}>Appearance</SectionTag>
+      <Chips roles={roles} label="Light or dark" options={APPEARANCE_OPTIONS} value={s.appearance} onChange={chooseAppearance} />
+      <KitText t="body" color={roles.textMuted} style={styles.note}>
+        {pending
+          ? 'Changes the next time you open the app.'
+          : 'System follows your phone. The live match, the draw and the verdict stay under the floodlights either way.'}
+      </KitText>
 
       <SectionTag roles={roles}>Questions before you act</SectionTag>
       <ListRow roles={roles} label="Ask before skipping ahead"

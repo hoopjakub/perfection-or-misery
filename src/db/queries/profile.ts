@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { getDb } from '../setup'
 import { isRunWon, type AchievementRun } from './leaderboard'
 import { modeInfo } from '@/data/modes'
+import { shownRuns } from '@/lib/shownNames'
 
 // P8-88: the profile a player shapes, and P8-89's "whose run is this".
 // Everything here reads and writes the tables in supabase/profile.sql, and
@@ -297,7 +298,7 @@ export async function fetchRunsByIds(ids: string[]) {
     .select('id, score, tier, mode, league_name, year_start, final_position, teams_in_league, wins, draws, losses, created_at, difficulty, difficulty_meta')
     .in('id', ids)
   if (error) throw error
-  return ids.map(id => (data ?? []).find((r: { id: string }) => r.id === id)).filter(Boolean)
+  return shownRuns(ids.map(id => (data ?? []).find((r: { id: string }) => r.id === id)).filter(Boolean))
 }
 
 /** "12 h 40 min" */

@@ -18,10 +18,11 @@ import type { GameMode } from '@/types/game'
 import {
   KitScreen, KitText, Wordmark, Plate, RunLabel, RunLabelSkeleton, SectionTag, Tag, InlineError, StripedNotice,
 } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Home (Play) — docs/ui-overhaul/07a A2. The poster, your last three
 // verdicts as garment labels, and one orange plate in the thumb zone.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // Modes "AGAIN" can restart straight at the shape screen. A league run also
 // needs its league picked, and a custom difficulty's knobs aren't stored on
@@ -186,7 +187,7 @@ export default function HomeScreen() {
   // with the plate in the thumb zone.
   if (wide) {
     return (
-      <KitScreen ground="cotton" width="wide">
+      <KitScreen ground={EVERYDAY} width="wide">
         <PageMeta path="/" jsonLd={GAME_JSON_LD} />
         <View style={styles.wide}>
           <View style={styles.wideLeft}>
@@ -212,7 +213,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       <PageMeta path="/" jsonLd={GAME_JSON_LD} />
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={Platform.OS === 'web'}>
         <Wordmark roles={roles} />

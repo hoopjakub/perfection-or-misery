@@ -17,6 +17,7 @@ import { KitScreen, KitText, Plate, SectionTag, Stripe } from '@/components/kit'
 import { ThumbBar } from '@/components/season/RunChrome'
 import { PlayerAwardCard, ClubAwardCard, FormationPitch, QualifyingAwards, TEAM_HOW } from '@/components/season/AwardsParts'
 import type { PunditPicks } from '@/engine/predictions'
+import { FLOODLIT } from '@/lib/appearance'
 
 // C7 · Awards Night (docs/ui-overhaul/07c), on nylon — and only here, only once:
 // the ceremony plays at the end of a LIVE run, between the final whistle and
@@ -31,7 +32,7 @@ import type { PunditPicks } from '@/engine/predictions'
 //
 // This screen also pays for computing the run's stats and hands them to the
 // verdict through src/lib/awardsNight.ts, so nothing is regenerated twice.
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 const BEAT_MS = 3400   // the verdict lands in ~0.9s; the rest is reading time
 
 type Beat =
@@ -129,7 +130,7 @@ export default function AwardsNightScreen() {
 
   if (failed) {
     return (
-      <KitScreen ground="nylon" scroll={false} contentStyle={styles.centre}>
+      <KitScreen ground={FLOODLIT} scroll={false} contentStyle={styles.centre}>
         <KitText t="superM" color={roles.text} style={styles.centred}>NO AWARDS</KitText>
         <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>This run's stats couldn't be read. Your verdict is still waiting.</KitText>
         <Plate label="See your verdict" icon="forward" roles={roles} onPress={done} />
@@ -139,7 +140,7 @@ export default function AwardsNightScreen() {
 
   if (!night) {
     return (
-      <KitScreen ground="nylon" scroll={false} contentStyle={styles.centre}>
+      <KitScreen ground={FLOODLIT} scroll={false} contentStyle={styles.centre}>
         {/* The title in the header's size, centred. At superL it wrapped on a
             narrow phone and the first line sat off to the left ("AWARDS"),
             while a wider screen fit it on one line — hence "sometimes". */}
@@ -159,7 +160,7 @@ export default function AwardsNightScreen() {
 
   return (
     <View style={styles.fill}>
-      <KitScreen ground="nylon">
+      <KitScreen ground={FLOODLIT}>
         <Stripe roles={roles} band={6} style={styles.topStripe} />
         {/* The title shared its row with the "3 / 14" counter. How wide the
             counter is depends on the run (how many awards, which one is

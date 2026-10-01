@@ -13,11 +13,12 @@ import { useUserStore } from '@/store/userStore'
 import { formatTier } from '@/data/tiers'
 import { ordinal } from '@/lib/format'
 import { ROLES, space, border } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-90: friends, with the screen they never had. Find a player by username,
 // send a request, answer the ones sent to you, and see each friend's latest
 // run and world rank. What's new since you last looked is at the top.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 const ago = (iso: string) => {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000)
@@ -75,7 +76,7 @@ export default function FriendsScreen() {
 
   if (isGuest) {
     return (
-      <KitScreen ground="cotton">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>FRIENDS</KitText>
         <EmptyState roles={roles} icon="lock" title="Friends need an account" body="Make one from You, and your runs and friends are kept." />
@@ -88,7 +89,7 @@ export default function FriendsScreen() {
   const askedIds = new Map(incoming.map(r => [r.player.id, r.id]))
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Friends" path="/friends" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>FRIENDS</KitText>

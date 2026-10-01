@@ -15,6 +15,7 @@ import {
 import { lineOf } from '@/engine/awards'
 import type { PlayerStatLine } from '@/types/stats'
 import type { PlayerMatchLogEntry } from '@/engine/run-stats'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D4 · The player page (docs/ui-overhaul/07d), replacing the game-log modal. A
 // route, so back returns to exactly where you were and it survives a reload.
@@ -22,7 +23,7 @@ import type { PlayerMatchLogEntry } from '@/engine/run-stats'
 //
 // `ceremony=1` (opened from Awards Night) hides his honours: the page shows
 // the player, never the rest of the night (P8-36).
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 // The rows his season is read in, by what his line does.
 const ROWS_BY_LINE: Record<string, StatKey[]> = {
@@ -98,7 +99,7 @@ export default function PlayerScreen() {
 
   if (loading) {
     return (
-      <KitScreen ground="nylon">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText>
       </KitScreen>
@@ -106,7 +107,7 @@ export default function PlayerScreen() {
   }
   if (failed || !data) {
     return (
-      <KitScreen ground="nylon">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} />
       </KitScreen>
@@ -114,7 +115,7 @@ export default function PlayerScreen() {
   }
   if (!p) {
     return (
-      <KitScreen ground="nylon">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <EmptyState roles={roles} title="Not in this run" body="This player didn't feature in the competition." />
       </KitScreen>
@@ -123,7 +124,7 @@ export default function PlayerScreen() {
 
   const played = (p.matchesRated ?? 0) > 0
   return (
-    <KitScreen ground="nylon" scrollRef={scrollRef}>
+    <KitScreen ground={EVERYDAY} scrollRef={scrollRef}>
       <PageMeta title={p.name} description={forCompetition(`${p.name}'s season in a Perfection or Misery run.`, data.mode)} />
       <BackControl roles={roles} />
 

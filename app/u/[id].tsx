@@ -14,12 +14,13 @@ import { useUserStore } from '@/store/userStore'
 import { relationshipWith, sendFriendRequest, respondToRequest, removeFriend, type Relationship } from '@/lib/friends'
 import { openConfirm } from '@/lib/confirm'
 import { ROLES, space, colourwayFor } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-88: a player's profile — yours, or anyone's you reach from Ranks, a
 // friend or a run (P8-89). What it shows past the name is what the owner made
 // visible: the database's public_profile() returns a hidden section as null,
 // and the page leaves it out rather than saying it's hidden.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -63,7 +64,7 @@ export default function ProfileScreen() {
   const own = !!me && me === id
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title={`${name}'s profile`} path={`/u/${id}`} />
       <BackControl roles={roles} />
       {state === 'loading' ? (

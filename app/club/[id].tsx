@@ -9,11 +9,12 @@ import { fetchClub, fetchClubOf, joinClub, leaveClub, removeFromClub, updateClub
 import { openConfirm } from '@/lib/confirm'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-181: a club's page — its header, its members, and for a member the
 // chat; for its owner, editing the club and removing a member. Anyone can see
 // a club (they're public, like a profile); only members read its chat.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function ClubScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -43,10 +44,10 @@ export default function ClubScreen() {
     try { await fn(); refreshTag(); await load() } catch (e) { setError(clubErrorText(e)) } finally { setBusy(false) }
   }
 
-  if (state === 'loading') return <KitScreen ground="cotton"><BackControl roles={roles} /><Loader color={roles.text} /></KitScreen>
-  if (state === 'unavailable') return <KitScreen ground="cotton"><BackControl roles={roles} /><StripedNotice roles={roles}>Clubs need the database set up first: run supabase/clubs.sql.</StripedNotice></KitScreen>
-  if (state === 'failed') return <KitScreen ground="cotton"><BackControl roles={roles} /><StripedNotice roles={roles} failed>This club couldn't be loaded.</StripedNotice></KitScreen>
-  if (state === 'missing' || !data) return <KitScreen ground="cotton"><BackControl roles={roles} /><EmptyState roles={roles} title="No such club" body="It may have closed: a club closes when its last member leaves." /></KitScreen>
+  if (state === 'loading') return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><Loader color={roles.text} /></KitScreen>
+  if (state === 'unavailable') return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><StripedNotice roles={roles}>Clubs need the database set up first: run supabase/clubs.sql.</StripedNotice></KitScreen>
+  if (state === 'failed') return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><StripedNotice roles={roles} failed>This club couldn't be loaded.</StripedNotice></KitScreen>
+  if (state === 'missing' || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><EmptyState roles={roles} title="No such club" body="It may have closed: a club closes when its last member leaves." /></KitScreen>
 
   const { club, members } = data
   const isOwner = !!me && club.owner_id === me
@@ -54,7 +55,7 @@ export default function ClubScreen() {
   const full = club.member_limit != null && members.length >= club.member_limit
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title={club.name} path={`/club/${club.id}`} />
       <BackControl roles={roles} />
       <View style={styles.top}><ClubHeader roles={roles} club={club} members={members.length} /></View>

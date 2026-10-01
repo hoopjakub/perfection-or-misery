@@ -13,13 +13,14 @@ import { useRunOwner, RunOwnerLine } from '@/components/profile/ProfileParts'
 import { shareRunLabel, shareRunLink, runLink } from '@/lib/shareRun'
 import { punditsSummary, callOf, type PunditRow } from '@/lib/punditsSummary'
 import { useGameStore } from '@/store/gameStore'
+import { FLOODLIT } from '@/lib/appearance'
 
 // D1 · The verdict (docs/ui-overhaul/07d), one treatment for every mode. The
 // tier lands as a super on a riveted label: Perfection wears the volt tape,
 // Misery wears the hazard stripe, everything else wears its colourway. The
 // score and the multiplier that earned it sit underneath, then what the
 // pundits said before a ball was kicked, then the share label (D11).
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 
 export type VerdictTone = 'perfection' | 'misery' | 'middle'
 

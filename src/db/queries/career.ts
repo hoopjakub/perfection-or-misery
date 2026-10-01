@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { CareerStats, CareerPlayerLine, Competition, PlayerStatLine } from '@/types/stats'
 import type { CareerRun } from '@/lib/careerSummary'
+import { shownRuns } from '@/lib/shownNames'
 
 // `career_stats` isn't in the generated Supabase types yet — use an untyped client.
 const db = supabase as any
@@ -75,7 +76,7 @@ const CAREER_COLS = [
 export async function fetchCareerRuns(userId: string): Promise<CareerRun[]> {
   for (const cols of CAREER_COLS) {
     const { data, error } = await db.from('runs').select(cols).eq('user_id', userId).order('created_at', { ascending: true }).limit(2000)
-    if (!error) return (data ?? []) as CareerRun[]
+    if (!error) return shownRuns((data ?? []) as CareerRun[])
     if (error.code !== '42703' && !/column .* does not exist|failed to parse/i.test(error.message)) throw error
   }
   return []

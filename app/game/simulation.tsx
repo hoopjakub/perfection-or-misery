@@ -66,6 +66,7 @@ import {
   type TableRowVM, type TableZone, type Mark, type MiniGroup, type TieVM,
 } from '@/components/season/SeasonParts'
 import { ThumbBar, CloseRun, BackToLive, SkipPlate, askAbandon } from '@/components/season/RunChrome'
+import { FLOODLIT } from '@/lib/appearance'
 
 const WC_GROUP_MATCHDAYS = 3
 
@@ -120,7 +121,7 @@ const SPEED_MS: Record<Speed, number> = {
 }
 
 // ── Kit Drop pieces shared by the Champions League and World Cup screens ────
-const nylon = ROLES.nylon
+const nylon = ROLES[FLOODLIT]
 const clCountryOf = (t: CLTeam) => countryForClClub(t.clubName)
 
 
@@ -649,7 +650,7 @@ function CLSimulation() {
   const clStarted = phase !== 'review'
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
-      <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+      <KitScreen ground={FLOODLIT} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
         <RunHeader roles={nylon} stage={6} colourway={colourwayFor(comp.mode)} back={false} tournament
           title={clStarted ? undefined : 'The league phase'}
           right={<CloseRun onPress={() => askAbandon(() => setIsPlaying(false))} />} />
@@ -1300,7 +1301,7 @@ function WCSimulation() {
   const wcStage = phase === 'review' ? 'draw' : phase === 'group_review' ? 'done' : 'live'
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
-      <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+      <KitScreen ground={FLOODLIT} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
         <RunHeader roles={nylon} stage={6} colourway={colourwayFor('world_cup')} back={false} tournament
           title={wcStage === 'draw' ? 'The group draw' : undefined}
           right={<CloseRun onPress={() => askAbandon(() => {})} />} />
@@ -1554,7 +1555,7 @@ function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colourway, 
 
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
-      <KitScreen ground="nylon" contentStyle={{ paddingBottom: space[4] }} scrollRef={scrollRef} scrollEventThrottle={64}
+      <KitScreen ground={FLOODLIT} contentStyle={{ paddingBottom: space[4] }} scrollRef={scrollRef} scrollEventThrottle={64}
         onScroll={e => setScrolledAway(e.nativeEvent.contentOffset.y > AWAY_PX)}>
         <RunHeader roles={nylon} stage={6} colourway={colourway} back={false} tournament right={<CloseRun onPress={onAbandon} />} />
         <KitText t="tag" color={nylon.textMuted}>{`${competitionLabel} · Knockouts`}</KitText>

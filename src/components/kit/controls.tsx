@@ -16,12 +16,26 @@ import { hexToHsv, hsvToHex, readHex, isHex, type HSV } from '@/lib/colour'
 // Pressing moves the plate into its 2px offset, like a label pressed onto cloth.
 type PlateVariant = 'primary' | 'secondary' | 'quiet' | 'destructive'
 
+// P8.5-01 (1 Oct 2026, the maintainer): every button answers the tap: "when
+// you click on it and it is waiting for a request or even if it is not, you need
+// to see the text change to waiting or something while also it darkening a
+// little as if you would tap it and kept holding it". So a tap puts the plate
+// into WAITING at once (held-in look, a little darker, "Waiting…"), and the
+// action runs a frame later: a continue that starts heavy work (simulating a
+// season, building the draw) used to freeze the thread before the press could
+// even paint, which read as a dead button. A promise holds WAITING until it
+// settles; a plain action holds it for HOLD_MS, long enough to cover the
+// screen change it usually starts. While waiting, the plate takes no second tap.
+const HOLD_MS = 700
+
 export function Plate({
-  label, onPress, roles, variant = 'primary', icon, disabled, missingStep, loading, style, accessibilityHint,
+  label, onPress, roles, variant = 'primary', icon, disabled, missingStep, loading, style, accessibilityHint, waitingLabel = 'Waiting…',
 }: {
   label: string
-  onPress: () => void
+  onPress: () => unknown
   roles: Roles
+  /** What the plate says while its action runs (P8.5-01). */
+  waitingLabel?: string
   variant?: PlateVariant
   icon?: IconName
   disabled?: boolean
@@ -30,16 +44,35 @@ export function Plate({
   style?: StyleProp<ViewStyle>
   accessibilityHint?: string
 }) {
-  const inactive = disabled || loading
+  const [waiting, setWaiting] = useState(false)
+  const alive = useRef(true)
+  useEffect(() => () => { alive.current = false }, [])
+  const busy = waiting || !!loading
+  const inactive = disabled || busy
   const face = FACE[variant](roles, !!disabled)
   const hasOffset = variant === 'primary' && !disabled
-  const shown = disabled && missingStep ? missingStep : label
+  const shown = disabled && missingStep ? missingStep : busy ? waitingLabel : label
+  const press = () => {
+    if (inactive) return
+    pulseTap()
+    setWaiting(true)
+    // A frame for the waiting look to paint, then the action.
+    requestAnimationFrame(() => setTimeout(() => {
+      let result: unknown
+      try { result = onPress() } catch (e) { if (alive.current) setWaiting(false); throw e }
+      if (result && typeof (result as Promise<unknown>).then === 'function') {
+        (result as Promise<unknown>).finally(() => { if (alive.current) setWaiting(false) })
+      } else {
+        setTimeout(() => { if (alive.current) setWaiting(false) }, HOLD_MS)
+      }
+    }, 0))
+  }
 
   return (
     <View style={[variant === 'quiet' ? null : { paddingRight: OFFSET, paddingBottom: OFFSET }, style]}>
       {hasOffset && <View style={[styles.offset, { backgroundColor: roles.offset }]} />}
       <Pressable
-        onPress={() => { pulseTap(); onPress() }}
+        onPress={press}
         disabled={inactive}
         // Disabled plates stay focusable so a screen reader can read the missing step.
         focusable
@@ -51,9 +84,11 @@ export function Plate({
           styles.plate,
           variant === 'quiet' ? styles.quiet : null,
           { backgroundColor: face.bg, borderColor: face.border, borderWidth: face.borderWidth },
-          pressed && !inactive && (hasOffset
+          (pressed || busy) && !disabled && (hasOffset
             ? { transform: [{ translateX: OFFSET }, { translateY: OFFSET }] }
             : { backgroundColor: face.pressedBg }),
+          // Waiting reads as held: pressed in, and a little darker.
+          busy && !disabled && styles.waiting,
         ]}
       >
         {({ pressed }) => (
@@ -72,7 +107,7 @@ export function Plate({
               </KitText>
               {icon && !disabled && <Icon name={icon} size={20} color={face.text} />}
             </View>
-            {loading && <ProgressBar color={face.text} />}
+            {busy && <ProgressBar color={face.text} />}
           </>
         )}
       </Pressable>
@@ -476,6 +511,8 @@ const styles = StyleSheet.create({
     minHeight: 52, paddingHorizontal: space[5], justifyContent: 'center', overflow: 'hidden',
   },
   quiet: { minHeight: 48, paddingHorizontal: space[2] },
+  // P8.5-01: "darkening a little", on any face (orange, outline or red).
+  waiting: { opacity: 0.78 },
   plateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2] },
   destructiveEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 10 },
   loaderWrap: { alignItems: 'center', gap: 8 },

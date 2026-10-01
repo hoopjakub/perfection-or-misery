@@ -4,6 +4,7 @@ import { router, useNavigation } from 'expo-router'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Plate, StripedNotice, Checkbox } from '@/components/kit'
 import { takeConfirmRequest } from '@/lib/confirm'
+import { EVERYDAY } from '@/lib/appearance'
 
 // ConfirmScreen — see src/lib/confirm.ts for why this is a route.
 export default function ConfirmScreen() {
@@ -11,12 +12,12 @@ export default function ConfirmScreen() {
   const [working, setWorking] = useState(false)
   const [failed, setFailed] = useState(false)
   const [optedOut, setOptedOut] = useState(false)
-  const roles = ROLES.cotton
+  const roles = ROLES[EVERYDAY]
 
   // Reloaded on web with nothing pending: there's no decision to make.
   if (!request) {
     return (
-      <KitScreen ground="cotton" scroll={false}>
+      <KitScreen ground={EVERYDAY} scroll={false}>
         <KitText t="superM" color={roles.text}>NOTHING TO CONFIRM</KitText>
         <Plate label="Back to Play" onPress={() => router.replace('/(tabs)')} roles={roles} style={styles.plate} />
       </KitScreen>
@@ -67,7 +68,7 @@ export default function ConfirmScreen() {
   confirmRef.current = () => { void confirm() }
 
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       <View style={styles.top}>
         <KitText t="superL" color={roles.text} accessibilityRole="header">{request.question.toUpperCase()}</KitText>
         <KitText t="bodyL" color={roles.textMuted}>{request.consequence}</KitText>

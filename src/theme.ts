@@ -231,23 +231,30 @@ export function towardInk(hex: string, amount: number): string {
 
 // Match-rating 0–10 → band color. Was implemented identically in both
 // SquadSummary.tsx and MatchStatsParts.tsx — single source now.
-// Match ratings in SofaScore's scale (P8-44), the one football fans already
-// read at a glance. Bands and colours taken from SofaScore's published scale
-// image (files.sofascore.com/news/2024/10/03-Sofascore-News_Ratings-Scale):
-// below 6.0 red, 6.0 orange, 6.5 yellow, 7.0 green, 8.0 teal, 9.0 and up blue.
-// These are the only hex values outside the Kit palette on purpose: the point
-// is that they're SofaScore's, not ours.
+// Match ratings on PoM's own scale (P8.5-33, replacing P8-44's copy of
+// SofaScore's published colours: "nothing is actually from the app", the
+// maintainer, 29 Sept 2026). The bands and colours are his (1 Oct 2026): the
+// logo's volt for 8–9, its red for 5–6, a magenta above 9 for the rare great
+// game, and below 5 a violet, "purplish, disgust almost". Mint, slate and
+// amber between, none of them SofaScore's blue, teal, green, yellow or orange.
+// Ink on the five light fills reads 7.5:1 or better; cotton on the red 4.37:1
+// and on the violet 4.46:1 (the dark fills); on nylon every fill but the
+// violet reads 3.7:1 or better.
+export const RATING_BANDS = [
+  { min: 9, colour: '#F264FF' },    // magenta: a great game (ink on it 7.5:1)
+  { min: 8, colour: '#D5FF3F' },    // the logo's volt: outstanding (ink 17:1)
+  { min: 7, colour: '#62D39A' },    // mint: very good (ink 10.5:1)
+  { min: 6.5, colour: '#9FB0C2' },  // slate: a normal game (ink 8.8:1)
+  { min: 6, colour: '#E0A43A' },    // amber: below par (ink 8.9:1); not the orange that means "you"
+  { min: 5, colour: '#E1141F' },    // the logo's red: a bad day (cotton 4.37:1, the red exception)
+  { min: -Infinity, colour: '#8E4FD6' }, // violet: a disgrace (cotton 4.46:1)
+] as const
 export function ratingColor(r: number): string {
-  if (r >= 9) return '#374DF5'
-  if (r >= 8) return '#00ADC4'
-  if (r >= 7) return '#00C424'
-  if (r >= 6.5) return '#D9AF00'
-  if (r >= 6) return '#ED7E07'
-  return '#DC0C00'
+  return RATING_BANDS.find(b => r >= b.min)!.colour
 }
 
-/** The figure's colour on a ratingColor chip. Red and blue need light text
- *  (5.1:1 and 5.9:1 against cotton); the four bright bands need ink (7:1 and up). */
+/** The figure's colour on a ratingColor chip: cotton on the two dark fills (the
+ *  red and the violet), ink on the five light ones. */
 /** A rating as it's written everywhere (P8-144's rule): one decimal, or two for
  *  a season average, but a whole number stays whole — "10", never "10.0". */
 export function formatRating(r: number, decimals: 1 | 2 = 1): string {
@@ -256,7 +263,7 @@ export function formatRating(r: number, decimals: 1 | 2 = 1): string {
 }
 
 export function ratingInk(r: number): string {
-  return r >= 9 || r < 6 ? prim.cotton : prim.ink
+  return r < RATING_BANDS[4].min ? prim.cotton : prim.ink
 }
 
 export const shadows = {
@@ -296,8 +303,8 @@ export const shadows = {
 
 // A draft card's line (P8-163 notes): keeper, defence, midfield, attack, so a
 // grid of sixteen players reads by shape before anyone reads a word. Each
-// takes ink text; the attack is Misery red (ink on it 5.4:1).
-export const LINE_TINT = { GK: '#FFB224', DEF: '#4DA3FF', MID: '#3DDC84', ATT: '#FF2E4D' } as const
+// takes ink text; the attack is Misery red (the logo's, P8.5-26; ink on it 4.02:1).
+export const LINE_TINT = { GK: '#FFB224', DEF: '#4DA3FF', MID: '#3DDC84', ATT: '#E1141F' } as const
 export type Line = keyof typeof LINE_TINT
 export function lineOf(position: string): Line {
   if (position === 'GK') return 'GK'
@@ -320,12 +327,17 @@ export const prim = {
   cottonMuted: '#A4A4AB',
   nylonFaint:  '#6C6C73',
   orange:      '#FF5A00',  // safety orange — the zip-tie tag, always "you"
-  volt:        '#4FFF3F',  // boot volt — the good end, Perfection
+  // P8.5-26 (29 Sept 2026): the new logo's own volt and red are the app's, so
+  // the mark and the screens are one palette (was #4FFF3F / #FF2E4D).
+  volt:        '#D5FF3F',  // the logo's volt, the good end, Perfection: 16:1 on nylon, ink on it 17:1
   draw:        '#6E6E74',
   // Misery red (P8-74 / P8-87): loss and danger where a hazard stripe can't
-  // fit. Leans pink so it never reads as the orange "you" or Chaos's brick.
-  misery:      '#FF2E4D',  // fill, and text on nylon (5.0:1); ink on it 5.4:1
-  miseryDeep:  '#D1123F',  // the same red as TEXT on cotton (4.9:1)
+  // fit. The logo's red since P8.5-26: as text on nylon it reads 3.79:1, under
+  // AA, which the maintainer accepted as the one exception to the contrast rule
+  // (docs/ui-overhaul/13-CARRY-FORWARD.md §3.3). On cotton a deeper shade of
+  // the same red keeps text at AA, so the exception stays as small as it can.
+  misery:      '#E1141F',  // the logo's red: fill, and text on nylon (3.79:1, the accepted exception); ink on it 4.02:1
+  miseryDeep:  '#C0101B',  // the same red as TEXT on cotton (5.67:1)
   // The floodlit pitch (P8-04, from the colour brief): a very dark, warm green,
   // not FIFA-menu green, with lines that are barely there. Cotton text on it
   // reads at about 14:1.

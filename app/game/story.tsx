@@ -12,12 +12,13 @@ import { useGameStore } from '@/store/gameStore'
 import { storyText, storyBody } from '@/engine/press'
 import { openClub, openRunMatch } from '@/lib/runNav'
 import { shareRunLabel } from '@/lib/shareRun'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D6 · A story, opened (docs/ui-overhaul/07d). Typeset as a back page: the
 // headline in the super, the standfirst, a short paragraph, and the table as
 // it stood that week — frozen, never recalculated. Every club named is a link;
 // the previous and next stories sit at the foot, in the order they ran.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 const NO_STORIES: Story[] = []
 
@@ -49,7 +50,7 @@ export default function StoryScreen() {
 
   if (!story) {
     return (
-      <KitScreen ground="nylon">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <EmptyState roles={roles} title="Story not found" body="The press belongs to a live run, and this one has ended or the page was reloaded." />
       </KitScreen>
@@ -60,7 +61,7 @@ export default function StoryScreen() {
   const go = (sid: string) => router.replace({ pathname: '/game/story', params: { id: sid } } as never)
 
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title={headline} description={standfirst} />
       <WebKeys onKey={k => { if (k === 'ArrowLeft' && prev) go(prev.id); if (k === 'ArrowRight' && next) go(next.id) }} />
       <BackControl roles={roles} />

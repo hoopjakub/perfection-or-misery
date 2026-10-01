@@ -470,7 +470,7 @@ export const kitStyles = StyleSheet.create({
 
 // ── RatingSquare ─────────────────────────────────────────────────────────────
 // A player's rating, drawn one way everywhere (the maintainer, 23 Sept): the
-// square in its rating colour (SofaScore's scale, `ratingColor`), the figure
+// square in its rating colour (PoM's own five bands, `ratingColor`, P8.5-33), the figure
 // in the ink that reads on it. Ten screens each had their own copy with its
 // own size and decimals; this is the one they share. `sm` is for pitches and
 // tight rows, `decimals: 2` for a season average.

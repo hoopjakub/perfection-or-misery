@@ -16,6 +16,7 @@ import { ordinal } from '@/lib/format'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
 import type { DraftedPlayer } from '@/types/game'
+import { EVERYDAY, useScreenRoles } from '@/lib/appearance'
 
 // The full path's Europe (P8-113): every league's table, the list of leagues,
 // and what each domestic finish earns. These were the last pre-redesign
@@ -24,8 +25,7 @@ import type { DraftedPlayer } from '@/types/game'
 // LeagueTable, zones and crests as every other table in the app.
 
 const CL = MODE_THEMES.champions_league
-const nylon = ROLES.nylon
-
+// P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 // A domestic place is worth a berth (or nothing), drawn as the table's zones.
 const BERTH_ZONE: Record<UclRound, TableZone> = {
   league_phase: { code: 'UCL', label: 'League phase', tone: 'top' },
@@ -107,6 +107,7 @@ export function LeagueRow({ roles, table, yours, onPress }: { roles: Roles; tabl
 // ── One league's table ───────────────────────────────────────────────────────
 
 export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable; playerClubId?: string | null }) {
+  const nylon = useScreenRoles()
   const roles = nylon
   // A split league carries the table at the split too: flip between the two.
   const hasPhases = !!table.regularStandings && table.regularStandings.length > 0
@@ -150,7 +151,7 @@ export function openLeaguesBrowser(tables: SimLeagueTable[], playerClubId?: stri
     render: () => (
       <View>
         {tables.map(t => (
-          <LeagueRow key={t.rank} roles={nylon} table={t} yours={!!playerClubId && t.standings.some(s => s.clubId === playerClubId)}
+          <LeagueRow key={t.rank} roles={ROLES[EVERYDAY]} table={t} yours={!!playerClubId && t.standings.some(s => s.clubId === playerClubId)}
             onPress={() => openLeagueTable(t, playerClubId)} />
         ))}
       </View>

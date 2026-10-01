@@ -30,10 +30,9 @@ import type { ContextMatch } from '@/engine/match-context'
 import { clTieShootout } from '@/engine/match-context'
 import { useTeamColourPair } from '@/lib/teamColours'
 import { Ionicons } from '@expo/vector-icons'
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { Crest, RatingSquare, EventMark, Tag, KitText } from '@/components/kit'
 import { ROLES, space, formatRating, type Roles } from '@/theme'
-import type { CommentaryLine } from '@/engine/commentary'
+import { SENT_OFF, type CommentaryLine } from '@/engine/commentary'
 
 // ── Request: everything needed to (re)generate one match's detail ───────────
 export type MatchDetailRequest = {
@@ -311,8 +310,10 @@ export function StatBar({ label, home, away, accent, pct }: {
   const homeLeads = home > away
   const awayLeads = away > home
   const fmt = (v: number) => pct ? `${v}%` : (Number.isInteger(v) ? String(v) : v.toFixed(2))
-  // The leading side's bar wears its club colour (FotMob's reading) when the
-  // screen provides one; the figure itself stays in the accent, for contrast.
+  // The leading side's bar wears its club colour when the screen provides
+  // one; the figure itself stays in the accent, for contrast. Square-ended
+  // and thick, like a tape on the kit (P8.5-33: the rounded hairline bars were
+  // FotMob's).
   const pair = useTeamColourPair()
   const homeBar = pair?.home ?? accent, awayBar = pair?.away ?? accent
   return (
@@ -324,10 +325,10 @@ export function StatBar({ label, home, away, accent, pct }: {
       </View>
       <View style={styles.statBarTrack}>
         <View style={[styles.statBarHalf, { flexDirection: 'row-reverse' }]}>
-          <View style={{ width: `${homeShare * 100}%`, backgroundColor: homeLeads ? homeBar : prim.cottonMuted, borderRadius: 2, height: 4 }} />
+          <View style={{ width: `${homeShare * 100}%`, backgroundColor: homeLeads ? homeBar : prim.cottonMuted, height: 6 }} />
         </View>
         <View style={styles.statBarHalf}>
-          <View style={{ width: `${none ? 0 : (1 - homeShare) * 100}%`, backgroundColor: awayLeads ? awayBar : prim.cottonMuted, borderRadius: 2, height: 4 }} />
+          <View style={{ width: `${none ? 0 : (1 - homeShare) * 100}%`, backgroundColor: awayLeads ? awayBar : prim.cottonMuted, height: 6 }} />
         </View>
       </View>
     </View>
@@ -453,7 +454,7 @@ export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
           <Text style={{ fontFamily: font.bodyBold, color: e.ownGoal ? colors.danger : prim.cotton }}>{e.playerName}</Text>
           {tag ? <Text style={[styles.evTag, e.ownGoal && { color: colors.danger }]}>  {tag}</Text> : null}
         </Text>
-        {/* FotMob's running score beside the goal, so the timeline reads as the match went. */}
+        {/* The score this goal made, so the timeline reads as the match went. */}
         {score ? <View style={styles.evScore}><Text style={styles.evScoreText}>{score}</Text></View> : null}
         {credit ? <Text style={styles.evAssist} numberOfLines={1}>{credit}</Text> : null}
         {e.errorByName ? <Text style={styles.evError} numberOfLines={1}>error led to goal · {e.errorByName}</Text> : null}
@@ -516,10 +517,12 @@ export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
   )
 }
 
-// Timeline with the period breaks folded in, FotMob's way (P8-33): home on the
-// left and away on the right, each goal with the score it made, the added time
-// announced where the stoppage starts ("+4 minutes added"), each break as a
-// pill with the score at that point, and a goal VAR ruled out on its side.
+// Timeline with the period breaks folded in (P8-33): home on the left and away
+// on the right, each goal with the score it made, the fourth official's board
+// where the stoppage starts ("Board up · +4"), each break as a band across the
+// width with the score at that point, and a goal VAR chalked off on its side.
+// P8.5-33: the idea is common to every match app; the words and the shapes are
+// ours (FotMob's centred pill between hairlines and its "+4 minutes added" went).
 export type VarCall = { minute: number; isHome: boolean; playerName: string; reason: string }
 
 export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [] }: {
@@ -533,14 +536,14 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
 }) {
   const breaks = duration > 90
     ? [
-        { at: 45,  label: 'HT',  plus: addedTime.firstHalf },
-        { at: 90,  label: '90 mins', plus: addedTime.secondHalf },
-        { at: 105, label: 'ET HT', plus: addedTime.firstET ?? 0 },
-        { at: 120, label: 'AET', plus: addedTime.secondET ?? 0 },
+        { at: 45,  label: 'Half-time',  plus: addedTime.firstHalf },
+        { at: 90,  label: 'After 90', plus: addedTime.secondHalf },
+        { at: 105, label: 'Extra-time break', plus: addedTime.firstET ?? 0 },
+        { at: 120, label: 'After extra time', plus: addedTime.secondET ?? 0 },
       ]
     : [
-        { at: 45, label: 'HT', plus: addedTime.firstHalf },
-        { at: 90, label: 'FT', plus: addedTime.secondHalf },
+        { at: 45, label: 'Half-time', plus: addedTime.firstHalf },
+        { at: 90, label: 'Full time', plus: addedTime.secondHalf },
       ]
 
   const out: React.ReactNode[] = []
@@ -552,7 +555,7 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
   const announce = (at: number, plus: number) => {
     if (plus <= 0 || announced.has(at)) return
     announced.add(at)
-    out.push(<Text key={`plus${at}`} style={styles.addedText}>+{plus} minute{plus === 1 ? '' : 's'} added</Text>)
+    out.push(<Text key={`plus${at}`} style={styles.addedText}>Board up · +{plus}</Text>)
   }
   const flushBreaksBefore = (minute: number) => {
     // A 90+3 goal belongs BEFORE the full-time line, so compare on the whole
@@ -562,9 +565,8 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
       announce(b.at, b.plus)
       out.push(
         <View key={`b${b.at}`} style={styles.breakRow}>
-          <View style={styles.breakLine} />
-          <View style={styles.breakPill}><Text style={styles.breakText}>{b.label} {score.h} - {score.a}</Text></View>
-          <View style={styles.breakLine} />
+          <Text style={styles.breakText}>{b.label}</Text>
+          <Text style={styles.breakText}>{score.h}–{score.a}</Text>
         </View>,
       )
     }
@@ -595,13 +597,13 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
     }
     const e = it.e!
     if (e.type === 'goal') e.isHome ? score.h++ : score.a++
-    out.push(<EventRow key={`e${i}`} e={e} score={e.type === 'goal' ? `${score.h} - ${score.a}` : undefined} />)
+    out.push(<EventRow key={`e${i}`} e={e} score={e.type === 'goal' ? `${score.h}–${score.a}` : undefined} />)
   })
   flushBreaksBefore(revealUpTo ?? Infinity)
   return <>{out}</>
 }
 
-// ── The feed, FotMob's way (P8-33) ──────────────────────────────────────────
+// ── The feed (P8-33) ────────────────────────────────────────────────────────
 // A line with a title (a goal, a card, a change, a big chance, VAR) is a card:
 // the minute in a badge, the heading, the player on his own row beside his
 // club's crest, then the words, with the side's colour down the edge so whose
@@ -633,25 +635,15 @@ export function FeedRow({ row, homeName, awayName, homeClubId, awayClubId }: {
       </View>
     )
   }
-  // A sending-off gets FotMob's red wash across the top of its card and a red
-  // minute badge: the one moment in the feed that should look like trouble.
-  const red = row.title === 'Red card'
+  // A sending-off is the one moment in the feed that should look like trouble:
+  // a red minute badge and a red heading. (P8.5-33: the red wash fading down
+  // the card was FotMob's.)
+  const red = row.title === SENT_OFF
   return (
     <View style={[styles.feedCard, { borderLeftColor: colour }]}>
-      {red && (
-        <Svg style={styles.feedWash} pointerEvents="none" preserveAspectRatio="none" viewBox="0 0 10 10">
-          <Defs>
-            <LinearGradient id="redWash" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={prim.misery} stopOpacity={0.55} />
-              <Stop offset="1" stopColor={prim.misery} stopOpacity={0} />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="10" height="10" fill="url(#redWash)" />
-        </Svg>
-      )}
       <View style={styles.feedCardHead}>
         <View style={[styles.feedBadge, red && { backgroundColor: prim.misery }]}><Text style={styles.feedBadgeText}>{row.minute}</Text></View>
-        <Text style={[styles.feedTitle, row.big && { color: prim.cotton }]} numberOfLines={1}>{row.title}</Text>
+        <Text style={[styles.feedTitle, row.big && { color: prim.cotton }, red && { color: prim.misery }]} numberOfLines={1}>{row.title}</Text>
       </View>
       {row.player && side !== null ? (
         <View style={styles.feedPlayer}>
@@ -694,8 +686,8 @@ const styles = StyleSheet.create({
   statNums: { flexDirection: 'row', alignItems: 'center' },
   statVal: { width: 52, fontSize: 12, color: prim.cottonMuted },
   statLabel: { flex: 1, fontSize: 11, color: prim.cottonMuted, textAlign: 'center' },
-  statBarTrack: { flexDirection: 'row', gap: 3, marginTop: 3 },
-  statBarHalf: { flex: 1, backgroundColor: prim.nylonSunken, borderRadius: 2, height: 4, overflow: 'hidden' },
+  statBarTrack: { flexDirection: 'row', gap: 2, marginTop: 3 },
+  statBarHalf: { flex: 1, backgroundColor: prim.nylonSunken, height: 6, overflow: 'hidden' },
 
   evRow: { alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
   evMinute: { width: 38, fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textAlign: 'center' },
@@ -708,11 +700,9 @@ const styles = StyleSheet.create({
   // reads as exceptional without relying on hue alone.
   evTag: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   evError: { fontSize: 10, color: colors.danger, },
-  breakRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
-  breakLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: prim.ruleNylon },
+  breakRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: prim.nylonSunken, borderLeftWidth: 4, borderLeftColor: prim.cotton, paddingHorizontal: spacing.sm, paddingVertical: 4, marginVertical: spacing.xs },
   breakText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cotton, textTransform: 'uppercase', letterSpacing: 0.5 },
-  breakPill: { backgroundColor: prim.nylonSunken, borderWidth: StyleSheet.hairlineWidth, borderColor: prim.ruleNylon, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  addedText: { fontSize: 10, color: prim.cottonMuted, textAlign: 'center', paddingVertical: 2 },
+  addedText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.volt, letterSpacing: 0.4, paddingVertical: 2, paddingLeft: spacing.sm },
   feedMarker: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, backgroundColor: prim.nylonSunken, marginVertical: 4 },
   feedMarkerMin: { width: 40, fontSize: 11, fontFamily: font.bodyBlack, color: prim.cotton },
   feedPlain: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: prim.ruleNylon },
@@ -720,7 +710,6 @@ const styles = StyleSheet.create({
   feedDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
   feedText: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted, lineHeight: 19 },
   feedCard: { backgroundColor: prim.nylonRaised, borderLeftWidth: 4, padding: spacing.sm, gap: 6, marginVertical: 4 },
-  feedWash: { position: 'absolute', left: 0, right: 0, top: 0, height: 72 },
   feedCardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   feedBadge: { backgroundColor: prim.cotton, paddingHorizontal: 6, paddingVertical: 2, minWidth: 34, alignItems: 'center' },
   feedBadgeText: { fontSize: 11, fontFamily: font.bodyBlack, color: prim.nylon },

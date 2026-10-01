@@ -1,6 +1,6 @@
 # 03 · Injection
 
-> Part of the [release set](00-README.md). Status: **findings and plan**, from a scan of every `.ts` and `.tsx` file under `src/` and `app/` and the SQL in `supabase/`, 29 September 2026. The maintainer: "is the app safe from SQL injections? If not, add it to early Phase 8.5 and note it down for the website as well."
+> Part of the [release set](00-README.md). Status: **fixed 1 October 2026** (§4; `scripts/verify-no-string-queries.ts` keeps it fixed). Originally **findings and plan**, from a scan of every `.ts` and `.tsx` file under `src/` and `app/` and the SQL in `supabase/`, 29 September 2026. The maintainer: "is the app safe from SQL injections? If not, add it to early Phase 8.5 and note it down for the website as well."
 
 ## 1 · The short answer
 

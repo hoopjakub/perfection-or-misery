@@ -11,9 +11,11 @@ import { ROLES, space, border } from '@/theme'
 import { KitText, Icon, Plate } from '@/components/kit'
 import { openConfirm } from '@/lib/confirm'
 import { useGameStore } from '@/store/gameStore'
+import { FLOODLIT } from '@/lib/appearance'
 
-const roles = ROLES.nylon
-
+// P8.5-25: floodlit. Its colours are baked into the StyleSheet below, which a
+// hook can't reach, and it's mostly the live simulation's bar.
+const roles = ROLES[FLOODLIT]
 export function ThumbBar({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets()
   // The bar runs edge to edge; its plates keep the reading column's width, so

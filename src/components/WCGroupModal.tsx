@@ -9,6 +9,7 @@ import { spacing, typography, MODE_THEMES, ROLES, prim, font } from '@/theme'
 import { LeagueTable, ZoneLegend, WC_GROUP_ZONES } from '@/components/season/SeasonParts'
 import { getFlag } from '@/lib/flagMap'
 import type { WCTeam, WCGroupMatch } from '@/engine/world-cup-sim'
+import { FLOODLIT } from '@/lib/appearance'
 
 const WC = MODE_THEMES.world_cup
 
@@ -86,12 +87,12 @@ function WCGroupView({ group, matches, onOpenMatch }: {
   // two, 3RD for the place that goes into the best-thirds race, OUT for last.
   return (
     <View>
-      <LeagueTable roles={ROLES.nylon} zones={WC_GROUP_ZONES.slice(0, teams.length)}
+      <LeagueTable roles={ROLES[FLOODLIT]} zones={WC_GROUP_ZONES.slice(0, teams.length)}
         rows={teams.map(t => ({
           clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, flag: getFlag(t.clubId),
           played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
         }))} />
-      <ZoneLegend roles={ROLES.nylon} zones={WC_GROUP_ZONES} />
+      <ZoneLegend roles={ROLES[FLOODLIT]} zones={WC_GROUP_ZONES} />
       <WCGroupMatchdays matches={matches} onOpenMatch={onOpenMatch} />
     </View>
   )

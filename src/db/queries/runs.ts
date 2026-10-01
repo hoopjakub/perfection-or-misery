@@ -12,6 +12,7 @@ import type { DraftedPlayer, GameMode } from '@/types/game'
 import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { CLSeasonResult } from '@/engine/cl-sim'
 import { resolveDifficulty, type Difficulty, type CustomDifficulty } from '@/engine/difficulty'
+import { shownRun } from '@/lib/shownNames'
 
 // Build the difficulty columns saved on every run so the achievements/leaderboard/
 // run-history screens can read back exactly how hard a run was. `difficulty` is
@@ -330,5 +331,5 @@ export async function fetchRunById(runId: string) {
     .single()
 
   if (error) throw error
-  return data
+  return shownRun(data)
 }

@@ -59,11 +59,10 @@ function ringsOf(feature: any, step: number): Ring[] {
   return out
 }
 
-// About 10,700 points in all. The reveal spins on every second point (it's
-// seen for 2.6 s, at up to 360 px); the About page's endless globe on every
-// fourth. The landed country is drawn from every point.
+// About 10,700 points in all. The globes spin on every second point; a landed
+// country is drawn from every point. (The About globe's every-fourth-point set
+// went with P8.5-34: its borders read as blurred.)
 const LAND: Ring[] = FEATURES.flatMap(f => ringsOf(f, 2))
-const LAND_COARSE: Ring[] = FEATURES.flatMap(f => ringsOf(f, 4))
 
 /** Meridians and parallels every `spacing` degrees, as open lines. */
 function graticule(spacing: number, step: number): Ring[] {
@@ -83,10 +82,23 @@ function graticule(spacing: number, step: number): Ring[] {
 }
 const GRATICULE = graticule(30, 6)
 
-/** A country's centre, to turn it to face you: the mean of its outer ring on the sphere. */
+/** A country's main landmass: its biggest polygon, by number of points. P8.5-12:
+ *  France's outline includes French Guiana, and a centre or reach taken over
+ *  every polygon put the camera over the Atlantic, zoomed out to South America. */
+function mainPolygon(feature: any): number[][][] | null {
+  let best: number[][][] | null = null
+  for (const poly of polygonsOf(feature)) if (!best || poly[0].length > best[0].length) best = poly
+  return best
+}
+const mainFeature = (feature: any) => {
+  const main = mainPolygon(feature)
+  return main ? { ...feature, geometry: { type: 'Polygon', coordinates: main } } : feature
+}
+
+/** A country's centre, to turn it to face you: the mean of its main landmass's outer ring on the sphere. */
 function centroidOf(feature: any): [number, number] {
   let X = 0, Y = 0, Z = 0, n = 0
-  for (const poly of polygonsOf(feature)) for (const [lon, lat] of poly[0]) {
+  for (const poly of polygonsOf(mainFeature(feature))) for (const [lon, lat] of poly[0]) {
     const l = lon * DEG, p = lat * DEG
     X += Math.cos(p) * Math.cos(l); Y += Math.cos(p) * Math.sin(l); Z += Math.sin(p); n++
   }
@@ -228,7 +240,8 @@ export function GlobeReveal({ targetId, targetName, flag, accent, size = 220, sp
     setLocked(false)
     const [tLon, tLat] = target ? centroidOf(target) : [0, 20]
     // Near the country's size: the radius at which it spans FILL of the view.
-    const reach = target ? reachOf(targetRings, tLon, tLat) : Math.PI / 2
+    // Reach from the main landmass too (French Guiana mustn't widen France's view).
+    const reach = target ? reachOf(ringsOf(mainFeature(target), 1), tLon, tLat) : Math.PI / 2
     const R = Math.max(R0, Math.min(R0 * MAX_ZOOM, (FILL * size) / Math.sin(Math.min(reach, 80 * DEG))))
     // Two whole turns on the way; the spin stops at a tilt a globe looks right
     // at, and the zoom finishes centred on the country itself.
@@ -317,12 +330,30 @@ export function GlobeReveal({ targetId, targetName, flag, accent, size = 220, sp
 }
 
 // ── The endless globe ────────────────────────────────────────────────────────
-// Turns for ever with one country lit: a decorative piece (the About page's
-// Slovakia, id 703). The same shapes on the UI thread, every fourth point.
-export function SpinningGlobe({ targetId = 703, accent, size = 160, degPerSec = 10 }: {
+// The About page's globe (P8.5-34, the maintainer, 1 Oct 2026): it spins, and
+// when Slovakia comes round it slowly zooms in until the whole country fills
+// the view, with a dot where the game was built (north of Bratislava, between
+// Stupava, Malacky, Pezinok and Senec); it holds there, then zooms out and
+// spins on, round again.
+//
+// One clock drives it all: `t` runs 0 → 1 over a whole cycle and repeats, and
+// every frame's longitude, tilt, radius and dot come from it in a worklet, so
+// there's still no React render per frame. The spin ends facing the country
+// and the next one starts from the same view (a full turn round), so the loop
+// never jumps.
+//
+// "The borders are not sharp" (same note): the old one drew every FOURTH point
+// rounded to whole pixels. Now every second point to a tenth of a pixel, the
+// country itself from every point.
+const BUILT_AT: [number, number] = [48.32, 17.18]  // lat, lon
+const SPIN_MS = 36000, IN_MS = 2400, HOLD_MS = 3200, OUT_MS = 2400
+const CYCLE = SPIN_MS + IN_MS + HOLD_MS + OUT_MS
+
+export function SpinningGlobe({ targetId = 703, accent, size = 160 }: {
   targetId?: number
   accent: string
   size?: number
+  /** Kept for callers; the spin's speed is now part of the cycle (SPIN_MS). */
   degPerSec?: number
 }) {
   const reduced = useReducedMotion()
@@ -332,26 +363,65 @@ export function SpinningGlobe({ targetId = 703, accent, size = 160, degPerSec = 
   const targetRings = useMemo(() => (target ? ringsOf(target, 1) : []), [target])
   const [tLon, tLat] = useMemo(() => (target ? centroidOf(target) : [0, 15]), [target])
   const tilt = Math.max(-35, Math.min(45, tLat))
-  const lon = useSharedValue(tLon)
+  // Zoomed, the country spans this much of the view (like the draw's reveal).
+  const Rz = useMemo(() => {
+    const reach = target ? reachOf(ringsOf(mainFeature(target), 1), tLon, tLat) : Math.PI / 2
+    return Math.max(R, Math.min(R * MAX_ZOOM, (0.4 * size) / Math.sin(Math.min(reach, 80 * DEG))))
+  }, [target, targetRings, tLon, tLat, R, size])
+  const dot = useMemo(() => {
+    const l = BUILT_AT[1] * DEG, p = BUILT_AT[0] * DEG
+    return [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)]
+  }, [])
+  const t = useSharedValue(0)
 
   useEffect(() => {
-    if (reduced) { lon.value = tLon; return }
-    // 360° and back to 0° is the same view, so the repeat never jumps.
-    lon.value = tLon
-    lon.value = withRepeat(withTiming(tLon + 360, { duration: (360 / degPerSec) * 1000, easing: Easing.linear }), -1, false)
-    return () => cancelAnimation(lon)
-  }, [reduced, degPerSec, tLon])
+    // Less motion: the country zoomed in with its dot, still.
+    if (reduced) { t.value = (SPIN_MS + IN_MS + HOLD_MS / 2) / CYCLE; return }
+    t.value = 0
+    t.value = withRepeat(withTiming(1, { duration: CYCLE, easing: Easing.linear }), -1, false)
+    return () => cancelAnimation(t)
+  }, [reduced])
 
-  const landProps = useAnimatedProps(() => ({ d: project(LAND_COARSE, lon.value, tilt, R, C, true, 0) }))
-  const targetProps = useAnimatedProps(() => ({ d: project(targetRings, lon.value, tilt, R, C, true, 1) }))
+  // The view at clock time `c`: longitude, zoom (0 spinning, 1 in close).
+  const view = (c: number) => {
+    'worklet'
+    const ms = c * CYCLE
+    const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+    if (ms < SPIN_MS) return { lon: tLon - 360 + 360 * (ms / SPIN_MS), zoom: 0 }
+    if (ms < SPIN_MS + IN_MS) return { lon: tLon, zoom: ease((ms - SPIN_MS) / IN_MS) }
+    if (ms < SPIN_MS + IN_MS + HOLD_MS) return { lon: tLon, zoom: 1 }
+    return { lon: tLon, zoom: 1 - ease((ms - SPIN_MS - IN_MS - HOLD_MS) / OUT_MS) }
+  }
+  const frame = (c: number) => {
+    'worklet'
+    const v = view(c)
+    return { lon: v.lon, lat: tilt + (tLat - tilt) * v.zoom, r: R + (Rz - R) * v.zoom, zoom: v.zoom }
+  }
+
+  const seaProps = useAnimatedProps(() => ({ r: frame(t.value).r }))
+  const landProps = useAnimatedProps(() => { const f = frame(t.value); return { d: project(LAND, f.lon, f.lat, f.r, C, true, 1) } })
+  const targetProps = useAnimatedProps(() => { const f = frame(t.value); return { d: project(targetRings, f.lon, f.lat, f.r, C, true, 1) } })
+  const ringProps = useAnimatedProps(() => ({ strokeOpacity: 0.35 * (1 - frame(t.value).zoom) }))
+  // The dot: where the game was built, shown only as the zoom comes in, with a
+  // slow pulse while it holds.
+  const dotProps = useAnimatedProps(() => {
+    const f = frame(t.value)
+    const cl = Math.cos(f.lon * DEG), sl = Math.sin(f.lon * DEG), cp = Math.cos(f.lat * DEG), sp = Math.sin(f.lat * DEG)
+    const a = dot[0] * cl + dot[1] * sl
+    const x = C + f.r * (dot[1] * cl - dot[0] * sl), y = C - f.r * (cp * dot[2] - sp * a)
+    const shown = Math.max(0, (f.zoom - 0.6) / 0.4)
+    const pulse = 1 + 0.25 * Math.sin(t.value * CYCLE / 260)
+    return { cx: x, cy: y, r: 3.2 * pulse, opacity: shown }
+  })
 
   return (
     <View style={[styles.wrap, { width: size, height: size }]}>
       <Svg width={size} height={size}>
-        <Circle cx={C} cy={C} r={R} fill={SEA} stroke={accent} strokeWidth={1.25} strokeOpacity={0.5} />
-        <AnimatedPath animatedProps={landProps} fill={LAND_FILL} stroke={BORDER} strokeWidth={0.5} strokeLinejoin="round" />
+        <AnimatedCircle cx={C} cy={C} animatedProps={seaProps} fill={SEA} stroke={accent} strokeWidth={1.25} strokeOpacity={0.5} />
+        <AnimatedPath animatedProps={landProps} fill={LAND_FILL} stroke={BORDER} strokeWidth={0.6} strokeLinejoin="round" />
         <AnimatedPath animatedProps={targetProps} fill={accent} stroke={accent} strokeWidth={1.25} strokeLinejoin="round" />
-        <Circle cx={C} cy={C} r={R + 6} fill="none" stroke={accent} strokeWidth={1} strokeOpacity={0.35} strokeDasharray="4 8" />
+        <AnimatedCircle animatedProps={dotProps} fill={prim.orange} stroke={prim.ink} strokeWidth={1.5} />
+        <AnimatedCircle cx={C} cy={C} r={R + 6} animatedProps={ringProps} fill="none" stroke={accent} strokeWidth={1} strokeDasharray="4 8" />
       </Svg>
     </View>
   )

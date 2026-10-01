@@ -16,6 +16,7 @@ export type DifficultyMeta = {
   weightedPicks?: boolean
 }
 import type { FeatRun } from '@/lib/feats'
+import { shownRun, shownRuns } from '@/lib/shownNames'
 export type DifficultyFields = { difficulty: string | null; difficulty_meta: DifficultyMeta | null }
 
 export type LeaderboardEntry = DifficultyFields & {
@@ -115,7 +116,7 @@ export async function fetchLeaderboard(
   // without them (same degrade-gracefully pattern as fetchAchievementRuns).
   for (const cols of [LEADERBOARD_COLS_WITH_CLUB, LEADERBOARD_COLS_WITH_PROFILE, LEADERBOARD_COLS_WITH_DIFFICULTY, LEADERBOARD_COLS]) {
     const { data, error } = await buildQuery(cols)
-    if (!error) return ((data as unknown as LeaderboardEntry[]) ?? [])
+    if (!error) return shownRuns((data as unknown as LeaderboardEntry[]) ?? [])
       .map(r => ({ ...r, difficulty: r.difficulty ?? null, difficulty_meta: r.difficulty_meta ?? null }))
       .filter(r => hardEnough(r, filter.minHardness))
       .slice(filter.minHardness != null ? (filter.offset ?? 0) : 0, (filter.minHardness != null ? (filter.offset ?? 0) : 0) + (filter.limit ?? 50))
@@ -163,7 +164,7 @@ export async function fetchPersonalBest(userId: string) {
     .single()
 
   if (error && error.code !== 'PGRST116') throw error
-  return data
+  return data ? shownRun(data) : data
 }
 
 export type RunHistoryEntry = DifficultyFields & {
@@ -190,7 +191,7 @@ export async function fetchRunHistory(userId: string, limit = 20): Promise<RunHi
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit)
-    if (!error) return ((data as unknown as RunHistoryEntry[]) ?? []).map(r => ({
+    if (!error) return shownRuns((data as unknown as RunHistoryEntry[]) ?? []).map(r => ({
       ...r, difficulty: r.difficulty ?? null, difficulty_meta: r.difficulty_meta ?? null,
     }))
     if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error

@@ -3,11 +3,12 @@ import { View, StyleSheet } from 'react-native'
 import { ROLES, space, border, font } from '@/theme'
 import { KitScreen, KitText, BackControl, H2 } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Privacy and Terms share one plain page (Phase 6). Written from what the code
 // actually does (src/lib/auth.ts, src/db/queries, supabase/functions), so a
 // change there means a change here.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 // Set EXPO_PUBLIC_CONTACT_EMAIL to show a contact line; until then there isn't one.
 export const CONTACT = process.env.EXPO_PUBLIC_CONTACT_EMAIL
 export const UPDATED = '19 September 2026'
@@ -17,7 +18,7 @@ export function LegalPage({ title, path, intro, sections }: {
   sections: { heading: string; body: string[] }[]
 }) {
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title={title} description={intro} path={path} />
       <BackControl roles={roles} />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{title.toUpperCase()}</KitText>

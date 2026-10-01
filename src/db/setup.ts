@@ -3,10 +3,13 @@ import * as SQLite from 'expo-sqlite'
 import { Asset } from 'expo-asset'
 import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
+// The bundled database, by flavour: metro.config.js swaps ./dbAsset for
+// ./dbAsset.legal (generic competition names) in the legal build (P8.5-30).
+import DB_ASSET from './dbAsset'
 
 // Increment this whenever the bundled players_v5.db changes.
 // This forces the device to re-copy the fresh DB on next launch.
-const DB_VERSION = 18
+const DB_VERSION = 19
 
 let _db: SQLite.SQLiteDatabase | null = null
 
@@ -43,7 +46,7 @@ async function initDb(): Promise<SQLite.SQLiteDatabase> {
 // since we never write to this database.
 async function initBundledDbWeb(): Promise<void> {
   if (_db) return
-  const asset = Asset.fromModule(require('../../assets/db/players_v5.db'))
+  const asset = Asset.fromModule(DB_ASSET)
   await asset.downloadAsync()
   const uri = asset.localUri ?? asset.uri
   const res = await fetch(uri)
@@ -89,7 +92,7 @@ async function initBundledDbNative(): Promise<void> {
 
     // Copy fresh DB from bundled asset
     await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true })
-    const asset = Asset.fromModule(require('../../assets/db/players_v5.db'))
+    const asset = Asset.fromModule(DB_ASSET)
     await asset.downloadAsync()
 
     if (asset.localUri) {

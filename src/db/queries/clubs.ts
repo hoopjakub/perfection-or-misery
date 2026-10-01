@@ -70,11 +70,32 @@ export async function fetchClubOf(userId: string): Promise<Club | null> {
 /** Clubs by name or tag, the biggest first; the ones with room are marked by the caller. */
 export async function searchClubs(query: string): Promise<(Club & { members: number })[]> {
   const q = query.trim()
-  let sel = db().from('clubs').select('*, club_members(count)').order('created_at', { ascending: false }).limit(30)
-  if (q.length >= 2) sel = sel.or(`name.ilike.%${q.replace(/[%,()]/g, '')}%,tag.ilike.%${cleanTag(q)}%`)
-  const { data, error } = await sel
-  if (error) fail(error)
-  return (data ?? []).map((c: any) => ({ ...c, members: c.club_members?.[0]?.count ?? 0 }))
+  const base = () => db().from('clubs').select('*, club_members(count)').order('created_at', { ascending: false }).limit(30)
+  let rows: any[]
+  if (q.length >= 2) {
+    // P8.5-23 (docs/release/03-INJECTION.md, I1): the search text used to go
+    // into one `.or()` filter STRING, with %,() stripped by hand: hand-escaping
+    // a filter language is the pattern that breaks the day someone adds a
+    // character. Now it's two plain `.ilike()` filters, whose values the
+    // builder sends as parameters, run together and merged. LIKE's own
+    // wildcards (% _ and the escape \) are escaped so they match themselves.
+    const like = (s: string) => `%${s.replace(/[\\%_]/g, c => '\\' + c)}%`
+    // A query with no tag characters ("@@") would search tags for "%%", i.e.
+    // everything, so the tag half only runs when there's a tag to look for.
+    const tag = cleanTag(q)
+    const [byName, byTag] = await Promise.all([
+      base().ilike('name', like(q)),
+      tag ? base().ilike('tag', like(tag)) : Promise.resolve({ data: [], error: null }),
+    ])
+    if (byName.error) fail(byName.error)
+    if (byTag.error) fail(byTag.error)
+    rows = [...new Map([...(byName.data ?? []), ...(byTag.data ?? [])].map((c: any) => [c.id, c])).values()]
+  } else {
+    const { data, error } = await base()
+    if (error) fail(error)
+    rows = data ?? []
+  }
+  return rows.map((c: any) => ({ ...c, members: c.club_members?.[0]?.count ?? 0 }))
     .sort((a: any, b: any) => b.members - a.members)
 }
 

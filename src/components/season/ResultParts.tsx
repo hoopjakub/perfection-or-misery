@@ -8,11 +8,12 @@ import { SaveStatusLine } from '@/components/ui'
 import { ResultRow } from './SeasonParts'
 import { summariseScorers } from '@/engine/run-stats'
 import type { MatchScorers } from '@/types/stats'
+import { FLOODLIT } from '@/lib/appearance'
 
 // The pieces every result screen shares (P8-54, P8-71): the figures under the
 // verdict, a section with its heading, and the plates at the foot. League, UCL,
 // UCL full path and World Cup results are one design, so they're one set of parts.
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 
 /** The run in big figures: points, record, goals. */
 export function ResultFigures({ items }: { items: [label: string, value: string | number][] }) {

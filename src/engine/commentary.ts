@@ -16,10 +16,14 @@ import type { MatchEvent, MatchStats } from '@/types/match-stats'
 import { buildShotMap } from './match-geometry'
 import { mulberry32, deriveSeed } from '@/lib/rng'
 
+/** The sending-off card's heading; the feed draws that one card in red. */
+export const SENT_OFF = 'Sent off'
+
 export type CommentaryLine = {
   minute: string; text: string; big: boolean; isHome?: boolean
-  /** FotMob's card heading ("Goal!", "Yellow card", "VAR"…); a line without
-   *  one is a plain row in the feed, not a card (P8-33). */
+  /** The card's heading ("Goal", "Booked", "Chalked off"…); a line without
+   *  one is a plain row in the feed, not a card (P8-33). P8.5-33: the words
+   *  are ours, not FotMob's "Goal!" / "Yellow card" / "Substitution". */
   title?: string
   /** Who the card is about, shown on its own row with the crest. */
   player?: string
@@ -67,21 +71,21 @@ export function lineForEvent(e: MatchEvent, homeName: string, awayName: string):
         ], key)
       }
       if (e.errorByName) text += ` ${last(e.errorByName)} will want that one back.`
-      return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.ownGoal ? 'Own goal' : e.penalty ? 'Penalty goal' : 'Goal!', player: e.playerName }
+      return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.ownGoal ? 'Own goal' : e.penalty ? 'Penalty, scored' : 'Goal', player: e.playerName }
     case 'penMissed':
       text = e.saved && e.keeperName
         ? pick([`Saved. ${last(e.keeperName)} guesses right and keeps out ${who}'s penalty.`, `${who}'s penalty, and ${last(e.keeperName)} gets down to it.`], key)
         : pick([`${who} misses from the spot.`, `Over the bar. ${who} has wasted the penalty.`], key)
       return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.saved ? 'Penalty saved' : 'Penalty missed', player: e.playerName }
     case 'red':
-      return { minute: minuteOf(e), text: pick([`Red card. ${who} is off, and ${team} are down to ten.`, `${who} is sent off. ${team} will have to do it with ten.`], key), big: true, isHome: e.isHome, title: 'Red card', player: e.playerName }
+      return { minute: minuteOf(e), text: pick([`Red card. ${who} is off, and ${team} are down to ten.`, `${who} is sent off. ${team} will have to do it with ten.`], key), big: true, isHome: e.isHome, title: SENT_OFF, player: e.playerName }
     case 'yellow':
-      return { minute: minuteOf(e), text: pick([`${who} goes into the book.`, `Yellow card for ${who}.`, `${who} is booked.`], key), big: false, isHome: e.isHome, title: 'Yellow card', player: e.playerName }
+      return { minute: minuteOf(e), text: pick([`${who} goes into the book.`, `Yellow card for ${who}.`, `${who} is booked.`], key), big: false, isHome: e.isHome, title: 'Booked', player: e.playerName }
     case 'sub':
       return {
         minute: minuteOf(e),
         text: e.offPlayerName ? `${team} change: ${who} on, ${last(e.offPlayerName)} off.` : `${team} bring on ${who}.`,
-        big: false, isHome: e.isHome, title: 'Substitution', player: e.playerName,
+        big: false, isHome: e.isHome, title: 'Change', player: e.playerName,
       }
     case 'injury':
       return { minute: minuteOf(e), text: pick([`${who} is down and can't carry on.`, `Bad news for ${team}: ${who} has to come off hurt.`], key), big: false, isHome: e.isHome, title: 'Injury', player: e.playerName }
@@ -119,8 +123,8 @@ export function commentaryUpTo(events: MatchEvent[], minute: number, homeName: s
 // ── The chances between the events (P8-33) ───────────────────────────────────
 // The sheet stores goals, cards, changes and injuries as timed events, but the
 // rest of a match only as counts: shots saved, off target, blocked and off the
-// woodwork, corners, offsides, fouls. FotMob's feed says all of those, so the
-// feed went quiet for twenty minutes at a time here. This gives each of them a
+// woodwork, corners, offsides, fouls. A real feed says all of those, so ours
+// went quiet for twenty minutes at a time here. This gives each of them a
 // minute and a line.
 //
 // The shots are the shot map's own (`buildShotMap`, the same seed), so the
@@ -148,7 +152,7 @@ export type FeedItem = {
   minute: number
   kind: FeedKind
   line: CommentaryLine
-  /** A goal ruled out, for the timeline (FotMob's "Goal ruled out – offside"). */
+  /** A goal ruled out, for the timeline ("VAR · chalked off, offside"). */
   var?: { isHome: boolean; playerName: string; reason: string }
   /** Which shot this line tells (index into the non-goal, non-penalty shots of
    *  `buildShotMap`), so the shot map can step through shots in time (P8-47). */
@@ -215,13 +219,13 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
       out.push({
         minute: m, kind: 'var',
         line: {
-          minute: `${m}'`, isHome: s.isHome, big: true, title: 'VAR', player: s.name,
+          minute: `${m}'`, isHome: s.isHome, big: true, title: 'Chalked off', player: s.name,
           text: pick([
             `${who} has it in the net for ${team}! But VAR is checking… and it's ruled out for ${varReason}.`,
             `The celebrations stop. ${who}'s goal is chalked off by VAR: ${varReason}.`,
           ], key),
         },
-        var: { isHome: s.isHome, playerName: s.name, reason: varOffside ? 'Goal ruled out – offside' : `Goal ruled out – ${varReason === 'handball' ? 'handball' : 'foul'}` },
+        var: { isHome: s.isHome, playerName: s.name, reason: varOffside ? 'chalked off, offside' : `chalked off, ${varReason === 'handball' ? 'handball' : 'a foul'}` },
       })
       return
     }
@@ -288,7 +292,7 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
   if (extra) boards.push([105, detail.addedTime.firstET, 'the first period'], [120, detail.addedTime.secondET, 'extra time'])
   for (const [at, n, of] of boards) {
     if (!n) continue
-    out.push({ minute: at + 0.001, kind: 'added', line: { minute: `${at}'`, text: `${n} minute${n === 1 ? '' : 's'} added at the end of ${of}.`, big: false, title: `+${n} minutes added` } })
+    out.push({ minute: at + 0.001, kind: 'added', line: { minute: `${at}'`, text: `${n} minute${n === 1 ? '' : 's'} added at the end of ${of}.`, big: false, title: `Board up · +${n}` } })
   }
   return out.sort((a, b) => a.minute - b.minute)
 }

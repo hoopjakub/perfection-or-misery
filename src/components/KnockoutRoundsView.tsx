@@ -5,11 +5,12 @@ import { TieRow, type TieVM } from '@/components/season/SeasonParts'
 // Every knockout, qualifying and result list renders through the shared tie
 // row (src/components/season/SeasonParts.tsx), so a tie reads the same
 // everywhere. These screens are all nylon.
-const roles = ROLES.nylon
+// P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
 import type { WCKnockoutMatch } from '@/engine/world-cup-sim'
 import type { QualTie } from '@/engine/cl-qualifying'
 import { getFlag } from '@/lib/flagMap'
+import { useScreenRoles } from '@/lib/appearance'
 
 // The knockout tie row and its adapters. The "Knockout Rounds" list this file
 // was named for is gone (P8-79): the result screens draw their knockouts as a
@@ -62,6 +63,7 @@ export type KoRoundVM = {
 // Exported so QualifyingLadder (its round → path grouping is qualifying-
 // specific) renders the exact same row as every other screen.
 export function KnockoutTieRow({ tie }: { tie: KoTieVM; accent?: string }) {
+  const roles = useScreenRoles()
   return <TieRow roles={roles} tie={koTieToVM(tie)} />
 }
 

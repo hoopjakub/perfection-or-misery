@@ -43,6 +43,7 @@ import { MomentumGraph, momentumMarkers } from '@/components/MomentumGraph'
 import { Ceremony, type CeremonyKind } from '@/components/Ceremony'
 import { buildDeepMatchTimeline, type DeepMatchTimeline, type DeepFrame } from '@/engine/deep-match'
 import type { MatchStats, PlayerMatchLine } from '@/types/match-stats'
+import { EVERYDAY } from '@/lib/appearance'
 
 // §7: 1 match-minute = 0.5s real time, so 90' lands just under a minute and
 // 120' just over. Long enough to feel like a broadcast, short enough that Skip
@@ -61,7 +62,7 @@ type Phase = 'lineups' | 'live' | 'ceremony' | 'exiting'
 // pitch, the momentum graph, the stat bars, the timeline) are the ones the
 // match screen shares, and they're restyled in that screen's own pass (P4-H),
 // so nothing on them is lost in the meantime.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 // How long the hand-off spinner sits between the ceremony and the result
 // screen. Long enough to read as a deliberate transition rather than a stutter.
@@ -126,7 +127,7 @@ export default function DeepMatchScreen() {
   }
 
   return (
-    <WebColumn background={ROLES.nylon.bg}>
+    <WebColumn background={ROLES[EVERYDAY].bg}>
     <TeamColoursContext.Provider value={teamColours}>
     <MatchBeats
       request={request} detail={detail} phase={phase}

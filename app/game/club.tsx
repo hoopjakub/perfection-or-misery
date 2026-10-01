@@ -15,12 +15,13 @@ import { lineOf } from '@/engine/awards'
 import { storyText } from '@/engine/press'
 import { clubCode } from '@/data/club-codes'
 import type { RunMatch } from '@/engine/run-stats'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D5 · The club page (docs/ui-overhaul/07d), one route instead of the squad
 // and club-matches modals. The club as a tag with its finish and record, then
 // three tabs: its matches, its squad by position, and its season as a record.
 // Head to head with your XI always comes first.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 type Tab = 'matches' | 'squad' | 'record'
 
 const LINE_NAME: Record<string, string> = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' }
@@ -64,12 +65,12 @@ export default function ClubScreen() {
     return teamInFormation(usual[0] as Formation, picks)
   }, [usual, squad, data])
 
-  if (loading) return <KitScreen ground="nylon"><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText></KitScreen>
-  if (failed || !data) return <KitScreen ground="nylon"><BackControl roles={roles} /><InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} /></KitScreen>
-  if (!name) return <KitScreen ground="nylon"><BackControl roles={roles} /><EmptyState roles={roles} title="Not in this run" body="This club didn't play in the competition." /></KitScreen>
+  if (loading) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText></KitScreen>
+  if (failed || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} /></KitScreen>
+  if (!name) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><EmptyState roles={roles} title="Not in this run" body="This club didn't play in the competition." /></KitScreen>
 
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title={name} description={forCompetition(`${name}'s season in a Perfection or Misery run.`, data.mode)} />
       <BackControl roles={roles} />
 

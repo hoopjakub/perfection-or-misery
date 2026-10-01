@@ -5,18 +5,19 @@ import { useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border, font } from '@/theme'
 import { KitScreen, KitText, BackControl } from '@/components/kit'
 import { EXPLAINERS, RULES_ORDER } from '@/data/explainers'
+import { EVERYDAY } from '@/lib/appearance'
 
 // The rulebook as a route (Phase 5), replacing RulesModal and the `?` bubble's
 // modal. Opened on a topic, that topic leads in the big type and the rest of
 // the rulebook follows in story order, so one question leads to the rest.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 export default function RulesScreen() {
   const { topic } = useLocalSearchParams<{ topic?: string }>()
   const lead = topic ? EXPLAINERS[topic] : undefined
   const rest = RULES_ORDER.filter(k => k !== topic && EXPLAINERS[k])
   return (
-    <KitScreen ground="nylon">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="How it works" description="The rules of every competition in Perfection or Misery, in plain words." path="/game/rules" />
       <BackControl roles={roles} />
       {lead ? (

@@ -11,6 +11,7 @@ import {
 import { useUserStore } from '@/store/userStore'
 import { useCrestStore } from '@/store/crestStore'
 import { ROLES, space } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-132: your own crest, in an edit mode that saves it. The kit's drawn
 // badge (P8-12), chosen rather than generated; or your profile picture. It
@@ -21,7 +22,7 @@ import { ROLES, space } from '@/theme'
 // P8-175 (the maintainer, 27 Sept): your profile picture as your crest if you
 // want it, and no uploading a separate picture; and far more to draw with —
 // nine shapes, thirteen devices, a trim, and any colour (P8-177's picker).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 const SWATCHES = CREST_COLOURS.map(c => ({ ...c, hex: crestHex(c.id) }))
 
 export default function CrestEditScreen() {
@@ -53,7 +54,7 @@ export default function CrestEditScreen() {
 
   if (!uid) {
     return (
-      <KitScreen ground="cotton">
+      <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
         <EmptyState roles={roles} icon="lock" title="Sign in for a crest" body="Your crest is kept with your account, so a guest can't have one." />
       </KitScreen>
@@ -79,7 +80,7 @@ export default function CrestEditScreen() {
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Your crest" path="/crest-edit" />
       <BackControl roles={roles} />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>YOUR CREST</KitText>

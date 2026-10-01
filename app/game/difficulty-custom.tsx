@@ -9,11 +9,12 @@ import {
   KitScreen, KitText, RunHeader, StepControl, Toggle, SectionTag, Plate, ListRow, Tag,
 } from '@/components/kit'
 import { multiplierText } from '@/data/modes'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 2 · Custom — docs/ui-overhaul/07b B2 move 2. One control per row and a
 // live readout of what the settings add up to. Edits write straight to the
 // store so they're in place the moment the plate is pressed.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function CustomDifficultyScreen() {
   const {
@@ -30,7 +31,7 @@ export default function CustomDifficultyScreen() {
   }
 
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <RunHeader roles={roles} stage={2} colourway={colourwayFor(mode)} title="Custom rules" />
 
       {/* The live readout sits first so every change below is felt at once. */}

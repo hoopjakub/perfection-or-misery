@@ -12,12 +12,13 @@ import {
 import { openConfirm } from '@/lib/confirm'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space, border, font } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
 
 // P8-181: the club's chat. The latest fifty messages, then each new one as
 // it's written (Realtime, members only by the database's own rule). Yours on
 // the right in orange; everyone else's on the left under their name. Hold one
 // of yours to delete it; the owner can delete any.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
 
@@ -68,7 +69,7 @@ export default function ClubChatScreen() {
 
   const isOwner = !!me && club?.owner_id === me
   return (
-    <KitScreen ground="cotton" scroll={false} contentStyle={styles.screen}>
+    <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       <PageMeta title={club ? `${club.name} · chat` : 'Club chat'} path={`/club/chat`} />
       <BackControl roles={roles} />
       {club && (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Platform, View, StyleSheet } from 'react-native'
 import { ROLES, space } from '@/theme'
 import { KitText, Stripe, Icon } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Offline strip (Phase 6). The game itself runs offline from the bundled
 // database; only saving a run, Ranks and accounts need the network, so the
@@ -9,7 +10,7 @@ import { KitText, Stripe, Icon } from '@/components/kit'
 // ponytail: web only, from the browser's own online/offline events. Native
 // would need expo-network (a new native build); until then the run's save
 // line already says when a save fails and offers a retry.
-const roles = ROLES.nylon
+const roles = ROLES[EVERYDAY]
 
 export function OfflineStrip() {
   const [offline, setOffline] = useState(false)

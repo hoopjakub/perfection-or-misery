@@ -99,6 +99,18 @@ The web build (Vercel) is public by definition, so it builds as `legal`.
 | Club and player names | Real | Altered unless a lawyer clears real ones (L1); **the altered-name tables aren't written yet** |
 | Player data | The open data (both flavours: the Transfermarkt database is gone from the app) | The same |
 
+### 5.3 As built (1 October 2026)
+
+| Piece | How |
+|---|---|
+| Which flavour | `EXPO_PUBLIC_BRAND_MODE`: `real` is personal, anything else legal. EAS: `preview` and `production` are legal, `preview-personal` / `production-personal` personal, `development` personal. The public web build is forced legal in `vercel.json` |
+| Crests and competition logos | `metro.config.js` resolves `brand.ts`'s `./logoMap` to `logoMap.legal.ts` (empty) in the legal build: a legal web export has **0** crest files, a personal one **780** |
+| Names in the app's text | `scripts/babel-legal-names.js` rewrites our own string literals, template text and JSX text with the table in `src/data/legal-names.js` (never comments, never the table itself) |
+| Names in the data | `npm run build-db` writes `assets/db/players_legal.db` beside `players_v5.db` (leagues by country, "England League"; the four competitions by L2), and Metro bundles it instead in the legal build (`src/db/dbAsset.legal.ts`) |
+| Names stored as text | `club_facts.json` (JSON, which Babel never sees) and `runs.league_name` from Supabase (written by both flavours) are renamed on read: `src/lib/clubFacts.ts`, `src/lib/shownNames.ts` |
+| Check | `scripts/verify-legal-build.ts` (the legal database, the empty logo map, the swaps, the plugin on a sample and on its own table) |
+| Not yet | The altered club and player names (tables to draft for the maintainer), and the independence disclaimer (§5.1). Switching flavour locally needs `npx expo start --clear` |
+
 ## 6 · Steps (Phase 8.5, early)
 
 1. Two `eas.json` profiles per build type (`-personal`, `-legal`) with the brand variable.

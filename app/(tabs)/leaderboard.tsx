@@ -15,6 +15,7 @@ import { ROLES, space, border, prim, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunLabel, RunLabelSkeleton, EmptyState, InlineError, Chips, Tag, Plate, Field } from '@/components/kit'
 import { SegmentSwitch } from '@/components/season/SeasonParts'
 import { PlayerName } from '@/components/profile/ProfileParts'
+import { EVERYDAY } from '@/lib/appearance'
 
 // D9 · Ranks (docs/ui-overhaul/07d). The best runs anyone has played, each as
 // the same garment label your own runs wear, with its place set in the super
@@ -24,7 +25,7 @@ import { PlayerName } from '@/components/profile/ProfileParts'
 // P8-85: two boards (all time, and this week), filters by mode and difficulty,
 // your own runs marked in the list, and your place on the board even when it's
 // outside the fifty ("You: 214th").
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 // P8-152: a season's board is the same runs read between its dates.
 type Board = 'all' | 'week' | 'season'
@@ -155,7 +156,7 @@ export default function LeaderboardScreen() {
   const inList = !!me && leaderboard.some(e => e.user_id === me)
 
   return (
-    <KitScreen ground="cotton" width={wide ? 'wide' : 'column'}>
+    <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
       <PageMeta title="Ranks" description="The fifty best runs anyone has played, by score." path="/leaderboard" />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>RANKS</KitText>
       <KitText t="tag" color={roles.textMuted}>{board === 'week' ? 'The fifty best runs this week, by score' : 'The fifty best runs, by score'}</KitText>

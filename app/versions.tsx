@@ -5,14 +5,15 @@ import { PageMeta } from '@/components/PageMeta'
 import { ROLES, space, border } from '@/theme'
 import { VERSION_HISTORY } from '@/data/versionHistory'
 import { APP_VERSION } from '@/components/VersionButton'
+import { EVERYDAY } from '@/lib/appearance'
 
 // The version history (P8-73), newest first, each version with where its date
 // and its list come from (the GitHub commits, or the roadmap since the last one).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function VersionsScreen() {
   return (
-    <KitScreen ground="cotton">
+    <KitScreen ground={EVERYDAY}>
       <PageMeta title="Versions" description="Every version of Perfection or Misery and what changed." path="/versions" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>VERSIONS</KitText>

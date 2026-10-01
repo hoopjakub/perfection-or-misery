@@ -24,15 +24,22 @@ Deno.serve(async (req: Request) => {
     if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors })
 
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    // The id comes from the caller's token, never the request, but it still goes
+    // into three filter strings below, so it's checked to be a UUID first: one
+    // rule for every filter string (P8.5-23, docs/release/03-INJECTION.md).
     const id = user.id
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return new Response(JSON.stringify({ error: 'bad id' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } })
+    }
+    const uuid = (v: string) => v // checked just above
 
     // Rows first, in case a table has no ON DELETE CASCADE to auth.users.
     // Each delete is best-effort: a missing table must not strand the account.
     const steps: [string, (q: any) => any][] = [
       ['notifications',   q => q.delete().eq('user_id', id)],
-      ['friend_requests', q => q.delete().or(`from_user_id.eq.${id},to_user_id.eq.${id}`)],
-      ['friendships',     q => q.delete().or(`user_id.eq.${id},friend_id.eq.${id}`)],
-      ['versus_runs',     q => q.delete().or(`challenger_id.eq.${id},opponent_id.eq.${id}`)],
+      ['friend_requests', q => q.delete().or(`from_user_id.eq.${uuid(id)},to_user_id.eq.${uuid(id)}`)],
+      ['friendships',     q => q.delete().or(`user_id.eq.${uuid(id)},friend_id.eq.${uuid(id)}`)],
+      ['versus_runs',     q => q.delete().or(`challenger_id.eq.${uuid(id)},opponent_id.eq.${uuid(id)}`)],
       ['career_stats',    q => q.delete().eq('user_id', id)],
       // P8-88: the profile's details and look (they cascade from profiles too).
       ['profile_details', q => q.delete().eq('user_id', id)],

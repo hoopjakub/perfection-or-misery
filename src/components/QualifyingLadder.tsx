@@ -6,12 +6,12 @@ import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-l
 import { KnockoutTieRow, qualTieToKoRow } from '@/components/KnockoutRoundsView'
 import type { QualTie } from '@/engine/cl-qualifying'
 import { EUROPE } from '@/data/europe'
+import { useScreenRoles } from '@/lib/appearance'
 
 const COMPS = ['ucl', 'uel', 'uecl'] as const
 
 const CL = MODE_THEMES.champions_league
-const roles = ROLES.nylon
-
+// P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 // What winning a round gets you, under each round's heading, so the ladder
 // reads like a story. One short line (P8-113: "too much text"); it was a
 // sentence per round plus "losers are out of the UEFA Champions League".
@@ -33,6 +33,7 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
   // current round), so identity match is enough — no id scheme needed.
   justDecidedTie?: QualTie
 }) {
+  const roles = useScreenRoles()
   // P8-52: three ladders. Each competition's round is its own block, named
   // when the list holds more than one of them.
   const many = new Set(ties.map(t => t.comp ?? 'ucl')).size > 1

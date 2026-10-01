@@ -24,7 +24,13 @@ type Settings = {
   /** Less motion in the app, on top of the phone's own setting (which always
    *  applies): see src/hooks/useReducedMotion.ts. */
   reduceMotion: boolean
+  /** P8.5-25: light, dark, or whatever the phone is set to. Read once at
+   *  start-up (src/lib/appearance.ts); a change applies on the next launch. */
+  appearance: AppearanceChoice
 }
+
+export type AppearanceChoice = 'system' | 'light' | 'dark'
+const APPEARANCES: AppearanceChoice[] = ['system', 'light', 'dark']
 
 /** The last run you finished: the one thing "LAST TIME" and Home's "Again"
  *  both mean. They used to read two different places — the tags read the
@@ -40,9 +46,10 @@ type SettingsStore = Settings & {
   setSkipWarning: (on: boolean) => void
   setNoBenchWarning: (on: boolean) => void
   setReduceMotion: (on: boolean) => void
+  setAppearance: (a: AppearanceChoice) => void
 }
 
-const DEFAULTS: Settings = { skipWarning: true, noBenchWarning: true, reduceMotion: false }
+const DEFAULTS: Settings = { skipWarning: true, noBenchWarning: true, reduceMotion: false, appearance: 'system' }
 const KEYS = Object.keys(DEFAULTS) as (keyof Settings)[]
 type Saved = Settings & { lastRun: LastRun | null }
 const pick = (s: Saved): Saved => ({ ...Object.fromEntries(KEYS.map(k => [k, s[k]])) as Settings, lastRun: s.lastRun })
@@ -58,6 +65,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setSkipWarning: (on) => { set({ skipWarning: on }); save(pick(get())) },
   setNoBenchWarning: (on) => { set({ noBenchWarning: on }); save(pick(get())) },
   setReduceMotion: (on) => { set({ reduceMotion: on }); save(pick(get())) },
+  setAppearance: (a) => { set({ appearance: a }); save(pick(get())) },
 }))
 
 // Read once at start-up. A missing or damaged entry leaves the defaults.
@@ -65,7 +73,8 @@ function adopt(raw: string | null) {
   if (!raw) return
   try {
     const s = JSON.parse(raw) as Partial<Saved>
-    for (const k of KEYS) if (typeof s[k] === 'boolean') useSettingsStore.setState({ [k]: s[k] } as Partial<Settings>)
+    for (const k of KEYS) if (typeof s[k] === 'boolean' && typeof DEFAULTS[k] === 'boolean') useSettingsStore.setState({ [k]: s[k] } as Partial<Settings>)
+    if (APPEARANCES.includes(s.appearance as AppearanceChoice)) useSettingsStore.setState({ appearance: s.appearance })
     if (s.lastRun && typeof s.lastRun.mode === 'string') useSettingsStore.setState({ lastRun: s.lastRun })
   } catch (e) { console.warn('[settings] damaged entry, defaults kept:', e) }
 }

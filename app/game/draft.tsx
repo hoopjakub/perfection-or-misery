@@ -25,6 +25,7 @@ import { RackSpin, ClubCard, Hanger, PlayerTag, MarkBackdrop, type SpinItem } fr
 import { openConfirm } from '@/lib/confirm'
 import type { PositionSlot, DraftedPlayer } from '@/types/game'
 import type { ClubSeasonRow } from '@/engine/draft'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 4 · The draft — docs/ui-overhaul/07b B4 and B5.
 //
@@ -40,7 +41,7 @@ import type { ClubSeasonRow } from '@/engine/draft'
 // Draft RULES are unchanged from the old screen: the same spin pool, reroll
 // allowance, Cursed position spin, hidden-rating sort, and the move/swap
 // conditions (a swap only when both players can cover each other's slot).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 const BENCH_SIZE = 5
 
 type SpinPhase = 'idle' | 'position' | 'spinning' | 'picking'
@@ -497,7 +498,7 @@ export default function DraftScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <KitScreen ground="cotton" scroll={false} contentStyle={styles.center}>
+      <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
         <Loader color={roles.text} />
         <KitText t="tag" color={roles.textMuted}>Loading the pool…</KitText>
       </KitScreen>
@@ -702,7 +703,7 @@ export default function DraftScreen() {
   )
 
   return (
-    <KitScreen ground="cotton" scroll={false} width={wide ? 'wide' : 'column'} contentStyle={styles.screen}>
+    <KitScreen ground={EVERYDAY} scroll={false} width={wide ? 'wide' : 'column'} contentStyle={styles.screen}>
       {/* P8-125: while a player is held or picked, the screen quietly takes
           his mark, as the spin tints the club card (P8-05). */}
       {holding ? <MarkBackdrop roles={roles} full clubId={holding.player.clubId} clubName={holding.player.clubName} nationality={holding.player.nationality} />

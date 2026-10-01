@@ -19,12 +19,13 @@ import { View, StyleSheet, Pressable } from 'react-native'
 import { ROLES, space, border } from '@/theme'
 import { KitText, SectionTag } from '@/components/kit'
 import type { Absence } from '@/engine/availability'
+import { useScreenRoles } from '@/lib/appearance'
 
 const COLLAPSED_ROWS = 8
-const roles = ROLES.nylon
-
+// P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 // `accent` is kept for the callers; the kit's own roles colour the table now.
 export function MedicalTable({ absences }: { absences?: Absence[]; accent?: string }) {
+  const roles = useScreenRoles()
   const [expanded, setExpanded] = useState(false)
   if (!absences?.length) return null
 

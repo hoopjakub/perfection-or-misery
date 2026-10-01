@@ -7,6 +7,7 @@ import { SectionTag } from '@/components/kit'
 import { FormationPitch } from '@/components/season/AwardsParts'
 import type { PickedTeam } from '@/engine/awards'
 import type { DraftedPlayer, Formation } from '@/types/game'
+import { FLOODLIT } from '@/lib/appearance'
 
 // Your XI on the result pages, on the same kit pitch the awards use (P8-104:
 // this was the last pre-redesign pitch, a rounded box with coloured position
@@ -21,7 +22,7 @@ export function LineupPitch({ formation, draftedPlayers, benchPlayers, title, ca
   /** Hold a figure back by player id (the ratings reveal). */
   scoreText?: (playerId: string, ovr: number) => string
 }) {
-  const roles = ROLES.nylon
+  const roles = ROLES[FLOODLIT]
   const team: PickedTeam = {
     formation,
     xi: getSlotsForFormation(formation).flatMap(slot => {

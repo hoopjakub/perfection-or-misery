@@ -73,6 +73,7 @@ import { ThumbBar, BackToLive, SkipPlate } from '@/components/season/RunChrome'
 import { KitScreen, KitText, Plate, SectionTag, Chips, ListRow } from '@/components/kit'
 import { space } from '@/theme'
 import { getFlag } from '@/lib/flagMap'
+import { FLOODLIT } from '@/lib/appearance'
 
 const CL = MODE_THEMES.champions_league
 
@@ -82,7 +83,7 @@ const ROAD_STAGE: Record<string, number> = {
   world_sim: 1, qualifying: 2, quali_result: 2, review: 3, simulating: 3, knockout_phase: 4,
 }
 
-const nylon = ROLES.nylon
+const nylon = ROLES[FLOODLIT]
 
 const simRow = (t: SimTeam): TableRowVM => ({
   clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer,
@@ -131,7 +132,7 @@ function Road({ phase }: { phase: string }) {
   const insets = useSafeAreaInsets()
   return (
     <View style={{ paddingTop: insets.top + spacing.sm }}>
-      <RoadTape roles={ROLES.nylon} current={ROAD_STAGE[phase] ?? 0} />
+      <RoadTape roles={ROLES[FLOODLIT]} current={ROAD_STAGE[phase] ?? 0} />
     </View>
   )
 }
@@ -878,7 +879,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">{mine.name.toUpperCase()}</KitText>
           <KitText t="tag" color={nylon.textMuted}>{`${mine.country} · rank ${mine.rank} · ${preview.length} clubs`}</KitText>
           <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>
@@ -913,7 +914,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <KitText t="tag" color={nylon.textMuted}>
             {`${mine.name} · 2025/26 · ${domStage === 'split' ? domStageLabelRef.current : 'Regular season'} · MD ${playedMDs}/${domTotalMDs}`}
           </KitText>
@@ -1007,7 +1008,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <StampLabel roles={nylon} good={qualified} sub={berthText}
             text={pos === 1 ? `${mine.name} champions` : `Finished ${ordinalOf(pos)}`} />
           {cupLine && <KitText t="body" color={nylon.textMuted}>{cupLine}</KitText>}
@@ -1041,7 +1042,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">EUROPE IS DONE</KitText>
           <KitText t="bodyL" color={nylon.textMuted}>{`Every league played out for real. ${visible.length} of ${tables.length} in.`}</KitText>
           <SectionTag roles={nylon}>The champions</SectionTag>
@@ -1101,7 +1102,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">QUALIFYING</KitText>
           <KitText t="bodyL" color={nylon.textMuted}>Two legs a tie. Losers drop into the competition below. Tap any tie for its legs, extra time and shootout.</KitText>
           <SegmentSwitch<EuroComp> roles={nylon} value={ladder} onChange={setQualComp} options={(['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => ({ id: c, label: EUROPE[c].short }))} />
@@ -1145,7 +1146,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <StampLabel roles={nylon} good={through}
             text={through ? (playerHadTies ? `Into the ${comp.name}` : 'The field is set') : `Out in ${exitTie ? QUAL_ROUND_LABEL[exitTie.round].toLowerCase() : 'qualifying'}`}
             sub={through
@@ -1178,7 +1179,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">THE LEAGUE PHASE</KitText>
           <KitText t="tag" color={nylon.textMuted}>{comp.fullName}</KitText>
           <KitText t="tag" color={nylon.textMuted}>
@@ -1221,7 +1222,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground="nylon" underHeader>
+        <KitScreen ground={FLOODLIT} underHeader>
           <KitText t="tag" color={nylon.textMuted}>{`${comp.name} · league phase · ${clTeamsLocal.length} clubs · MD ${Math.min(currentMD - 1, totalMatchdays)}/${totalMatchdays}`}</KitText>
           {youPos > 0 && (
             <StandingFigure roles={nylon} pos={youPos} delta={null}
@@ -1352,7 +1353,7 @@ export default function CustomUclSimulationScreen() {
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
       <Road phase="knockout_phase" />
-      <KitScreen ground="nylon" underHeader scrollRef={koScrollRef} scrollEventThrottle={64}
+      <KitScreen ground={FLOODLIT} underHeader scrollRef={koScrollRef} scrollEventThrottle={64}
         onScroll={e => setKoAway(e.nativeEvent.contentOffset.y > KO_AWAY_PX)}>
         <View style={styles.kitHeadRow}>
           <KitText t="tag" color={nylon.textMuted} style={{ flex: 1 }}>{`${comp.fullName} · Knockouts`}</KitText>

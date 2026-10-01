@@ -12,13 +12,14 @@ import type { GameMode } from '@/types/game'
 import {
   KitScreen, KitText, RunHeader, ChoiceLabel, SectionTag, RoundFlag, Icon, InlineError, StripedNotice, Grid, Crest,
 } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 1 · Where you play — docs/ui-overhaul/07b B1. A rack of mode labels
 // grouped by where the football happens. Picking a mode is one tap and moves
 // you on; League mode adds one step (which league) first. Difficulty moved to
 // its own screen (app/game/difficulty.tsx), so a label only ever holds its own
 // description. Competition marks are plain text (no emblems).
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 export default function WhereYouPlayScreen() {
   const store = useGameStore()
@@ -52,7 +53,7 @@ export default function WhereYouPlayScreen() {
 
   if (pickingLeague) {
     return (
-      <KitScreen ground="cotton" width="wide">
+      <KitScreen ground={EVERYDAY} width="wide">
         <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title="Which league" onBack={() => setPickingLeague(false)} />
         <KitText t="bodyL" color={roles.textMuted} style={styles.lead}>
           Every spin and your placement come from this league, across every season we have.
@@ -89,7 +90,7 @@ export default function WhereYouPlayScreen() {
   }
 
   return (
-    <KitScreen ground="cotton" width="wide">
+    <KitScreen ground={EVERYDAY} width="wide">
       <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title="Where you play" />
       {MODE_GROUPS.map(group => (
         <View key={group.id}>

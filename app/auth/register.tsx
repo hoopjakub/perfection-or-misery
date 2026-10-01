@@ -6,10 +6,11 @@ import { router } from 'expo-router'
 import { upgradeGuestAccount } from '@/lib/auth'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl } from '@/components/kit'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Create an account — docs/ui-overhaul/07a A3. Errors sit under the field they
 // belong to; anything we can't pin to a field goes in a notice above the plate.
-const roles = ROLES.cotton
+const roles = ROLES[EVERYDAY]
 
 type Errors = { username?: string; password?: string; confirm?: string; form?: string }
 
@@ -70,7 +71,7 @@ export default function RegisterScreen() {
     // Both platforms lift the form over the keyboard (the old layout only
     // adjusted on iOS, so Android hid the button).
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <KitScreen ground="cotton" keyboardShouldPersistTaps="handled">
+      <KitScreen ground={EVERYDAY} keyboardShouldPersistTaps="handled">
         <PageMeta title="Create an account" path="/auth/register" />
         <BackControl roles={roles} />
         <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>KEEP YOUR RUNS</KitText>

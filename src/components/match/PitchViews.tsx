@@ -10,8 +10,9 @@ import Svg, { Rect, Line, Circle, Path, G, Text as SvgText } from 'react-native-
 import { ROLES, prim, space } from '@/theme'
 import { KitText, Icon } from '@/components/kit'
 import { HEAT_COLS, HEAT_ROWS, type Shot, type PlayerSpot } from '@/engine/match-geometry'
+import { FLOODLIT } from '@/lib/appearance'
 
-const roles = ROLES.nylon
+const roles = ROLES[FLOODLIT]
 const LINE = prim.ruleNylon
 
 // ── Pitch markings ───────────────────────────────────────────────────────────
