@@ -75,3 +75,27 @@ export const EUROPE_CLUB_COUNTRY: Record<string, string> = {
   "Universitatea Craiova": "Romania",
   "VfB Stuttgart": "Germany",
 }
+
+// Classic UCL clubs (champions_league.json) carry no country — their league is
+// "Europe" — so the placement globe needs an explicit club→country lookup to
+// know which nation to spin to. Covers every club across both shipped editions.
+export const CL_CLUB_COUNTRY: Record<string, string> = {
+  'AC Milan': 'Italy', 'AC Sparta Prague': 'Czechia', 'AS Monaco': 'France',
+  'Ajax Amsterdam': 'Netherlands', 'Arsenal FC': 'England', 'Aston Villa': 'England',
+  'Atalanta BC': 'Italy', 'Athletic Bilbao': 'Spain', 'Atlético de Madrid': 'Spain',
+  'BSC Young Boys': 'Switzerland', 'Bayer 04 Leverkusen': 'Germany', 'Bayern Munich': 'Germany',
+  'Bologna FC 1909': 'Italy', 'Borussia Dortmund': 'Germany', 'Celtic FC': 'Scotland',
+  'Chelsea FC': 'England', 'Club Brugge KV': 'Belgium', 'Eintracht Frankfurt': 'Germany',
+  'FC Barcelona': 'Spain', 'FC Copenhagen': 'Denmark', 'FK Bodø/Glimt': 'Norway',
+  'Feyenoord Rotterdam': 'Netherlands', 'GNK Dinamo Zagreb': 'Croatia', 'Galatasaray': 'Turkey',
+  'Girona FC': 'Spain', 'Inter Milan': 'Italy', 'Juventus FC': 'Italy', 'Kairat Almaty': 'Kazakhstan',
+  'LOSC Lille': 'France', 'Liverpool FC': 'England', 'Manchester City': 'England',
+  'Newcastle United': 'England', 'Olympiacos Piraeus': 'Greece', 'Olympique Marseille': 'France',
+  'PSV Eindhoven': 'Netherlands', 'Pafos FC': 'Cyprus', 'Paris Saint-Germain': 'France',
+  'Qarabağ FK': 'Azerbaijan', 'RB Leipzig': 'Germany', 'Real Madrid': 'Spain',
+  'Red Bull Salzburg': 'Austria', 'Red Star Belgrade': 'Serbia', 'SK Slavia Prague': 'Czechia',
+  'SK Sturm Graz': 'Austria', 'SL Benfica': 'Portugal', 'SSC Napoli': 'Italy',
+  'Shakhtar Donetsk': 'Ukraine', 'Slovan Bratislava': 'Slovakia', 'Sporting CP': 'Portugal',
+  'Stade Brestois 29': 'France', 'Tottenham Hotspur': 'England', 'Union Saint-Gilloise': 'Belgium',
+  'VfB Stuttgart': 'Germany', 'Villarreal CF': 'Spain',
+}

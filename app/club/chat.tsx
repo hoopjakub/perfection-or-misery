@@ -13,6 +13,7 @@ import { openConfirm } from '@/lib/confirm'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space, border, font, prim, OFFSET } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
+import { OfflineNotice } from '@/components/OfflineStrip'
 
 // P8-181: the club's chat. The latest fifty messages, then each new one as
 // it's written (Realtime, members only by the database's own rule). Yours on
@@ -28,14 +29,10 @@ import { EVERYDAY } from '@/lib/appearance'
 // block behind it, and a square send key beside the field.
 const roles = ROLES[EVERYDAY]
 
-// P8.5-10: under a message the swear filter cleaned (the database swaps the
-// word, supabase/clubs-2.sql), a line in the club's own voice. The maintainer
-// gave the first two; the same message always gets the same line.
-const CLEAN_LINES = [
-  'Come on, seriously?', 'No need for that around here, mate.', 'Language. There are kids watching.',
-  "The ref's had a word.", 'Mind the language in the dressing room.', 'Yellow card for that one.',
-  "We'll pretend you said that.", 'Steady on.', 'Fined a week’s wages for that.', 'Wash your mouth out, son.',
-]
+// P8.5-10 / P8.5-44: a message the swear filter cleaned shows as cleaned and
+// nothing more. A club-voice line under it went after the playtest ("double
+// punishment, which is not needed"); those lines belong to names, which are
+// refused (P8.5-44), not to chat, which is only swapped.
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
 
@@ -88,6 +85,7 @@ export default function ClubChatScreen() {
   return (
     <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       <PageMeta title={club ? `${club.name} · chat` : 'Club chat'} path={`/club/chat`} />
+      <OfflineNotice />
       <BackControl roles={roles} />
       {club && (
         <View style={[styles.head, { borderBottomColor: roles.line }]}>
@@ -133,9 +131,7 @@ export default function ClubChatScreen() {
                       <View style={[styles.bubbleOffset, { backgroundColor: roles.offset }]} />
                       <View style={[styles.bubble, { borderColor: roles.line, backgroundColor: mine ? prim.orange : roles.surface }]}>
                         {!mine && !sameRun ? <KitText t="tag" color={roles.text}>{(who?.username ?? 'A member').toUpperCase()}</KitText> : null}
-                        <KitText t="body" color={mine ? prim.ink : roles.text}>{item.body}</KitText>
-                        {item.cleaned ? <KitText t="tag" color={mine ? prim.ink : roles.textMuted}>{CLEAN_LINES[item.id % CLEAN_LINES.length]}</KitText> : null}
-                        <KitText t="tag" color={mine ? prim.ink : roles.textMuted} style={styles.time}>{hhmm(item.created_at)}</KitText>
+                        <KitText t="body" color={mine ? prim.ink : roles.text}>{item.body}</KitText>                        <KitText t="tag" color={mine ? prim.ink : roles.textMuted} style={styles.time}>{hhmm(item.created_at)}</KitText>
                       </View>
                     </View>
                   </Pressable>

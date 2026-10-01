@@ -3,6 +3,7 @@ import { useUserStore } from '@/store/userStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { announceNewAchievements } from '@/lib/achievementToast'
+import { RunQueuedError } from '@/db/queries/runs'
 
 // ── useRunSave ───────────────────────────────────────────────────────────────
 // Every result screen used to save the run only when you pressed Play Again or
@@ -26,6 +27,7 @@ export type RunSaveStatus =
   | 'waiting'  // savable, stats still computing
   | 'saving'
   | 'saved'
+  | 'queued'   // P8.5-24: no connection; kept on the phone, goes up when it's back
   | 'failed'
 
 export function useRunSave({ applies, signedIn, ready }: {
@@ -53,6 +55,9 @@ export function useRunSave({ applies, signedIn, ready }: {
         if (id) announceNewAchievements(id)
       },
       (e) => {
+        // P8.5-24: saved on the phone instead, not lost. It stays "in flight"
+        // so leaving the screen doesn't try again: the queue sends it.
+        if (e instanceof RunQueuedError) { setStatus('queued'); return }
         console.warn('[run-save] failed:', e)
         inflight.current = null
         setStatus('failed')
@@ -62,11 +67,21 @@ export function useRunSave({ applies, signedIn, ready }: {
     return p
   }, [applies, signedIn])
 
+  // A queued run that the queue has since sent: its id lands on the store.
+  const savedRunId = useGameStore(s => s.savedRunId)
+  useEffect(() => {
+    if (status === 'queued' && savedRunId) {
+      setStatus('saved')
+      const id = useUserStore.getState().user?.id
+      if (id) announceNewAchievements(id)
+    }
+  }, [status, savedRunId])
+
   // The guest/off status can change after mount (the auth listener resolves a
   // moment later), so keep the idle label in step until a save has begun.
   useEffect(() => {
     if (inflight.current) return
-    setStatus(s => (s === 'saved' || s === 'failed') ? s : !applies ? 'off' : !signedIn ? 'guest' : 'waiting')
+    setStatus(s => (s === 'saved' || s === 'failed' || s === 'queued') ? s : !applies ? 'off' : !signedIn ? 'guest' : 'waiting')
   }, [applies, signedIn])
 
   // A finished run is "last time" from here on, for guests and accounts alike.

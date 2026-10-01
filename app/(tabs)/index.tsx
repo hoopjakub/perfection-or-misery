@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { PageMeta, GAME_JSON_LD } from '@/components/PageMeta'
+import { UpdateStrip } from '@/components/UpdateStrip'
 import { View, ScrollView, StyleSheet, Platform } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
@@ -189,6 +190,8 @@ export default function HomeScreen() {
     return (
       <KitScreen ground={EVERYDAY} width="wide">
         <PageMeta path="/" jsonLd={GAME_JSON_LD} />
+        {/* P8.5-31: a new build, when there is one. */}
+        <UpdateStrip />
         <View style={styles.wide}>
           <View style={styles.wideLeft}>
             <Wordmark roles={roles} />
@@ -216,6 +219,7 @@ export default function HomeScreen() {
     <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
       <PageMeta path="/" jsonLd={GAME_JSON_LD} />
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={Platform.OS === 'web'}>
+        <UpdateStrip />
         <Wordmark roles={roles} />
         <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
           Draft an XI from real seasons. Find out which one you get.

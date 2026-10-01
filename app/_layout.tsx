@@ -1,9 +1,13 @@
 import { useEffect } from 'react'
-import { View, Platform } from 'react-native'
+import { View, Platform, AppState } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
 import { installNavGuard } from '@/lib/navGuard'
 import { startRunKeeper } from '@/lib/runKeeper'
+import { flushSavedRuns } from '@/db/queries/runs'
+import { useUserStore } from '@/store/userStore'
+import { isOnline, onOnlineChange } from '@/lib/online'
+import { checkForAppUpdate } from '@/lib/appUpdate'
 import { NavGuard } from '@/components/NavGuard'
 import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -93,6 +97,16 @@ const KIT_FONTS = {
 installNavGuard()
 // P8-149: the run up to its kick-off is kept on the device as it's played.
 startRunKeeper()
+// P8.5-24: runs saved on the phone while offline go up now, whenever the app
+// comes back online, and whenever it returns to the foreground.
+flushSavedRuns()
+onOnlineChange(() => { if (isOnline()) flushSavedRuns() })
+AppState.addEventListener('change', st => { if (st === 'active') flushSavedRuns() })
+// And once you're signed in: at start the session is restored a moment later,
+// and a queued run only goes up under the player who played it.
+useUserStore.subscribe((st, prev) => { if (st.user?.id && st.user.id !== prev.user?.id) flushSavedRuns() })
+// P8.5-31: is there a newer build? Silently, in the background (public build only).
+checkForAppUpdate()
 
 export default function RootLayout() {
   const reduceMotion = useSettingsStore(st => st.reduceMotion)

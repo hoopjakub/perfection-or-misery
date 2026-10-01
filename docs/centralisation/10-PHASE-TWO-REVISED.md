@@ -83,6 +83,8 @@ The mark is most of the way there (08 A-01). What's left: the match sheet (`with
 
 **Added 1 Oct 2026 (the maintainer):** the result pages' YOUR LINEUP pitch doesn't show each player's little flag or the crest backgrounds that the draft's lineup shows. One pitch, one look: the result's lineup takes the draft's.
 
+**Added 1 Oct 2026 (the maintainer):** the match sheet (a match's result page) has no light variant: it's still the old dark screen. It joins the light and dark pass here.
+
 ### Step 2 · One set of engine helpers
 As 07, plus: the two new private shuffles (N-11), one `inkOn(colour)` (N-15), and one competition record holding the names, colours, shape and weight (N-04).
 **Done when.** 07's greps, plus `grep -rn "0\.65" supabase/functions/_shared/score.ts src/data/tiers.ts` finds only the record's own line, and `grep -rn "function shuffled" src/engine` is empty.

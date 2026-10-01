@@ -123,7 +123,7 @@ const TOPICS: Topic[] = [
       • <B>League / All Time / Chaos / Cursed:</B> you replace an existing club in a real league
       and season{'\n'}
       • <B>UEFA Champions League (finals):</B> you take over any club already in that edition.
-      It could be Real Madrid; it could be a minnow{'\n'}
+      It could be a giant; it could be a minnow{'\n'}
       • <B>UEFA Champions League (full path):</B> you land in a real domestic league first, and
       where you finish there decides your route into Europe{'\n'}
       • <B>FIFA World Cup:</B> you take over one of the 48 qualified nations
@@ -262,8 +262,7 @@ export default function GuideScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Guide" path="/guide" />
-      <BackControl roles={roles} />
-      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>GUIDE</KitText>
+      <BackControl roles={roles} title="GUIDE" />
       <KitText t="bodyL" color={roles.textMuted}>What do you want to learn about?</KitText>
       {GROUPS.map(g => (
         <View key={g} style={styles.group}>

@@ -17,7 +17,7 @@ import path from 'path'
 import { buildCLAccessList, ensureHolders, type AssociationEntry, type AssociationClub } from '../src/engine/cl-access'
 import { simulateLeagueTableDetailed, type LeagueFormat } from '../src/engine/cl-league-sim'
 import { playEveryCup, europaAndConferenceEntrants, simulateEurope, huntWeight, huntMet } from '../src/engine/europe-path'
-import { EURO_HOLDERS, type EuroComp } from '../src/data/uefa-coefficients'
+import { EURO_HOLDER_IDS, type EuroComp } from '../src/data/uefa-coefficients'
 import { buildCLTeams, drawCLLeaguePhase } from '../src/engine/cl-sim'
 import { fullPathTier } from '../src/engine/europe-path'
 import { CUSTOM_CL_ROUND_SCORE, CL_ROUND_SCORE } from '../supabase/functions/_shared/score'
@@ -44,8 +44,13 @@ const clubOf = (name: string): AssociationClub | null => {
   for (const a of scraped) { const c = a.clubs.find(x => x.clubName === name); if (c) return c }
   return null
 }
-const holders = [clubOf(EURO_HOLDERS.ucl), clubOf(EURO_HOLDERS.uel)].filter((x): x is AssociationClub => !!x)
-const ueclHolder = clubOf(EURO_HOLDERS.uecl)
+// By id, as the app finds them: the public database renames clubs.
+const clubById = (id: string): AssociationClub | null => {
+  for (const a of scraped) { const c = a.clubs.find(x => x.clubId === id); if (c) return c }
+  return null
+}
+const holders = [clubById(EURO_HOLDER_IDS.ucl), clubById(EURO_HOLDER_IDS.uel)].filter((x): x is AssociationClub => !!x)
+const ueclHolder = clubById(EURO_HOLDER_IDS.uecl)
 console.log(`${scraped.length} associations · holders found: ${[...holders, ueclHolder].filter(Boolean).map(h => h!.clubName).join(', ')}`)
 check(holders.length === 2 && !!ueclHolder, 'a holder is missing from the database')
 

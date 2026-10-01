@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { isBadWord, refusalLine } from '@/lib/moderation'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { KitScreen, KitText, SectionTag, BackControl, Plate, Field, Chips, Toggle, ListRow, ClubName, StripedNotice, Loader, RunLabel, ColourField, crestHex, IdTag } from '@/components/kit'
@@ -150,7 +151,8 @@ export default function ProfileEditScreen() {
       router.back()
     } catch (e) {
       console.warn('[profile-edit] save failed:', e)
-      setNote("Your profile couldn't be saved. Try again.")
+      // P8.5-44: the status, pronouns, about or favourite player was refused.
+      setNote(isBadWord(e) ? refusalLine() : "Your profile couldn't be saved. Try again.")
     } finally {
       setSaving(false)
     }
@@ -164,8 +166,7 @@ export default function ProfileEditScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Edit your profile" path="/profile-edit" />
-      <BackControl roles={roles} />
-      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>YOUR PROFILE</KitText>
+      <BackControl roles={roles} title="YOUR PROFILE" />
       {ready === 'loading' && <Loader color={roles.text} />}
       {ready === 'failed' && <StripedNotice roles={roles} failed>Your profile couldn't be loaded.</StripedNotice>}
       {ready === 'needs-db' && (

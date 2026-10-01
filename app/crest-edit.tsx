@@ -82,8 +82,7 @@ export default function CrestEditScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Your crest" path="/crest-edit" />
-      <BackControl roles={roles} />
-      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>YOUR CREST</KitText>
+      <BackControl roles={roles} title="YOUR CREST" />
 
       <View style={styles.preview}>
         <YourCrest choice={choice} size={128} name="Your crest" />

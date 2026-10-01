@@ -36,6 +36,19 @@ export function pulseTap() {
   listeners.forEach(fn => fn())
 }
 
+// P8.5-45: the same bar while a screen waits on the database (a club joined,
+// a list loading), blocking nothing: "the little loading thing at the top that
+// all screens should have". Counted, so two at once keep it up until both end.
+let working = 0
+export const workActive = () => working > 0
+export function trackWork<T>(p: Promise<T>): Promise<T> {
+  working++
+  listeners.forEach(fn => fn())
+  const done = () => { working = Math.max(0, working - 1); listeners.forEach(fn => fn()) }
+  p.then(done, done)
+  return p
+}
+
 export const isNavBusy = () => busy
 export function subscribeNavBusy(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn) } }
 export function setNavBusy(on: boolean) {

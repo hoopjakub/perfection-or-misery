@@ -4,7 +4,9 @@
 // back to GB (826); the text label still names the real footballing nation.
 
 // World Cup national-team club ids (`*_nt`) → ISO numeric.
-import { EUROPE_CLUB_COUNTRY } from './europe-countries'
+// The club→country maps are keyed by club name, so they live in their own
+// module with a public-build twin (europe-countries.legal.ts, P8.5 Wave D).
+import { EUROPE_CLUB_COUNTRY, CL_CLUB_COUNTRY } from './europe-countries'
 export const NATION_ISO: Record<string, number> = {
   algeria_nt: 12, argentina_nt: 32, australia_nt: 36, austria_nt: 40, belgium_nt: 56,
   bosnia_herzegovina_nt: 70, brazil_nt: 76, canada_nt: 124, colombia_nt: 170, croatia_nt: 191,
@@ -40,29 +42,6 @@ export const COUNTRY_ISO: Record<string, number> = {
   Luxembourg: 442, Andorra: 20, Georgia: 268, Estonia: 233, 'San Marino': 674,
 }
 
-// Classic UCL clubs (champions_league.json) carry no country — their league is
-// "Europe" — so the placement globe needs an explicit club→country lookup to
-// know which nation to spin to. Covers every club across both shipped editions.
-export const CL_CLUB_COUNTRY: Record<string, string> = {
-  'AC Milan': 'Italy', 'AC Sparta Prague': 'Czechia', 'AS Monaco': 'France',
-  'Ajax Amsterdam': 'Netherlands', 'Arsenal FC': 'England', 'Aston Villa': 'England',
-  'Atalanta BC': 'Italy', 'Athletic Bilbao': 'Spain', 'Atlético de Madrid': 'Spain',
-  'BSC Young Boys': 'Switzerland', 'Bayer 04 Leverkusen': 'Germany', 'Bayern Munich': 'Germany',
-  'Bologna FC 1909': 'Italy', 'Borussia Dortmund': 'Germany', 'Celtic FC': 'Scotland',
-  'Chelsea FC': 'England', 'Club Brugge KV': 'Belgium', 'Eintracht Frankfurt': 'Germany',
-  'FC Barcelona': 'Spain', 'FC Copenhagen': 'Denmark', 'FK Bodø/Glimt': 'Norway',
-  'Feyenoord Rotterdam': 'Netherlands', 'GNK Dinamo Zagreb': 'Croatia', 'Galatasaray': 'Turkey',
-  'Girona FC': 'Spain', 'Inter Milan': 'Italy', 'Juventus FC': 'Italy', 'Kairat Almaty': 'Kazakhstan',
-  'LOSC Lille': 'France', 'Liverpool FC': 'England', 'Manchester City': 'England',
-  'Newcastle United': 'England', 'Olympiacos Piraeus': 'Greece', 'Olympique Marseille': 'France',
-  'PSV Eindhoven': 'Netherlands', 'Pafos FC': 'Cyprus', 'Paris Saint-Germain': 'France',
-  'Qarabağ FK': 'Azerbaijan', 'RB Leipzig': 'Germany', 'Real Madrid': 'Spain',
-  'Red Bull Salzburg': 'Austria', 'Red Star Belgrade': 'Serbia', 'SK Slavia Prague': 'Czechia',
-  'SK Sturm Graz': 'Austria', 'SL Benfica': 'Portugal', 'SSC Napoli': 'Italy',
-  'Shakhtar Donetsk': 'Ukraine', 'Slovan Bratislava': 'Slovakia', 'Sporting CP': 'Portugal',
-  'Stade Brestois 29': 'France', 'Tottenham Hotspur': 'England', 'Union Saint-Gilloise': 'Belgium',
-  'VfB Stuttgart': 'Germany', 'Villarreal CF': 'Spain',
-}
 
 export function countryForClClub(clubName?: string | null): string | undefined {
   if (!clubName) return undefined

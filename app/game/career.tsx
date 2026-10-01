@@ -62,8 +62,7 @@ export default function CareerScreen() {
   const shell = (children: React.ReactNode) => (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Career" path="/game/career" />
-      <BackControl roles={roles} />
-      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>CAREER</KitText>
+      <BackControl roles={roles} title="CAREER" />
       {children}
     </KitScreen>
   )

@@ -180,6 +180,20 @@ as $$
   limit least(greatest(coalesce(p_limit, 50), 1), 100) offset greatest(coalesce(p_offset, 0), 0)
 $$;
 
+-- P8.5-45: the same score for the clubs a screen shows (a club's page, a
+-- search), without loading the whole board. Added 1 Oct (evening): run this
+-- file again to get it.
+create or replace function public.club_scores(p_ids uuid[])
+returns table (id uuid, score bigint, runs bigint)
+language sql stable security definer set search_path = public
+as $$
+  select m.club_id, coalesce(sum(r.score), 0)::bigint, count(r.id)
+  from club_members m left join runs r on r.user_id = m.user_id
+  where m.club_id = any(p_ids[1:100])
+  group by m.club_id
+$$;
+grant execute on function public.club_scores(uuid[]) to anon, authenticated;
+
 -- ── 10 · The swear filter ─────────────────────────────────────────────────────
 alter table public.clubs add column if not exists clean_chat boolean not null default true;
 alter table public.club_messages add column if not exists cleaned boolean not null default false;

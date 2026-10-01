@@ -4,39 +4,33 @@ import { ROLES, space, border, font } from '@/theme'
 import { KitScreen, KitText, BackControl, H2 } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { EVERYDAY } from '@/lib/appearance'
+import { legalDoc, UPDATED, CONTACT, type LegalPageId, type LegalLang } from '@/data/legal'
 
-// Privacy and Terms share one plain page (Phase 6). Written from what the code
-// actually does (src/lib/auth.ts, src/db/queries, supabase/functions), so a
-// change there means a change here.
+// Privacy and Terms share one plain page (Phase 6). The words live in one file
+// (src/data/legal.ts, P8.5-29), which the website uses too.
 const roles = ROLES[EVERYDAY]
-// Set EXPO_PUBLIC_CONTACT_EMAIL to show a contact line; until then there isn't one.
-export const CONTACT = process.env.EXPO_PUBLIC_CONTACT_EMAIL
-export const UPDATED = '19 September 2026'
+export { CONTACT, UPDATED }
 
-export function LegalPage({ title, path, intro, sections }: {
-  title: string; path: string; intro: string
-  sections: { heading: string; body: string[] }[]
-}) {
+export function LegalPage({ page, path, lang = 'en' }: { page: LegalPageId; path: string; lang?: LegalLang }) {
+  const { doc } = legalDoc(page, lang)
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title={title} description={intro} path={path} />
-      <BackControl roles={roles} />
-      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{title.toUpperCase()}</KitText>
+      <PageMeta title={doc.title} description={doc.intro} path={path} />
+      <BackControl roles={roles} title={doc.title} />
       <KitText t="tag" color={roles.textMuted}>{`Last updated ${UPDATED}`}</KitText>
-      <KitText t="bodyL" color={roles.text} style={styles.intro}>{intro}</KitText>
-      {sections.map(s => (
+      <KitText t="bodyL" color={roles.text} style={styles.intro}>{doc.intro}</KitText>
+      {doc.sections.map(s => (
         <View key={s.heading} style={[styles.block, { borderTopColor: roles.rule }]}>
           <KitText t="bodyL" color={roles.text} style={styles.heading} accessibilityRole="header" {...H2}>{s.heading}</KitText>
           {s.body.map((p, i) => <KitText key={i} t="body" color={roles.textMuted}>{p}</KitText>)}
         </View>
       ))}
-      {CONTACT ? <KitText t="body" color={roles.text} style={styles.intro}>{`Questions: ${CONTACT}`}</KitText> : null}
+      <KitText t="body" color={roles.text} style={styles.intro}>{`Questions: ${CONTACT}`}</KitText>
     </KitScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  title: { marginTop: space[3] },
   intro: { marginTop: space[4], marginBottom: space[3], maxWidth: 560 },
   block: { borderTopWidth: border.hair, paddingVertical: space[4], gap: space[2], maxWidth: 560 },
   heading: { fontFamily: font.bodyBold },

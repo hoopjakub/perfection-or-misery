@@ -81,7 +81,11 @@ export function ChoiceLabel({
       <View style={[styles.labelBody, comingSoon && { opacity: 0.55 }]}>
         <View style={styles.labelTop}>
           {mark}
-          <KitText t="superS" color={roles.text} style={{ flexShrink: 1 }}>{title.toUpperCase()}</KitText>
+          {/* P8.5-49: the title takes the row's free width (flex: 1). Sized to
+              its own measured width (flexShrink), Android's italic measure
+              (see KitText) wrapped the last word onto a hidden second line
+              after a re-render: "ALL", "EUROPEAN FULL". */}
+          <KitText t="superS" color={roles.text} style={{ flex: 1 }}>{title.toUpperCase()}</KitText>
           {trailing ? <KitText t="figure" color={roles.text} style={styles.trailing}>{trailing}</KitText> : null}
           {onPress && !comingSoon ? <Icon name="chevron" size={20} color={roles.text} /> : null}
         </View>

@@ -1,0 +1,62 @@
+# P8.5-44 · Slovak (and the Czech it shares). No maintained Slovak list exists
+# (LDNOOBW has Czech, which build-moderation adds; HurtLex's Slovak is a
+# machine translation too noisy to use: it lists "ľudia", "dievča", "auto").
+# Written by hand, 1 Oct 2026; the maintainer adds his. Same format as own-en.txt.
+# Accents don't matter (kurva matches kúrva), so each word is written once.
+
+# ── Nadávky (swapped for something funny in chat) ────────────────────────────
+!kurva = kukurica
+!kurvy = kukurice
+!kurvo = kukurico
+!kurevsky = kukuričný
+!kokot = kokos
+!kokoti = kokosy
+!kokotina = kokosovina
+pica = pizza
+picus = pizzéria
+!picovina = pizzovina
+!jebat = jedlo
+!jebem = jem
+jebe = je
+!jebnuty = jedlý
+!zjebat = zjesť
+!pojebat = pojesť
+!vyjebat = vyjesť
+!odjebat = odísť
+!dojebat = dojesť
+!mrdat = mávať
+!mrdka = mrkva
+!zmrd = zmrzlina
+!chuj = chumáč
+!hovno = hrozno
+!hovna = hrozna
+!sracka = sardinka
+!posrat = posypať
+!prdel = prdelka
+rit = rybník
+suka = sova
+pici = pizze
+
+# ── Nenávisť: urážky skupín ľudí (odmietnuté, v chate vymenené) ──────────────
+# negr len ako celé slovo: je aj v slove Montenegro.
+negr
+negri
+!zidak
+!zidaci
+!buzerant
+!buzik
+buzna
+!teplos
+!pedofil
+!pedofilia
+cigansky = nepekný
+retardovany
+
+# ── Nie isté samo o sebe: meno ide na kontrolu ───────────────────────────────
+?cigan
+?cigani
+?zabit
+?zabijak
+?smrt
+?nenavidim
+?nenavist

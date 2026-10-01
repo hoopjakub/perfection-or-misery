@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { uuid } from '@/lib/uuid'
+import { isBadWord, isBanned, refusalLine, BANNED_TEXT } from '@/lib/moderation'
 
 // P8-181: clubs (supabase/clubs.sql). Creating, joining, leaving and editing
 // go through the database's own functions, so each is one step that can't
@@ -49,6 +50,9 @@ export function clubErrorText(e: unknown): string {
   if (/ALREADY_IN_A_CLUB/.test(m)) return "You're already in a club. Leave it first."
   if (/CLUB_FULL/.test(m)) return 'That club is full.'
   if (/GUEST/.test(m)) return 'Make an account to join a club.'
+  // P8.5-44 (supabase/moderation.sql): a name, tag or description it refuses.
+  if (isBadWord(e)) return refusalLine()
+  if (isBanned(e)) return BANNED_TEXT
   if (/INVITE_ONLY/.test(m)) return 'That club is invite-only. Its owner has to invite you.'
   if (/WRONG_PASSWORD/.test(m)) return "That's not the club's password."
   if (/BAD_PASSWORD/.test(m)) return 'A password is 4 to 64 characters.'
@@ -111,16 +115,32 @@ export async function searchClubs(query: string): Promise<(Club & { members: num
     .sort((a: any, b: any) => b.members - a.members)
 }
 
-export type ClubInput = { name: string; tag: string; colour: string; about: string; limit: number | null }
+export type ClubInput = {
+  name: string; tag: string; colour: string; about: string; limit: number | null
+  /** P8.5-45: set with the rest, on making a club and on editing it. */
+  access?: ClubAccess; password?: string; cleanChat?: boolean
+}
 
 export async function createClub(input: ClubInput): Promise<string> {
   const { data, error } = await db().rpc('create_club', { p_name: input.name, p_tag: cleanTag(input.tag), p_colour: input.colour, p_about: input.about, p_limit: input.limit })
   if (error) fail(error)
+  await applySettings(input, null)
   return data as string
 }
-export async function updateClub(input: ClubInput): Promise<void> {
+export async function updateClub(input: ClubInput, current?: Club | null): Promise<void> {
   const { error } = await db().rpc('update_club', { p_name: input.name, p_tag: cleanTag(input.tag), p_colour: input.colour, p_about: input.about, p_limit: input.limit })
   if (error) fail(error)
+  await applySettings(input, current ?? null)
+}
+// The way in and the chat's setting, after the club itself (the owner's own
+// club, so the functions find it). Only what changed is sent; a password club
+// keeps its password unless a new one was typed.
+async function applySettings(input: ClubInput, current: Club | null) {
+  const was = current?.access ?? 'open'
+  if (input.access && (input.access !== was || (input.access === 'password' && input.password))) {
+    if (input.access !== 'password' || input.password) await setClubAccess(input.access, input.password)
+  }
+  if (input.cleanChat != null && input.cleanChat !== (current?.clean_chat ?? true)) await setCleanChat(input.cleanChat)
 }
 export async function joinClub(id: string, password?: string): Promise<void> {
   // P8.5-08: the two-argument join knows invites and passwords; without
@@ -152,7 +172,16 @@ export async function fetchMyInvites(userId: string): Promise<Club[]> {
   return (data ?? []).map((r: any) => r.clubs).filter(Boolean) as Club[]
 }
 
-export type ClubBoardRow = { id: string; name: string; tag: string; colour: string; members: number; runs: number; score: number }
+/** P8.5-45: the clubs' scores (members' runs added together), by id. Empty
+ *  until the function exists, so a screen just leaves the score out. */
+export async function fetchClubScores(ids: string[]): Promise<Map<string, { score: number; runs: number }>> {
+  if (!ids.length) return new Map()
+  const { data, error } = await db().rpc('club_scores', { p_ids: ids.slice(0, 100) })
+  if (error) { if (missing(error)) return new Map(); fail(error) }
+  return new Map(((data ?? []) as any[]).map(r => [r.id, { score: Number(r.score), runs: Number(r.runs) }]))
+}
+
+export type ClubBoardRow ={ id: string; name: string; tag: string; colour: string; members: number; runs: number; score: number }
 /** P8.5-09: clubs by every member's runs added together, no seasons. */
 export async function fetchClubBoard(limit = 50, offset = 0): Promise<ClubBoardRow[]> {
   const { data, error } = await db().rpc('club_board', { p_limit: limit, p_offset: offset })

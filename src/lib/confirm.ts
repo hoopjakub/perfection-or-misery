@@ -15,8 +15,9 @@ export type ConfirmRequest = {
   confirmLabel: string
   /** Verb label for staying: "Stay signed in" */
   stayLabel: string
-  /** Runs before the screen closes. Throwing keeps the screen open. */
-  onConfirm: () => Promise<void> | void
+  /** Runs before the screen closes. Throwing keeps the screen open. Whatever
+   *  it returns is awaited and otherwise ignored. */
+  onConfirm: () => unknown
   /** Where to go once confirmed; defaults to back. */
   thenRoute?: string
   /** P8-26: back on this screen CONFIRMS instead of staying. The abandon screen

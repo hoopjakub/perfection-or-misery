@@ -9,7 +9,7 @@ import DB_ASSET from './dbAsset'
 
 // Increment this whenever the bundled players_v5.db changes.
 // This forces the device to re-copy the fresh DB on next launch.
-const DB_VERSION = 19
+const DB_VERSION = 20
 
 let _db: SQLite.SQLiteDatabase | null = null
 

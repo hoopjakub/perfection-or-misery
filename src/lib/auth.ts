@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { checkName } from './moderation'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // A username is at most 38 characters: the matchdays of a league season, and
@@ -52,6 +53,10 @@ export async function upgradeGuestAccount(params: {
     .maybeSingle()
 
   if (existing) throw new Error('USERNAME_TAKEN')
+  // P8.5-44: asked BEFORE the sign-in email changes below. The username's
+  // own check (supabase/moderation.sql) only runs on the profile, after the
+  // email, so a refused name would leave the account half-renamed.
+  if ((await checkName(displayUsername)) === 'blocked') throw new Error('BAD_WORD')
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('NO_USER')

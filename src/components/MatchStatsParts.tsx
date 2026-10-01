@@ -84,16 +84,28 @@ export type MatchDetailRequest = {
 // ── Shared request builder for CL-shaped knockout ties ──────────────────────
 // Leg 2 folds its extra time in (one physical match), mirroring stats totals.
 // Works for classic CL, custom UCL and qualifying ties (via qualTieToKoMatch).
-export function koLegDetailRequest(
-  m: import('@/engine/cl-sim').CLKnockoutMatch,
-  leg: 1 | 2,
-  opts: {
-    label: string; yearStart: number; playerClubId?: string; drafted?: import('@/types/game').DraftedPlayer[]
-    /** P8-31: your shape, so the lineup tab draws your eleven in it. The
-     *  knockout legs were the one route into the sheet that never carried it. */
-    playerFormation?: import('@/types/game').Formation
-  },
-): MatchDetailRequest | null {
+type KoLegOpts = {
+  label: string; yearStart: number; playerClubId?: string; drafted?: import('@/types/game').DraftedPlayer[]
+  /** P8-31: your shape, so the lineup tab draws your eleven in it. The
+   *  knockout legs were the one route into the sheet that never carried it. */
+  playerFormation?: import('@/types/game').Formation
+}
+
+/**
+ * A knockout tie's sheet. P8.5-50: a two-legged tie carries both legs
+ * (`legs`), so the sheet can always switch to the other one. Opened from a
+ * result's bracket it only had the leg it opened on: the sheet's own search
+ * for the other leg goes through the screen's matches, which a result's
+ * bracket doesn't always pass in the shape it looks for.
+ */
+export function koLegDetailRequest(m: import('@/engine/cl-sim').CLKnockoutMatch, leg: 1 | 2, opts: KoLegOpts): MatchDetailRequest | null {
+  const one = koLegOnly(m, leg, opts)
+  if (!one || !m.leg1 || !m.leg2) return one
+  const l1 = leg === 1 ? one : koLegOnly(m, 1, opts), l2 = leg === 2 ? one : koLegOnly(m, 2, opts)
+  return l1 && l2 ? { ...one, legs: [l1, l2] } : one
+}
+
+function koLegOnly(m: import('@/engine/cl-sim').CLKnockoutMatch, leg: 1 | 2, opts: KoLegOpts): MatchDetailRequest | null {
   if (!m.leg1) {
     // single match (a final)
     return {

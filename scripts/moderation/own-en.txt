@@ -1,0 +1,104 @@
+# P8.5-44 · Our own English list, on top of LDNOOBW and cuss (see SOURCES.md).
+# The maintainer adds his here. One word a line:
+#   word                 a sure word: refused in a name, swapped in chat
+#   word = replacement   with its own funny replacement in chat
+#   !word                also caught INSIDE other words ("Lafuckda"), for the
+#                        severe ones that never sit inside an innocent word
+#                        (an innocent one that does goes in allow.txt)
+#   ?word                not sure: a name with it goes to the review inbox
+# Matching ignores case and accents, and undoes simple disguises (f4ck,
+# fuuuck, f.u.c.k in a name). Lines starting # are notes.
+
+# ── Swearing, with replacements (the maintainer's "fudging") ─────────────────
+!fuck = fudge
+!fucking = fudging
+!fucked = fudged
+!fucker = fudger
+!fuckin = fudgin
+!motherfucker = mother hubbard
+!motherfucking = mother-hubbarding
+!shit = shoot
+shite = shoot
+shitty = shoddy
+!bullshit = bull feathers
+!bitch = biscuit
+bitches = biscuits
+!bastard = bandit
+!arsehole = armchair
+!asshole = armchair
+dickhead = doughnut
+cock = rooster
+jizz = juice
+boner = bonus
+tits = tots
+titties = totties
+dick = dingus
+prick = pickle
+!wanker = wombat
+wank = waffle
+twat = twit
+!cunt = cucumber
+piss = pish
+pissed = peeved
+bollocks = baubles
+bugger = blighter
+bloody = blooming
+damn = dang
+goddamn = goshdarn
+crap = crumbs
+
+# ── Hate: slurs, and words with an awful meaning (refused, swapped) ──────────
+# Whole-word only where the word sits inside innocent ones: rape (parapet,
+# grape, therapy), coon (raccoon, tycoon), nazi (Nazionale, Nazir), spic
+# (spicy), pedo (torpedo), heil (Heilbronn), chink, kike, gook.
+!nigger
+!nigga
+!faggot
+fag
+!tranny
+!shemale
+!troon
+retard
+paedo
+pedo
+!paedophile
+!pedophile
+!pedophilia
+!childlover
+!lolicon
+!shotacon
+rapist
+rape = nope
+nazi
+!hitler
+!siegheil
+?heil
+kkk
+
+?kike
+chink
+spic
+wetback
+!raghead
+!towelhead
+gook
+coon
+jigaboo
+
+# ── Not sure on its own: a name with one goes to review ──────────────────────
+?kill
+?killer
+?die
+?death
+?gas
+?burn
+?jihad
+?isis
+?terror
+?terrorist
+?suicide
+?porn
+?sex
+?sexy
+?nude
+?naked

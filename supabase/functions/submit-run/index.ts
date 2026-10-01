@@ -32,7 +32,16 @@ const ALLOWED = new Set([
   // P8-88: the run's length in seconds, for the profile's playing time
   // (runs.duration_seconds, added by supabase/profile.sql).
   'duration_seconds',
+  // P8.5-24 (supabase/runs-queue.sql): the app's own id for the run, so a run
+  // sent twice from the offline queue is kept once; and when it was played.
+  'client_id', 'played_at',
 ])
+
+// A queued run is dated by when it was played, so it counts for the season it
+// was played in, but never more than this far back (or in the future): the
+// date is the app's word, and an old season's board must not be reachable.
+const MAX_BACKDATE_MS = 14 * 24 * 3600 * 1000
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -55,6 +64,11 @@ Deno.serve(async (req: Request) => {
 
     row.user_id = user.id
     row.score = scoreRun(row as RunRow)
+    if (row.client_id != null && !(typeof row.client_id === 'string' && UUID.test(row.client_id))) delete row.client_id
+    const played = typeof row.played_at === 'string' ? Date.parse(row.played_at) : NaN
+    const now = Date.now()
+    if (Number.isFinite(played) && played <= now + 5 * 60 * 1000 && played >= now - MAX_BACKDATE_MS) row.created_at = new Date(played).toISOString()
+    else delete row.played_at
 
     // Same tolerance as the app's old insertRun: an optional column the table
     // doesn't have yet is dropped and the insert retried, so the core run saves.
@@ -63,6 +77,12 @@ Deno.serve(async (req: Request) => {
       // The id comes back so the app can share the run's link (/r/<id>).
       const { data, error } = await admin.from('runs').insert(row).select('id').single()
       if (!error) return json({ id: data?.id, score: row.score, tier: row.tier }, 200)
+      // The same run again (its client_id is already saved): it's in, so this
+      // is a success, with the id it was saved under.
+      if (error.code === '23505' && typeof row.client_id === 'string') {
+        const { data: had } = await admin.from('runs').select('id').eq('client_id', row.client_id).eq('user_id', user.id).maybeSingle()
+        if (had) return json({ id: had.id, score: row.score, tier: row.tier, duplicate: true }, 200)
+      }
       const missing = error.code === 'PGRST204' ? error.message?.match(/Could not find the '([^']+)' column/)?.[1] : undefined
       if (missing && missing in row && !['mode', 'tier', 'score', 'user_id'].includes(missing)) { delete row[missing]; continue }
       return json({ error: error.message }, 400)

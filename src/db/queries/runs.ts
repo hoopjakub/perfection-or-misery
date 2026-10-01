@@ -13,6 +13,10 @@ import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { CLSeasonResult } from '@/engine/cl-sim'
 import { resolveDifficulty, type Difficulty, type CustomDifficulty } from '@/engine/difficulty'
 import { shownRun } from '@/lib/shownNames'
+import { settingsStorage } from '@/lib/mmkv'
+import { useUserStore } from '@/store/userStore'
+import { isOnline } from '@/lib/online'
+import { setRunQueueDeps, queueRun, flushRunQueue, RUN_QUEUE_KEY, type QueuedRun } from '@/lib/runQueue'
 
 // Build the difficulty columns saved on every run so the achievements/leaderboard/
 // run-history screens can read back exactly how hard a run was. `difficulty` is
@@ -65,10 +69,95 @@ function runDuration(): number | null {
   return started ? Math.min(MAX_RUN_SECONDS, Math.round((Date.now() - started) / 1000)) : null
 }
 
+/** A run that couldn't reach the server is saved on the phone instead (P8.5-24). */
+export class RunQueuedError extends Error { constructor() { super('RUN_QUEUED') } }
+
+// An id the app makes for each run (supabase/runs-queue.sql: unique, so a run
+// sent twice is kept once). expo-crypto's where the build has it; otherwise a
+// random v4 id, plenty for a key that only has to be unique per run.
+function newClientId(): string {
+  try { return require('expo-crypto').randomUUID() } catch { /* below */ }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
+}
+
+// Whether a failed save is worth waiting for (no connection, or the server for
+// a while) or will never go through (the row itself was refused).
+function offlineError(e: unknown): boolean {
+  const err = e as { name?: string; message?: string; code?: string; context?: { status?: number } }
+  if (/FunctionsFetchError|FunctionsRelayError/.test(err?.name ?? '')) return true
+  const status = err?.context?.status
+  // Not signed in yet (the session restores a moment after start) or a token
+  // being refreshed: wait, never drop the run for it.
+  if (typeof status === 'number') return status >= 500 || status === 401 || status === 403 || status === 408 || status === 429
+  if (err?.code === '42501' || err?.code === 'PGRST301' || err?.code === 'PGRST302') return true
+  if (err?.code) return false
+  return /network|failed to fetch|timed? ?out|aborted|offline/i.test(err?.message ?? String(e))
+}
+
+// Sends one row: to submit-run when the server scores, else straight into the
+// table (dropping a column the table doesn't have yet, and taking a duplicate
+// client_id as already saved). Returns the run's id. Throws on failure.
+async function sendPayload(payload: Record<string, unknown>): Promise<{ id?: string }> {
+  if (SERVER_SCORING) {
+    const { data, error } = await supabase.functions.invoke('submit-run', { body: payload })
+    if (error) throw error
+    return { id: (data as { id?: string } | null)?.id }
+  }
+  const body = { ...payload }
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const { data, error } = await supabase.from('runs').insert(body as any).select('id').single()
+    if (!error) return { id: (data as { id?: string } | null)?.id }
+    if (error.code === '23505' && typeof body.client_id === 'string') {
+      const { data: had } = await (supabase as any).from('runs').select('id').eq('client_id', body.client_id).maybeSingle()
+      if (had) return { id: had.id }
+    }
+    const missing = error.code === 'PGRST204'
+      ? error.message?.match(/Could not find the '([^']+)' column/)?.[1]
+      : undefined
+    if (missing && missing in body) {
+      console.warn(`[saveRun] '${missing}' column missing in DB — dropping it and retrying`)
+      delete body[missing]
+      continue
+    }
+    throw error
+  }
+  throw new Error('Too many missing columns')
+}
+
+// The phone's queue (src/lib/runQueue.ts): stored with the settings (MMKV),
+// sent with sendPayload.
+setRunQueueDeps({
+  load: async () => { try { return JSON.parse((await settingsStorage.getItem(RUN_QUEUE_KEY)) ?? '[]') } catch { return [] } },
+  save: items => settingsStorage.setItem(RUN_QUEUE_KEY, JSON.stringify(items)),
+  send: async item => {
+    // Only under the account that played it: signed out, or someone else
+    // signed in on this phone, it waits for its own player.
+    const me = useUserStore.getState()
+    if (me.isGuest || !me.user?.id || item.payload.user_id !== me.user.id) return { result: 'offline' }
+    try { const r = await sendPayload(item.payload); return { result: 'sent', id: r.id } }
+    catch (e) { return offlineError(e) ? { result: 'offline' } : { result: 'refused', why: String((e as Error)?.message ?? e) } }
+  },
+})
+
+// The run on the result screen right now, if it went into the queue: when the
+// queue sends it, its id lands on the store, so its link appears (and the save
+// line turns to "Saved to your runs").
+let currentClientId: string | null = null
+const onQueueSent = (item: QueuedRun, id?: string) => { if (item.clientId === currentClientId && id) remember({ id }) }
+
+/** Send what's waiting on the phone (on start, back online, back in the foreground). */
+export const flushSavedRuns = () => flushRunQueue(onQueueSent)
+
 async function insertRun(row: Record<string, unknown>): Promise<void> {
   // duration_seconds is optional like the other late columns: dropped and
   // retried below if the database doesn't have it yet (supabase/profile.sql).
-  const payload: Record<string, unknown> = { ...row, duration_seconds: runDuration(), score: scoreRun(row as RunRow) }
+  // P8.5-24: client_id and played_at (supabase/runs-queue.sql) likewise.
+  const clientId = newClientId()
+  const playedAt = new Date().toISOString()
+  const payload: Record<string, unknown> = { ...row, duration_seconds: runDuration(), score: scoreRun(row as RunRow), client_id: clientId, played_at: playedAt }
   // P8-132: the crest this run was played with, so it still shows after you
   // change yours. Added here, where every mode's save passes.
   const crest = useCrestStore.getState().active
@@ -78,24 +167,15 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   useGameStore.setState({ savedRunRow: row as RunRow })
   const invalid = invalidRun(row as RunRow)
   if (invalid) console.warn(`[saveRun] this run would be refused by the server: ${invalid}`)
-  if (SERVER_SCORING) {
-    const { data, error } = await supabase.functions.invoke('submit-run', { body: payload })
-    if (error) throw error
-    remember(data)
-    return
-  }
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const { data, error } = await supabase.from('runs').insert(payload as any).select('id').single()
-    if (!error) { remember(data); return }
-    const missing = error.code === 'PGRST204'
-      ? error.message?.match(/Could not find the '([^']+)' column/)?.[1]
-      : undefined
-    if (missing && missing in payload) {
-      console.warn(`[saveRun] '${missing}' column missing in DB — dropping it and retrying`)
-      delete payload[missing]
-      continue
-    }
-    throw error
+  currentClientId = clientId
+  const queue = async () => { await queueRun({ clientId, playedAt, payload }); throw new RunQueuedError() }
+  // Offline already: straight onto the phone, no attempt that's bound to fail.
+  if (!isOnline()) return queue()
+  try {
+    remember(await sendPayload(payload))
+  } catch (e) {
+    if (offlineError(e)) return queue()
+    throw e
   }
 }
 

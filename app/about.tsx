@@ -114,8 +114,7 @@ export default function AboutScreen() {
   return (
     <KitScreen ground={EVERYDAY} {...globe.scrollProps}>
       <PageMeta title="About" path="/about" />
-      <BackControl roles={roles} />
-      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>ABOUT</KitText>
+      <BackControl roles={roles} title="ABOUT" />
 
       {/* The globe is always spinning, Slovakia always lit up. */}
       <View style={styles.hero}>

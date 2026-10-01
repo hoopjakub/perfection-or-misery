@@ -15,8 +15,7 @@ export default function VersionsScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Versions" description="Every version of Perfection or Misery and what changed." path="/versions" />
-      <BackControl roles={roles} />
-      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>VERSIONS</KitText>
+      <BackControl roles={roles} title="VERSIONS" />
       <KitText t="body" color={roles.textMuted}>
         The app was 0.0.1 until September 2026, so the versions before 0.8 are numbered after the fact, one per milestone.
       </KitText>

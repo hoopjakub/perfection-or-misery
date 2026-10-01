@@ -253,9 +253,11 @@ db.close()
 // P8.5-30: the LEGAL flavour's database, beside the full one: the same data
 // with every competition and league under its plain descriptive name
 // (src/data/legal-names.js; metro.config.js bundles this one in the legal
-// build). Club and player names are unchanged until their tables are written
-// (docs/release/01-NAMES-MARKS-AND-THE-LAW.md §5.2). Same DB_VERSION: an
-// installed app is one flavour or the other.
+// build). Clubs and players take their altered names from the tables in
+// scripts/legal-names/ (drafted by draft-legal-names.ts, edited by the
+// maintainer; docs/release/01-NAMES-MARKS-AND-THE-LAW.md L1); a club or player
+// the tables don't have yet keeps its name and is counted, so a missing draft
+// shows. Same DB_VERSION: an installed app is one flavour or the other.
 const { legalLeagueName, renameText } = require('../src/data/legal-names') as {
   legalLeagueName: (name: string, country: string) => string; renameText: (s: string) => string
 }
@@ -265,10 +267,50 @@ const legal = new Database(LEGAL_PATH)
 const leagues = legal.prepare('SELECT id, name, country FROM leagues').all() as { id: string; name: string; country: string }[]
 const renameLeague = legal.prepare('UPDATE leagues SET name = ? WHERE id = ?')
 legal.transaction(() => { for (const l of leagues) renameLeague.run(legalLeagueName(l.name, l.country), l.id) })()
-// Any club whose name carries a competition's mark (none today; a reserve or
-// youth side would) goes through the same table.
+// The altered names (id,real,altered,review; a quoted field may hold a comma).
+function nameTable(file: string): Map<string, string> {
+  const p = path.join(__dirname, 'legal-names', file)
+  if (!fs.existsSync(p)) return new Map()
+  const out = new Map<string, string>()
+  for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/).slice(1)) {
+    if (!line) continue
+    const cells: string[] = []; let f = '', q = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (q) { if (ch === '"' && line[i + 1] === '"') { f += '"'; i++ } else if (ch === '"') q = false; else f += ch }
+      else if (ch === '"') q = true
+      else if (ch === ',') { cells.push(f); f = '' }
+      else f += ch
+    }
+    cells.push(f)
+    if (cells[0] && cells[2]?.trim()) out.set(cells[0], cells[2].trim())
+  }
+  return out
+}
+const clubNames = nameTable('clubs.csv'), playerNames = nameTable('players.csv')
 const clubs = legal.prepare('SELECT id, name FROM clubs').all() as { id: string; name: string }[]
-const renameClub = legal.prepare('UPDATE clubs SET name = ? WHERE id = ?')
-legal.transaction(() => { for (const c of clubs) { const n = renameText(c.name); if (n !== c.name) renameClub.run(n, c.id) } })()
+const renameClub = legal.prepare('UPDATE clubs SET name = ?, short_name = ? WHERE id = ?')
+// A short code from the altered name (three letters), so the old one ("BAY") doesn't point back at the real club.
+const codeOf = (n: string) => (n.normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'CLB')
+let clubsMissing = 0
+legal.transaction(() => {
+  for (const c of clubs) {
+    const n = clubNames.get(c.id) ?? renameText(c.name)
+    if (!clubNames.has(c.id)) clubsMissing++
+    renameClub.run(n, codeOf(n), c.id)
+  }
+})()
+const players = legal.prepare('SELECT id, name FROM players').all() as { id: string; name: string }[]
+const renamePlayer = legal.prepare('UPDATE players SET name = ? WHERE id = ?')
+let playersMissing = 0
+legal.transaction(() => {
+  for (const p of players) {
+    const n = playerNames.get(p.id)
+    if (n) renamePlayer.run(n, p.id); else playersMissing++
+  }
+})()
 legal.close()
-console.log(`✓ built ${LEGAL_PATH} (legal names: ${leagues.length} leagues)`)
+console.log(`✓ built ${LEGAL_PATH} (legal names: ${leagues.length} leagues, ${clubs.length - clubsMissing}/${clubs.length} clubs, ${players.length - playersMissing}/${players.length} players altered)`)
+if (clubsMissing || playersMissing) console.log(`  ${clubsMissing} clubs and ${playersMissing} players have no altered name yet: npx tsx scripts/draft-legal-names.ts`)
+// The public build's twins of the tables keyed by a club's real name follow the same table.
+require('./build-legal-twins')

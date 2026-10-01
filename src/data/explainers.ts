@@ -61,7 +61,7 @@ export const EXPLAINERS: Record<string, Explainer> = {
 
   holders: {
     title: 'The title holders',
-    text: "The reigning winners are guaranteed a place, even if they flopped domestically, and never defend in the same competition: Paris Saint-Germain (Champions League holders) and Aston Villa (Europa League holders) go into the Champions League's League Phase, Crystal Palace (Conference League holders) into the Europa League's. If you take over a holder, finishing mid-table at home doesn't end your season: champions get to defend their crown.",
+    text: "The reigning winners are guaranteed a place, even if they flopped domestically, and never defend in the same competition: last season's Champions League and Europa League winners go into the Champions League's League Phase, the Conference League's winners into the Europa League's. If you take over a holder, finishing mid-table at home doesn't end your season: champions get to defend their crown.",
   },
 
   knockout_playoff: {

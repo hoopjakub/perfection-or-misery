@@ -14,6 +14,7 @@ import { formatTier } from '@/data/tiers'
 import { ordinal } from '@/lib/format'
 import { ROLES, space, border } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
+import { OfflineNotice } from '@/components/OfflineStrip'
 
 // P8-90: friends, with the screen they never had. Find a player by username,
 // send a request, answer the ones sent to you, and see each friend's latest
@@ -77,8 +78,7 @@ export default function FriendsScreen() {
   if (isGuest) {
     return (
       <KitScreen ground={EVERYDAY}>
-        <BackControl roles={roles} />
-        <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>FRIENDS</KitText>
+        <BackControl roles={roles} title="FRIENDS" />
         <EmptyState roles={roles} icon="lock" title="Friends need an account" body="Make one from You, and your runs and friends are kept." />
       </KitScreen>
     )
@@ -91,8 +91,8 @@ export default function FriendsScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Friends" path="/friends" />
-      <BackControl roles={roles} />
-      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>FRIENDS</KitText>
+      <OfflineNotice />
+      <BackControl roles={roles} title="FRIENDS" />
       {note ? <KitText t="body" color={roles.textMuted}>{note}</KitText> : null}
       {state === 'failed' && (
         <StripedNotice roles={roles} failed actionLabel="Retry" onAction={() => { setState('loading'); setAttempt(a => a + 1) }}>

@@ -178,7 +178,22 @@ export function Loader({ color, wide, label, width }: { color: string; wide?: bo
 }
 
 // ── BackControl ──────────────────────────────────────────────────────────────
-export function BackControl({ roles, onPress }: { roles: Roles; onPress?: () => void }) {
+export function BackControl({ roles, onPress, title }: {
+  roles: Roles; onPress?: () => void
+  /** P8.5-48: a sub-page's title, in the arrow's row and centred on the
+   *  screen (Versions, Settings and the like), instead of a big title under it. */
+  title?: string
+}) {
+  if (title) {
+    return (
+      <View style={styles.backBar}>
+        <BackControl roles={roles} onPress={onPress} />
+        <View style={styles.backTitle} pointerEvents="none">
+          <KitText t="superS" color={roles.text} accessibilityRole="header" numberOfLines={1}>{title.toUpperCase()}</KitText>
+        </View>
+      </View>
+    )
+  }
   return (
     <Pressable
       // A page opened straight from a link or a reload has no history; back
@@ -520,6 +535,10 @@ const styles = StyleSheet.create({
   progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, overflow: 'hidden' },
   progressBlock: { width: 60, height: 3 },
   back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginLeft: -space[3] },
+  // The title is centred on the bar, not on the space beside the arrow; side
+  // insets the arrow's width keep a long one from running under it.
+  backBar: { minHeight: 48, justifyContent: 'center', marginBottom: space[3] },
+  backTitle: { position: 'absolute', left: 48, right: 48, alignItems: 'center' },
   sectionTag: { marginTop: space[5], marginBottom: space[2] },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: space[3],

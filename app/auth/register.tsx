@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isBadWord, refusalLine } from '@/lib/moderation'
 import { USERNAME_MAX } from '@/lib/auth'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
@@ -7,6 +8,7 @@ import { upgradeGuestAccount } from '@/lib/auth'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
+import { useOnline } from '@/lib/online'
 
 // Create an account — docs/ui-overhaul/07a A3. Errors sit under the field they
 // belong to; anything we can't pin to a field goes in a notice above the plate.
@@ -55,13 +57,18 @@ export default function RegisterScreen() {
       }
       setErrors(e?.message === 'USERNAME_TAKEN'
         ? { username: "That username's taken." }
+        // P8.5-44: a name the moderation refuses gets one of its own lines.
+        : isBadWord(e) ? { username: refusalLine() }
         : { form: "That didn't work. Check your connection and try again." })
     }
   }
 
   // The plate names the next missing step instead of silently doing nothing.
+  // P8.5-24: offline, making an account can't work, and the plate says why.
+  const online = useOnline()
   const missing =
-    !username.trim() ? 'Enter a username'
+    !online ? "You're offline"
+    : !username.trim() ? 'Enter a username'
     : !password ? 'Enter a password'
     : !confirm ? 'Repeat the password'
     : !accepted ? 'Tick the box above'

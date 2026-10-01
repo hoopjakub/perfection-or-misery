@@ -10,7 +10,8 @@
       "env": {
         "EXPO_PUBLIC_DEV_TOOLS": "1",
         "EXPO_PUBLIC_BRAND_MODE": "real"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -20,14 +21,16 @@
       "env": {
         "EXPO_PUBLIC_DEV_TOOLS": "1",
         "EXPO_PUBLIC_BRAND_MODE": "original"
-      }
+      },
+      "channel": "preview"
     },
     "preview-personal": {
       "extends": "preview",
       "env": {
         "EXPO_PUBLIC_DEV_TOOLS": "1",
         "EXPO_PUBLIC_BRAND_MODE": "real"
-      }
+      },
+      "channel": "preview-personal"
     },
     "production": {
       "autoIncrement": true,
@@ -36,13 +39,15 @@
       },
       "env": {
         "EXPO_PUBLIC_BRAND_MODE": "original"
-      }
+      },
+      "channel": "production"
     },
     "production-personal": {
       "extends": "production",
       "env": {
         "EXPO_PUBLIC_BRAND_MODE": "real"
-      }
+      },
+      "channel": "production-personal"
     }
   },
   "submit": {

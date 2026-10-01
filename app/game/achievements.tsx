@@ -55,8 +55,7 @@ export default function AchievementsScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Achievements" path="/game/achievements" />
-      <BackControl roles={roles} />
-      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>ACHIEVEMENTS</KitText>
+      <BackControl roles={roles} title="ACHIEVEMENTS" />
       {isGuest ? (
         <EmptyState roles={roles} icon="lock" title="Sign in to keep trophies" body="Guest runs aren't saved, so they can't count here." />
       ) : loading ? (

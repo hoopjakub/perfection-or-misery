@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
+import { useOnline } from '@/lib/online'
 
 // Sign in — docs/ui-overhaul/07a A3.
 const roles = ROLES[EVERYDAY]
@@ -40,7 +41,9 @@ export default function LoginScreen() {
   }
 
   // The plate names the missing step instead of silently doing nothing.
-  const missing = !username.trim() ? 'Enter your username' : !password ? 'Enter your password' : undefined
+  // P8.5-24: offline, signing in can't work, and the plate says why.
+  const online = useOnline()
+  const missing = !online ? "You're offline" : !username.trim() ? 'Enter your username' : !password ? 'Enter your password' : undefined
 
   return (
     // Both platforms lift the form over the keyboard (the old layout only

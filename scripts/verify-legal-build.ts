@@ -33,8 +33,26 @@ if (fs.existsSync(dbPath)) {
     const bad = (db.prepare(`SELECT name FROM ${t}`).all() as { name: string }[]).filter(r => MARKS.test(r.name))
     check(bad.length === 0, `${t} in the legal DB still named with a mark: ${bad.slice(0, 5).map(b => b.name).join(', ')}`)
   }
+  // Wave D: the altered names. No club in the legal DB carries its real name
+  // (a national side is its country, which is no one's mark), no player with
+  // a name carries his real one, and the holders the full path needs are there
+  // by id (it finds them by id, since their names changed).
+  const full = new Database(path.join(ROOT, 'assets/db/players_v5.db'), { readonly: true })
+  const realClub = new Map((full.prepare('SELECT id, name, league_id FROM clubs').all() as { id: string; name: string; league_id: string }[]).map(c => [c.id, c]))
+  const realPlayer = new Map((full.prepare('SELECT id, name FROM players').all() as { id: string; name: string }[]).map(p => [p.id, p.name]))
+  full.close()
+  const sameClubs = (db.prepare('SELECT id, name FROM clubs').all() as { id: string; name: string }[])
+    .filter(c => realClub.get(c.id)?.name === c.name && realClub.get(c.id)?.league_id !== 'wc_2026')
+  check(sameClubs.length === 0, `${sameClubs.length} clubs keep their real name in the legal DB: ${sameClubs.slice(0, 5).map(c => c.name).join(', ')}`)
+  const samePlayers = (db.prepare('SELECT id, name FROM players').all() as { id: string; name: string }[])
+    .filter(p => p.name && realPlayer.get(p.id) === p.name)
+  check(samePlayers.length === 0, `${samePlayers.length} players keep their real name in the legal DB: ${samePlayers.slice(0, 5).map(p => p.name).join(', ')}`)
+  const { EURO_HOLDER_IDS } = require('../src/data/uefa-coefficients')
+  for (const id of Object.values(EURO_HOLDER_IDS) as string[]) check(!!db.prepare('SELECT 1 FROM clubs WHERE id = ?').get(id), `the holder ${id} is missing from the legal DB`)
   db.close()
 }
+// Club facts are free text about real clubs: the public build shows none.
+check(/BRAND_MODE === 'real' \? \(factsData as Record<string, string\[\]>\) : \{\}/.test(fs.readFileSync(path.join(ROOT, 'src/lib/clubFacts.ts'), 'utf8')), 'the legal build shows club facts')
 
 // 2. No crest, no competition logo.
 check(Object.keys(LOGO_MAP).length === 0 && Object.keys(COMPETITION_MAP).length === 0, 'logoMap.legal.ts maps something')

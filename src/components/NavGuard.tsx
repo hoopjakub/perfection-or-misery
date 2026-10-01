@@ -3,7 +3,7 @@ import { Loader } from '@/components/kit'
 import { View, StyleSheet, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRootNavigationState } from 'expo-router'
-import { isNavBusy, subscribeNavBusy, setNavBusy, pulseActive } from '@/lib/navGuard'
+import { isNavBusy, subscribeNavBusy, setNavBusy, pulseActive, workActive } from '@/lib/navGuard'
 import { prim } from '@/theme'
 
 // The layer that makes "one tap, one screen" visible (src/lib/navGuard.ts).
@@ -20,7 +20,10 @@ const MAX_MS = 2000
 export function NavGuard() {
   const busy = useSyncExternalStore(subscribeNavBusy, isNavBusy, isNavBusy)
   // A tap's pulse (src/lib/navGuard.ts): the bar alone, blocking nothing.
-  const pulse = useSyncExternalStore(subscribeNavBusy, pulseActive, pulseActive)
+  const tapPulse = useSyncExternalStore(subscribeNavBusy, pulseActive, pulseActive)
+  // P8.5-45: and work a screen is waiting on (trackWork), likewise blocking nothing.
+  const work = useSyncExternalStore(subscribeNavBusy, workActive, workActive)
+  const pulse = tapPulse || work
   const nav = useRootNavigationState()
   const [spinner, setSpinner] = useState(false)
   const { width } = useWindowDimensions()

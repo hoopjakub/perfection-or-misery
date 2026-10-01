@@ -13,10 +13,10 @@
 // WHY a value read once at start-up rather than a hook: 57 files fix their
 // ground at module level (`const roles = ROLES.cotton`) and feed it to static
 // StyleSheets, which a hook can't reach. A value decided before the first
-// screen draws reaches all of them with a one-line change each. The ceiling:
-// a change of setting applies on the next launch (the web reloads the page at
-// once, see reloadForAppearance). Upgrade path: once expo-updates is in the app
-// (P8.5-31), Updates.reloadAsync() makes the change instant on the phone too.
+// screen draws reaches all of them with a one-line change each. So a change of
+// setting takes a reload: the web reloads the page, and since P8.5-31 the
+// phone reloads its JavaScript too (reloadForAppearance), so it's instant
+// there as well; a build from before expo-updates waits for the next launch.
 import { createContext, useContext } from 'react'
 import { Appearance, Platform } from 'react-native'
 import { ROLES, type Ground, type Roles } from '@/theme'
@@ -39,11 +39,19 @@ export function appearanceChangesGround(next: AppearanceChoice): boolean {
   return resolve(next) !== EVERYDAY
 }
 
-/** The web applies a new appearance at once by reloading the page; the phone
- *  on its next launch (see the note at the top). Returns whether it reloaded. */
+/** A new appearance applies at once: the web reloads the page, the phone
+ *  reloads its JavaScript (P8.5-31 brought expo-updates, whose reloadAsync
+ *  does it; in a development build React Native's own reload). A build made
+ *  before expo-updates was added (1 Oct 2026) has no native module, so the
+ *  require is guarded and the change waits for the next launch, as it did.
+ *  Returns whether it reloaded. */
 export function reloadForAppearance(): boolean {
   if (Platform.OS === 'web' && typeof window !== 'undefined') { window.location.reload(); return true }
-  return false
+  try {
+    if (__DEV__) { require('react-native').DevSettings.reload(); return true }
+    require('expo-updates').reloadAsync().catch(() => {})
+    return true
+  } catch { return false }
 }
 
 // The ground of the screen a component sits in. KitScreen provides it, so a

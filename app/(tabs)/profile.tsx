@@ -12,7 +12,7 @@ import { useCrestStore } from '@/store/crestStore'
 import { ordinal } from '@/lib/format'
 import { ROLES, space, border } from '@/theme'
 import { formatTier } from '@/data/tiers'
-import { KitScreen, KitText, IdTag, ListRow, SectionTag, Plate, TeamMark } from '@/components/kit'
+import { KitScreen, KitText, IdTag, ListRow, SectionTag, Plate, TeamMark, StripedNotice } from '@/components/kit'
 import { ProfileCard } from '@/components/profile/ProfileParts'
 import { VersionButton } from '@/components/VersionButton'
 import { EVERYDAY } from '@/lib/appearance'
@@ -58,6 +58,15 @@ const pickGreeting = (name: string | null) => {
   return pool[Math.floor(Math.random() * pool.length)].replace('{name}', name ?? '')
 }
 
+// P8.5-47: one greeting for the whole launch. It used to change each time the
+// tab came back into view; now it's picked once and kept until the app closes
+// (a new one only if the name it greets changes, e.g. on signing in).
+let launch: { name: string | null; text: string } | null = null
+const launchGreeting = (name: string | null) => {
+  if (!launch || launch.name !== name) launch = { name, text: pickGreeting(name) }
+  return launch.text
+}
+
 export default function YouScreen() {
   const { profile, isGuest, user } = useUserStore()
   const [stats, setStats] = useState<UserStats | null>(null)
@@ -67,11 +76,10 @@ export default function YouScreen() {
   // P8-181: your club's tag, in your pin's colour (the club's own colour is on its page).
   const clubTag = profile?.club_tag ? { text: profile.club_tag, colour: pin?.hex ?? '#ff5a00' } : null
   const name = isGuest ? 'Guest' : profile?.username ?? '—'
-  const [greeting, setGreeting] = useState(() => pickGreeting(isGuest ? null : profile?.username ?? null))
+  const greeting = launchGreeting(isGuest ? null : profile?.username ?? null)
   const unread = useNoticeStore(st => st.unread)
 
   useFocusEffect(useCallback(() => {
-    setGreeting(pickGreeting(isGuest ? null : profile?.username ?? null))
     let active = true
     if (user && !isGuest) {
       fetchUserStats(user.id).then(s => { if (active) setStats(s) }).catch(e => console.warn('[you] stats failed:', e))
@@ -151,6 +159,15 @@ export default function YouScreen() {
         </View>
       )}
 
+      {/* P8.5-44: the moderator took the name away (or banned the account). */}
+      {!isGuest && profile?.banned_at ? (
+        <StripedNotice roles={roles} failed>This account has been banned. It can't save runs, chat or report.</StripedNotice>
+      ) : !isGuest && profile?.must_rename ? (
+        <StripedNotice roles={roles} actionLabel="Pick a name" onAction={() => router.push('/rename')}>
+          Your name broke the rules, so the moderator took it away. Pick a new one.
+        </StripedNotice>
+      ) : null}
+
       {!isGuest && (
         <>
           <View style={styles.actions}>
@@ -165,6 +182,12 @@ export default function YouScreen() {
           <SectionTag roles={roles}>Your record</SectionTag>
           <ListRow roles={roles} icon="achievements" label="Achievements" onPress={() => router.push('/game/achievements')} />
           <ListRow roles={roles} icon="stats" label="Career" onPress={() => router.push('/game/career')} />
+          {profile?.is_admin ? (
+            <>
+              <SectionTag roles={roles}>Moderation</SectionTag>
+              <ListRow roles={roles} icon="privacy" label="Inbox" sub="Unsure names and reports" onPress={() => router.push('/moderation')} />
+            </>
+          ) : null}
         </>
       )}
 

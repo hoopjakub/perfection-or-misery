@@ -220,7 +220,10 @@ export const UECL_ACCESS: EuroAccessRule[] = [
  * in the same competition: the Europa League's goes up into the Champions
  * League, the Conference League's into the Europa League (docs/europe/02 §2).
  */
-export const EURO_HOLDERS = { ucl: 'Paris Saint-Germain', uel: 'Aston Villa', uecl: 'Crystal Palace' } as const
+/** Paris Saint-Germain, Aston Villa and Crystal Palace, by id in the full path's leagues. By id, not name:
+ *  the public build renames clubs (P8.5, the legal flavour's altered names),
+ *  so a lookup by name would find nobody there. */
+export const EURO_HOLDER_IDS = { ucl: 'paris_saint_germain_cucl', uel: 'aston_villa_cucl', uecl: 'crystal_palace_cucl' } as const
 
 /**
  * What a league position earns in any of the three competitions, the

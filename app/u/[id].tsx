@@ -15,6 +15,7 @@ import { relationshipWith, sendFriendRequest, respondToRequest, removeFriend, ty
 import { openConfirm } from '@/lib/confirm'
 import { ROLES, space, colourwayFor } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
+import { OfflineNotice } from '@/components/OfflineStrip'
 
 // P8-88: a player's profile — yours, or anyone's you reach from Ranks, a
 // friend or a run (P8-89). What it shows past the name is what the owner made
@@ -66,6 +67,7 @@ export default function ProfileScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title={`${name}'s profile`} path={`/u/${id}`} />
+      <OfflineNotice />
       <BackControl roles={roles} />
       {state === 'loading' ? (
         <KitText t="bodyL" color={roles.textMuted} style={styles.top}>Finding the player.</KitText>
@@ -141,6 +143,12 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
+
+          {/* P8.5-44: at the foot, quiet, so it's there when needed and not in the way. */}
+          {!own && (
+            <Plate label="Report this player" variant="quiet" roles={roles} style={styles.report}
+              onPress={() => router.push({ pathname: '/report', params: { type: 'player', id, name } })} />
+          )}
         </>
       )}
     </KitScreen>
@@ -190,6 +198,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   top: { marginTop: space[4] },
+  report: { marginTop: space[6], alignSelf: 'flex-start' },
   record: { flexDirection: 'row', flexWrap: 'wrap', gap: space[5], marginBottom: space[2] },
   fact: { gap: 2, minWidth: 80 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space[3], marginBottom: space[2] },

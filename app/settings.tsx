@@ -39,8 +39,7 @@ export default function SettingsScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
       <PageMeta title="Settings" path="/settings" />
-      <BackControl roles={roles} />
-      <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>SETTINGS</KitText>
+      <BackControl roles={roles} title="SETTINGS" />
 
       <SectionTag roles={roles}>Appearance</SectionTag>
       <Chips roles={roles} label="Light or dark" options={APPEARANCE_OPTIONS} value={s.appearance} onChange={chooseAppearance} />

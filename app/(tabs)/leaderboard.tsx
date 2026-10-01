@@ -18,6 +18,7 @@ import { PlayerName } from '@/components/profile/ProfileParts'
 import { EVERYDAY } from '@/lib/appearance'
 import { fetchClubBoard, ClubsUnavailable, type ClubBoardRow } from '@/db/queries/clubs'
 import { ClubTag } from '@/components/ClubParts'
+import { OfflineNotice } from '@/components/OfflineStrip'
 
 // D9 · Ranks (docs/ui-overhaul/07d). The best runs anyone has played, each as
 // the same garment label your own runs wear, with its place set in the super
@@ -134,7 +135,7 @@ export default function LeaderboardScreen() {
   const filters = (
     <View style={styles.filters}>
       <SegmentSwitch<Board> roles={roles} value={board} onChange={setBoard}
-        options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'This week' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
+        options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'Weekly' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
       {board === 'week' && (
         <KitText t="tag" color={roles.textMuted}>Monday 00:00 to Sunday 23:59, Slovak time (Europe/Bratislava)</KitText>
       )}
@@ -180,13 +181,14 @@ export default function LeaderboardScreen() {
   return (
     <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
       <PageMeta title="Ranks" description="The fifty best runs anyone has played, by score." path="/leaderboard" />
+      <OfflineNotice />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>RANKS</KitText>
       <KitText t="tag" color={roles.textMuted}>{board === 'clubs' ? 'Every club, by all its members\' runs added together' : board === 'week' ? 'The fifty best runs this week, by score' : 'The fifty best runs, by score'}</KitText>
       {board === 'clubs' ? (
         <>
           <View style={styles.filters}>
             <SegmentSwitch<Board> roles={roles} value={board} onChange={setBoard}
-              options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'This week' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
+              options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'Weekly' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
           </View>
           <ClubBoard />
         </>

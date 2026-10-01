@@ -3,7 +3,7 @@ import {
   buildCLAccessList, ensureHolders,
   type AssociationEntry, type AssociationClub, type CLAccessList,
 } from '@/engine/cl-access'
-import { EURO_HOLDERS } from '@/data/uefa-coefficients'
+import { EURO_HOLDER_IDS } from '@/data/uefa-coefficients'
 import { simulateLeagueTableDetailed, type SimLeagueTable, type LeagueFormat } from '@/engine/cl-league-sim'
 
 /**
@@ -14,10 +14,6 @@ import { simulateLeagueTableDetailed, type SimLeagueTable, type LeagueFormat } f
  * builder consumes.
  */
 
-// The holders, matched to the scraped club names so they resolve to real
-// squads in the field. The 2025/26 winners, from UEFA's archived access lists
-// (EURO_HOLDERS, P8-52): the Conference League's now take part too.
-export const CUSTOM_UCL_HOLDERS = { ucl: EURO_HOLDERS.ucl, uel: EURO_HOLDERS.uel } as const
 
 type Row = {
   club_id: string
@@ -63,32 +59,27 @@ export async function getCustomUclHolders(): Promise<AssociationClub[]> {
 
 /** P8-52: all three holders by competition (null where the club isn't in the data). */
 export async function getEuropeHolders(): Promise<Record<'ucl' | 'uel' | 'uecl', AssociationClub | null>> {
-  const [ucl, uel, uecl] = await Promise.all([EURO_HOLDERS.ucl, EURO_HOLDERS.uel, EURO_HOLDERS.uecl].map(clubNamed))
+  const [ucl, uel, uecl] = await Promise.all([EURO_HOLDER_IDS.ucl, EURO_HOLDER_IDS.uel, EURO_HOLDER_IDS.uecl].map(clubById))
   return { ucl, uel, uecl }
 }
 
-async function clubNamed(name: string): Promise<AssociationClub | null> {
+// By id, not by name: the public build's clubs carry altered names.
+async function clubById(id: string): Promise<AssociationClub | null> {
   const db = await getDb()
   const row = await db.getFirstAsync<{ id: string; name: string; ovr: number }>(
     `SELECT c.id, c.name, cs.historical_ovr AS ovr
      FROM clubs c JOIN club_seasons cs ON cs.club_id = c.id
-     WHERE c.league_id LIKE 'cucl_%' AND c.name = ? LIMIT 1`,
-    [name],
+     WHERE c.league_id LIKE 'cucl_%' AND c.id = ? LIMIT 1`,
+    [id],
   )
   return row ? { clubId: row.id, clubName: row.name, ovr: row.ovr } : null
 }
 
 async function resolveHolders(): Promise<AssociationClub[]> {
-  const db = await getDb()
   const out: AssociationClub[] = []
-  for (const name of [CUSTOM_UCL_HOLDERS.ucl, CUSTOM_UCL_HOLDERS.uel]) {
-    const row = await db.getFirstAsync<{ id: string; name: string; ovr: number }>(
-      `SELECT c.id, c.name, cs.historical_ovr AS ovr
-       FROM clubs c JOIN club_seasons cs ON cs.club_id = c.id
-       WHERE c.league_id LIKE 'cucl_%' AND c.name = ? LIMIT 1`,
-      [name],
-    )
-    if (row) out.push({ clubId: row.id, clubName: row.name, ovr: row.ovr })
+  for (const id of [EURO_HOLDER_IDS.ucl, EURO_HOLDER_IDS.uel]) {
+    const c = await clubById(id)
+    if (c) out.push(c)
   }
   return out
 }

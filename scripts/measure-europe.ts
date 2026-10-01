@@ -19,7 +19,7 @@ import path from 'path'
 import { buildCLAccessList, ensureHolders, type AssociationEntry, type AssociationClub } from '../src/engine/cl-access'
 import { simulateLeagueTableDetailed, type LeagueFormat } from '../src/engine/cl-league-sim'
 import { playEveryCup, europaAndConferenceEntrants, simulateEurope, huntWeight } from '../src/engine/europe-path'
-import { EURO_HOLDERS, type EuroComp } from '../src/data/uefa-coefficients'
+import { EURO_HOLDER_IDS, type EuroComp } from '../src/data/uefa-coefficients'
 import { buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly, type CLTeam } from '../src/engine/cl-sim'
 import { simulateMatch, setMatchTilt } from '../src/engine/match'
 import { resolveDifficulty } from '../src/engine/difficulty'
@@ -38,8 +38,8 @@ for (const r of rows) {
   byRank.set(r.assoc_rank, e)
 }
 const assocs = [...byRank.values()].sort((a, b) => a.rank - b.rank)
-const named = (n: string): AssociationClub | null => { for (const a of assocs) { const c = a.clubs.find(x => x.clubName === n); if (c) return c } return null }
-const held = { ucl: named(EURO_HOLDERS.ucl), uel: named(EURO_HOLDERS.uel), uecl: named(EURO_HOLDERS.uecl) }
+const byId = (id: string): AssociationClub | null => { for (const a of assocs) { const c = a.clubs.find(x => x.clubId === id); if (c) return c } return null }
+const held = { ucl: byId(EURO_HOLDER_IDS.ucl), uel: byId(EURO_HOLDER_IDS.uel), uecl: byId(EURO_HOLDER_IDS.uecl) }
 const allClubs = assocs.flatMap(a => a.clubs.map(c => ({ a, c })))
 const pct = (n: number, of: number) => `${(n / of * 100).toFixed(1)}%`
 console.log(`${assocs.length} associations, ${allClubs.length} clubs; median club OVR ${allClubs.map(x => x.c.ovr).sort((a, b) => a - b)[Math.floor(allClubs.length / 2)]}`)

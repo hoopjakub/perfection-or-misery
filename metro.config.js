@@ -15,6 +15,11 @@ config.resolver.assetExts.push('wasm', 'woff2')
 // the legal build mustn't carry is never `require`d and never bundled:
 //   brand.ts → ./logoMap   becomes logoMap.legal.ts (no crests, no competition logos)
 //   setup.ts → ./dbAsset   becomes dbAsset.legal.ts (players_legal.db: generic names)
+// and, since Wave D's altered names, every table keyed by a club's real name
+// becomes its twin keyed by the altered one (scripts/build-legal-twins.ts),
+// and the club facts (free text about real clubs) an empty one:
+//   venues.ts → ./stadiums, geo-iso.ts → ./europe-countries,
+//   any file → @/data/club-codes, clubFacts.ts → ./clubFactsData
 // The names in the app's own strings are the Babel side (babel.config.js). The
 // env is read when Metro starts, so switching flavour locally needs
 // `npx expo start --clear` (EAS builds start fresh anyway).
@@ -23,13 +28,17 @@ const src = (...p) => path.join(__dirname, 'src', ...p)
 const LEGAL_SWAPS = [
   { from: src('lib', 'brand.ts'), module: './logoMap', to: src('lib', 'logoMap.legal.ts') },
   { from: src('db', 'setup.ts'), module: './dbAsset', to: src('db', 'dbAsset.legal.ts') },
+  { from: src('data', 'venues.ts'), module: './stadiums', to: src('data', 'stadiums.legal.ts') },
+  { from: src('data', 'geo-iso.ts'), module: './europe-countries', to: src('data', 'europe-countries.legal.ts') },
+  { from: '*', module: '@/data/club-codes', to: src('data', 'club-codes.legal.ts') },
+  { from: src('lib', 'clubFacts.ts'), module: './clubFactsData', to: src('lib', 'clubFactsData.legal.ts') },
 ]
 const upstreamResolve = config.resolver.resolveRequest
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (LEGAL) {
     // Paths compared normalised: Windows hands Metro either slash and either case.
     const origin = path.resolve(context.originModulePath).toLowerCase()
-    const swap = LEGAL_SWAPS.find(s => s.module === moduleName && s.from.toLowerCase() === origin)
+    const swap = LEGAL_SWAPS.find(s => s.module === moduleName && (s.from === '*' || s.from.toLowerCase() === origin))
     if (swap) return { type: 'sourceFile', filePath: swap.to }
   }
   return upstreamResolve ? upstreamResolve(context, moduleName, platform) : context.resolveRequest(context, moduleName, platform)

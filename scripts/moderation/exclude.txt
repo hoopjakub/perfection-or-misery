@@ -1,0 +1,75 @@
+# P8.5-44 · Words in the downloaded lists that are NOT what the filter is for.
+# The maintainer, 1 Oct: swearing, slurs, vulgar words for body parts, and
+# terms with an awful meaning. A mild insult ("stupid"), an everyday word that
+# a list caught ("niggle"), or football talk stays allowed. One a line.
+idiot
+idiots
+stupid
+dumb
+dummy
+moron
+morons
+loser
+losers
+lame
+jerk
+fool
+fools
+sissy
+wtf
+niggle
+niggles
+niggling
+noob
+ugly
+fat
+suck
+sucks
+sucker
+hell
+crap
+damn
+kill
+killer
+hate
+hater
+sex
+sexy
+nude
+naked
+porn
+gay
+lesbian
+queer
+african
+asian
+jewish
+muslim
+islam
+christian
+black
+white
+yellow
+redskins
+balls
+ball
+screw
+screwed
+hooker
+hooters
+# Real footballers' and clubs' names (scripts/verify-moderation.ts runs the
+# whole player DB through the name check; these are what it caught):
+# Lugano, Zorya Lugansk, Conan Noonan, Gaëtan Bong, Giandro Sambo, Semen
+# Vovchenko (a Ukrainian first name), Shota Shekiladze (a Georgian one),
+# Eros, Mondorf-les-Bains.
+lugan
+lugans
+noonan
+bong
+sambo
+semen
+shota
+ero
+nig
+lesbain
+pric

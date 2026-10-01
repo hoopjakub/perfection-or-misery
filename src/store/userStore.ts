@@ -14,6 +14,11 @@ type Profile = {
   badge_team_name?: string | null
   // P8-181 (supabase/clubs.sql): your club's tag, kept on the profile by the club functions.
   club_tag?: string | null
+  // P8.5-44 (supabase/moderation.sql): the inbox's keeper (set by the
+  // maintainer in the SQL editor), a ban, and a name the moderator took away.
+  is_admin?: boolean
+  banned_at?: string | null
+  must_rename?: boolean
 }
 
 type UserStore = {

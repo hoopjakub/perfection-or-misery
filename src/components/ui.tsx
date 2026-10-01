@@ -178,6 +178,8 @@ const SAVE_LINE: Record<Exclude<RunSaveStatus, 'off'>, { icon: keyof typeof Ioni
   waiting: { icon: 'time-outline',          text: 'Preparing to save…',               color: GR.textMuted },
   saving:  { icon: 'cloud-upload-outline',  text: 'Saving your run…',                 color: GR.textMuted },
   saved:   { icon: 'checkmark-circle',      text: 'Saved to your runs',               color: colors.success },
+  // P8.5-24: no connection, so it waits on the phone (src/lib/runQueue.ts).
+  queued:  { icon: 'phone-portrait-outline', text: "Saved on this phone. It'll go up when you're online.", color: GR.textMuted },
   failed:  { icon: 'alert-circle',          text: "Couldn't save this run.",          color: colors.warning },
 }
 

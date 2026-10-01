@@ -23,11 +23,23 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "perfection-or-misery.vercel.app", "pathPrefix": "/r/" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "https",
+              "host": "perfection-or-misery.vercel.app",
+              "pathPrefix": "/r/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
-      "backgroundColor": "#141416"
+      "backgroundColor": "#141416",
+      "permissions": [
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -70,6 +82,14 @@
       }
     },
     "owner": "yolotime4564",
-    "backgroundColor": "#141416"
+    "backgroundColor": "#141416",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/eebf5b96-e62d-478e-89d9-955e71192983",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
