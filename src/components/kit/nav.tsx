@@ -1,4 +1,4 @@
-// NavBar / NavRail: the four destinations. A bar under 1024px, a rail with
+// NavBar / NavRail: the five destinations. A bar under 1024px, a rail with
 // the wordmark from 1024px. Active = orange tape (above the item in the bar,
 // beside it in the rail) plus ink text — never colour alone.
 import React from 'react'
@@ -15,6 +15,7 @@ const DEST: Record<string, { label: string; icon: IconName }> = {
   index:       { label: 'Play',  icon: 'play' },
   runs:        { label: 'Runs',  icon: 'runs' },
   leaderboard: { label: 'Ranks', icon: 'ranks' },
+  clubs:       { label: 'Clubs', icon: 'clubs' },
   profile:     { label: 'You',   icon: 'you' },
 }
 

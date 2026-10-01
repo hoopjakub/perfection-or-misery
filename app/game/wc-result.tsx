@@ -377,6 +377,7 @@ export default function WCResultScreen() {
         shareText={`${resultLabel} — FIFA World Cup 2026. Perfection or Misery.`}
         runId={params.runId}
         ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
+        scoreRow={params.runId ? dbRun ?? null : undefined}
       />
       <ResultFigures items={[
         ['Group', `${playerGroupPos}${ordinal(playerGroupPos)}`], ['Games', playerTeam.stats.played],

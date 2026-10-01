@@ -316,6 +316,7 @@ export default function CLResultScreen() {
         shareText={`${resultLabel} — ${comp.fullName}. Perfection or Misery.`}
         runId={params.runId}
         ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
+        scoreRow={params.runId ? dbRun ?? null : undefined}
       />
       <ResultFigures items={[
         ['League phase', `${playerPos}${ordinal(playerPos)}`], ['Pts', playerTeam.stats.points],

@@ -11,6 +11,7 @@ import { ordinal } from '@/lib/format'
 import { isHex } from '@/lib/colour'
 import { avatarUrl, fetchPublicProfile, type LookEffect, type PublicProfile, type Banner, type AvatarFrame, type ProfileLook } from '@/db/queries/profile'
 import { useUserStore } from '@/store/userStore'
+import { fetchClubOf } from '@/db/queries/clubs'
 import { crestInitials } from '@/lib/brand'
 
 // P8-88 / P8-89: how a player appears — their picture, their name and the
@@ -214,7 +215,11 @@ const styles = StyleSheet.create({
 })
 
 // ── Whose run (P8-89) ─────────────────────────────────────────────────────────
-export type RunOwner = { id: string; name: string; yours: boolean; avatarPath?: string | null; badgeTeamId?: string | null; badgeTeamName?: string | null }
+export type RunOwner = {
+  id: string; name: string; yours: boolean; avatarPath?: string | null; badgeTeamId?: string | null; badgeTeamName?: string | null
+  /** P8.5-04: their club, for the shared picture. */
+  clubTag?: string | null; clubColour?: string | null
+}
 
 /** The owner of a run: the saved run's user, or you for the run you just
  *  played. null for a guest's live run (nobody to name). */
@@ -223,10 +228,13 @@ export function useRunOwner(ownerId?: string | null): RunOwner | null {
   const myName = useUserStore(st => st.profile?.username ?? null)
   const id = ownerId ?? me
   const [p, setP] = useState<PublicProfile | null>(null)
+  const [club, setClub] = useState<{ tag: string; colour: string } | null>(null)
   useEffect(() => {
     if (!id) return
     let active = true
     fetchPublicProfile(id).then(r => { if (active) setP(r) }).catch(e => console.warn('[run owner] failed:', e))
+    // P8.5-04: the club tag goes on the shared picture too.
+    fetchClubOf(id).then(c => { if (active && c) setClub({ tag: c.tag, colour: c.colour }) }).catch(() => {})
     return () => { active = false }
   }, [id])
   if (!id) return null
@@ -234,6 +242,7 @@ export function useRunOwner(ownerId?: string | null): RunOwner | null {
     id, yours: id === me,
     name: p?.username ?? (id === me ? myName : null) ?? 'Player',
     avatarPath: p?.avatar_path, badgeTeamId: p?.badge_team_id, badgeTeamName: p?.badge_team_name,
+    clubTag: club?.tag ?? null, clubColour: club?.colour ?? null,
   }
 }
 

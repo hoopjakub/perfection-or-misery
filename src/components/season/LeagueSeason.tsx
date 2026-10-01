@@ -35,7 +35,7 @@ import { openMatchStats } from '@/lib/matchStats'
 import { openConfirm } from '@/lib/confirm'
 import { SkipPlate } from '@/components/season/RunChrome'
 import { randomSeed } from '@/lib/rng'
-import { planCup, playCupAfter, tieNote, type DomesticCup, type CupTie } from '@/engine/domestic-cup'
+import { planCup, playCupAfter, attributeCupScorers, tieNote, type DomesticCup, type CupTie } from '@/engine/domestic-cup'
 import { ROLES, space, border, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunHeader, Plate, Chips, Icon, SectionTag, EmptyState } from '@/components/kit'
 import type { SimTeam, Fixture, SeasonResult, MatchdaySnapshot } from '@/types/simulation'
@@ -46,7 +46,7 @@ import {
 } from './SeasonParts'
 import { EVERYDAY } from '@/lib/appearance'
 import { nationalCupForLeague, semisTwoLeggedForLeague } from '@/data/national-cups'
-import { CupPane, CupNow } from './CupParts'
+import { CupPane, CupNow, cupTieRequest } from './CupParts'
 
 // C1 · The league season (docs/ui-overhaul/07c), on nylon. Your table under
 // floodlights with the real season's zones; your match lands first and the
@@ -298,7 +298,7 @@ export default function LeagueSeason() {
     pressRef.current = [...pressRef.current, ...fresh]
     setLivePress(pressRef.current)   // so a story opened mid-season can be read
     // P8-173: any cup round due after this matchday, with the clubs' form as it now stands.
-    if (cupRef.current) cupRef.current = playCupAfter(cupRef.current, md, teams)
+    if (cupRef.current) cupRef.current = attributeCupScorers(playCupAfter(cupRef.current, md, teams), poolByClubRef.current, lineupCtxRef.current)
     return true
   }
 
@@ -515,7 +515,11 @@ export default function LeagueSeason() {
     )
   )
   // P8-173: the cup (src/components/season/CupParts.tsx, shared with the full path).
-  const cupPane = cup ? <CupPane roles={roles} cup={cup} playerClubId={simTeams.find(t => t.isPlayer)?.clubId} /> : null
+  // P8.5-37: a cup tie opens its match sheet, like a league fixture.
+  const openCupTie = (t: CupTie, label: string) => cup && placedLeague && openMatchStats(cupTieRequest(t, label, {
+    cupName: cup.name, yearStart: placedLeague.yearStart, playerClubId: simTeams.find(x => x.isPlayer)?.clubId, playerFormation: formation ?? undefined,
+  }), theme.accent)
+  const cupPane = cup ? <CupPane roles={roles} cup={cup} playerClubId={simTeams.find(t => t.isPlayer)?.clubId} onTie={openCupTie} /> : null
 
   const pressPane = (
     stories.length === 0 ? (
@@ -595,7 +599,7 @@ export default function LeagueSeason() {
             {poolsReady ? 'The table is in the pundits’ order until a ball is kicked.' : 'Loading the squads…'}
           </KitText>
         ) : null}
-        <CupNow roles={roles} cup={cup} md={cardMD} />
+        <CupNow roles={roles} cup={cup} md={cardMD} onTie={openCupTie} />
 
 
         {wide ? (

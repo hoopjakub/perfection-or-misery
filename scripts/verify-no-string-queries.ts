@@ -41,7 +41,8 @@ function sqlProblems(code: string): string[] {
 function executeProblems(sql: string): string[] {
   const noComments = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
   // `grant/revoke execute on function` is a permission, not dynamic SQL.
-  return [...noComments.matchAll(/(?<!grant\s|revoke\s)\bexecute\s+(?!format\s*\(|on\s+function)/gi)].map(() => 'EXECUTE without format()')
+  // A trigger's `execute function f()` names a function; it isn't dynamic SQL.
+  return [...noComments.matchAll(/(?<!grant\s|revoke\s)\bexecute\s+(?!format\s*\(|on\s+function|function\s|procedure\s)/gi)].map(() => 'EXECUTE without format()')
 }
 
 // The rules have to catch the patterns this script exists for.
@@ -51,6 +52,8 @@ check(sqlProblems("db.getAllAsync(`SELECT * FROM t WHERE l.id = '${leagueId}'`)"
 check(sqlProblems("db.getAllAsync(`SELECT * FROM t WHERE id IN (${ids.map(() => '?').join(',')})`, ids)").length === 0, 'rule 2 rejects ? placeholders')
 check(executeProblems("execute 'select ' || x;").length === 1 && executeProblems("execute format('select %I', x);").length === 0, 'rule 3 is wrong')
 check(executeProblems('grant execute on function public.f(uuid) to authenticated;').length === 0, 'rule 3 flags a grant')
+check(executeProblems('create trigger t before insert on x for each row execute function public.f();').length === 0, 'rule 3 flags a trigger')
+check(executeProblems("execute 'select ' || x;").length === 1, 'rule 3 misses dynamic SQL')
 
 function walk(dir: string, exts: string[], out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

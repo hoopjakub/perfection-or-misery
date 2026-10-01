@@ -315,6 +315,8 @@ function CLSimulation() {
     const timer = setTimeout(simulateNextMD, SPEED_MS[speed])
     return () => clearTimeout(timer)
   }, [phase, isPlaying, currentMD, simTeams, fixtures, speed])
+  // P8.5-40: the last matchday played (see simulateNextMD). Above the early return: it's a hook.
+  const playedMDRef = useRef(0)
 
   if (!clTeams || !formation || draftedPlayers.length === 0) {
     return (
@@ -325,8 +327,15 @@ function CLSimulation() {
     )
   }
 
+  // P8.5-40: the last matchday actually played. A skip runs a frame after its
+  // press (the waiting plate, P8.5-01), and the play timer already set for the
+  // current matchday can fire in that frame: the skip then played the same
+  // matchday again from its own (older) state, nine games in an eight-game
+  // league phase. Both paths now play only past this.
   function simulateNextMD() {
     if (currentMD > totalMatchdays) { handleFinish(); return }
+    if (currentMD <= playedMDRef.current) return
+    playedMDRef.current = currentMD
 
     const mdFixtures = fixtures.filter(f => f.matchday === currentMD)
     const teams      = [...simTeams]
@@ -373,7 +382,8 @@ function CLSimulation() {
   function skipAll() {
     setIsPlaying(false)
     const teams = [...simTeams]
-    for (let md = currentMD; md <= totalMatchdays; md++) {
+    for (let md = Math.max(currentMD, playedMDRef.current + 1); md <= totalMatchdays; md++) {
+      playedMDRef.current = md
       fixtures.filter(f => f.matchday === md).forEach(({ home: h, away: a }) => {
         playCLFixture(teams, teams.find(t => t.clubId === h.clubId)!, teams.find(t => t.clubId === a.clubId)!, md)
       })

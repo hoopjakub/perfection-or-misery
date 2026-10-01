@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
-import Svg, { Circle, Path, Defs, Pattern, Image as SvgImage } from 'react-native-svg'
+import Svg, { Circle, Path, Defs, Pattern, Image as SvgImage, ClipPath, RadialGradient, Stop, G } from 'react-native-svg'
 import Animated, { useSharedValue, useAnimatedProps, withTiming, withSequence, withDelay, Easing, cancelAnimation, runOnJS, interpolateColor } from 'react-native-reanimated'
 import { prim } from '@/theme'
 import { flagLargeOf } from '@/lib/flags'
@@ -433,12 +433,14 @@ export const SpinningGlobe = React.memo(function SpinningGlobe({ targetId = DETA
   const fineTarget = useMemo(() => (detailed ? ringsOf(DETAIL_FEATURES.find(f => Number(f.id) === DETAIL_FOR), 1) : targetRings), [detailed, targetRings])
   const [tLon, tLat] = useMemo(() => (target ? centroidOf(target) : [0, 15]), [target])
   const tilt = Math.max(-35, Math.min(45, tLat))
-  // Zoomed, the country spans 80% of the view. A wider cap than the draw's
-  // (30, not MAX_ZOOM's 16): "until the whole country is visible" means filling it.
+  // Zoomed, the country spans 80% of the globe's own disc (P8.5-35: the lens,
+  // below). A wider cap than the draw's (30, not MAX_ZOOM's 16): "until the
+  // whole country is visible" means filling it.
   const Rz = useMemo(() => {
     const reach = target ? reachOf(ringsOf(mainFeature(target), 1), tLon, tLat) : Math.PI / 2
-    return Math.max(R, Math.min(R * 30, (0.4 * size) / Math.sin(Math.min(reach, 80 * DEG))))
+    return Math.max(R, Math.min(R * 30, (0.8 * R) / Math.sin(Math.min(reach, 80 * DEG))))
   }, [target, tLon, tLat, R, size])
+  const lens = svgId(useId(), 'lens'), shade = svgId(useId(), 'shade')
   const dot = useMemo(() => {
     const l = BUILT_AT[1] * DEG, p = BUILT_AT[0] * DEG
     return [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)]
@@ -477,7 +479,7 @@ export const SpinningGlobe = React.memo(function SpinningGlobe({ targetId = DETA
   const landProps = useAnimatedProps(() => {
     const f = frame(t.value)
     if (landCache.value.k !== f.key) {
-      const fine = detailed && viewArc(f.r, C) < DETAIL_ARC
+      const fine = detailed && Math.asin(Math.min(1, R / f.r)) < DETAIL_ARC
       landCache.value = { k: f.key, d: fine ? project(DETAIL_LAND, f.lon, f.lat, f.r, C, true, 1, DETAIL_CAPS) : project(LAND, f.lon, f.lat, f.r, C, true, 1, LAND_CAPS) }
     }
     return { d: landCache.value.d }
@@ -485,7 +487,7 @@ export const SpinningGlobe = React.memo(function SpinningGlobe({ targetId = DETA
   const targetProps = useAnimatedProps(() => {
     const f = frame(t.value)
     if (targetCache.value.k !== f.key) {
-      const fine = detailed && viewArc(f.r, C) < DETAIL_ARC
+      const fine = detailed && Math.asin(Math.min(1, R / f.r)) < DETAIL_ARC
       targetCache.value = { k: f.key, d: project(fine ? fineTarget : targetRings, f.lon, f.lat, f.r, C, true, 1) }
     }
     return { d: targetCache.value.d }
@@ -503,13 +505,31 @@ export const SpinningGlobe = React.memo(function SpinningGlobe({ targetId = DETA
     return { cx: x, cy: y, r: 3.2 * pulse, opacity: shown }
   })
 
+  // P8.5-35: zoomed in, "it shows like a square". The sphere grew past the
+  // SVG's square edge, so the close-up was a square of land. Now the globe's
+  // own disc is a lens: the zoom magnifies inside the globe's outline, which
+  // stays round at its spinning size, and a shade toward the rim keeps it
+  // reading as the curve of a globe rather than a flat map cut out.
+  // While the page holds it still (`paused`), the view is kept as a texture,
+  // so scrolling moves a picture instead of redrawing a few thousand points.
   return (
-    <View style={[styles.wrap, { width: size, height: size }]}>
+    <View style={[styles.wrap, { width: size, height: size }]} renderToHardwareTextureAndroid={!running} shouldRasterizeIOS={!running}>
       <Svg width={size} height={size}>
-        <AnimatedCircle cx={C} cy={C} animatedProps={seaProps} fill={SEA} stroke={accent} strokeWidth={1.25} strokeOpacity={0.5} />
-        <AnimatedPath animatedProps={landProps} fill={LAND_FILL} stroke={BORDER} strokeWidth={0.6} strokeLinejoin="round" />
-        <AnimatedPath animatedProps={targetProps} fill={accent} stroke={accent} strokeWidth={1.25} strokeLinejoin="round" />
-        <AnimatedCircle animatedProps={dotProps} fill={prim.orange} stroke={prim.ink} strokeWidth={1.5} />
+        <Defs>
+          <ClipPath id={lens}><Circle cx={C} cy={C} r={R} /></ClipPath>
+          <RadialGradient id={shade} cx={C} cy={C} r={R} gradientUnits="userSpaceOnUse">
+            <Stop offset="0.7" stopColor={prim.ink} stopOpacity={0} />
+            <Stop offset="1" stopColor={prim.ink} stopOpacity={0.35} />
+          </RadialGradient>
+        </Defs>
+        <G clipPath={`url(#${lens})`}>
+          <AnimatedCircle cx={C} cy={C} animatedProps={seaProps} fill={SEA} />
+          <AnimatedPath animatedProps={landProps} fill={LAND_FILL} stroke={BORDER} strokeWidth={0.6} strokeLinejoin="round" />
+          <AnimatedPath animatedProps={targetProps} fill={accent} stroke={accent} strokeWidth={1.25} strokeLinejoin="round" />
+          <AnimatedCircle animatedProps={dotProps} fill={prim.orange} stroke={prim.ink} strokeWidth={1.5} />
+          <Circle cx={C} cy={C} r={R} fill={`url(#${shade})`} />
+        </G>
+        <Circle cx={C} cy={C} r={R} fill="none" stroke={accent} strokeWidth={1.25} strokeOpacity={0.5} />
         <AnimatedCircle cx={C} cy={C} r={R + 6} animatedProps={ringProps} fill="none" stroke={accent} strokeWidth={1} strokeDasharray="4 8" />
       </Svg>
     </View>

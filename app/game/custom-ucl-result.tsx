@@ -1,5 +1,5 @@
 import { EUROPE } from '@/data/europe'
-import { fullPathTier, runQualTies } from '@/engine/europe-path'
+import { fullPathTier, runQualTies, huntMet } from '@/engine/europe-path'
 import React, { useEffect, useRef, useState } from 'react'
 import { Loader } from '@/components/kit'
 import { COLUMN } from '@/hooks/useSizeClass'
@@ -111,6 +111,8 @@ export default function CustomUclResultScreen() {
   // saved (see saveCustomUclRun) — with a legacy fallback to the old top-level
   // columns for any earlier runs.
   const customUclQual = (dbRun?.cl_result?._customUclQual ?? dbRun?.custom_ucl_qual) as import('@/engine/cl-qualifying').QualifyingResult | undefined ?? store.customUclQual
+  // P8.5-39: did this run's hunt (if any) reach its target?
+  const huntReached = store.europeanTarget !== 'any' && huntMet(store.europeanTarget, customUclQual)
   const customUclLeagues = (dbRun?.cl_result?._customUclTables ?? dbRun?.custom_ucl_tables) as SimLeagueTable[] | undefined ?? store.customUclLeagues
   const clYear = store.clYear
 
@@ -272,7 +274,8 @@ export default function CustomUclResultScreen() {
         teamOvr: playerTeam.ovr,
         result: clResult!,
         squad: fullSquad,
-        difficulty, custom: customDifficulty, weightedPicksOverride, target: store.europeanTarget,
+        // P8.5-39: a hunt is saved as one only if it reached its target; a miss is a normal run.
+        difficulty, custom: customDifficulty, weightedPicksOverride, target: huntReached ? store.europeanTarget : null,
         // For "The Double, Europe" (P8.5-21): your league and its cup, both won.
         domestic: playerLeague ? {
           champion: domPos === 1,
@@ -335,8 +338,10 @@ export default function CustomUclResultScreen() {
   const hubRunId = fromHistory ? params.runId : undefined
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
   const nylon = KIT_ROLES[EVERYDAY]
-  const target = fromHistory ? (dbRun?.difficulty_meta as { target?: string } | null)?.target : store.europeanTarget
+  // A saved run carries its target only if the hunt reached it (P8.5-39).
+  const target = fromHistory ? (dbRun?.difficulty_meta as { target?: string } | null)?.target : (huntReached ? store.europeanTarget : null)
   const huntedComp = target && target !== 'any' ? EUROPE[target as 'ucl' | 'uel' | 'uecl']?.name ?? null : null
+  const huntMissed = !fromHistory && store.europeanTarget !== 'any' && !huntReached ? EUROPE[store.europeanTarget as 'ucl' | 'uel' | 'uecl'].name : null
 
   return (
     <KitScreen ground={EVERYDAY} width="wide">
@@ -344,11 +349,12 @@ export default function CustomUclResultScreen() {
         tone={verdictOf(tier)}
         title={resultLabel}
         // P8.5-21: a hunting run says so (its target is on the saved run too).
-        meta={`${comp.fullName} · the full path · ` + (huntedComp ? `hunting the ${huntedComp} · ` : '') + `${playerTeam.clubName} · ${entryText}`}
+        meta={`${comp.fullName} · the full path · ` + (huntedComp ? `hunted the ${huntedComp} · ` : huntMissed ? `missed the ${huntMissed} hunt: a normal run · ` : '') + `${playerTeam.clubName} · ${entryText}`}
         punditsText={punditsText}
         shareText={`${resultLabel} — ${comp.fullName} · the full path. Perfection or Misery.`}
         runId={params.runId}
         ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
+        scoreRow={params.runId ? dbRun ?? null : undefined}
       />
       <ResultFigures items={reachedLeaguePhase ? [
         ['League phase', `${playerPos}${ordinal(playerPos)}`], ['Pts', playerTeam.stats.points],

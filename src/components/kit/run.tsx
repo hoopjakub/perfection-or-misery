@@ -82,11 +82,18 @@ export function ChoiceLabel({
         <View style={styles.labelTop}>
           {mark}
           <KitText t="superS" color={roles.text} style={{ flexShrink: 1 }}>{title.toUpperCase()}</KitText>
-          {lastTime && <Tag roles={roles}>LAST TIME</Tag>}
-          {comingSoon && <Tag roles={roles} variant="selected">SOON</Tag>}
           {trailing ? <KitText t="figure" color={roles.text} style={styles.trailing}>{trailing}</KitText> : null}
           {onPress && !comingSoon ? <Icon name="chevron" size={20} color={roles.text} /> : null}
         </View>
+        {/* P8.5-42: the tags on a line of their own. Beside the title, the LAST
+            TIME a tap adds squeezed it, and "ALL TIME" read "ALL", "EUROPEAN
+            FULL PATH" "EUROPEAN FULL". */}
+        {(lastTime || comingSoon) && (
+          <View style={styles.labelTags}>
+            {lastTime && <Tag roles={roles}>LAST TIME</Tag>}
+            {comingSoon && <Tag roles={roles} variant="selected">SOON</Tag>}
+          </View>
+        )}
         {note ? <KitText t="body" color={roles.textMuted}>{note}</KitText> : null}
         {lines.map(l => <KitText key={l} t="tag" color={roles.text}>{l}</KitText>)}
       </View>
@@ -238,6 +245,7 @@ const styles = StyleSheet.create({
   tapeEdge: { alignSelf: 'stretch' },
   labelBody: { flex: 1, paddingVertical: space[3], paddingLeft: space[3], paddingRight: space[5], gap: 4 },
   labelTop: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  labelTags: { flexDirection: 'row', gap: space[1] },
   trailing: { marginLeft: 'auto' },
 
   step: { flexDirection: 'row', alignItems: 'center', gap: space[2] },

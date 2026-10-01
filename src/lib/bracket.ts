@@ -41,7 +41,7 @@ export function orderBracket(columns: BracketColumn[]): BracketColumn[] {
  *  so far, one match a tie. A first round lists its byes as well, each a side
  *  with nobody against it, so the column has every club of the next round's
  *  draw and halves into it like any other round. */
-export function cupToColumns(cup: DomesticCup): BracketColumn[] {
+export function cupToColumns(cup: DomesticCup, onTie?: (t: DomesticCup['rounds'][number]['ties'][number], roundLabel: string) => void): BracketColumn[] {
   return cup.rounds.filter(r => r.played).map(r => ({
     key: r.key, label: r.label,
     ties: [
@@ -50,6 +50,7 @@ export function cupToColumns(cup: DomesticCup): BracketColumn[] {
         b: { clubId: t.away.clubId, name: t.away.clubName, goals: String(t.awayGoals) },
         winner: t.winner === 'home' ? 'a' : 'b',
         note: tieNote(t) ?? undefined,
+        onPress: onTie ? () => onTie(t, r.label) : undefined,
       })),
       ...r.byes.map((s): BracketTie => ({ a: { clubId: s.clubId, name: s.clubName }, b: null, winner: 'a', note: 'Bye' })),
     ],

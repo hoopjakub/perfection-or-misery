@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react'
 import { PageMeta } from '@/components/PageMeta'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { useNoticeStore } from '@/store/noticeStore'
@@ -13,7 +13,7 @@ import { ordinal } from '@/lib/format'
 import { ROLES, space, border } from '@/theme'
 import { formatTier } from '@/data/tiers'
 import { KitScreen, KitText, IdTag, ListRow, SectionTag, Plate, TeamMark } from '@/components/kit'
-import { Avatar, LookBand } from '@/components/profile/ProfileParts'
+import { ProfileCard } from '@/components/profile/ProfileParts'
 import { VersionButton } from '@/components/VersionButton'
 import { EVERYDAY } from '@/lib/appearance'
 
@@ -117,15 +117,18 @@ export default function YouScreen() {
       <PageMeta title="You" path="/profile" />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>{greeting.toUpperCase()}</KitText>
 
-      {/* Your card: your look as its backdrop, the ID tag with your picture over it. */}
-      {!isGuest && <LookBand roles={roles} colour={pub?.colour} effect={pub?.effect} banner={readLook(pub).banner} height={56} />}
-      <View style={!isGuest ? styles.cardUnder : undefined}>
-        <IdTag roles={roles} name={name} state={isGuest ? 'GUEST' : 'REG'}
-          detail={isGuest ? 'Runs are not kept' : `${runs} ${runs === 1 ? 'RUN' : 'RUNS'}`}
-          mark={isGuest ? undefined : <Avatar roles={roles} path={profile?.avatar_path} name={name} size={48} />}
-          badge={badgeId && badgeName ? <TeamMark roles={roles} clubId={badgeId} name={badgeName} size={16} /> : undefined}
-          pin={pin ?? undefined} tag={clubTag} />
-      </View>
+      {/* P8.5-02: your card is the one others see on your page (app/u/[id].tsx):
+          the frame, the theme, the banner, the status, the about line and the
+          badges you set in the editor. Only the look's colour band showed here
+          before. A guest has no profile, so keeps the ID tag. */}
+      {isGuest ? (
+        <IdTag roles={roles} name={name} state="GUEST" detail="Runs are not kept" pin={pin ?? undefined} />
+      ) : (
+        <Pressable onPress={() => router.push('/profile-edit')} accessibilityRole="button" accessibilityHint="Edit your profile">
+          <ProfileCard roles={roles} name={name} avatarPath={profile?.avatar_path} look={readLook(pub)}
+            badgeTeamId={badgeId} badgeTeamName={badgeName} tag={profile?.club_tag} />
+        </Pressable>
+      )}
 
       {facts.length > 0 && (
         <View style={[styles.facts, { borderColor: roles.rule }]}>
@@ -158,9 +161,7 @@ export default function YouScreen() {
           <SectionTag roles={roles}>People</SectionTag>
           <ListRow roles={roles} icon="keep" label="Friends" sub="Requests, your friends, finding players"
             value={unread > 0 ? `${unread} NEW` : undefined} onPress={() => router.push('/friends')} />
-          {/* P8-181: the tag on your ID tag is your club's. */}
-          <ListRow roles={roles} icon="ranks" label="Clubs" sub={profile?.club_tag ? `Your club · ${profile.club_tag}` : 'Join a club, or start one'}
-            onPress={() => router.push('/clubs')} />
+          {/* P8.5-07: Clubs moved to the tab bar; it was a row here. */}
           <SectionTag roles={roles}>Your record</SectionTag>
           <ListRow roles={roles} icon="achievements" label="Achievements" onPress={() => router.push('/game/achievements')} />
           <ListRow roles={roles} icon="stats" label="Career" onPress={() => router.push('/game/career')} />

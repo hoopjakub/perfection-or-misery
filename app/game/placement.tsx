@@ -28,6 +28,7 @@ import { ROLES, space, border, colourwayFor, prim, type Roles } from '@/theme'
 import {
   KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Rivets, StripedNotice, RoundFlag, VenueMark, Crest,} from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
+import { huntWeight } from '@/engine/europe-path'
 
 // Stage 5 · The draw — docs/ui-overhaul/07b B7.
 //
@@ -456,8 +457,19 @@ function CustomCLPlacement() {
       const associations: AssociationEntry[] = await getCustomUclAssociations()
       const all = associations.flatMap(a => a.clubs.map(c => ({ assoc: a, club: c })))
       if (all.length === 0) { setLoading(false); return }
-      // Uniform over every club in every UEFA league.
-      const pick = all[Math.floor(Math.random() * all.length)]
+      // Uniform over every club in every UEFA league. A hunt (P8.5-39) first
+      // picks the league, weighed by how often a season there ends in its
+      // target (huntWeight, measured), then a club in it.
+      const hunt = europeanTarget && europeanTarget !== 'any' ? europeanTarget : null
+      const weights = hunt ? associations.map(a => (a.clubs.length ? huntWeight(a.rank, hunt) : 0)) : []
+      const total = weights.reduce((x, y) => x + y, 0)
+      let pick = all[Math.floor(Math.random() * all.length)]
+      if (hunt && total > 0) {
+        let r = Math.random() * total, i = 0
+        while (r >= weights[i] && i < weights.length - 1) { r -= weights[i]; i++ }
+        const assoc = associations[i]
+        pick = { assoc, club: assoc.clubs[Math.floor(Math.random() * assoc.clubs.length)] }
+      }
       setChosen({
         clubId: pick.club.clubId, clubName: pick.club.clubName,
         leagueRank: pick.assoc.rank, leagueName: pick.assoc.name, country: pick.assoc.country,
@@ -499,7 +511,7 @@ function CustomCLPlacement() {
             <>
               <Tag roles={roles} variant="selected">{`HUNTING · ${hunting.toUpperCase()}`}</Tag>
               <KitText t="body" color={roles.textMuted}>
-                {`First you play your domestic season. You're hunting the ${hunting}: where you finish only decides how deep you enter it. A place in a stronger competition takes you straight into its league phase; a weaker one, or none, into its first qualifying round. Lose in its qualifying and the run ends.`}
+                {`You're hunting the ${hunting}: the draw favoured the leagues where a season most often ends there. Your season plays as any other. End it in the ${hunting} and the run counts as a hunt; miss it and it's a normal run.`}
               </KitText>
             </>
           ) : (

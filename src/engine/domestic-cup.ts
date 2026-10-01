@@ -12,6 +12,8 @@
 // every tie is one match with extra time and penalties (simulateKnockout).
 // The cup is an honour, not points: the run's score still comes from the league.
 import { simulateKnockout, simulateTwoLegs, type LegScore } from './knockout-match'
+import { attributeFixtureScorers } from './play-fixture'
+import type { MatchScorers, RosterPlayer } from '@/types/stats'
 import { mulberry32, deriveSeed } from '@/lib/rng'
 import type { SimTeam } from '@/types/simulation'
 
@@ -25,6 +27,13 @@ export type CupTie = {
   /** A two-legged tie (P8.5-20: some cups' semi-finals). `home` hosts the
    *  first leg; homeGoals/awayGoals are then the aggregate, extra time included. */
   legs?: { leg1: LegScore; leg2: LegScore }
+  /** P8.5-37: the match's seed (each leg's, for two legs), from the cup's own
+   *  seed, so its sheet is the same every time it's opened. */
+  seed?: number
+  legSeeds?: [number, number]
+  /** Attributed once, by a screen that has the squads (attributeCupScorers). */
+  scorers?: MatchScorers
+  legScorers?: [MatchScorers, MatchScorers]
 }
 export type CupRoundKey = 'r1' | 'r16' | 'qf' | 'sf' | 'final'
 export type CupRound = {
@@ -108,19 +117,20 @@ export function playCupAfter(cup: DomesticCup, md: number, teams: SimTeam[]): Do
       const home = inRound[k], away = inRound[k + 1]
       const h = byId.get(home.clubId), a = byId.get(away.clubId)
       if (!h || !a) continue
+      const seed = deriveSeed(cup.seed, 0x5eed + i * 64 + k)
       if (r.key === 'sf' && cup.twoLeggedSemis) {
         const two = simulateTwoLegs(h, a)
         ties.push({
           home, away, homeGoals: two.totalA, awayGoals: two.totalB, extraTime: two.extraTime,
           homePens: two.homePens, awayPens: two.awayPens, winner: two.winner,
-          legs: { leg1: two.leg1, leg2: two.leg2 },
+          legs: { leg1: two.leg1, leg2: two.leg2 }, legSeeds: [seed, deriveSeed(seed, 2)],
         })
         continue
       }
       const res = simulateKnockout(h, a)
       ties.push({
         home, away, homeGoals: res.homeGoals, awayGoals: res.awayGoals, extraTime: res.extraTime,
-        homePens: res.homePens, awayPens: res.awayPens, winner: res.winner,
+        homePens: res.homePens, awayPens: res.awayPens, winner: res.winner, seed,
       })
     }
     r.ties = ties
@@ -161,4 +171,34 @@ export function reachLabel(reach: CupReach, cupName: string): string {
   if (reach === 'winner') return `${cupName} winners`
   if (reach === 'final') return `${cupName} finalists`
   return `Out in the ${LABEL[reach].toLowerCase()}`
+}
+
+/**
+ * P8.5-37: every played tie that hasn't got its scorers yet gets them, once,
+ * from the squads (as a league fixture's are), so its match sheet names the
+ * same scorers every time. The second leg of a two-legged tie is hosted by the
+ * first leg's away side, and carries the extra time if there was any.
+ * Returns a new cup; a tie already attributed is left as it was.
+ */
+export function attributeCupScorers(cup: DomesticCup, poolByClub: Map<string, RosterPlayer[]> | null | undefined,
+  lineupCtx?: { playerClubId?: string; benchSize?: number }): DomesticCup {
+  if (!poolByClub || poolByClub.size === 0) return cup
+  let changed = false
+  const rounds = cup.rounds.map(r => {
+    if (!r.played || r.ties.every(t => t.scorers || t.legScorers)) return r
+    changed = true
+    return { ...r, ties: r.ties.map(t => {
+      if (t.scorers || t.legScorers) return t
+      if (t.legs && t.legSeeds) {
+        const l1 = t.legs.leg1
+        const hostGoals = t.awayGoals - l1.awayGoals, visitorGoals = t.homeGoals - l1.homeGoals
+        return { ...t, legScorers: [
+          attributeFixtureScorers(poolByClub, t.home.clubId, t.away.clubId, l1.homeGoals, l1.awayGoals, false, false, t.legSeeds[0], lineupCtx),
+          attributeFixtureScorers(poolByClub, t.away.clubId, t.home.clubId, hostGoals, visitorGoals, t.extraTime, false, t.legSeeds[1], lineupCtx),
+        ] as [MatchScorers, MatchScorers] }
+      }
+      return { ...t, scorers: attributeFixtureScorers(poolByClub, t.home.clubId, t.away.clubId, t.homeGoals, t.awayGoals, t.extraTime, false, t.seed, lineupCtx) }
+    }) }
+  })
+  return changed ? { ...cup, rounds } : cup
 }

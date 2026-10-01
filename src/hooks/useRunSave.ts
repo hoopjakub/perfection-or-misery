@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useUserStore } from '@/store/userStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
+import { announceNewAchievements } from '@/lib/achievementToast'
 
 // ── useRunSave ───────────────────────────────────────────────────────────────
 // Every result screen used to save the run only when you pressed Play Again or
@@ -45,7 +46,12 @@ export function useRunSave({ applies, signedIn, ready }: {
     if (inflight.current) return inflight.current
     setStatus('saving')
     const p = task.current().then(
-      () => setStatus('saved'),
+      () => {
+        setStatus('saved')
+        // P8.5-36: anything this run earned pops up.
+        const id = useUserStore.getState().user?.id
+        if (id) announceNewAchievements(id)
+      },
       (e) => {
         console.warn('[run-save] failed:', e)
         inflight.current = null

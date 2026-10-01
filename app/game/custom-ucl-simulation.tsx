@@ -36,8 +36,8 @@ import { getCustomUclAssociations, getEuropeHolders } from '@/db/queries/custom-
 import type { EuroComp } from '@/data/uefa-coefficients'
 import { playEveryCup, europaAndConferenceEntrants, simulateEurope, runQualTies } from '@/engine/europe-path'
 import { nationalCupName, semisTwoLegged } from '@/data/national-cups'
-import { planCup, playCupAfter, type DomesticCup } from '@/engine/domestic-cup'
-import { CupPane, CupNow } from '@/components/season/CupParts'
+import { planCup, playCupAfter, attributeCupScorers, type DomesticCup, type CupTie } from '@/engine/domestic-cup'
+import { CupPane, CupNow, cupTieRequest } from '@/components/season/CupParts'
 import { EUROPE } from '@/data/europe'
 import { getRostersForClubs } from '@/db/queries/seasons'
 import {
@@ -306,7 +306,10 @@ export default function CustomUclSimulationScreen() {
   // P8-63, as in the classic knockouts: newest round on top, the page returns
   // to it as each round opens, a tag brings you back if you scrolled away, and
   // while you're away your live match and the next round wait for you.
-  const huntTarget = useGameStore(st => st.europeanTarget ?? 'any')
+  // P8.5-37: your cup's ties open their match sheets (the full path's season is 2025/26).
+  const openCupTie = (t: CupTie, label: string) => domCupRef.current && openMatchStats(cupTieRequest(t, label, {
+    cupName: domCupRef.current.name, yearStart: 2025, playerClubId: playerClubId ?? undefined, playerFormation: formation ?? undefined,
+  }))
   // P8.5-15: the seed the pundits called your league from (null: not heard yet).
   const [domPunditSeed, setDomPunditSeed] = useState<number | null>(null)
   const koScrollRef = useRef<ScrollView>(null)
@@ -381,9 +384,14 @@ export default function CustomUclSimulationScreen() {
     return t.map(x => x.clubId)
   }
 
+  // P8.5-40, the domestic season's own: the last matchday played, by stage
+  // (`${stage}:${index}`), so neither the timer nor the skip plays one twice.
+  const domPlayedRef = useRef<Set<string>>(new Set())
   function playDomesticMD() {
     const plan = domMatchdaysRef.current
     if (domMD >= plan.length) { advanceDomesticStage(); return }
+    if (domPlayedRef.current.has(`${domStage}:${domMD}`)) return
+    domPlayedRef.current.add(`${domStage}:${domMD}`)
     const md = plan[domMD]
     const results: MDResult[] = []
     for (const [home, away] of md) {
@@ -401,7 +409,7 @@ export default function CustomUclSimulationScreen() {
     results.sort((a, b) => Number(b.playerHome || b.playerAway) - Number(a.playerHome || a.playerAway))
     setRecentResults(results)
     if (domStage === 'regular' && domCupRef.current) {
-      domCupRef.current = playCupAfter(domCupRef.current, domMD + 1, domTeamsRef.current)
+      domCupRef.current = attributeCupScorers(playCupAfter(domCupRef.current, domMD + 1, domTeamsRef.current), domPoolRef.current, domLineupCtxRef.current)
       setDomCup(domCupRef.current)
     }
     domOrdersRef.current.push(domOrderNow())
@@ -447,8 +455,10 @@ export default function CustomUclSimulationScreen() {
     let stage = domStage
     for (;;) {
       for (; md < plan.length; md++) {
+        if (domPlayedRef.current.has(`${stage}:${md}`)) continue
+        domPlayedRef.current.add(`${stage}:${md}`)
         for (const [h, a] of plan[md]) playLiveMatch(h, a)
-        if (stage === 'regular' && domCupRef.current) domCupRef.current = playCupAfter(domCupRef.current, md + 1, domTeamsRef.current)
+        if (stage === 'regular' && domCupRef.current) domCupRef.current = attributeCupScorers(playCupAfter(domCupRef.current, md + 1, domTeamsRef.current), domPoolRef.current, domLineupCtxRef.current)
         domOrdersRef.current.push(sortLeagueTable(domTeamsRef.current).map(x => x.clubId))
       }
       if (stage === 'regular') {
@@ -475,7 +485,7 @@ export default function CustomUclSimulationScreen() {
     // round (playCupAfter plays only the rounds due on the matchday it's given).
     if (domCupRef.current) {
       for (const r of domCupRef.current.rounds) {
-        if (!r.played) domCupRef.current = playCupAfter(domCupRef.current, r.afterMatchday, domTeamsRef.current)
+        if (!r.played) domCupRef.current = attributeCupScorers(playCupAfter(domCupRef.current, r.afterMatchday, domTeamsRef.current), domPoolRef.current, domLineupCtxRef.current)
       }
       setDomCup(domCupRef.current)
     }
@@ -524,17 +534,8 @@ export default function CustomUclSimulationScreen() {
       domCupRef.current ? { rank: playerTable.rank, cup: domCupRef.current } : null)
     const euro = europaAndConferenceEntrants(access, simulated, cups, held.uecl)
     const holders = (['ucl', 'uel', 'uecl'] as EuroComp[]).flatMap(c => (held[c] ? [{ comp: c, clubId: held[c]!.clubId, clubName: held[c]!.clubName }] : []))
-    // P8.5-21: hunting one competition (Settings → Achievement hunting, fixed
-    // for the run when it started): your season only decides how deep you enter.
-    const me = playerTable.standings.find(r => r.clubId === playerClubId)
-    const aim = huntTarget !== 'any' && me && playerClubId ? {
-      target: huntTarget,
-      club: { clubId: playerClubId, clubName: me.clubName, ovr: me.ovr, associationRank: playerTable.rank,
-        associationName: playerTable.name, associationCountry: playerTable.country, position: playerPos,
-        entryRound: 'q1' as const, entryPath: 'league' as const },
-      champion: playerPos === 1,
-    } : null
-    const q = simulateEurope(access, euro, cups, holders, playerClubId ?? undefined, aim)
+    // A hunt (P8.5-39) plays like any season: it steered the draw, nothing here.
+    const q = simulateEurope(access, euro, cups, holders, playerClubId ?? undefined)
     const inComp = EUROPE[q.europe?.competition ?? 'ucl']
     // Attribute qualifying-tie scorers ONCE (stored on the ties) so the tie
     // details, stats totals and awards all agree everywhere.
@@ -640,10 +641,18 @@ export default function CustomUclSimulationScreen() {
     return () => clearTimeout(timer)
   }, [phase, isPlaying, currentMD, clTeamsLocal, fixtures, speed])
 
+  // P8.5-40: the last matchday actually played. A skip runs a frame after its
+  // press (the waiting plate, P8.5-01), and the play timer already set for the
+  // current matchday can fire in that frame: the skip then played the same
+  // matchday again from its own (older) state, nine games in an eight-game
+  // league phase. Both paths now play only past this.
+  const lpPlayedRef = useRef(0)
   function simulateNextMD() {
     // P8-115: the league phase stops on its final table. It went straight on
     // to the knockouts, so the table you'd just finished was gone at once.
     if (currentMD > totalMatchdays) { setIsPlaying(false); return }
+    if (currentMD <= lpPlayedRef.current) return
+    lpPlayedRef.current = currentMD
     const mdFixtures = fixtures.filter(f => f.matchday === currentMD)
     const teams = [...clTeamsLocal]
     const results: MDResult[] = []
@@ -699,7 +708,8 @@ export default function CustomUclSimulationScreen() {
     // Every skipped matchday's results are kept, as watching keeps them, so
     // the strip of your results and the results tab have all eight.
     const days: MDResult[][] = []
-    for (let md = currentMD; md <= totalMatchdays; md++) {
+    for (let md = Math.max(currentMD, lpPlayedRef.current + 1); md <= totalMatchdays; md++) {
+      lpPlayedRef.current = md
       const results: MDResult[] = []
       for (const { home: h, away: a } of fixtures.filter(f => f.matchday === md)) {
         const home = teams.find(t => t.clubId === h.clubId)!, away = teams.find(t => t.clubId === a.clubId)!
@@ -997,14 +1007,14 @@ export default function CustomUclSimulationScreen() {
               onPress={() => openMdDetail(yourResult, historyFor(domHistory), 'Domestic Season', 2025)}
               footer={<ManOfTheMatch roles={nylon} req={mdRequest(yourResult, 2025)} />} />
           )}
-          <CupNow roles={nylon} cup={domCup} md={historyFor(domHistory)} />
+          <CupNow roles={nylon} cup={domCup} md={historyFor(domHistory)} onTie={openCupTie} />
           <SegmentSwitch<'table' | 'results' | 'cup'> roles={nylon} value={domTab} onChange={setDomTab} options={[
             { id: 'table', label: preSplit ? 'Pre-split table' : 'Table' },
             { id: 'results', label: `Results MD ${historyFor(domHistory)}` },
             ...(domCup ? [{ id: 'cup' as const, label: 'Cup' }] : []),
           ]} />
           {domTab === 'cup' && domCup ? (
-            <CupPane roles={nylon} cup={domCup} country={mine.country} playerClubId={playerClubId} />
+            <CupPane roles={nylon} cup={domCup} country={mine.country} playerClubId={playerClubId} onTie={openCupTie} />
           ) : domTab === 'table' ? (
             <>
               {domStage === 'split' && domRegularSnapshotRef.current && (
@@ -1081,7 +1091,7 @@ export default function CustomUclSimulationScreen() {
           {cupLine && <KitText t="body" color={nylon.textMuted}>{cupLine}</KitText>}
           {yourCup?.cup && (
             <Plate label={`See the ${nationalCupName(mine.rank)}`} icon="ranks" variant="secondary" roles={nylon}
-              onPress={() => openCupBracket(yourCup.cup!, mine.country, playerClubId)} />
+              onPress={() => openCupBracket(yourCup.cup!, mine.country, playerClubId, openCupTie)} />
           )}
           {/* The pundits' call, checked: the same seed, the same field. */}
           {domPunditCall != null && (
@@ -1142,7 +1152,7 @@ export default function CustomUclSimulationScreen() {
               {europe.cups.map(c => (
                 <MarkRow key={c.rank} roles={nylon} clubId={c.clubId} clubName={c.clubName} yours={c.clubId === playerClubId}
                   label={`${nationalCupName(c.rank)} · ${c.country ?? c.name}`}
-                  onPress={c.cup ? () => openCupBracket(c.cup!, c.country, playerClubId) : undefined} />
+                  onPress={c.cup ? () => openCupBracket(c.cup!, c.country, playerClubId, (t, label) => openMatchStats(cupTieRequest(t, label, { cupName: c.cup!.name, yearStart: 2025 }))) : undefined} />
               ))}
             </>
           )}

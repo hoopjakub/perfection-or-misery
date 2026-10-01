@@ -59,6 +59,8 @@ type GameStore = {
   // Phase 6 — the id this run was saved under, for its share link (/r/<id>).
   // Cleared with the run, so a guest run never shares the previous run's link.
   savedRunId:     string | null
+  /** P8.5-41: the row this run was saved (and scored) as, for the result's points and their breakdown. */
+  savedRunRow:    import('../../supabase/functions/_shared/score').RunRow | null
   // P8-88: when this run began (a mode was chosen), for the profile's total
   // playing time. Saved with the run as duration_seconds.
   runStartedAt:   number | null
@@ -135,6 +137,7 @@ const initialState = {
   punditPicks:     null,
   runData:         null,
   savedRunId:      null,
+  savedRunRow:     null,
   runStartedAt:    null,
   testForceWinUntilFinal: false,
 }
@@ -217,6 +220,7 @@ export const useGameStore = create<GameStore>((set) => ({
   punditPicks:     null,
   runData:         null,
   savedRunId:      null,
+  savedRunRow:     null,
     runStartedAt:    null,
     testForceWinUntilFinal: false,
     // Keep mode, difficulty, selectedLeague, and accentColor

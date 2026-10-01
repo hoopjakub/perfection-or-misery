@@ -10,7 +10,7 @@
  *   - rows no run could produce are refused
  * Run: npx tsx scripts/verify-score.ts
  */
-import { scoreRun, invalidRun, scoreMultiplierFor, WC_ROUND_SCORE, CL_ROUND_SCORE, CUSTOM_CL_ROUND_SCORE, UEL_ROUND_SCORE, UECL_ROUND_SCORE, type RunRow } from '../supabase/functions/_shared/score'
+import { scoreRun, scoreBreakdown, knockoutScore, leagueScore, invalidRun, scoreMultiplierFor, WC_ROUND_SCORE, CL_ROUND_SCORE, CUSTOM_CL_ROUND_SCORE, UEL_ROUND_SCORE, UECL_ROUND_SCORE, type RunRow } from '../supabase/functions/_shared/score'
 import { assignTier } from '../src/engine/tier'
 import { resolveDifficulty } from '../src/engine/difficulty'
 import type { ZoneKey } from '../src/data/qualification-bands'
@@ -85,11 +85,33 @@ const bad: [string, Partial<RunRow>][] = [
 ]
 for (const [what, o] of bad) check(invalidRun(base(o)) !== null, `accepted an impossible row: ${what}`)
 
+// P8.5-41: the breakdown is the score. scoreRun is the breakdown's total now,
+// so check that total against the formula as it was written before (the
+// league and knockout functions), over a few thousand random rows.
+{
+  const modes = ['league', 'all_time', 'chaos', 'world_cup', 'champions_league', 'champions_league_custom', 'europa_league', 'conference_league']
+  const ladders: Record<string, Record<string, number>> = { world_cup: WC_ROUND_SCORE, champions_league: CL_ROUND_SCORE, champions_league_custom: CUSTOM_CL_ROUND_SCORE, europa_league: UEL_ROUND_SCORE, conference_league: UECL_ROUND_SCORE }
+  const defaults: Record<string, number> = { world_cup: 100, champions_league: 100, champions_league_custom: 30, europa_league: 80, conference_league: 65 }
+  let seed = 7
+  const rnd = (n: number) => { seed = (seed * 16807) % 2147483647; return seed % n }
+  for (let i = 0; i < 4000; i++) {
+    const mode = modes[rnd(modes.length)]
+    const tiers = ladders[mode] ? Object.keys(ladders[mode]) : ['champions']
+    const row = base({ mode, tier: tiers[rnd(tiers.length)], final_position: 1 + rnd(20), teams_in_league: 20, team_ovr: 70 + rnd(25), losses: rnd(4), draws: rnd(4), difficulty_meta: { hardness: rnd(110) / 10 } })
+    const mult = scoreMultiplierFor(row.difficulty_meta!.hardness!)
+    const old = ladders[mode]
+      ? knockoutScore(ladders[mode][row.tier] ?? defaults[mode], row.team_ovr, row.losses, mult)
+      : leagueScore({ mode, finalPosition: row.final_position, teamsInLeague: row.teams_in_league, teamOvr: row.team_ovr, losses: row.losses, draws: row.draws, difficultyMultiplier: mult })
+    check(scoreRun(row) === old, `${mode} ${row.tier}: breakdown total ${scoreRun(row)}, formula ${old}`)
+    check(scoreBreakdown(row).lines.length > 0, `${mode}: a breakdown with no lines`)
+  }
+}
+
 // P8.5-21: a hunting run scores its competition's ladder times the target's
 // multiplier, and can only end in that competition.
 {
   const run = (tier: string, target?: string) => base({ mode: 'champions_league_custom', tier, team_ovr: 85, losses: 2, difficulty_meta: { hardness: 3.9, ...(target ? { target } : {}) } })
-  for (const [tier, target] of [['winner', 'ucl'], ['uel_winner', 'uel'], ['uecl_sf_exit', 'uecl'], ['uel_q2_exit', 'uel']] as const) {
+  for (const [tier, target] of [['winner', 'ucl'], ['uel_winner', 'uel'], ['uecl_sf_exit', 'uecl'], ['uecl_q2_exit', 'uecl']] as const) {
     check(invalidRun(run(tier, target)) === null, `refused a real ${target} hunt ending ${tier}: ${invalidRun(run(tier, target))}`)
     const free = scoreRun(run(tier)), aimed = scoreRun(run(tier, target))
     check(aimed < free, `an aimed ${tier} (${aimed}) didn't score under a lucky one (${free})`)

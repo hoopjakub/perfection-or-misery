@@ -9,11 +9,13 @@ import { View, Pressable, StyleSheet, Platform } from 'react-native'
 import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated'
 import { ROLES, space, border, prim, type Roles } from '@/theme'
 import { KitText, Plate, Tag, Tape, Stripe, Rivets, H2, Icon, TeamMark, Twinkle } from '@/components/kit'
-import { useRunOwner, RunOwnerLine } from '@/components/profile/ProfileParts'
+import { useRunOwner, RunOwnerLine, Avatar } from '@/components/profile/ProfileParts'
+import { ClubTag } from '@/components/ClubParts'
 import { shareRunLabel, shareRunLink, runLink } from '@/lib/shareRun'
 import { punditsSummary, callOf, type PunditRow } from '@/lib/punditsSummary'
 import { useGameStore } from '@/store/gameStore'
 import { EVERYDAY } from '@/lib/appearance'
+import { scoreBreakdown, type RunRow } from '../../../supabase/functions/_shared/score'
 
 // D1 · The verdict (docs/ui-overhaul/07d), one treatment for every mode. The
 // tier lands as a super on a riveted label: Perfection wears the volt tape,
@@ -25,7 +27,7 @@ const roles = ROLES[EVERYDAY]
 export type VerdictTone = 'perfection' | 'misery' | 'middle'
 
 export function VerdictBlock({
-  tone, title, line, meta, score, multiplier, pundits, punditsText, shareText, runId, ownerId,
+  tone, title, line, meta, score, multiplier, pundits, punditsText, shareText, runId, ownerId, scoreRow,
 }: {
   tone: VerdictTone
   title: string            // the tier, as the shared registry names it
@@ -42,6 +44,8 @@ export function VerdictBlock({
   runId?: string
   /** P8-89: the saved run's owner (runs.user_id). Left out for the run you just played. */
   ownerId?: string | null
+  /** P8.5-41: a saved run's row, for its points; the run you just played reads the store's. */
+  scoreRow?: RunRow | null
 }) {
   const reduced = useReducedMotion()
   const card = useRef<View>(null)
@@ -53,6 +57,12 @@ export function VerdictBlock({
   const whose = owner ? (owner.yours ? 'My run' : `${owner.name}'s run`) : null
   // Read as a hook, so the link appears the moment a live run's save lands.
   const savedRunId = useGameStore(s => s.savedRunId)
+  const liveRow = useGameStore(s => s.savedRunRow)
+  const points = useMemo(() => {
+    const row = scoreRow !== undefined ? scoreRow : liveRow
+    return row ? scoreBreakdown(row as RunRow) : null
+  }, [scoreRow, liveRow])
+  const [showHow, setShowHow] = useState(false)
   const link = runLink(runId ?? savedRunId)
   const text = whose ? `${whose}: ${shareText}` : shareText
   async function share() {
@@ -79,10 +89,41 @@ export function VerdictBlock({
           : <Tape colours={[tone === 'perfection' ? roles.perfection : roles.you]} roles={roles} vertical thickness={border.tape} style={styles.edge} />}
 
         <View style={styles.body}>
+          {/* P8.5-04: the card is what gets shared, so it names whose run it is
+              with their picture, name and club, never just "YOUR RUN" (which
+              told whoever received it nothing). */}
           {owner && (
             <View style={styles.whose}>
-              <KitText t="tag" color={roles.textMuted}>{owner.yours ? 'YOUR RUN' : `${owner.name.toUpperCase()}'S RUN`}</KitText>
+              <Avatar roles={roles} path={owner.avatarPath} name={owner.name} size={24} />
+              <KitText t="tag" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{`${owner.name.toUpperCase()}'S RUN`}</KitText>
+              {owner.clubTag && owner.clubColour ? <ClubTag tag={owner.clubTag} colour={owner.clubColour} /> : null}
               {owner.badgeTeamId && owner.badgeTeamName ? <TeamMark roles={roles} clubId={owner.badgeTeamId} name={owner.badgeTeamName} size={16} /> : null}
+            </View>
+          )}
+          {/* P8.5-41: the points, big, under whose run it is, and how they were made. */}
+          {points && (
+            <View style={styles.points}>
+              <Pressable onPress={() => setShowHow(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: showHow }}
+                accessibilityLabel={`${points.total} points. ${showHow ? 'Hide' : 'Show'} how they were made`}
+                style={({ pressed }) => [styles.pointsRow, pressed && { opacity: 0.7 }]}>
+                <KitText t="tag" color={roles.textMuted}>PTS</KitText>
+                <KitText t="figureL" color={roles.text}>{points.total.toLocaleString('en-US')}</KitText>
+                <View style={{ transform: [{ rotate: showHow ? '-90deg' : '90deg' }] }}><Icon name="chevron" size={16} color={roles.textMuted} /></View>
+              </Pressable>
+              {showHow && (
+                <View style={[styles.how, { borderTopColor: roles.rule }]}>
+                  {points.lines.map(l => (
+                    <View key={l.label} style={styles.howRow}>
+                      <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{l.label}</KitText>
+                      <KitText t="figure" color={roles.text}>{l.value}</KitText>
+                    </View>
+                  ))}
+                  <View style={styles.howRow}>
+                    <KitText t="body" color={roles.text} style={{ flex: 1 }}>Points</KitText>
+                    <KitText t="figure" color={roles.text}>{points.total.toLocaleString('en-US')}</KitText>
+                  </View>
+                </View>
+              )}
             </View>
           )}
           <View style={styles.titleRow}>
@@ -93,7 +134,7 @@ export function VerdictBlock({
           {line ? <KitText t="bodyL" color={roles.text}>{line}</KitText> : null}
           {meta ? <KitText t="tag" color={roles.textMuted}>{meta}</KitText> : null}
 
-          {score != null && (
+          {score != null && !points && (
             <View style={styles.scoreRow}>
               <KitText t="figureL" color={roles.text}>{String(score)}</KitText>
               <KitText t="tag" color={roles.textMuted}>POINTS</KitText>
@@ -125,7 +166,7 @@ export function VerdictBlock({
         icon="forward" variant="secondary" roles={roles} onPress={share} disabled={shared === 'unavailable'} />
       {/* P8-121: a link opens the run, in the app where it's installed and on
           the web where it isn't. Only a saved run has one. */}
-      {Platform.OS !== 'web' && <ShareLinkPlate roles={roles} runId={runId ?? savedRunId} text={text} />}
+      {Platform.OS !== 'web' && <ShareLinkPlate roles={roles} runId={runId ?? savedRunId} text={text} waiting={!runId && !savedRunId && !!liveRow} />}
     </View>
   )
 }
@@ -146,10 +187,13 @@ function punditVerdict({ predicted, actual, field }: { predicted: number; actual
 
 // P8-121: the run's link as its own share (a phone's sheet can't carry the
 // picture and the text together). The verdict shows it beside the picture;
-// the run hub on its own. Nothing when the run isn't saved yet.
-export function ShareLinkPlate({ roles, runId, text }: { roles: Roles; runId?: string | null; text: string }) {
+// the run hub on its own. P8.5-41: while the save is on its way (`waiting`) it
+// shows already, held, saying the link is coming, instead of appearing later;
+// nothing when the run is never saved (a guest's).
+export function ShareLinkPlate({ roles, runId, text, waiting }: { roles: Roles; runId?: string | null; text: string; waiting?: boolean }) {
   const [state, setState] = useState<null | 'shared' | 'copied' | 'unavailable'>(null)
   const link = runLink(runId)
+  if (!link && waiting) return <Plate label="In a second you'll be able to share the link" icon="forward" variant="secondary" roles={roles} disabled onPress={() => {}} />
   if (!link) return null
   return (
     <Plate label={state === 'copied' ? 'Link copied' : state === 'unavailable' ? "The link couldn't be shared" : 'Share the link'}
@@ -158,6 +202,10 @@ export function ShareLinkPlate({ roles, runId, text }: { roles: Roles; runId?: s
 }
 
 const styles = StyleSheet.create({
+  points: { gap: space[1] },
+  pointsRow: { flexDirection: 'row', alignItems: 'baseline', gap: space[2], alignSelf: 'flex-start', minHeight: 44 },
+  how: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: space[2], gap: 2 },
+  howRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 28 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2] },
   whose: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   wrap: { gap: space[2], marginBottom: space[4] },

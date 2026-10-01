@@ -20,6 +20,16 @@ import { StatusBar } from 'expo-status-bar'
 import { WEB_CHROME_CSS } from '@/lib/webChrome'
 import { EVERYDAY } from '@/lib/appearance'
 import { ROLES } from '@/theme'
+import { AchievementToast } from '@/components/AchievementToast'
+
+// P8.5-38: the native window behind every screen (seen while a route mounts,
+// and between two) is app.json's one fixed colour, #141416, so in light mode
+// each load flashed a dark frame. It takes the everyday ground at start-up.
+// expo-system-ui is a native module: required in a try, so a dev client built
+// before it was added (1 Oct 2026) keeps running without it.
+try {
+  if (Platform.OS !== 'web') require('expo-system-ui').setBackgroundColorAsync(ROLES[EVERYDAY].bg).catch(() => {})
+} catch { /* not in this build yet */ }
 
 // Windows Chromium (incl. Brave) renders color emoji but not country flags —
 // the OS/browser combo just lacks the glyphs. Fixed with a unicode-range-
@@ -156,6 +166,8 @@ export default function RootLayout() {
           }} />
           {/* One tap, one screen: blocks taps while a navigation lands. */}
           <NavGuard />
+          {/* P8.5-36: a new achievement, over every screen. */}
+          <AchievementToast />
         </View>
       </View>
     </GestureHandlerRootView>

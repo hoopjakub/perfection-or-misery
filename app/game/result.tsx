@@ -42,8 +42,6 @@ import { ResultFigures, ResultActions } from '@/components/season/ResultParts'
 import { space } from '@/theme'
 import { VerdictBlock, PunditsTable } from '@/components/season/VerdictBlock'
 import { predictTable } from '@/engine/predictions'
-import { calculateScore } from '@/db/queries/leaderboard'
-import { resolveDifficulty } from '@/engine/difficulty'
 import { SaveStatusLine } from '@/components/ui'
 import type { Tier } from '@/types/simulation'
 import { TIER_LABEL, formatTier, verdictOf } from '@/data/tiers'
@@ -313,11 +311,6 @@ export default function ResultScreen() {
   // result" early return, so a hook here changes the hook order between
   // renders (React: "Rendered more hooks than during the previous render").
   // Both are cheap — arithmetic, and one seeded sort of the league.
-  const difficultyMultiplier = resolveDifficulty(difficulty, customDifficulty, mode ?? undefined).scoreMultiplier
-  const runScore = calculateScore({
-    mode: mode ?? 'league', finalPosition, teamsInLeague, teamOvr: playerTeam.ovr,
-    losses, draws, difficultyMultiplier,
-  })
   // P8-96: the pundits' calls — worked out from the live run's seed, or read
   // back from a saved run (which keeps them since P8-96).
   const livePrediction = store.predictionSeed != null && placedLeague ? predictTable(placedLeague.teams, store.predictionSeed) : null
@@ -459,12 +452,11 @@ export default function ResultScreen() {
         title={meta.title}
         line={`${meta.desc} Finished ${finalPosition} of ${teamsInLeague}.${double ? ` And the ${cup!.name}: the Double.` : cupReach === 'winner' ? ` ${cup!.name} winners too.` : ''}`}
         meta={takeoverLine ?? undefined}
-        score={runScore ?? undefined}
-        multiplier={difficultyMultiplier}
         pundits={punditCheck ?? undefined}
         shareText={`${meta.title} — ${finalPosition} of ${teamsInLeague}${takeoverLine ? `, ${takeoverLine}` : ''}. Perfection or Misery.`}
         runId={params.runId}
         ownerId={params.runId ? dbRunData?.user_id ?? null : undefined}
+        scoreRow={params.runId ? dbRunData ?? null : undefined}
       />
 
       <ResultFigures items={[['Pts', playerTeam.stats.points], ['W', wins], ['D', draws], ['L', losses], ['GD', gd > 0 ? `+${gd}` : gd], ['For', goalsFor], ['Ag', goalsAgainst]]} />

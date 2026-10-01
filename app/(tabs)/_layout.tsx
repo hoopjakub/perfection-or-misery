@@ -7,7 +7,8 @@ import { useUserStore } from '@/store/userStore'
 import * as NavigationBar from 'expo-navigation-bar'
 import { KitTabBar, RAIL_MIN_WIDTH } from '@/components/kit'
 
-// Four destinations — Play, Runs, Ranks, You (docs/ui-overhaul/07a A1). Guide
+// Five destinations — Play, Runs, Ranks, Clubs, You (docs/ui-overhaul/07a A1;
+// Clubs joined from You in P8.5-07). Guide
 // and About used to be tabs too, and Profile repeated them as menu rows; they
 // now live inside You as ordinary routes (app/guide.tsx, app/about.tsx).
 // The bar is drawn by KitTabBar: a bottom bar on phones, a left rail from
@@ -40,6 +41,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="runs" />
       <Tabs.Screen name="leaderboard" />
+      <Tabs.Screen name="clubs" />
       <Tabs.Screen name="profile" options={{ title: username ?? 'You', tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined }} />
     </Tabs>
   )

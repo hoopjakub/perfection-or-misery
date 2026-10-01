@@ -81,6 +81,8 @@ The mark is most of the way there (08 A-01). What's left: the match sheet (`with
 - `grep -rn "MODE_THEMES\.\(champions_league\|world_cup\)" app src` is empty (12 hits today: 9 for the Champions League, 3 for the World Cup).
 - **Maintainer checks:** a bracket opened from a cotton page is drawn on cotton; the Europa League's match sheets wear orange.
 
+**Added 1 Oct 2026 (the maintainer):** the result pages' YOUR LINEUP pitch doesn't show each player's little flag or the crest backgrounds that the draft's lineup shows. One pitch, one look: the result's lineup takes the draft's.
+
 ### Step 2 · One set of engine helpers
 As 07, plus: the two new private shuffles (N-11), one `inkOn(colour)` (N-15), and one competition record holding the names, colours, shape and weight (N-04).
 **Done when.** 07's greps, plus `grep -rn "0\.65" supabase/functions/_shared/score.ts src/data/tiers.ts` finds only the record's own line, and `grep -rn "function shuffled" src/engine` is empty.

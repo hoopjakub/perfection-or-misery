@@ -73,6 +73,9 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   // change yours. Added here, where every mode's save passes.
   const crest = useCrestStore.getState().active
   if (crest) payload.highlights = { ...((row.highlights as object) ?? {}), crest }
+  // P8.5-41: the row as scored, so the result shows these points and how they
+  // were made, the moment the save starts (the server runs the same formula).
+  useGameStore.setState({ savedRunRow: row as RunRow })
   const invalid = invalidRun(row as RunRow)
   if (invalid) console.warn(`[saveRun] this run would be refused by the server: ${invalid}`)
   if (SERVER_SCORING) {

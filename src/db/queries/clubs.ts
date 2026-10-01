@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { uuid } from '@/lib/uuid'
 
 // P8-181: clubs (supabase/clubs.sql). Creating, joining, leaving and editing
 // go through the database's own functions, so each is one step that can't
@@ -15,9 +16,14 @@ export type Club = {
   member_limit: number | null
   owner_id: string
   created_at: string
+  /** P8.5-08: who can join (absent before clubs-2.sql: open). */
+  access?: ClubAccess
+  /** P8.5-10: the swear filter, on unless the owner turns it off. */
+  clean_chat?: boolean
 }
+export type ClubAccess = 'open' | 'invite' | 'password'
 export type ClubMember = { user_id: string; role: 'owner' | 'member'; joined_at: string; username: string | null; avatar_path: string | null }
-export type ClubMessage = { id: number; club_id: string; user_id: string; body: string; created_at: string }
+export type ClubMessage = { id: number; club_id: string; user_id: string; body: string; created_at: string; /** P8.5-10: a word in it was replaced. */ cleaned?: boolean }
 
 /** The same limits supabase/clubs.sql checks. */
 export const CLUB_LIMITS = { name: [3, 30] as const, tag: [2, 4] as const, about: 190, message: 500 }
@@ -43,6 +49,12 @@ export function clubErrorText(e: unknown): string {
   if (/ALREADY_IN_A_CLUB/.test(m)) return "You're already in a club. Leave it first."
   if (/CLUB_FULL/.test(m)) return 'That club is full.'
   if (/GUEST/.test(m)) return 'Make an account to join a club.'
+  if (/INVITE_ONLY/.test(m)) return 'That club is invite-only. Its owner has to invite you.'
+  if (/WRONG_PASSWORD/.test(m)) return "That's not the club's password."
+  if (/BAD_PASSWORD/.test(m)) return 'A password is 4 to 64 characters.'
+  if (/NO_SUCH_PLAYER/.test(m)) return 'Nobody has that username.'
+  if (/ALREADY_A_MEMBER/.test(m)) return "They're already in the club."
+  if (/NOT_A_MEMBER/.test(m)) return 'They have to be in the club.'
   if (/LIMIT_BELOW_MEMBERS/.test(m)) return 'The limit can’t be below the members the club already has.'
   if (/clubs_tag_unique|duplicate key.*tag/i.test(m)) return 'Another club has that tag.'
   if (/clubs_name_unique|duplicate key.*name/i.test(m)) return 'Another club has that name.'
@@ -110,13 +122,42 @@ export async function updateClub(input: ClubInput): Promise<void> {
   const { error } = await db().rpc('update_club', { p_name: input.name, p_tag: cleanTag(input.tag), p_colour: input.colour, p_about: input.about, p_limit: input.limit })
   if (error) fail(error)
 }
-export async function joinClub(id: string): Promise<void> {
-  const { error } = await db().rpc('join_club', { p_club: id })
+export async function joinClub(id: string, password?: string): Promise<void> {
+  // P8.5-08: the two-argument join knows invites and passwords; without
+  // clubs-2.sql only the old one exists, so an open club still joins.
+  const { error } = await db().rpc('join_club', { p_club: id, p_password: password ?? null })
+  if (error && missing(error) && !password) { const r = await db().rpc('join_club', { p_club: id }); if (r.error) fail(r.error); return }
   if (error) fail(error)
 }
-export async function leaveClub(): Promise<void> {
-  const { error } = await db().rpc('leave_club')
+/** Leaving; an owner can name who takes over (P8.5-05; null: the longest-standing member). */
+export async function leaveClub(heir?: string | null): Promise<void> {
+  const { error } = await db().rpc('leave_club', { p_heir: heir ?? null })
+  if (error && missing(error) && !heir) { const r = await db().rpc('leave_club'); if (r.error) fail(r.error); return }
   if (error) fail(error)
+}
+
+// ── P8.5-05 / -08 / -09 / -10 (supabase/clubs-2.sql) ────────────────────────
+const call = async (fn: string, args: Record<string, unknown> = {}) => { const { error } = await db().rpc(fn, args); if (error) fail(error) }
+export const deleteClub = () => call('delete_club')
+export const transferClub = (userId: string) => call('transfer_club', { p_user: userId })
+export const setClubAccess = (access: ClubAccess, password?: string) => call('set_club_access', { p_access: access, p_password: password ?? null })
+export const inviteToClub = (username: string) => call('invite_to_club', { p_username: username })
+export const declineClubInvite = (clubId: string) => call('decline_club_invite', { p_club: clubId })
+export const setCleanChat = (on: boolean) => call('set_club_clean_chat', { p_on: on })
+
+/** The clubs you've been invited to. */
+export async function fetchMyInvites(userId: string): Promise<Club[]> {
+  const { data, error } = await db().from('club_invites').select('clubs(*)').eq('user_id', userId)
+  if (error) { if (missing(error)) return []; fail(error) }
+  return (data ?? []).map((r: any) => r.clubs).filter(Boolean) as Club[]
+}
+
+export type ClubBoardRow = { id: string; name: string; tag: string; colour: string; members: number; runs: number; score: number }
+/** P8.5-09: clubs by every member's runs added together, no seasons. */
+export async function fetchClubBoard(limit = 50, offset = 0): Promise<ClubBoardRow[]> {
+  const { data, error } = await db().rpc('club_board', { p_limit: limit, p_offset: offset })
+  if (error) fail(error)
+  return ((data ?? []) as any[]).map(r => ({ ...r, members: Number(r.members), runs: Number(r.runs), score: Number(r.score) }))
 }
 export async function removeFromClub(userId: string): Promise<void> {
   const { error } = await db().rpc('remove_from_club', { p_user: userId })
@@ -149,7 +190,7 @@ export async function deleteMessage(id: number): Promise<void> {
  *  decides who receives them). Returns the unsubscribe. */
 export function subscribeMessages(clubId: string, onMessage: (m: ClubMessage) => void, onDelete: (id: number) => void): () => void {
   const channel = supabase.channel(`club-chat-${clubId}`)
-    .on('postgres_changes' as never, { event: 'INSERT', schema: 'public', table: 'club_messages', filter: `club_id=eq.${clubId}` } as never, (p: any) => onMessage(p.new as ClubMessage))
+    .on('postgres_changes' as never, { event: 'INSERT', schema: 'public', table: 'club_messages', filter: `club_id=eq.${uuid(clubId)}` } as never, (p: any) => onMessage(p.new as ClubMessage))
     .on('postgres_changes' as never, { event: 'DELETE', schema: 'public', table: 'club_messages' } as never, (p: any) => { if (p.old?.id) onDelete(p.old.id) })
     .subscribe()
   return () => { supabase.removeChannel(channel) }

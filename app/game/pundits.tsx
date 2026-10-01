@@ -22,7 +22,7 @@ import { worldCupPunditTournament, championsLeaguePunditTournament } from '@/eng
 import { getFlag } from '@/lib/flagMap'
 import type { Panellist } from '@/engine/predictions'
 import { WC_GROUP_MATCHDAYS } from '@/engine/knockout-availability'
-import { EVERYDAY, FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 6 · Pre-season: the pundits' predictions — docs/ui-overhaul/07b B8.
 // A predicted table from squad strength (with the pundits' deliberate noise),
@@ -257,9 +257,11 @@ function TableRow({ roles, row }: { roles: Roles; row: PredictedRow }) {
   )
 }
 
-// Lights on: a one-frame cut to nylon, then the colourway tape draws across
-// the top in 250ms, then the season opens. Reduced motion keeps the cut and
-// drops the draw.
+// Lights on: a one-frame cut to a clear ground, then the colourway tape draws
+// across the top in 250ms, then the season opens. Reduced motion keeps the cut
+// and drops the draw. P8.5-38: the cut was to nylon, a dark frame between two
+// light screens in light mode ("a blank screen with just the top part, in dark
+// mode"); since the season follows the setting, so does the frame before it.
 function LightsOn({ colourway, onDone }: { colourway: string[]; onDone: () => void }) {
   const reduced = useReducedMotion()
   const w = useSharedValue(reduced ? 1 : 0)
@@ -269,9 +271,9 @@ function LightsOn({ colourway, onDone }: { colourway: string[]; onDone: () => vo
   }, [])
   const tape = useAnimatedStyle(() => ({ transform: [{ scaleX: w.value }] }))
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: prim.nylon }]} accessibilityLabel={forCompetition('The season is starting', useGameStore.getState().mode)}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: roles.bg }]} accessibilityLabel={forCompetition('The season is starting', useGameStore.getState().mode)}>
       <Animated.View style={[styles.lightsTape, { transformOrigin: 'left' } as any, tape]}>
-        <Tape colours={colourway} roles={ROLES[FLOODLIT]} thickness={border.tape} />
+        <Tape colours={colourway} roles={roles} thickness={border.tape} />
       </Animated.View>
     </View>
   )

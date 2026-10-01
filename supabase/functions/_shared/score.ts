@@ -93,21 +93,19 @@ const prefixed = (p: string, ladder: Record<string, number>, w: number) =>
   Object.fromEntries(Object.entries(ladder).map(([k, v]) => [`${p}_${k}`, Math.round(v * w)]))
 Object.assign(CUSTOM_CL_ROUND_SCORE, prefixed('uel', CL_ROUND_SCORE, 0.8), prefixed('uecl', CL_ROUND_SCORE, 0.65), {
   uecl_q1_exit: 40, uecl_q2_exit: 60, uecl_q3_exit: 85, uecl_quali_playoff_exit: 110,
-  // P8.5-21: hunting the Europa League, a loss in its qualifying ends the run
-  // (nobody drops out of it otherwise). Between the other two's exits.
-  uel_q1_exit: 45, uel_q2_exit: 75, uel_q3_exit: 108, uel_quali_playoff_exit: 140,
 })
 Object.assign(CUSTOM_CL_ROUND_TO_POSITION,
   Object.fromEntries(Object.entries(CL_ROUND_TO_POSITION).map(([k, v]) => [`uel_${k}`, v + 36])),
   Object.fromEntries(Object.entries(CL_ROUND_TO_POSITION).map(([k, v]) => [`uecl_${k}`, v + 72])),
   { uecl_q1_exit: 98, uecl_q2_exit: 96, uecl_q3_exit: 94, uecl_quali_playoff_exit: 92 },
-  { uel_q1_exit: 97, uel_q2_exit: 95, uel_q3_exit: 93, uel_quali_playoff_exit: 91 },
 )
 
-// P8.5-21 (option B, E5): an aimed run (Settings → Achievement hunting) didn't
-// have to earn its way to the competition, so it's worth less than a lucky
-// one, and the easier the target's field the more less. The plan's starting
-// figures (docs/europe/07 §3), to be tuned with scripts/measure-europe.ts.
+// P8.5-21 / P8.5-39: a hunt (Settings → Achievement hunting) that reached its
+// target. The draw was steered toward a league that can lead there, so it's
+// worth a little less than a lucky run, the more so the easier the target's
+// field. A hunt that missed its target is saved as a normal run, unmultiplied.
+// The plan's starting figures (docs/europe/07 §3), to be tuned with
+// scripts/measure-europe.ts.
 export const TARGET_MULTIPLIER: Record<string, number> = { ucl: 0.9, uel: 0.85, uecl: 0.7 }
 const compOfTier = (tier: string) => tier.startsWith('uecl_') ? 'uecl' : tier.startsWith('uel_') ? 'uel' : 'ucl'
 
@@ -125,23 +123,58 @@ const LEAGUE_TIERS = new Set([
 ])
 const FIRST_PLACE_TIERS = new Set(['perfection', 'almost_perfection', 'champions'])
 
+/** One line of how a score was made (P8.5-41): what, and what it added or multiplied. */
+export type ScoreLine = { label: string; value: string }
+
+/**
+ * The score a run earns, with how it was made (P8.5-41: the result's points
+ * and their breakdown). The same arithmetic as before, written out in steps,
+ * so the breakdown can never disagree with the total: scoreRun is this total.
+ */
+export function scoreBreakdown(row: RunRow): { total: number; lines: ScoreLine[] } {
+  const mult = multiplierOf(row)
+  const lines: ScoreLine[] = []
+  const signed = (n: number) => (n >= 0 ? `+${Math.round(n)}` : `−${Math.round(-n)}`)
+  const ovrPenalty = Math.max(0, row.team_ovr - 80) * 10
+  const ladder = row.mode === 'world_cup' ? { l: WC_ROUND_SCORE, d: 100 }
+    : row.mode === 'champions_league' ? { l: CL_ROUND_SCORE, d: 100 }
+    : row.mode === 'champions_league_custom' ? { l: CUSTOM_CL_ROUND_SCORE, d: 30 }
+    : row.mode === 'europa_league' ? { l: UEL_ROUND_SCORE, d: 80 }
+    : row.mode === 'conference_league' ? { l: UECL_ROUND_SCORE, d: 65 }
+    : null
+  let raw: number
+  let factor = mult
+  if (ladder) {
+    const base = ladder.l[row.tier] ?? ladder.d
+    const unbeaten = row.losses === 0 ? 200 : 0
+    lines.push({ label: 'How far you went', value: String(base) })
+    if (ovrPenalty) lines.push({ label: `Team rated ${row.team_ovr} (over 80)`, value: signed(-ovrPenalty) })
+    if (unbeaten) lines.push({ label: 'Unbeaten', value: signed(unbeaten) })
+    raw = base - ovrPenalty + unbeaten
+    const target = row.mode === 'champions_league_custom' ? row.difficulty_meta?.target : undefined
+    const hunt = target ? TARGET_MULTIPLIER[target] ?? 1 : 1
+    if (hunt !== 1) lines.push({ label: 'A hunt that reached its target', value: `×${hunt.toFixed(2)}` })
+    factor *= hunt
+    if (mult !== 1) lines.push({ label: 'Difficulty', value: `×${mult.toFixed(2)}` })
+    const total = Math.round(Math.max(0, raw * factor))
+    return { total, lines }
+  }
+  const positionScore = ((row.teams_in_league - row.final_position + 1) / row.teams_in_league) * 1000
+  const tierBonus = row.losses === 0 && row.draws === 0 ? 750 : row.losses === 0 ? 400 : 0
+  const modeMult = MODE_MULTIPLIER[row.mode] ?? 1.0
+  lines.push({ label: `Finished ${row.final_position} of ${row.teams_in_league}`, value: String(Math.round(positionScore)) })
+  if (ovrPenalty) lines.push({ label: `Team rated ${row.team_ovr} (over 80)`, value: signed(-ovrPenalty) })
+  if (tierBonus) lines.push({ label: tierBonus === 750 ? 'Won every match' : 'Unbeaten', value: signed(tierBonus) })
+  if (modeMult !== 1) lines.push({ label: 'All Time', value: `×${modeMult.toFixed(2)}` })
+  if (mult !== 1) lines.push({ label: 'Difficulty', value: `×${mult.toFixed(2)}` })
+  raw = positionScore - ovrPenalty + tierBonus
+  factor *= modeMult
+  return { total: Math.round(raw * factor), lines }
+}
+
 /** The score a run earns. The app shows it; the server saves it. */
 export function scoreRun(row: RunRow): number {
-  const mult = multiplierOf(row)
-  switch (row.mode) {
-    case 'world_cup':               return knockoutScore(WC_ROUND_SCORE[row.tier] ?? 100, row.team_ovr, row.losses, mult)
-    case 'champions_league':        return knockoutScore(CL_ROUND_SCORE[row.tier] ?? 100, row.team_ovr, row.losses, mult)
-    case 'champions_league_custom': {
-      const target = row.difficulty_meta?.target
-      return knockoutScore(CUSTOM_CL_ROUND_SCORE[row.tier] ?? 30, row.team_ovr, row.losses, mult * (target ? TARGET_MULTIPLIER[target] ?? 1 : 1))
-    }
-    case 'europa_league':           return knockoutScore(UEL_ROUND_SCORE[row.tier] ?? 80, row.team_ovr, row.losses, mult)
-    case 'conference_league':       return knockoutScore(UECL_ROUND_SCORE[row.tier] ?? 65, row.team_ovr, row.losses, mult)
-    default: return leagueScore({
-      mode: row.mode, finalPosition: row.final_position, teamsInLeague: row.teams_in_league,
-      teamOvr: row.team_ovr, losses: row.losses, draws: row.draws, difficultyMultiplier: mult,
-    })
-  }
+  return scoreBreakdown(row).total
 }
 
 /**

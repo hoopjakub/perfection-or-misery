@@ -157,11 +157,13 @@ export function openLeagueTable(table: SimLeagueTable, playerClubId?: string | n
 }
 
 /** A domestic cup, played out, as its bracket (P8.5-13 / P8.5-20). */
-export function openCupBracket(cup: DomesticCup, country?: string | null, playerClubId?: string | null) {
+export function openCupBracket(cup: DomesticCup, country?: string | null, playerClubId?: string | null,
+  /** P8.5-37: a tie opens its match sheet. */
+  onTie?: (t: DomesticCup['rounds'][number]['ties'][number], roundLabel: string) => void) {
   openSheet({
     title: cup.name,
     sub: [country?.toUpperCase(), cup.winner ? `WON BY ${cup.winner.clubName.toUpperCase()}` : null, 'TOP FLIGHT ONLY · ONE MATCH A TIE'].filter(Boolean).join(' · '),
-    render: () => <BracketTree columns={cupToColumns(cup)} playerClubId={playerClubId} />,
+    render: () => <BracketTree columns={cupToColumns(cup, onTie)} playerClubId={playerClubId} />,
   })
 }
 

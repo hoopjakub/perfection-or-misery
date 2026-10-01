@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View, FlatList, TextInput, KeyboardAvoidingView, Platform, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
-import { KitScreen, KitText, BackControl, Plate, StripedNotice, Loader } from '@/components/kit'
+import { KitScreen, KitText, BackControl, StripedNotice, Loader, Icon } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { Avatar } from '@/components/profile/ProfileParts'
 import { ClubTag } from '@/components/ClubParts'
@@ -11,14 +11,31 @@ import {
 } from '@/db/queries/clubs'
 import { openConfirm } from '@/lib/confirm'
 import { useUserStore } from '@/store/userStore'
-import { ROLES, space, border, font } from '@/theme'
+import { ROLES, space, border, font, prim, OFFSET } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
 
 // P8-181: the club's chat. The latest fifty messages, then each new one as
 // it's written (Realtime, members only by the database's own rule). Yours on
 // the right in orange; everyone else's on the left under their name. Hold one
 // of yours to delete it; the owner can delete any.
+//
+// P8.5-06: "kind of awful", and on Android the keyboard covered the field.
+// The field: Android had no KeyboardAvoidingView behaviour at all, and since
+// SDK 54 draws edge to edge the window no longer resizes for the keyboard
+// either, so nothing lifted it; 'padding' on both now, and the list keeps to
+// the newest message as it shrinks. The look: yours a solid orange plate,
+// theirs on the surface under a name that reads, each with the Kit's offset
+// block behind it, and a square send key beside the field.
 const roles = ROLES[EVERYDAY]
+
+// P8.5-10: under a message the swear filter cleaned (the database swaps the
+// word, supabase/clubs-2.sql), a line in the club's own voice. The maintainer
+// gave the first two; the same message always gets the same line.
+const CLEAN_LINES = [
+  'Come on, seriously?', 'No need for that around here, mate.', 'Language. There are kids watching.',
+  "The ref's had a word.", 'Mind the language in the dressing room.', 'Yellow card for that one.',
+  "We'll pretend you said that.", 'Steady on.', 'Fined a week’s wages for that.', 'Wash your mouth out, son.',
+]
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
 
@@ -84,10 +101,13 @@ export default function ClubChatScreen() {
       {state === 'failed' && <StripedNotice roles={roles} failed>The chat couldn't be loaded.</StripedNotice>}
       {state === 'outside' && <StripedNotice roles={roles}>The chat is for the club's members. Join the club to read it.</StripedNotice>}
       {state === 'ready' && (
-        <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.fill} behavior="padding">
           <FlatList
             ref={list}
             style={styles.fill}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => list.current?.scrollToEnd({ animated: false })}
+            onLayout={() => list.current?.scrollToEnd({ animated: false })}
             data={messages}
             keyExtractor={m => String(m.id)}
             contentContainerStyle={styles.list}
@@ -109,10 +129,14 @@ export default function ClubChatScreen() {
                     accessibilityLabel={`${mine ? 'You' : who?.username ?? 'A member'} at ${hhmm(item.created_at)}: ${item.body}`}
                     style={[styles.msgRow, mine && styles.msgRowMine]}>
                     {!mine && !sameRun ? <Avatar roles={roles} path={who?.avatar_path} name={who?.username ?? '?'} size={24} /> : !mine ? <View style={{ width: 24 }} /> : null}
-                    <View style={[styles.bubble, { borderColor: mine ? roles.you : roles.line, backgroundColor: mine ? roles.yours : roles.surface }]}>
-                      {!mine && !sameRun ? <KitText t="tag" color={roles.textMuted}>{(who?.username ?? 'A member').toUpperCase()}</KitText> : null}
-                      <KitText t="body" color={roles.text}>{item.body}</KitText>
-                      <KitText t="tag" color={roles.textMuted} style={styles.time}>{hhmm(item.created_at)}</KitText>
+                    <View style={styles.bubbleWrap}>
+                      <View style={[styles.bubbleOffset, { backgroundColor: roles.offset }]} />
+                      <View style={[styles.bubble, { borderColor: roles.line, backgroundColor: mine ? prim.orange : roles.surface }]}>
+                        {!mine && !sameRun ? <KitText t="tag" color={roles.text}>{(who?.username ?? 'A member').toUpperCase()}</KitText> : null}
+                        <KitText t="body" color={mine ? prim.ink : roles.text}>{item.body}</KitText>
+                        {item.cleaned ? <KitText t="tag" color={mine ? prim.ink : roles.textMuted}>{CLEAN_LINES[item.id % CLEAN_LINES.length]}</KitText> : null}
+                        <KitText t="tag" color={mine ? prim.ink : roles.textMuted} style={styles.time}>{hhmm(item.created_at)}</KitText>
+                      </View>
                     </View>
                   </Pressable>
                 </View>
@@ -124,7 +148,10 @@ export default function ClubChatScreen() {
             <TextInput value={draft} onChangeText={setDraft} placeholder="Say something to the club" placeholderTextColor={roles.textFaint}
               maxLength={CLUB_LIMITS.message} multiline accessibilityLabel="Your message"
               style={[styles.input, { color: roles.text, borderColor: roles.line, fontFamily: font.body }]} />
-            <Plate label="Send" icon="forward" roles={roles} disabled={!draft.trim()} onPress={send} />
+            <Pressable onPress={send} disabled={!draft.trim()} accessibilityRole="button" accessibilityLabel="Send"
+              style={({ pressed }) => [styles.send, { backgroundColor: draft.trim() ? prim.orange : roles.sunken, borderColor: roles.line }, pressed && { opacity: 0.7 }]}>
+              <Icon name="forward" size={20} color={draft.trim() ? prim.ink : roles.textMuted} />
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       )}
@@ -140,7 +167,10 @@ const styles = StyleSheet.create({
   day: { alignSelf: 'center', marginVertical: space[2] },
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space[1], maxWidth: '100%' },
   msgRowMine: { justifyContent: 'flex-end' },
-  bubble: { borderWidth: border.thin, paddingHorizontal: space[2], paddingVertical: 4, maxWidth: '80%', gap: 1 },
+  bubbleWrap: { maxWidth: '80%' },
+  bubbleOffset: { position: 'absolute', top: OFFSET, left: OFFSET, right: -OFFSET, bottom: -OFFSET },
+  bubble: { borderWidth: border.thin, paddingHorizontal: space[2], paddingVertical: 6, gap: 1 },
+  send: { width: 44, height: 44, borderWidth: border.thin, alignItems: 'center', justifyContent: 'center' },
   time: { alignSelf: 'flex-end' },
   bar: { flexDirection: 'row', alignItems: 'flex-end', gap: space[2], paddingTop: space[2], borderTopWidth: border.thin },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: border.thin, paddingHorizontal: space[2], paddingVertical: space[1], fontSize: 16 },

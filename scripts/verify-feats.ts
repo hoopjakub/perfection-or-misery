@@ -1,6 +1,7 @@
 // P8-126: every feat's rule, from made-up saved runs.
 // npx tsx scripts/verify-feats.ts
 import { FEATS, featCounts, isRunWon, fullPathTrophy, type FeatRun } from '../src/lib/feats'
+import { earnedList } from '../src/lib/achievements'
 
 let failures = 0
 function check(cond: boolean, msg: string) { if (!cond) { failures++; console.log('❌', msg) } }
@@ -87,6 +88,19 @@ check(fullPathTrophy({ mode: 'champions_league', tier: 'winner' }) === null, 'th
   check(featCounts(trio).get('three-trophies') === 1, 'three different trophies made no collection')
   check(featCounts([trio[0], trio[1], trio[1]]).get('three-trophies') === 0, 'two trophies made the collection')
   check(featCounts([trio[0]]).get('straight-through') === 0, 'a run with no route earned a route feat')
+}
+
+// P8.5-36: the toast's list. The same runs give the same keys; a new win
+// adds exactly its own keys and nothing else.
+{
+  const won = (mode: string, tier: string, difficulty: string, fp?: number) => ({ mode, tier, final_position: fp ?? null, difficulty, difficulty_meta: null }) as any
+  const before = [won('league', 'champions', 'easy', 1), won('champions_league_custom', 'uel_winner', 'hard')]
+  const after = [...before, won('champions_league_custom', 'uecl_winner', 'medium')]
+  const a = earnedList(before).map(e => e.key), b = earnedList(after).map(e => e.key)
+  check(JSON.stringify(a) === JSON.stringify(earnedList(before).map(e => e.key)), 'the same runs gave different keys')
+  const fresh = b.filter(k => !a.includes(k))
+  check(fresh.includes('champions_league_custom:uecl:Medium'), `the new Conference League win isn't new: ${fresh.join(', ')}`)
+  check(fresh.every(k => k.includes('uecl') || k.startsWith('feat:') || k === 'champions_league_custom:Medium'), `unexpected new keys: ${fresh.join(', ')}`)
 }
 
 console.log(failures === 0 ? '✅ ALL CHECKS PASSED' : `${failures} failures`)

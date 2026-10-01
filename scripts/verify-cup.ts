@@ -9,7 +9,7 @@
  *   - the same seed draws the same ties;
  *   - how far you got (cupReachOf) agrees with the ties.
  */
-import { planCup, playCupAfter, cupReachOf, type DomesticCup } from '../src/engine/domestic-cup'
+import { planCup, playCupAfter, cupReachOf, attributeCupScorers, type DomesticCup } from '../src/engine/domestic-cup'
 import type { SimTeam } from '../src/types/simulation'
 
 let failures = 0
@@ -97,6 +97,20 @@ for (let s = 0; s < 400; s++) {
   }
   for (const r of cup.rounds) if (r.key !== 'sf') check(r.ties.every(t => !t.legs), `the ${r.label} has legs`)
   check(!!cup.winner, 'a two-legged cup has no winner')
+}
+// P8.5-37: every tie played carries the seed its match sheet regenerates from
+// (one a leg for two legs), and the same cup seed gives the same tie seeds.
+{
+  const a = playAll(planCup(league(16), 30, 4242, 'Copa del Rey', true)!, league(16), 30)
+  const b = playAll(planCup(league(16), 30, 4242, 'Copa del Rey', true)!, league(16), 30)
+  for (const r of a.rounds) for (const t of r.ties) {
+    if (t.legs) check(!!t.legSeeds && t.legSeeds[0] !== t.legSeeds[1], `a two-legged ${r.label} has no seed per leg`)
+    else check(typeof t.seed === 'number', `a ${r.label} tie has no seed`)
+  }
+  const seeds = (c: typeof a) => c.rounds.flatMap(r => r.ties.map(t => t.seed ?? t.legSeeds?.join('/')))
+  // The results differ between the two (the sim isn't seeded), the seeds mustn't.
+  check(JSON.stringify(seeds(a)) === JSON.stringify(seeds(b)), 'the same cup seed gave different tie seeds')
+  check(attributeCupScorers(a, new Map()) === a, 'attributing with no squads changed the cup')
 }
 const one = playAll(planCup(league(16), 30, 77, 'FA Cup')!, league(16), 30)
 check(one.rounds.every(r => r.ties.every(t => !t.legs)), 'a one-match cup played a two-legged tie')

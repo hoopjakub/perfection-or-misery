@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { friendIds } from '@/lib/friends'
 import { PageMeta } from '@/components/PageMeta'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { fetchLeaderboard, fetchMyPlace, type LeaderboardEntry, type LeaderboardFilter } from '@/db/queries/leaderboard'
 import { formatTier, verdictOf, runMeta } from '@/data/tiers'
@@ -16,6 +16,8 @@ import { KitScreen, KitText, RunLabel, RunLabelSkeleton, EmptyState, InlineError
 import { SegmentSwitch } from '@/components/season/SeasonParts'
 import { PlayerName } from '@/components/profile/ProfileParts'
 import { EVERYDAY } from '@/lib/appearance'
+import { fetchClubBoard, ClubsUnavailable, type ClubBoardRow } from '@/db/queries/clubs'
+import { ClubTag } from '@/components/ClubParts'
 
 // D9 · Ranks (docs/ui-overhaul/07d). The best runs anyone has played, each as
 // the same garment label your own runs wear, with its place set in the super
@@ -28,7 +30,7 @@ import { EVERYDAY } from '@/lib/appearance'
 const roles = ROLES[EVERYDAY]
 
 // P8-152: a season's board is the same runs read between its dates.
-type Board = 'all' | 'week' | 'season'
+type Board = 'all' | 'week' | 'season' | 'clubs'
 type ModeFilter = 'any' | 'all_time' | 'league' | 'chaos' | 'cursed' | 'tournaments' | 'champions_league' | 'champions_league_custom' | 'europa_league' | 'conference_league' | 'world_cup'
 type DiffFilter = 'any' | 'easy' | 'medium' | 'hard' | 'custom'
 type HardFilter = 'any' | '3' | '6' | '8' | '10'
@@ -132,7 +134,7 @@ export default function LeaderboardScreen() {
   const filters = (
     <View style={styles.filters}>
       <SegmentSwitch<Board> roles={roles} value={board} onChange={setBoard}
-        options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'This week' }, { id: 'season', label: 'Season' }]} />
+        options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'This week' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
       {board === 'week' && (
         <KitText t="tag" color={roles.textMuted}>Monday 00:00 to Sunday 23:59, Slovak time (Europe/Bratislava)</KitText>
       )}
@@ -179,7 +181,16 @@ export default function LeaderboardScreen() {
     <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
       <PageMeta title="Ranks" description="The fifty best runs anyone has played, by score." path="/leaderboard" />
       <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>RANKS</KitText>
-      <KitText t="tag" color={roles.textMuted}>{board === 'week' ? 'The fifty best runs this week, by score' : 'The fifty best runs, by score'}</KitText>
+      <KitText t="tag" color={roles.textMuted}>{board === 'clubs' ? 'Every club, by all its members\' runs added together' : board === 'week' ? 'The fifty best runs this week, by score' : 'The fifty best runs, by score'}</KitText>
+      {board === 'clubs' ? (
+        <>
+          <View style={styles.filters}>
+            <SegmentSwitch<Board> roles={roles} value={board} onChange={setBoard}
+              options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'This week' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
+          </View>
+          <ClubBoard />
+        </>
+      ) : <>
       {filters}
       {/* Your place, even outside the fifty. */}
       {mine && (
@@ -227,7 +238,50 @@ export default function LeaderboardScreen() {
           })}
         </View>
       )}
+      </>}
     </KitScreen>
+  )
+}
+
+// P8.5-09: the clubs leaderboard. The same as Ranks, but for clubs: no
+// seasons, and a club's score is every member's runs added together (the
+// database adds them up: club_board in supabase/clubs-2.sql). Your club wears
+// the orange outline.
+function ClubBoard() {
+  const myTag = useUserStore(s => s.profile?.club_tag ?? null)
+  const [rows, setRows] = useState<ClubBoardRow[] | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed'>('loading')
+  useFocusEffect(useCallback(() => {
+    let active = true
+    fetchClubBoard(50).then(r => { if (active) { setRows(r); setState('ready') } })
+      .catch(e => { if (active) setState(e instanceof ClubsUnavailable ? 'unavailable' : 'failed') })
+    return () => { active = false }
+  }, []))
+  if (state === 'loading') return <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
+  if (state === 'unavailable') return <EmptyState roles={roles} title="Not set up yet" body="The clubs leaderboard needs supabase/clubs-2.sql run in the Supabase SQL editor." />
+  if (state === 'failed') return <EmptyState roles={roles} title="Couldn't load the clubs" body="Try again in a moment." />
+  if (!rows?.length) return <EmptyState roles={roles} title="No clubs yet" body="Start one on the Clubs tab." />
+  return (
+    <View style={styles.list}>
+      {rows.map((c, i) => {
+        const yours = !!myTag && c.tag === myTag
+        return (
+          <Pressable key={c.id} onPress={() => router.push({ pathname: '/club/[id]', params: { id: c.id } })} accessibilityRole="button"
+            accessibilityLabel={`${i + 1}, ${c.name}, ${c.score} points from ${c.runs} runs, ${c.members} members${yours ? ', your club' : ''}`}
+            style={({ pressed }) => [styles.row, styles.clubRow, yours && [styles.yours, { borderColor: prim.orange }], pressed && { opacity: 0.7 }]}>
+            <View style={styles.placeCol}>
+              <KitText t={i < 3 ? 'superM' : 'superS'} color={i < 3 ? roles.text : roles.textMuted} style={styles.place}>{String(i + 1)}</KitText>
+            </View>
+            <ClubTag tag={c.tag} colour={c.colour} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <KitText t="body" color={roles.text} numberOfLines={1}>{c.name}</KitText>
+              <KitText t="tag" color={roles.textMuted}>{`${c.members} MEMBER${c.members === 1 ? '' : 'S'} · ${c.runs} RUN${c.runs === 1 ? '' : 'S'}`}</KitText>
+            </View>
+            <KitText t="figure" color={roles.text}>{c.score.toLocaleString('en-US')}</KitText>
+          </Pressable>
+        )
+      })}
+    </View>
   )
 }
 
@@ -238,6 +292,7 @@ const styles = StyleSheet.create({
   filters: { gap: space[2], marginTop: space[4] },
   you: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: space[4], borderWidth: border.thin, padding: space[2] },
   youScore: { marginLeft: 'auto' },
+  clubRow: { alignItems: 'center', gap: space[2], minHeight: 56 },
   list: { gap: space[4], marginTop: space[4] },
   row: { flexDirection: 'row', alignItems: 'center', gap: space[3] },
   placeCol: { width: 44, alignItems: 'flex-end', gap: 2 },

@@ -9,14 +9,49 @@ import { ResultRow } from './SeasonParts'
 import { openCupBracket } from '@/components/CustomUclViewers'
 import { tieNote, type DomesticCup, type CupTie, type CupRound } from '@/engine/domestic-cup'
 import { space, type Roles } from '@/theme'
+import type { MatchDetailRequest } from '@/components/MatchStatsParts'
+import type { Formation } from '@/types/game'
 
 const isYourTie = (t: CupTie) => t.home.isPlayer || t.away.isPlayer
 
-/** One cup tie as a result row, your side marked. */
-export function CupTieRow({ roles, tie, label }: { roles: Roles; tie: CupTie; label: string }) {
+/** What opening a cup tie needs: it's handed the tie and its round's label. */
+export type OnCupTie = (tie: CupTie, roundLabel: string) => void
+
+/** P8.5-37: a cup tie's match sheet. A two-legged tie opens on its first leg,
+ *  with both legs to switch between; the second is hosted by the first leg's
+ *  away side and carries the extra time and the shootout. */
+export function cupTieRequest(t: CupTie, roundLabel: string, ctx: {
+  cupName: string; yearStart: number; playerClubId?: string; playerFormation?: Formation
+}): MatchDetailRequest {
+  const winner = t.winner === 'home' ? t.home : t.away
+  const pensNote = t.homePens != null && t.awayPens != null ? `Penalties ${t.homePens}–${t.awayPens} · ${winner.clubName} go through` : undefined
+  const base = { yearStart: ctx.yearStart, playerClubId: ctx.playerClubId, playerFormation: ctx.playerFormation }
+  const label = `${ctx.cupName} · ${roundLabel}`
+  if (t.legs && t.legSeeds) {
+    const l1 = t.legs.leg1
+    const leg1: MatchDetailRequest = {
+      ...base, homeClubId: t.home.clubId, homeName: t.home.clubName, awayClubId: t.away.clubId, awayName: t.away.clubName,
+      homeGoals: l1.homeGoals, awayGoals: l1.awayGoals, seed: t.legSeeds[0], scorers: t.legScorers?.[0], competitionLabel: `${label} · Leg 1`,
+    }
+    const leg2: MatchDetailRequest = {
+      ...base, homeClubId: t.away.clubId, homeName: t.away.clubName, awayClubId: t.home.clubId, awayName: t.home.clubName,
+      homeGoals: t.awayGoals - l1.awayGoals, awayGoals: t.homeGoals - l1.homeGoals, extraTime: t.extraTime, pensNote,
+      seed: t.legSeeds[1], scorers: t.legScorers?.[1], competitionLabel: `${label} · Leg 2`,
+    }
+    return { ...leg1, legs: [leg1, leg2] }
+  }
+  return {
+    ...base, homeClubId: t.home.clubId, homeName: t.home.clubName, awayClubId: t.away.clubId, awayName: t.away.clubName,
+    homeGoals: t.homeGoals, awayGoals: t.awayGoals, extraTime: t.extraTime, pensNote,
+    seed: t.seed, scorers: t.scorers, competitionLabel: label,
+  }
+}
+
+/** One cup tie as a result row, your side marked; it opens its sheet when `onTie` is given. */
+export function CupTieRow({ roles, tie, label, onTie }: { roles: Roles; tie: CupTie; label: string; onTie?: OnCupTie }) {
   const note = tieNote(tie)
   return (
-    <ResultRow roles={roles}
+    <ResultRow roles={roles} onPress={onTie ? () => onTie(tie, label) : undefined}
       homeName={tie.home.clubName} awayName={tie.away.clubName} homeClubId={tie.home.clubId} awayClubId={tie.away.clubId}
       homeGoals={tie.homeGoals} awayGoals={tie.awayGoals}
       youSide={tie.home.isPlayer ? 'home' : tie.away.isPlayer ? 'away' : null}
@@ -33,20 +68,20 @@ export function cupRoundAfter(cup: DomesticCup | null | undefined, md: number): 
 }
 
 /** Your tie from the round just played, under the matchday's card. */
-export function CupNow({ roles, cup, md }: { roles: Roles; cup: DomesticCup | null | undefined; md: number }) {
+export function CupNow({ roles, cup, md, onTie }: { roles: Roles; cup: DomesticCup | null | undefined; md: number; onTie?: OnCupTie }) {
   const now = cupRoundAfter(cup, md)
   if (!cup || !now) return null
   return (
     <View style={styles.now}>
       <SectionTag roles={roles}>{`${cup.name} · ${now.round.label}`}</SectionTag>
-      <CupTieRow roles={roles} tie={now.tie} label={now.round.label} />
+      <CupTieRow roles={roles} tie={now.tie} label={now.round.label} onTie={onTie} />
     </View>
   )
 }
 
 /** The cup tab: where it stands, the bracket, and every round played, newest first. */
-export function CupPane({ roles, cup, country, playerClubId }: {
-  roles: Roles; cup: DomesticCup; country?: string | null; playerClubId?: string | null
+export function CupPane({ roles, cup, country, playerClubId, onTie }: {
+  roles: Roles; cup: DomesticCup; country?: string | null; playerClubId?: string | null; onTie?: OnCupTie
 }) {
   const next = cup.rounds.find(r => !r.played)
   const yourOut = cup.rounds.find(r => r.played && r.ties.some(t => isYourTie(t) && !(t.winner === 'home' ? t.home : t.away).isPlayer))
@@ -65,13 +100,13 @@ export function CupPane({ roles, cup, country, playerClubId }: {
       {/* P8.5-13: the cup as its bracket, as Europe's cups show. */}
       {anyPlayed && (
         <Plate label="See the bracket" icon="ranks" variant="secondary" roles={roles}
-          onPress={() => openCupBracket(cup, country, playerClubId)} />
+          onPress={() => openCupBracket(cup, country, playerClubId, onTie)} />
       )}
       {[...cup.rounds].filter(r => r.played).reverse().map(r => (
         <View key={r.key} style={styles.round}>
           <SectionTag roles={roles}>{`${r.label} · after MD ${r.afterMatchday}`}</SectionTag>
           {[...r.ties].sort((a, b) => Number(isYourTie(b)) - Number(isYourTie(a))).map(t => (
-            <CupTieRow key={`${r.key}-${t.home.clubId}-${t.away.clubId}`} roles={roles} tie={t} label={r.label} />
+            <CupTieRow key={`${r.key}-${t.home.clubId}-${t.away.clubId}`} roles={roles} tie={t} label={r.label} onTie={onTie} />
           ))}
         </View>
       ))}

@@ -69,7 +69,7 @@ export default function SettingsScreen() {
       <KitText t="body" color={roles.textMuted} style={styles.note}>
         {s.europeanTarget === 'any'
           ? 'European Full Path: your season decides which competition you play in, as always.'
-          : `European Full Path: you hunt the ${TARGET_NAME[s.europeanTarget]}. Your season only decides how deep you enter it; lose in its qualifying and the run ends. An aimed run scores less and has its own board. Starts with your next run.`}
+          : `European Full Path: the draw favours the leagues where a season most often ends in the ${TARGET_NAME[s.europeanTarget]}, and the season plays as normal. End it there and the run counts as a hunt (a little fewer points, its own board); miss it and it's a normal run. Starts with your next run.`}
       </KitText>
     </KitScreen>
   )
