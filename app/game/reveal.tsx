@@ -8,7 +8,7 @@ import { calcTeamOvr, effectiveOvr } from '@/engine/rating'
 import { ROLES, space, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunHeader, Plate, Tag } from '@/components/kit'
 import { LineupPitch } from '@/components/LineupPitch'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
 
 // The ratings reveal — docs/ui-overhaul/07b B6. Only for runs that drafted
 // blind (Hard, Chaos, Cursed, Custom with ratings off). It used to leak: the
@@ -17,7 +17,7 @@ import { FLOODLIT } from '@/lib/appearance'
 // The eleven stand on the pitch in their shape with a ?? each, and the
 // figures turn over from the keeper forwards, slowly enough to read each one.
 // It was a list that counted through in well under a second.
-const roles = ROLES[FLOODLIT]
+const roles = ROLES[EVERYDAY]
 const STEP_MS = 650
 const LEAD_MS = 900   // a beat on the all-?? pitch before the first figure
 
@@ -42,7 +42,7 @@ export default function RevealScreen() {
 
   if (!formation || rows.length === 0) {
     return (
-      <KitScreen ground={FLOODLIT} scroll={false} contentStyle={styles.center}>
+      <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
         <KitText t="bodyL" color={roles.textMuted}>There's no squad to reveal.</KitText>
         <Plate label="Back to the draft" roles={roles} onPress={() => router.replace('/game/draft')} />
       </KitScreen>
@@ -57,7 +57,7 @@ export default function RevealScreen() {
   const latest = shown > 0 && !done ? rows[shown - 1] : null
 
   return (
-    <KitScreen ground={FLOODLIT}>
+    <KitScreen ground={EVERYDAY}>
       <RunHeader roles={roles} stage={4} colourway={colourwayFor(mode)} title="Your ratings"
         skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} back={false} />
 

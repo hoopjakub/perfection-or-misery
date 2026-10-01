@@ -32,11 +32,20 @@ type Board = 'all' | 'week' | 'season'
 type ModeFilter = 'any' | 'all_time' | 'league' | 'chaos' | 'cursed' | 'tournaments' | 'champions_league' | 'champions_league_custom' | 'europa_league' | 'conference_league' | 'world_cup'
 type DiffFilter = 'any' | 'easy' | 'medium' | 'hard' | 'custom'
 type HardFilter = 'any' | '3' | '6' | '8' | '10'
+type EuroFilter = 'any' | 'ucl' | 'uel' | 'uecl'
+type HuntFilter = 'any' | 'none' | 'ucl' | 'uel' | 'uecl'
+const HUNT_OPTIONS: { id: HuntFilter; label: string }[] = [
+  { id: 'any', label: 'All runs' }, { id: 'none', label: 'Wherever it leads' },
+  { id: 'ucl', label: 'Aimed: Champions' }, { id: 'uel', label: 'Aimed: Europa' }, { id: 'uecl', label: 'Aimed: Conference' },
+]
+const EURO_OPTIONS: { id: EuroFilter; label: string }[] = [
+  { id: 'any', label: 'All three' }, { id: 'ucl', label: 'Champions' }, { id: 'uel', label: 'Europa' }, { id: 'uecl', label: 'Conference' },
+]
 
 const MODE_OPTIONS: { id: ModeFilter; label: string }[] = [
   { id: 'any', label: 'All' }, { id: 'all_time', label: 'All Time' }, { id: 'league', label: 'League' },
   { id: 'chaos', label: 'Chaos' }, { id: 'cursed', label: 'Cursed' }, { id: 'tournaments', label: 'All tournaments' },
-  { id: 'champions_league', label: 'UCL Finals' }, { id: 'champions_league_custom', label: 'UCL Full path' },
+  { id: 'champions_league', label: 'UCL Finals' }, { id: 'champions_league_custom', label: 'European Full Path' },
   { id: 'europa_league', label: 'Europa League' }, { id: 'conference_league', label: 'Conference League' }, { id: 'world_cup', label: 'World Cup' },
 ]
 const TOURNAMENTS = ['champions_league', 'champions_league_custom', 'europa_league', 'conference_league', 'world_cup']
@@ -60,6 +69,9 @@ export default function LeaderboardScreen() {
   const [mode, setMode] = useState<ModeFilter>('any')
   const [diff, setDiff] = useState<DiffFilter>('any')
   const [hard, setHard] = useState<HardFilter>('any')
+  // P8.5-21: the full path's board, one competition at a time or all three.
+  const [euro, setEuro] = useState<EuroFilter>('any')
+  const [hunt, setHunt] = useState<HuntFilter>('any')
   // P8-99: which fifty — from place `start + 1` — and friends only.
   const [start, setStart] = useState(0)
   const [placeInput, setPlaceInput] = useState('')
@@ -77,10 +89,12 @@ export default function LeaderboardScreen() {
     ...(mode === 'tournaments' ? { modes: TOURNAMENTS } : mode !== 'any' ? { mode } : {}),
     ...(diff !== 'any' ? { difficulty: diff } : {}),
     ...(diff === 'custom' && hard !== 'any' ? { minHardness: Number(hard) } : {}),
+    ...(mode === 'champions_league_custom' && euro !== 'any' ? { competition: euro } : {}),
+    ...(mode === 'champions_league_custom' && hunt !== 'any' ? { target: hunt } : {}),
   }
   const key = JSON.stringify(filter)
   // The board's own filters, without the window: changing one starts again at the top.
-  const scopeKey = JSON.stringify({ board, seasonN, mode, diff, hard, friendsOnly })
+  const scopeKey = JSON.stringify({ board, seasonN, mode, diff, hard, euro, hunt, friendsOnly })
   useEffect(() => { setStart(0) }, [scopeKey])
   // Friends only: the list of friends, then the window put round you — the
   // top when you're in the first 25, otherwise 25 above you and 25 below.
@@ -133,6 +147,12 @@ export default function LeaderboardScreen() {
         </>
       )}
       <Chips<ModeFilter> roles={roles} label="Mode" options={MODE_OPTIONS} value={mode} onChange={setMode} />
+      {mode === 'champions_league_custom' && (
+        <>
+          <Chips<EuroFilter> roles={roles} label="Competition" options={EURO_OPTIONS} value={euro} onChange={setEuro} />
+          <Chips<HuntFilter> roles={roles} label="Hunting" options={HUNT_OPTIONS} value={hunt} onChange={setHunt} />
+        </>
+      )}
       <Chips<DiffFilter> roles={roles} label="Difficulty" options={DIFF_OPTIONS} value={diff} onChange={setDiff} />
       {diff === 'custom' && (
         <Chips<HardFilter> roles={roles} label="Hardness" options={HARD_OPTIONS} value={hard} onChange={setHard} />

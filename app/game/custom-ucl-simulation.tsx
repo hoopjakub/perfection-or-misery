@@ -15,7 +15,7 @@ import { simulateMatch, setMatchTilt } from '@/engine/match'
 import { resolveDifficulty } from '@/engine/difficulty'
 import {
   buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly,
-  type CLTeam, type CLKnockoutMatch, type CLSeasonResult, type CLLeagueMatch, type CLLeaguePhase,
+  type CLTeam, type CLKnockoutMatch, type CLSeasonResult, type OtherCompetition, type CLLeagueMatch, type CLLeaguePhase,
 } from '@/engine/cl-sim'
 import { LeaguePhaseDraw } from '@/components/season/LeaguePhaseDraw'
 import { withMoves } from '@/components/season/SeasonParts'
@@ -28,14 +28,16 @@ import {
   type SimStandingRow,
 } from '@/engine/cl-league-sim'
 import { buildCLAccessList, ensureHolders, type AssociationEntry, type CLAccessList } from '@/engine/cl-access'
-import type { QualTie, QualifyingResult } from '@/engine/cl-qualifying'
+import type { QualTie, QualTeam, QualifyingResult } from '@/engine/cl-qualifying'
 import {
   createAvailabilityLedger, type AvailabilityLedger,
 } from '@/engine/availability'
 import { getCustomUclAssociations, getEuropeHolders } from '@/db/queries/custom-ucl'
 import type { EuroComp } from '@/data/uefa-coefficients'
 import { playEveryCup, europaAndConferenceEntrants, simulateEurope, runQualTies } from '@/engine/europe-path'
-import { cupNameForCountry } from '@/engine/domestic-cup'
+import { nationalCupName, semisTwoLegged } from '@/data/national-cups'
+import { planCup, playCupAfter, type DomesticCup } from '@/engine/domestic-cup'
+import { CupPane, CupNow } from '@/components/season/CupParts'
 import { EUROPE } from '@/data/europe'
 import { getRostersForClubs } from '@/db/queries/seasons'
 import {
@@ -57,7 +59,7 @@ import { LiveMatch, periodsForTwoLegTie } from '@/components/LiveMatch'
 import { BracketPreview } from '@/components/BracketPreview'
 import { InfoBubble } from '@/components/InfoBubble'
 import {
-  openLeaguesBrowser, openLeagueTable, openKoTie, qualTieToKoMatch, berthZones, LeagueRow,
+  openLeagueTable, openCupBracket, MarkRow, openKoTie, qualTieToKoMatch, berthZones, LeagueRow,
 } from '@/components/CustomUclViewers'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
@@ -70,10 +72,16 @@ import {
   type TableRowVM, type Mark, type TieVM,
 } from '@/components/season/SeasonParts'
 import { ThumbBar, BackToLive, SkipPlate } from '@/components/season/RunChrome'
-import { KitScreen, KitText, Plate, SectionTag, Chips, ListRow } from '@/components/kit'
+import { KitScreen, KitText, Plate, SectionTag, Chips, ListRow, ClubName } from '@/components/kit'
 import { space } from '@/theme'
 import { getFlag } from '@/lib/flagMap'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
+import { openPundits } from '@/lib/punditsHandoff'
+import { predictTable } from '@/engine/predictions'
+
+// The page's ground (1 Oct: result screens follow light and dark too). These
+// old styles named the dark ground's colours; they now take its roles.
+const GR = ROLES[EVERYDAY]
 
 const CL = MODE_THEMES.champions_league
 
@@ -83,7 +91,7 @@ const ROAD_STAGE: Record<string, number> = {
   world_sim: 1, qualifying: 2, quali_result: 2, review: 3, simulating: 3, knockout_phase: 4,
 }
 
-const nylon = ROLES[FLOODLIT]
+const nylon = ROLES[EVERYDAY]
 
 const simRow = (t: SimTeam): TableRowVM => ({
   clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer,
@@ -132,7 +140,7 @@ function Road({ phase }: { phase: string }) {
   const insets = useSafeAreaInsets()
   return (
     <View style={{ paddingTop: insets.top + spacing.sm }}>
-      <RoadTape roles={ROLES[FLOODLIT]} current={ROAD_STAGE[phase] ?? 0} />
+      <RoadTape roles={ROLES[EVERYDAY]} current={ROAD_STAGE[phase] ?? 0} />
     </View>
   )
 }
@@ -263,7 +271,12 @@ export default function CustomUclSimulationScreen() {
   // Which matchday's results are on screen (null = the latest), and which of
   // the two views each league is showing.
   const [mdView, setMdView] = useState<number | null>(null)
-  const [domTab, setDomTab] = useState<'table' | 'results'>('table')
+  const [domTab, setDomTab] = useState<'table' | 'results' | 'cup'>('table')
+  // P8.5-20: your association's cup, played through your season (rounds
+  // between matchdays, as a league run's), where it used to be played headless
+  // after it. The ref is the truth during a skip; the state is what draws.
+  const domCupRef = useRef<DomesticCup | null>(null)
+  const [domCup, setDomCup] = useState<DomesticCup | null>(null)
   const [lpTab, setLpTab] = useState<'table' | 'results'>('table')
   // The ConfirmScreen calls back after this render may be stale.
   const domSkipRef = useRef<() => void>(() => {})
@@ -293,6 +306,9 @@ export default function CustomUclSimulationScreen() {
   // P8-63, as in the classic knockouts: newest round on top, the page returns
   // to it as each round opens, a tag brings you back if you scrolled away, and
   // while you're away your live match and the next round wait for you.
+  const huntTarget = useGameStore(st => st.europeanTarget ?? 'any')
+  // P8.5-15: the seed the pundits called your league from (null: not heard yet).
+  const [domPunditSeed, setDomPunditSeed] = useState<number | null>(null)
   const koScrollRef = useRef<ScrollView>(null)
   const [koAway, setKoAway] = useState(false)
   useEffect(() => { koScrollRef.current?.scrollTo({ y: 0, animated: true }) }, [koVisibleCount])
@@ -339,6 +355,10 @@ export default function CustomUclSimulationScreen() {
       }))
       domTeamsRef.current = teams
       domMatchdaysRef.current = regularSeasonMatchdays(teams, mine.format ?? 'double_round_robin')
+      // The cup spreads over the regular season; a split league's second
+      // stage starts once it's done, as the real cups finish before the splits.
+      domCupRef.current = planCup(teams, domMatchdaysRef.current.length, randomSeed(), nationalCupName(mine.rank), semisTwoLegged(mine.rank))
+      setDomCup(domCupRef.current)
       setPhase('domestic_review')
       // Domestic scorer pools (background — ready before the first matchday).
       loadLeaguePools(teams.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer })), fullSquad, 2025, useSubstitutes)
@@ -380,6 +400,10 @@ export default function CustomUclSimulationScreen() {
     // Player's match first, then the rest — same reading order as league mode.
     results.sort((a, b) => Number(b.playerHome || b.playerAway) - Number(a.playerHome || a.playerAway))
     setRecentResults(results)
+    if (domStage === 'regular' && domCupRef.current) {
+      domCupRef.current = playCupAfter(domCupRef.current, domMD + 1, domTeamsRef.current)
+      setDomCup(domCupRef.current)
+    }
     domOrdersRef.current.push(domOrderNow())
     setDomHistory(h => [...h, results])
     setDomMD(n => n + 1)
@@ -424,6 +448,7 @@ export default function CustomUclSimulationScreen() {
     for (;;) {
       for (; md < plan.length; md++) {
         for (const [h, a] of plan[md]) playLiveMatch(h, a)
+        if (stage === 'regular' && domCupRef.current) domCupRef.current = playCupAfter(domCupRef.current, md + 1, domTeamsRef.current)
         domOrdersRef.current.push(sortLeagueTable(domTeamsRef.current).map(x => x.clubId))
       }
       if (stage === 'regular') {
@@ -445,6 +470,15 @@ export default function CustomUclSimulationScreen() {
   domSkipRef.current = skipDomesticSeason
 
   function finishDomesticSeason() {
+    // Any cup round still due. The rounds fall on regular-season matchdays, so
+    // they're normally all played by now; this is the safety net, round by
+    // round (playCupAfter plays only the rounds due on the matchday it's given).
+    if (domCupRef.current) {
+      for (const r of domCupRef.current.rounds) {
+        if (!r.played) domCupRef.current = playCupAfter(domCupRef.current, r.afterMatchday, domTeamsRef.current)
+      }
+      setDomCup(domCupRef.current)
+    }
     const ordered = lockedFinalTable(domTeamsRef.current, domSplitIdsRef.current)
     const pos = ordered.findIndex(t => t.isPlayer) + 1
     setDomesticFinish(pos)
@@ -486,10 +520,21 @@ export default function CustomUclSimulationScreen() {
 
     // P8-52: every association's cup, then the Europa and Conference Leagues'
     // places, then the three ladders with their drops (engine/europe-path.ts).
-    const cups = playEveryCup(simulated, playerClubId, randomSeed())
+    const cups = playEveryCup(simulated, playerClubId, randomSeed(),
+      domCupRef.current ? { rank: playerTable.rank, cup: domCupRef.current } : null)
     const euro = europaAndConferenceEntrants(access, simulated, cups, held.uecl)
     const holders = (['ucl', 'uel', 'uecl'] as EuroComp[]).flatMap(c => (held[c] ? [{ comp: c, clubId: held[c]!.clubId, clubName: held[c]!.clubName }] : []))
-    const q = simulateEurope(access, euro, cups, holders, playerClubId ?? undefined)
+    // P8.5-21: hunting one competition (Settings → Achievement hunting, fixed
+    // for the run when it started): your season only decides how deep you enter.
+    const me = playerTable.standings.find(r => r.clubId === playerClubId)
+    const aim = huntTarget !== 'any' && me && playerClubId ? {
+      target: huntTarget,
+      club: { clubId: playerClubId, clubName: me.clubName, ovr: me.ovr, associationRank: playerTable.rank,
+        associationName: playerTable.name, associationCountry: playerTable.country, position: playerPos,
+        entryRound: 'q1' as const, entryPath: 'league' as const },
+      champion: playerPos === 1,
+    } : null
+    const q = simulateEurope(access, euro, cups, holders, playerClubId ?? undefined, aim)
     const inComp = EUROPE[q.europe?.competition ?? 'ucl']
     // Attribute qualifying-tie scorers ONCE (stored on the ties) so the tie
     // details, stats totals and awards all agree everywhere.
@@ -741,7 +786,7 @@ export default function CustomUclSimulationScreen() {
   function commitFinalResult() {
     if (finishedRef.current || !finalResultRef.current) return
     finishedRef.current = true
-    setClResult(finalResultRef.current)
+    setClResult({ ...finalResultRef.current, others: otherCompetitions() })
   }
   function finishAll() {
     if (finishedRef.current || !finalResultRef.current) return
@@ -749,12 +794,13 @@ export default function CustomUclSimulationScreen() {
     router.push('/game/awards?to=cucl')
   }
 
-  // ── Player out before the league phase (qualifying exit / never qualified) ──
-  function buildNoPlayerResult(finalRound: CLSeasonResult['playerFinalRound']): CLSeasonResult {
-    // The tournament still plays out in full — league phase + knockouts without
-    // the player — so the result screen can show all of it.
-    const potted = buildCLTeams((qual?.leaguePhaseField ?? []).map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: false, holder: t.associationRank === 0 })), countryOfClub, comp.pots)
-    const fx = drawCLLeaguePhase(potted, countryOfClub, format).fixtures
+  // A competition played out headless, without you: its league phase and its
+  // knockouts. For the competition you missed (below), and since P8.5-16 for
+  // the two you weren't in, so the result screen can show all three.
+  function playCompHeadless(field: QualTeam[], c: EuroComp) {
+    const cc = EUROPE[c]
+    const potted = buildCLTeams(field.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: false, holder: t.associationRank === 0 })), countryOfClub, cc.pots)
+    const fx = drawCLLeaguePhase(potted, countryOfClub, { pots: cc.pots, perPot: cc.perPot }).fixtures
     const matchdays: CLLeagueMatch[] = []
     for (const f of fx) {
       const home = potted.find(t => t.clubId === f.home.clubId)!, away = potted.find(t => t.clubId === f.away.clubId)!
@@ -775,7 +821,22 @@ export default function CustomUclSimulationScreen() {
       })
     }
     const sorted = sortStandings(potted)
-    const ko = simulateCLKnockoutsOnly(sorted)
+    return { sorted, matchdays, ko: simulateCLKnockoutsOnly(sorted) }
+  }
+
+  function otherCompetitions(): OtherCompetition[] {
+    if (!qual?.europe) return []
+    return (['ucl', 'uel', 'uecl'] as EuroComp[]).filter(c => c !== comp.id).map(c => {
+      const { sorted, ko } = playCompHeadless(qual.europe!.fields[c], c)
+      return { comp: c, leaguePhaseStandings: sorted, playoffRound: ko.playoffRound, r16: ko.r16, qf: ko.qf, sf: ko.sf, final: ko.final, winner: ko.winner }
+    })
+  }
+
+  // ── Player out before the league phase (qualifying exit / never qualified) ──
+  function buildNoPlayerResult(finalRound: CLSeasonResult['playerFinalRound']): CLSeasonResult {
+    // The tournament still plays out in full — league phase + knockouts without
+    // the player — so the result screen can show all of it.
+    const { sorted, matchdays, ko } = playCompHeadless(qual?.leaguePhaseField ?? [], comp.id)
 
     // Synthesise the player's team record for the header card.
     const exitTie = [...(qual?.ties ?? [])].reverse().find(t => t.teamA.clubId === playerClubId || t.teamB?.clubId === playerClubId)
@@ -796,7 +857,7 @@ export default function CustomUclSimulationScreen() {
   async function handleOutOfEurope(finalRound: CLSeasonResult['playerFinalRound']) {
     if (finishedRef.current) return
     finishedRef.current = true
-    const result = buildNoPlayerResult(finalRound)
+    const result = { ...buildNoPlayerResult(finalRound), others: otherCompetitions() }
     try {
       const rosters = await getRostersForClubs(result.leaguePhaseStandings.map(t => t.clubId), clYear ?? 2025)
       attributeCLResultScorers(result, rosters, lineupCtxRef.current)
@@ -861,13 +922,6 @@ export default function CustomUclSimulationScreen() {
     )
   }
 
-  const leaguesButton = tables.length > 0 ? (
-    <Pressable onPress={() => openLeaguesBrowser(tables, playerClubId)} accessibilityRole="button" accessibilityLabel="Every league's table"
-      style={({ pressed }) => [styles.kitLeagues, { borderColor: nylon.line }, pressed && { backgroundColor: nylon.sunken }]}>
-      <KitText t="tag" color={nylon.text}>Leagues</KitText>
-    </Pressable>
-  ) : null
-
   const modals = (
     <>
     </>
@@ -879,7 +933,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">{mine.name.toUpperCase()}</KitText>
           <KitText t="tag" color={nylon.textMuted}>{`${mine.country} · rank ${mine.rank} · ${preview.length} clubs`}</KitText>
           <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>
@@ -896,7 +950,13 @@ export default function CustomUclSimulationScreen() {
           <ZoneLegend roles={nylon} zones={domZones} />
         </KitScreen>
         <ThumbBar>
-          <Plate label="Kick off the season" icon="play" roles={nylon} onPress={() => { setPhase('domestic_sim'); setIsPlaying(true) }} />
+          {/* P8.5-15: the full path had no pundits. They call your league
+              here, and the season starts from their screen ("Prove them wrong"). */}
+          <Plate label="Hear the pundits" icon="forward" roles={nylon} onPress={() => openPundits({
+            teams: domTeamsRef.current.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })),
+            yearStart: 2025,
+            onStart: seed => { setDomPunditSeed(seed); setPhase('domestic_sim'); setIsPlaying(true) },
+          })} />
         </ThumbBar>
         {modals}
       </View>
@@ -914,7 +974,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <KitText t="tag" color={nylon.textMuted}>
             {`${mine.name} · 2025/26 · ${domStage === 'split' ? domStageLabelRef.current : 'Regular season'} · MD ${playedMDs}/${domTotalMDs}`}
           </KitText>
@@ -937,11 +997,15 @@ export default function CustomUclSimulationScreen() {
               onPress={() => openMdDetail(yourResult, historyFor(domHistory), 'Domestic Season', 2025)}
               footer={<ManOfTheMatch roles={nylon} req={mdRequest(yourResult, 2025)} />} />
           )}
-          <SegmentSwitch<'table' | 'results'> roles={nylon} value={domTab} onChange={setDomTab} options={[
+          <CupNow roles={nylon} cup={domCup} md={historyFor(domHistory)} />
+          <SegmentSwitch<'table' | 'results' | 'cup'> roles={nylon} value={domTab} onChange={setDomTab} options={[
             { id: 'table', label: preSplit ? 'Pre-split table' : 'Table' },
             { id: 'results', label: `Results MD ${historyFor(domHistory)}` },
+            ...(domCup ? [{ id: 'cup' as const, label: 'Cup' }] : []),
           ]} />
-          {domTab === 'table' ? (
+          {domTab === 'cup' && domCup ? (
+            <CupPane roles={nylon} cup={domCup} country={mine.country} playerClubId={playerClubId} />
+          ) : domTab === 'table' ? (
             <>
               {domStage === 'split' && domRegularSnapshotRef.current && (
                 <Plate label={showRegularTable ? 'Show the live table' : 'Show the pre-split table'} variant="quiet"
@@ -995,6 +1059,9 @@ export default function CustomUclSimulationScreen() {
   // ── Phase: domestic result ────────────────────────────────────────────────
   if (phase === 'domestic_result') {
     const pos = domesticFinish ?? 0
+    const domPunditCall = domPunditSeed != null
+      ? predictTable(domTeamsRef.current.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), domPunditSeed).player?.predicted ?? null
+      : null
     const qualified = !!entry
     const into = entry ? EUROPE[entry.comp].name : ''
     const berthText = !qual ? 'Resolving Europe.'
@@ -1002,16 +1069,27 @@ export default function CustomUclSimulationScreen() {
         ? `${entry.viaCup ? 'As cup winners: the ' : 'The '}${into}, ${entry.round === 'league_phase' ? 'straight into the league phase.' : `from the ${QUAL_ROUND_LABEL[entry.round].toLowerCase()} (${PATH_LABEL[entry.path]}).`}`
         : 'No European football this season.'
     const cupLine = yourCup
-      ? (yourCup.clubId === playerClubId ? `You won the ${cupNameForCountry(mine.country)}.` : `${yourCup.clubName} won the ${cupNameForCountry(mine.country)}.`)
+      ? (yourCup.clubId === playerClubId ? `You won the ${nationalCupName(mine.rank)}.` : `${yourCup.clubName} won the ${nationalCupName(mine.rank)}.`)
       : null
     const table = domPlayerTableRef.current
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <StampLabel roles={nylon} good={qualified} sub={berthText}
             text={pos === 1 ? `${mine.name} champions` : `Finished ${ordinalOf(pos)}`} />
           {cupLine && <KitText t="body" color={nylon.textMuted}>{cupLine}</KitText>}
+          {yourCup?.cup && (
+            <Plate label={`See the ${nationalCupName(mine.rank)}`} icon="ranks" variant="secondary" roles={nylon}
+              onPress={() => openCupBracket(yourCup.cup!, mine.country, playerClubId)} />
+          )}
+          {/* The pundits' call, checked: the same seed, the same field. */}
+          {domPunditCall != null && (
+            <KitText t="body" color={nylon.textMuted}>
+              {domPunditCall === pos ? `The pundits had you ${ordinalOf(domPunditCall)}. Spot on.`
+                : `The pundits had you ${ordinalOf(domPunditCall)}. You finished ${ordinalOf(pos)}${domPunditCall > pos ? ': proved them wrong.' : '.'}`}
+            </KitText>
+          )}
           {table && (
             <>
               <SectionTag roles={nylon}>{`${mine.name} · final table`}</SectionTag>
@@ -1042,7 +1120,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">EUROPE IS DONE</KitText>
           <KitText t="bodyL" color={nylon.textMuted}>{`Every league played out for real. ${visible.length} of ${tables.length} in.`}</KitText>
           <SectionTag roles={nylon}>The champions</SectionTag>
@@ -1054,15 +1132,17 @@ export default function CustomUclSimulationScreen() {
             <>
               <SectionTag roles={nylon}>The holders</SectionTag>
               {europe.holders.map(h => (
-                <ListRow key={h.comp} roles={nylon} label={h.clubName}
-                  value={`${EUROPE[h.comp].short} holders${h.playsIn ? ` · in the ${EUROPE[h.playsIn].short}` : ''}`} />
+                <MarkRow key={h.comp} roles={nylon} clubId={h.clubId} clubName={h.clubName} yours={h.clubId === playerClubId}
+                  label={`${EUROPE[h.comp].name} holders${h.playsIn ? ` · in the ${EUROPE[h.playsIn].name}` : ''}`} />
               ))}
               <KitText t="body" color={nylon.textMuted}>A holder never defends in the same competition: the Europa League's go up into the Champions League, the Conference League's into the Europa League.</KitText>
               <SectionTag roles={nylon}>The cups</SectionTag>
               <KitText t="body" color={nylon.textMuted}>Every cup winner goes to the Europa League or the Conference League. One already in on league position passes the place down the table.</KitText>
+              {/* P8.5-13: each cup opens as its bracket (older saves kept only the winner). */}
               {europe.cups.map(c => (
-                <ListRow key={c.rank} roles={nylon} label={c.clubId === playerClubId ? `${c.clubName} (you)` : c.clubName}
-                  value={cupNameForCountry(c.country)} />
+                <MarkRow key={c.rank} roles={nylon} clubId={c.clubId} clubName={c.clubName} yours={c.clubId === playerClubId}
+                  label={`${nationalCupName(c.rank)} · ${c.country ?? c.name}`}
+                  onPress={c.cup ? () => openCupBracket(c.cup!, c.country, playerClubId) : undefined} />
               ))}
             </>
           )}
@@ -1102,7 +1182,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">QUALIFYING</KitText>
           <KitText t="bodyL" color={nylon.textMuted}>Two legs a tie. Losers drop into the competition below. Tap any tie for its legs, extra time and shootout.</KitText>
           <SegmentSwitch<EuroComp> roles={nylon} value={ladder} onChange={setQualComp} options={(['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => ({ id: c, label: EUROPE[c].short }))} />
@@ -1146,7 +1226,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <StampLabel roles={nylon} good={through}
             text={through ? (playerHadTies ? `Into the ${comp.name}` : 'The field is set') : `Out in ${exitTie ? QUAL_ROUND_LABEL[exitTie.round].toLowerCase() : 'qualifying'}`}
             sub={through
@@ -1161,6 +1241,39 @@ export default function CustomUclSimulationScreen() {
               if (m) openKoTie(m, { ...koOpts, label: `${EUROPE[t.comp ?? 'ucl'].short} · ${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
             }} />
           )}
+          {/* P8.5-14: the rest of Europe. Once qualifying was over you couldn't
+              look at the other competitions' qualifying, and it was hard to see
+              who else got into the league phases. One competition at a time:
+              its league phase (who came in directly, who came through), then
+              its whole ladder. */}
+          {qual?.europe && (() => {
+            const shown = qualComp ?? comp.id
+            const field = [...qual.europe.fields[shown]].sort((x, y) => y.ovr - x.ovr)
+            const came = field.filter(t => t.entryRound !== 'league_phase').length
+            return (
+              <>
+                <SectionTag roles={nylon}>The rest of Europe</SectionTag>
+                <SegmentSwitch<EuroComp> roles={nylon} value={shown} onChange={setQualComp}
+                  options={(['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => ({ id: c, label: EUROPE[c].short }))} />
+                <KitText t="body" color={nylon.textMuted}>
+                  {`${EUROPE[shown].name} league phase: ${field.length} clubs, ${field.length - came} in directly, ${came} through qualifying.`}
+                </KitText>
+                {field.map(t => (
+                  <View key={t.clubId} style={[styles.fieldRow, { borderBottomColor: nylon.rule }, t.isPlayer && { backgroundColor: nylon.yours }]}>
+                    <ClubName roles={nylon} clubId={t.clubId} name={t.clubName} size={16} style={{ flex: 1 }} />
+                    <KitText t="tag" color={nylon.textMuted}>
+                      {t.entryRound === 'league_phase' ? 'DIRECT' : `VIA ${QUAL_ROUND_LABEL[t.entryRound].toUpperCase()}`}
+                    </KitText>
+                  </View>
+                ))}
+                <SectionTag roles={nylon}>{`${EUROPE[shown].name} qualifying`}</SectionTag>
+                <QualifyingLadder ties={qual.ties.filter(t => (t.comp ?? 'ucl') === shown)} onTiePress={t => {
+                  const m = qualTieToKoMatch(t)
+                  if (m) openKoTie(m, { ...koOpts, label: `${EUROPE[t.comp ?? 'ucl'].short} · ${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}` })
+                }} />
+              </>
+            )
+          })()}
         </KitScreen>
         <ThumbBar>
           {through
@@ -1179,7 +1292,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <KitText t="superM" color={nylon.text} accessibilityRole="header">THE LEAGUE PHASE</KitText>
           <KitText t="tag" color={nylon.textMuted}>{comp.fullName}</KitText>
           <KitText t="tag" color={nylon.textMuted}>
@@ -1222,7 +1335,7 @@ export default function CustomUclSimulationScreen() {
     return (
       <View style={[styles.container, { backgroundColor: nylon.bg }]}>
         <Road phase={phase} />
-        <KitScreen ground={FLOODLIT} underHeader>
+        <KitScreen ground={EVERYDAY} underHeader>
           <KitText t="tag" color={nylon.textMuted}>{`${comp.name} · league phase · ${clTeamsLocal.length} clubs · MD ${Math.min(currentMD - 1, totalMatchdays)}/${totalMatchdays}`}</KitText>
           {youPos > 0 && (
             <StandingFigure roles={nylon} pos={youPos} delta={null}
@@ -1353,11 +1466,12 @@ export default function CustomUclSimulationScreen() {
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
       <Road phase="knockout_phase" />
-      <KitScreen ground={FLOODLIT} underHeader scrollRef={koScrollRef} scrollEventThrottle={64}
+      <KitScreen ground={EVERYDAY} underHeader scrollRef={koScrollRef} scrollEventThrottle={64}
         onScroll={e => setKoAway(e.nativeEvent.contentOffset.y > KO_AWAY_PX)}>
+        {/* P8.5-18: no Leagues button here any more. The leagues finished
+            before Europe started; the knockouts are about the bracket. */}
         <View style={styles.kitHeadRow}>
           <KitText t="tag" color={nylon.textMuted} style={{ flex: 1 }}>{`${comp.fullName} · Knockouts`}</KitText>
-          {leaguesButton}
         </View>
         {/* P8-91: the whole bracket, mid-round, as it stands. */}
         <Plate label="See the bracket" icon="ranks" variant="secondary" roles={nylon} style={{ marginTop: space[2], marginBottom: space[3] }} onPress={() => {
@@ -1445,11 +1559,11 @@ export default function CustomUclSimulationScreen() {
 
 const styles = StyleSheet.create({
   toNewest: { position: 'absolute', left: space[4], right: space[4], bottom: 120, alignItems: 'center' },
-  kitLeagues: { borderWidth: 1, borderColor: '#F3F3F0', minHeight: 40, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   kitControls: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   kitHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kitRound: { gap: 8, marginTop: 12 },
   kitFinalCard: { borderWidth: 2, padding: 12, gap: 8 },
 
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: GR.bg },
+  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 36, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: space[1] },
 })

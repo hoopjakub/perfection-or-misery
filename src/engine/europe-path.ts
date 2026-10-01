@@ -28,11 +28,16 @@ import {
 } from '@/data/uefa-coefficients'
 import type { AssociationEntry, AssociationClub, CLAccessList, EntrantClub } from './cl-access'
 import { toTeam, playRound, type QualTie, type QualTeam, type QualifyingResult } from './cl-qualifying'
-import { planCup, playCupAfter } from './domestic-cup'
+import { planCup, playCupAfter, type DomesticCup } from './domestic-cup'
 import { deriveSeed } from '@/lib/rng'
 import type { SimTeam } from '@/types/simulation'
+import { nationalCupName, semisTwoLegged } from '@/data/national-cups'
 
-export type CupWinner = { rank: number; name: string; country?: string; clubId: string; clubName: string }
+export type CupWinner = {
+  rank: number; name: string; country?: string; clubId: string; clubName: string
+  /** P8.5-20: the whole cup, kept so it can be shown as its bracket. Absent on older saves. */
+  cup?: DomesticCup
+}
 export type EuroEntrant = EntrantClub & { comp: EuroComp; viaCup: boolean }
 export type EuropeExtras = {
   /** The competition your European season went on in, or ended in; null if you never qualified. */
@@ -84,9 +89,16 @@ const DROP: Record<Key, To> = {
  * yours at your team's (it's in the association's table with it), with the
  * difficulty's tilt, as every one of your matches has.
  */
-export function playEveryCup(assocs: AssociationEntry[], playerClubId: string | null, seed: number): CupWinner[] {
+export function playEveryCup(assocs: AssociationEntry[], playerClubId: string | null, seed: number,
+  /** P8.5-20: your association's cup, already played through your season. */
+  own?: { rank: number; cup: DomesticCup } | null): CupWinner[] {
   const out: CupWinner[] = []
   for (const a of assocs) {
+    if (own && a.rank === own.rank) {
+      const w = own.cup.winner
+      if (w) out.push({ rank: a.rank, name: a.name, country: a.country, clubId: w.clubId, clubName: w.clubName, cup: own.cup })
+      continue
+    }
     const teams: SimTeam[] = a.clubs.map(c => ({
       clubId: c.clubId, clubName: c.clubName, ovr: c.ovr, isPlayer: c.clubId === playerClubId,
       form: 0, stats: { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
@@ -94,10 +106,10 @@ export function playEveryCup(assocs: AssociationEntry[], playerClubId: string | 
     // The rounds' matchdays don't matter here (nothing else is played beside
     // them), so the cup is planned over a nominal season and played through.
     const SEASON = 30
-    let cup = planCup(teams, SEASON, deriveSeed(seed, a.rank), null)
+    let cup = planCup(teams, SEASON, deriveSeed(seed, a.rank), nationalCupName(a.rank), semisTwoLegged(a.rank))
     if (!cup) continue
     for (let md = 1; md <= SEASON; md++) cup = playCupAfter(cup, md, teams)
-    if (cup.winner) out.push({ rank: a.rank, name: a.name, country: a.country, clubId: cup.winner.clubId, clubName: cup.winner.clubName })
+    if (cup.winner) out.push({ rank: a.rank, name: a.name, country: a.country, clubId: cup.winner.clubId, clubName: cup.winner.clubName, cup })
   }
   return out
 }
@@ -181,10 +193,84 @@ function pick(entry: AssociationEntry, rule: EuroAccessRule, cupWinner: string |
  * result the full path's screens already read (its `leaguePhaseField` is the
  * field of the competition you're in), with the three competitions beside it.
  */
+// ── Aiming (P8.5-21, option B; decided 29 Sept, E1) ─────────────────────────
+// "How does someone hunting the Conference League on hard do it? Do they just
+// have to get lucky?" With a target, your season decides how DEEP you enter
+// the competition you're hunting, never which one (docs/europe/07 §3):
+//  - a place in it: that place, as earned;
+//  - a place in a stronger competition: straight into its league phase (you'd
+//    have dropped into it anyway);
+//  - a weaker place, or none: its earliest qualifying round, the champions
+//    path if you won your league and that round has one. Nobody is shut out.
+// And a loss in its qualifying ends the run: no drop into another competition.
+//
+// Counts: you take the place of the weakest club entering where you enter,
+// and that club gives it up (and where nobody enters there, the weakest club
+// of the league phase does at the end: simulateEurope). A first cut moved that club down a round and
+// left every league phase at 37 in hunting runs (verify-europe-path): the
+// ladder fills a place that's short (the play-off losers, below) but never
+// trims one that's over. A swap keeps every round's count; the place you leave
+// behind is a hole the ladder already fills.
+export type EuropeAim = { target: EuroComp; club: EntrantClub; champion: boolean }
+const STRENGTH: Record<EuroComp, number> = { ucl: 0, uel: 1, uecl: 2 }
+
+/** The earliest qualifying round a club can enter `c` by. */
+function earliestOf(c: EuroComp, champion: boolean): { round: UclRound; path: UclPath } {
+  for (const round of ROUNDS) {   // q1 first
+    for (const path of (champion ? ['champions', 'league'] : ['league']) as UclPath[]) {
+      const k = key(c, round, path)
+      if (k in WIN) return { round, path }
+    }
+  }
+  return { round: 'playoff', path: 'league' }
+}
+
+/** The access lists with you moved into your target (see above). */
+export function aimAt(ucl: CLAccessList, euro: EuroEntrant[], aim: EuropeAim): { ucl: CLAccessList; euro: EuroEntrant[]; entry: { round: UclRound; path: UclPath } } {
+  const id = aim.club.clubId
+  const natural: { comp: EuroComp; round: UclRound; path: UclPath } | null =
+    [...ucl.leaguePhaseDirect, ...ucl.qualifying].filter(e => e.clubId === id).map(e => ({ comp: 'ucl' as EuroComp, round: e.entryRound, path: e.entryPath }))[0]
+    ?? euro.filter(e => e.clubId === id).map(e => ({ comp: e.comp, round: e.entryRound, path: e.entryPath }))[0]
+    ?? null
+  const t = aim.target
+  const entry = natural && natural.comp === t ? { round: natural.round, path: natural.path }
+    : natural && STRENGTH[natural.comp] < STRENGTH[t] ? { round: 'league_phase' as UclRound, path: 'none' as UclPath }
+    : earliestOf(t, aim.champion)
+  const outUcl: CLAccessList = {
+    ...ucl,
+    leaguePhaseDirect: ucl.leaguePhaseDirect.filter(e => e.clubId !== id),
+    qualifying: ucl.qualifying.filter(e => e.clubId !== id),
+  }
+  let outEuro = euro.filter(e => e.clubId !== id)
+  const me: EntrantClub = { ...aim.club, entryRound: entry.round, entryPath: entry.path }
+  // Kept your own place: nothing to swap. Otherwise the weakest club entering
+  // at your round and path gives its place up to you.
+  const kept = natural?.comp === t
+  const displace = <E extends EntrantClub>(list: E[]): E[] => {
+    if (kept) return list
+    const at = list.filter(e => e.entryRound === entry.round && e.entryPath === entry.path).sort((a, b) => a.ovr - b.ovr)[0]
+    return at ? list.filter(e => e !== at) : list
+  }
+  if (t === 'ucl') {
+    const left = displace([...outUcl.leaguePhaseDirect, ...outUcl.qualifying])
+    outUcl.leaguePhaseDirect = left.filter(e => e.entryRound === 'league_phase')
+    outUcl.qualifying = left.filter(e => e.entryRound !== 'league_phase')
+    if (entry.round === 'league_phase') outUcl.leaguePhaseDirect.push(me)
+    else outUcl.qualifying.push(me)
+  } else {
+    const mine = displace(outEuro.filter(e => e.comp === t))
+    outEuro = [...outEuro.filter(e => e.comp !== t), ...mine, { ...me, comp: t, viaCup: false }]
+  }
+  return { ucl: outUcl, euro: outEuro, entry }
+}
+
 export function simulateEurope(
   ucl: CLAccessList, euro: EuroEntrant[], cups: CupWinner[],
   holders: Omit<EuropeExtras['holders'][number], 'playsIn'>[], playerClubId?: string,
+  /** P8.5-21: hunting one competition (see aimAt). */
+  aim?: EuropeAim | null,
 ): QualifyingResult {
+  if (aim) ({ ucl, euro } = aimAt(ucl, euro, aim))
   const isPlayer = (id: string) => id === playerClubId
   const pool = new Map<Key, QualTeam[]>()
   const push = (k: Key, teams: QualTeam[]) => pool.set(k, [...(pool.get(k) ?? []), ...teams])
@@ -220,7 +306,8 @@ export function simulateEurope(
     if (round === 'playoff') playoffLosers[comp].push(...losers)
     const onward = WIN[k] ?? null
     send(onward, played.winners, onward?.startsWith('lp:') ?? false)
-    send(DROP[k] ?? null, losers, false)
+    // Hunting: your loss in qualifying ends the run, no drop (aimAt).
+    send(DROP[k] ?? null, aim ? losers.filter(t => !isPlayer(t.clubId)) : losers, false)
   }
 
   // A bye in an odd round sends one club too many up and one loser too few
@@ -235,6 +322,21 @@ export function simulateEurope(
       for (const lower of COMPS) { const i = fields[lower].indexOf(best); if (i >= 0) fields[lower].splice(i, 1) }
       fields[c].push(best)
       viaQualifying[c].push(best)
+    }
+  }
+
+  // Hunting: a league phase can still come out a place over (the Conference
+  // League's has no direct entrants to swap with, so you're a 37th; a bye
+  // keeps every round's winners, so taking a club out further down the ladder
+  // doesn't help). The weakest club that isn't you or a holder gives its place
+  // up, as the swap in aimAt does at your entry.
+  if (aim) for (const c of COMPS) {
+    while (fields[c].length > LEAGUE_PHASE_SIZE) {
+      const out = fields[c].filter(t => !t.isPlayer && t.associationRank !== 0).sort((a, b) => a.ovr - b.ovr)[0]
+      if (!out) break
+      fields[c].splice(fields[c].indexOf(out), 1)
+      const q = viaQualifying[c].indexOf(out)
+      if (q >= 0) viaQualifying[c].splice(q, 1)
     }
   }
 

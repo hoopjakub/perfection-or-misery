@@ -1,6 +1,6 @@
 # 07 · The European path: any of the three, and how to hunt one
 
-> Part of [the Europe research](00-README.md). Status: **findings and plan**, 29 September 2026. Nothing here is built. Companion: [`05-THE-FULL-PATH.md`](05-THE-FULL-PATH.md) (what's built), [`06-CUPS-FOR-EVERY-NATION.md`](06-CUPS-FOR-EVERY-NATION.md).
+> Part of [the Europe research](00-README.md). Status: **as built**, 1 October 2026; measured and planned 29 September. Two changes from the plan, both measured: aiming swaps you for the weakest club at your entry point instead of moving it down (moving it left league phases at 37), and "The long way" is four qualifying ties, not five (four is the most a season can have you play). The instrument is `scripts/measure-europe.ts`. Companion: [`05-THE-FULL-PATH.md`](05-THE-FULL-PATH.md) (what's built), [`06-CUPS-FOR-EVERY-NATION.md`](06-CUPS-FOR-EVERY-NATION.md).
 
 The maintainer, 29 September, on the full path: "I actually hope it's done in a way that you can go into anything, so it's like a European full path… the full path itself needs other achievements, since now just doing easy, medium or hard is bad, since you can win the UCL, or Europa, or Conference, so it should have tiers. This also poses the question: how does someone who is actively hunting the Conference League on hard mode in the full path do it? Do they just have to get lucky?"
 

@@ -1,5 +1,6 @@
 // The bracket's shape (P8-79), kept apart from BracketTree so it can be
 // checked headless (scripts/verify-bracket.ts).
+import { tieNote, type DomesticCup } from '@/engine/domestic-cup'
 export type BracketSide = {
   clubId?: string
   name: string
@@ -35,3 +36,22 @@ export function orderBracket(columns: BracketColumn[]): BracketColumn[] {
   return out
 }
 
+
+/** A domestic cup as bracket columns (P8.5-13 / P8.5-20): every round played
+ *  so far, one match a tie. A first round lists its byes as well, each a side
+ *  with nobody against it, so the column has every club of the next round's
+ *  draw and halves into it like any other round. */
+export function cupToColumns(cup: DomesticCup): BracketColumn[] {
+  return cup.rounds.filter(r => r.played).map(r => ({
+    key: r.key, label: r.label,
+    ties: [
+      ...r.ties.map((t): BracketTie => ({
+        a: { clubId: t.home.clubId, name: t.home.clubName, goals: String(t.homeGoals) },
+        b: { clubId: t.away.clubId, name: t.away.clubName, goals: String(t.awayGoals) },
+        winner: t.winner === 'home' ? 'a' : 'b',
+        note: tieNote(t) ?? undefined,
+      })),
+      ...r.byes.map((s): BracketTie => ({ a: { clubId: s.clubId, name: s.clubName }, b: null, winner: 'a', note: 'Bye' })),
+    ],
+  }))
+}

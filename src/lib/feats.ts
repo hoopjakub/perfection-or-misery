@@ -21,6 +21,15 @@ export type FeatRun = {
   squad?: SquadPlayer[] | null
   /** P8-173: the league's cup, where the run had one. */
   highlights?: { cup?: { winner?: { isPlayer?: boolean } | null } | null } | null
+  /** P8.5-21: the European Full Path's route, read back from the saved run:
+   *  where you came in, how many qualifying ties you played, and (saved since
+   *  1 Oct 2026) whether you won your league and its cup. */
+  fullPath?: {
+    entry?: { comp: string; round: string; viaCup?: boolean } | null
+    qualTies?: number | null
+    domesticChampion?: boolean | null
+    cupWon?: boolean | null
+  } | null
 }
 
 const CUPS = new Set(['world_cup', 'champions_league', 'champions_league_custom', 'europa_league', 'conference_league'])
@@ -30,6 +39,14 @@ export function isRunWon(run: { mode: string; tier: string | null; final_positio
   // P8-52: the full path can end with the Europa or Conference League's trophy ('uel_winner').
   if (CUPS.has(run.mode)) return run.tier === 'winner' || run.tier === 'uel_winner' || run.tier === 'uecl_winner'
   return run.final_position === 1
+}
+
+export type EuroTrophy = 'ucl' | 'uel' | 'uecl'
+/** P8.5-21: the European trophy a full-path run won, read from its tier
+ *  (the knockout tiers carry the competition: 'uel_winner'). Null otherwise. */
+export function fullPathTrophy(run: { mode: string; tier: string | null }): EuroTrophy | null {
+  if (run.mode !== 'champions_league_custom') return null
+  return run.tier === 'winner' ? 'ucl' : run.tier === 'uel_winner' ? 'uel' : run.tier === 'uecl_winner' ? 'uecl' : null
 }
 
 // The eleven that started (a saved squad carries the bench too). Only a full
@@ -42,7 +59,11 @@ function eleven(run: FeatRun): SquadPlayer[] | null {
 const ageOf = (p: SquadPlayer) => (p.birthYear && p.yearStart ? p.yearStart - p.birthYear : null)
 const ages = (xi: SquadPlayer[]) => { const a = xi.map(ageOf); return a.every((x): x is number => x != null) ? a : null }
 
-export type Feat = { id: string; title: string; how: string; earned: (run: FeatRun) => boolean }
+export type Feat = {
+  id: string; title: string; how: string; earned: (run: FeatRun) => boolean
+  /** A collection across runs rather than one run's feat (counted once). */
+  collected?: (runs: FeatRun[]) => boolean
+}
 
 export const FEATS: Feat[] = [
   {
@@ -80,6 +101,41 @@ export const FEATS: Feat[] = [
     how: 'Win a league without losing a match.',
     earned: r => !CUPS.has(r.mode) && r.final_position === 1 && r.losses === 0,
   },
+  // P8.5-21: the European Full Path's routes (docs/europe/07 §5.3).
+  {
+    id: 'cup-route', title: 'Cup route',
+    how: 'Win a European trophy on the European Full Path after getting into Europe as cup winners.',
+    earned: r => !!fullPathTrophy(r) && !!r.fullPath?.entry?.viaCup,
+  },
+  {
+    id: 'fallen-giant', title: 'Fallen giant',
+    how: 'Enter Champions League qualifying, drop out of it, and win the Europa or Conference League.',
+    earned: r => { const t = fullPathTrophy(r); const e = r.fullPath?.entry; return (t === 'uel' || t === 'uecl') && e?.comp === 'ucl' && e.round !== 'league_phase' },
+  },
+  {
+    id: 'straight-through', title: 'Straight through',
+    how: 'Win the Champions League on the European Full Path without playing a qualifying tie.',
+    earned: r => fullPathTrophy(r) === 'ucl' && r.fullPath?.entry?.round === 'league_phase' && r.fullPath?.qualTies === 0,
+  },
+  // Four: measured, the most a season can have you play (one a round, q1 to
+  // the play-off, drops included; 954 seasons of verify-europe-path, 1 Oct).
+  // The plan's "five or more" could never be earned.
+  {
+    id: 'the-long-way', title: 'The long way',
+    how: 'Win a European trophy after playing all four qualifying rounds.',
+    earned: r => !!fullPathTrophy(r) && (r.fullPath?.qualTies ?? 0) >= 4,
+  },
+  {
+    id: 'three-trophies', title: 'Three trophies',
+    how: 'Win the Champions, Europa and Conference League on the European Full Path, in any runs.',
+    earned: () => false,
+    collected: runs => new Set(runs.map(fullPathTrophy).filter(Boolean)).size === 3,
+  },
+  {
+    id: 'double-europe', title: 'The Double, Europe',
+    how: 'Win your league, its cup and a European trophy in one European Full Path run.',
+    earned: r => !!fullPathTrophy(r) && !!r.fullPath?.domesticChampion && !!r.fullPath?.cupWon,
+  },
   // P8-173: the league's cup.
   {
     id: 'cup-winners', title: 'Cup winners',
@@ -105,5 +161,6 @@ function ratingsWereHidden(r: FeatRun): boolean {
 export function featCounts(runs: FeatRun[]): Map<string, number> {
   const out = new Map(FEATS.map(f => [f.id, 0]))
   for (const r of runs) for (const f of FEATS) if (f.earned(r)) out.set(f.id, out.get(f.id)! + 1)
+  for (const f of FEATS) if (f.collected?.(runs)) out.set(f.id, 1)
   return out
 }

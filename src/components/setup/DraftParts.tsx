@@ -12,7 +12,7 @@ import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { spring } from '@/lib/motion'
 import { KitText, Stripe, Tape, ZipTag, RoundFlag, Plate, Crest } from '@/components/kit'
 import { getFlag } from '@/lib/flagMap'
-import { flagImageOf } from '@/lib/flags'
+import { flagImageOf, flagLargeOf } from '@/lib/flags'
 import { flagForNationality } from '@/data/geo-iso'
 import { crestFor, markColoursOf } from '@/lib/brand'
 import { ratio } from '@/lib/contrast'
@@ -137,7 +137,7 @@ export function RackSpin({ roles, items, durationMs, onLanded }: {
 }
 
 function SpinCard({ roles, item, x, i = 0, start = 0 }: { roles: Roles; item: SpinItem; x?: SharedValue<number>; i?: number; start?: number }) {
-  const flagImage = flagImageOf(item.flag ?? getFlag(item.clubId))
+  const flagImage = flagLargeOf(item.flag ?? getFlag(item.clubId))
   // A nation's card is its flag and nothing else, as the draft's backdrop and
   // the landed card show it (the maintainer, 28 Sept: the flag with its own
   // colours banded on top "looks awful"). A club's card wears its crest's colours.
@@ -348,7 +348,7 @@ export function PlayerTag({ roles, name, position, nationality, rating, availabl
   also?: string
   icon?: boolean
 }) {
-  const flag = flagImageOf(flagForNationality(nationality))
+  const flag = flagLargeOf(flagForNationality(nationality))
   const tint = LINE_TINT[lineOf(position)]
   const detail = [nationality.toUpperCase(), age ? `${age}` : null, alsoOf(also)].filter(Boolean).join(' · ')
   return (

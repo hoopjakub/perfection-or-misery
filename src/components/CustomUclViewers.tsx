@@ -17,6 +17,9 @@ import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
 import type { DraftedPlayer } from '@/types/game'
 import { EVERYDAY, useScreenRoles } from '@/lib/appearance'
+import { BracketTree } from '@/components/BracketTree'
+import { cupToColumns } from '@/lib/bracket'
+import type { DomesticCup } from '@/engine/domestic-cup'
 
 // The full path's Europe (P8-113): every league's table, the list of leagues,
 // and what each domestic finish earns. These were the last pre-redesign
@@ -72,7 +75,15 @@ export function PositionStakes({ roles, rank }: { roles: Roles; rank: number }) 
         <View key={r.position} style={[styles.stakesRow, { borderBottomColor: roles.rule }]}>
           <KitText t="figure" color={roles.text} style={styles.stakesPos}>{ordinal(r.position)}</KitText>
           <Tag roles={roles} variant={r.comp === 'ucl' && r.round === 'league_phase' ? 'selected' : undefined}>{zoneOf(r)?.code ?? ''}</Tag>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{berthLabel(r.round, r.path, r.comp)}</KitText>
+          {/* P8.5-19: two lines. On one, the Europa and Conference League rows
+              ran out of room ("Conference League, Second Qualifying Round…")
+              and the Champions League's row didn't name its competition. */}
+          <View style={{ flex: 1 }}>
+            <KitText t="body" color={roles.text} numberOfLines={1}>{EUROPE[r.comp].name}</KitText>
+            <KitText t="tag" color={roles.textMuted}>
+              {(r.round === 'league_phase' ? 'League phase, direct' : `${QUAL_ROUND_LABEL[r.round]} · ${PATH_LABEL[r.path]}`).toUpperCase()}
+            </KitText>
+          </View>
         </View>
       ))}
       <KitText t="tag" color={roles.textMuted} style={styles.stakesNote}>ANY LOWER: NO EUROPE, UNLESS THE CUP · A CUP WINNER ALREADY IN PASSES HIS PLACE DOWN</KitText>
@@ -145,6 +156,34 @@ export function openLeagueTable(table: SimLeagueTable, playerClubId?: string | n
   })
 }
 
+/** A domestic cup, played out, as its bracket (P8.5-13 / P8.5-20). */
+export function openCupBracket(cup: DomesticCup, country?: string | null, playerClubId?: string | null) {
+  openSheet({
+    title: cup.name,
+    sub: [country?.toUpperCase(), cup.winner ? `WON BY ${cup.winner.clubName.toUpperCase()}` : null, 'TOP FLIGHT ONLY · ONE MATCH A TIE'].filter(Boolean).join(' · '),
+    render: () => <BracketTree columns={cupToColumns(cup)} playerClubId={playerClubId} />,
+  })
+}
+
+/** One row with a club's mark, opening something (the ceremony's holders and
+ *  cups: P8.5-13, they were names with no crest). */
+export function MarkRow({ roles, clubId, clubName, label, onPress, yours }: {
+  roles: Roles; clubId: string; clubName: string; label: string; onPress?: () => void; yours?: boolean
+}) {
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityLabel={`${label}: ${clubName}${yours ? ', you' : ''}`}
+      style={({ pressed }) => [styles.leagueRow, { borderBottomColor: roles.rule }, yours && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
+      <TeamMark roles={roles} clubId={clubId} name={clubName} size={20} />
+      <View style={{ flex: 1 }}>
+        <KitText t="body" color={roles.text} numberOfLines={1}>{clubName}</KitText>
+        <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{label.toUpperCase()}</KitText>
+      </View>
+      {onPress ? <Icon name="chevron" size={16} color={roles.textMuted} /> : null}
+    </Pressable>
+  )
+}
+
 export function openLeaguesBrowser(tables: SimLeagueTable[], playerClubId?: string | null) {
   openSheet({
     title: 'Every league', sub: `${tables.length} LEAGUES, PLAYED THIS RUN`,
@@ -193,7 +232,7 @@ export function openKoTie(m: CLKnockoutMatch, opts: { label?: string; playerClub
 }
 
 const styles = StyleSheet.create({
-  stakesRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 40, borderBottomWidth: border.hair },
+  stakesRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 48, paddingVertical: 4, borderBottomWidth: border.hair },
   stakesPos: { width: 36 },
   stakesNote: { marginTop: space[2] },
   leagueRow: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 52, paddingVertical: space[2], borderBottomWidth: border.hair },

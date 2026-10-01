@@ -63,6 +63,10 @@ export type CLLeagueMatch = {
   standIns?: import('@/types/stats').RosterPlayer[]
 }
 
+export type OtherCompetition = Pick<CLSeasonResult, 'leaguePhaseStandings' | 'playoffRound' | 'r16' | 'qf' | 'sf' | 'final' | 'winner'> & {
+  comp: import('@/data/uefa-coefficients').EuroComp
+}
+
 export type CLSeasonResult = {
   leaguePhaseStandings: CLTeam[]
   playoffRound:         CLKnockoutMatch[]
@@ -86,6 +90,9 @@ export type CLSeasonResult = {
   // it travels with the result.
   absences?:            import('@/engine/availability').Absence[]
   leagueMatchdays?:     CLLeagueMatch[]   // populated by the simulation component
+  /** P8.5-16: the full path's other two competitions, played out headless so
+   *  the result screen can show how they finished. Absent on older saves. */
+  others?:              OtherCompetition[]
 }
 
 export function buildCLTeams(

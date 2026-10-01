@@ -1,6 +1,6 @@
 // P8-126: every feat's rule, from made-up saved runs.
 // npx tsx scripts/verify-feats.ts
-import { FEATS, featCounts, isRunWon, type FeatRun } from '../src/lib/feats'
+import { FEATS, featCounts, isRunWon, fullPathTrophy, type FeatRun } from '../src/lib/feats'
 
 let failures = 0
 function check(cond: boolean, msg: string) { if (!cond) { failures++; console.log('❌', msg) } }
@@ -54,6 +54,40 @@ check(!has(league(xi(() => ({ nationality: 'England' })).slice(0, 10)), 'one-nat
 check(isRunWon({ mode: 'champions_league', tier: 'winner', final_position: null }) && !isRunWon({ mode: 'league', tier: 'perfection', final_position: 2 }), 'the win rule')
 check(featCounts([league(english), league(english)]).get('one-nation') === 2, 'feats are counted per run')
 check(new Set(FEATS.map(f => f.id)).size === FEATS.length, 'two feats share an id')
+
+// P8.5-21: the full path's grid reads the competition from the tier.
+for (const [tier, want] of [['winner', 'ucl'], ['uel_winner', 'uel'], ['uecl_winner', 'uecl'], ['finalist', null], ['uel_finalist', null], ['not_qualified', null]] as const) {
+  const run = { mode: 'champions_league_custom', tier, final_position: null }
+  check(fullPathTrophy(run) === want, `full path ${tier}: ${fullPathTrophy(run)} (want ${want})`)
+  check(isRunWon(run) === (want !== null), `full path ${tier}: won is ${isRunWon(run)}`)
+}
+check(fullPathTrophy({ mode: 'champions_league', tier: 'winner' }) === null, 'the classic UCL filled the full path grid')
+
+// P8.5-21: the route feats. Each has a run that earns it and a near-miss.
+{
+  const fp = (tier: string, fullPath: FeatRun['fullPath']): FeatRun => ({ mode: 'champions_league_custom', tier, final_position: null, fullPath })
+  const feat = (id: string) => FEATS.find(f => f.id === id)!
+  const cases: [string, FeatRun, boolean][] = [
+    ['cup-route', fp('uecl_winner', { entry: { comp: 'uecl', round: 'q2', viaCup: true }, qualTies: 2 }), true],
+    ['cup-route', fp('uecl_finalist', { entry: { comp: 'uecl', round: 'q2', viaCup: true }, qualTies: 2 }), false],
+    ['cup-route', fp('uecl_winner', { entry: { comp: 'uecl', round: 'q2', viaCup: false }, qualTies: 2 }), false],
+    ['fallen-giant', fp('uel_winner', { entry: { comp: 'ucl', round: 'q2' }, qualTies: 2 }), true],
+    ['fallen-giant', fp('uel_winner', { entry: { comp: 'ucl', round: 'league_phase' }, qualTies: 0 }), false],
+    ['fallen-giant', fp('winner', { entry: { comp: 'ucl', round: 'q2' }, qualTies: 3 }), false],
+    ['straight-through', fp('winner', { entry: { comp: 'ucl', round: 'league_phase' }, qualTies: 0 }), true],
+    ['straight-through', fp('winner', { entry: { comp: 'ucl', round: 'q3' }, qualTies: 2 }), false],
+    ['the-long-way', fp('uecl_winner', { entry: { comp: 'ucl', round: 'q1' }, qualTies: 4 }), true],
+    ['the-long-way', fp('uecl_winner', { entry: { comp: 'ucl', round: 'q1' }, qualTies: 3 }), false],
+    ['double-europe', fp('uel_winner', { entry: { comp: 'uel', round: 'league_phase' }, qualTies: 0, domesticChampion: true, cupWon: true }), true],
+    ['double-europe', fp('uel_winner', { entry: { comp: 'uel', round: 'league_phase' }, qualTies: 0, domesticChampion: true, cupWon: false }), false],
+    ['double-europe', fp('uel_sf_exit', { entry: { comp: 'uel', round: 'league_phase' }, qualTies: 0, domesticChampion: true, cupWon: true }), false],
+  ]
+  for (const [id, run, want] of cases) check(feat(id).earned(run) === want, `${id} on ${run.tier} ${JSON.stringify(run.fullPath)}: ${!want ? 'earned' : 'not earned'}`)
+  const trio = [fp('winner', null), fp('uel_winner', null), fp('uecl_winner', null)]
+  check(featCounts(trio).get('three-trophies') === 1, 'three different trophies made no collection')
+  check(featCounts([trio[0], trio[1], trio[1]]).get('three-trophies') === 0, 'two trophies made the collection')
+  check(featCounts([trio[0]]).get('straight-through') === 0, 'a run with no route earned a route feat')
+}
 
 console.log(failures === 0 ? '✅ ALL CHECKS PASSED' : `${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

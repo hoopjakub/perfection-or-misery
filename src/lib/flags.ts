@@ -1,4 +1,4 @@
-import { FLAGS } from './flagImages'
+import { FLAGS, FLAGS_LARGE } from './flagImages'
 import { flagCodeOf } from './flagMap'
 
 // P8-58: a flag emoji → its bundled flag image. Emoji flags cropped into a
@@ -13,4 +13,11 @@ import { flagCodeOf } from './flagMap'
 export function flagImageOf(emoji?: string | null): number | null {
   const code = flagCodeOf(emoji)
   return code ? FLAGS[code] ?? null : null
+}
+
+/** The same flag at 640px, for one that fills a card or a country on the
+ *  globe (P8.5-11: the 80px one stretched over a draft card looked blurred). */
+export function flagLargeOf(emoji?: string | null): number | null {
+  const code = flagCodeOf(emoji)
+  return code ? FLAGS_LARGE[code] ?? FLAGS[code] ?? null : null
 }

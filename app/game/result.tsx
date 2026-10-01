@@ -25,7 +25,7 @@ import { MedicalTable } from '@/components/MedicalTable'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import { colors, spacing, typography, radius, shadows, prim, font } from '@/theme'
 import { ROLES as KIT_ROLES } from '@/theme'
-const nylon = KIT_ROLES[FLOODLIT]
+const nylon = KIT_ROLES[EVERYDAY]
 import { useModeTheme } from '@/hooks/useModeTheme'
 import { ModeLookProvider, lookFor } from '@/components/kit'
 import { ModeBanner } from '@/components/season/ModeBanner'
@@ -47,7 +47,11 @@ import { resolveDifficulty } from '@/engine/difficulty'
 import { SaveStatusLine } from '@/components/ui'
 import type { Tier } from '@/types/simulation'
 import { TIER_LABEL, formatTier, verdictOf } from '@/data/tiers'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too). These
+// old styles named the dark ground's colours; they now take its roles.
+const GR = KIT_ROLES[EVERYDAY]
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -148,7 +152,7 @@ export default function ResultScreen() {
       drafted: (isFreshRun ? fullSquad : dbRunData?.squad ?? []) as any,
       playerFormation: (isFreshRun ? formation : dbRunData?.formation) ?? undefined,
       matchday, contextMatches,
-    }, prim.cotton)
+    }, GR.text)
   }
 
   // Season Highlights name a match by opponent + scoreline (player-first) rather
@@ -247,7 +251,7 @@ export default function ResultScreen() {
 
   if (loadingRun || preloading) {
     return (
-      <KitScreen ground={FLOODLIT}>
+      <KitScreen ground={EVERYDAY}>
         <KitText t="bodyL" color={nylon.textMuted} style={{ marginTop: space[6] }}>{preloading ? 'Tallying the season.' : 'Loading the run.'}</KitText>
       </KitScreen>
     )
@@ -255,7 +259,7 @@ export default function ResultScreen() {
 
   if (!resultData) {
     return (
-      <KitScreen ground={FLOODLIT}>
+      <KitScreen ground={EVERYDAY}>
         <EmptyState roles={nylon} title="No season here" body="This run has ended or the page was reloaded." />
         <Plate label="Back to modes" roles={nylon} variant="secondary" onPress={() => router.replace('/game/mode-select')} />
       </KitScreen>
@@ -286,7 +290,7 @@ export default function ResultScreen() {
     desc: '',
     emoji: '',
   }
-  const tierColor = (colors.tiers as any)[tier as Tier] ?? prim.cotton
+  const tierColor = (colors.tiers as any)[tier as Tier] ?? GR.text
   const gd = goalsFor - goalsAgainst
 
   // The verdict's own lines: where you played, what the run scored, and how it
@@ -447,7 +451,7 @@ export default function ResultScreen() {
 
   return (
     <ModeLookProvider look={lookFor(mode)}>
-    <KitScreen ground={FLOODLIT} width="wide">
+    <KitScreen ground={EVERYDAY} width="wide">
       {/* P8-169: Chaos and Cursed carry their look to the verdict. */}
       <ModeBanner roles={KIT_ROLES_NYLON} mode={mode} />
       <VerdictBlock
@@ -574,7 +578,7 @@ export default function ResultScreen() {
       )}
 
       {/* §10.5 phase 4 (R8) — the medical table: who missed what. Absent for pre-phase-4 saves. */}
-      <MedicalTable absences={resultData?.absences} accent={prim.cotton} />
+      <MedicalTable absences={resultData?.absences} accent={GR.text} />
 
       {/* Lineup + squad — from the live run, or rehydrated from a saved one. Bench
           players included so SquadSummary can resolve every row (Big Fixes §5.1). */}
@@ -586,7 +590,7 @@ export default function ResultScreen() {
         return (
           <>
             {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
-            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={prim.cotton} runId={params.runId} />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={GR.text} runId={params.runId} />}
           </>
         )
       })()}
@@ -606,17 +610,17 @@ const styles = StyleSheet.create({
   kitHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   container: {
     flex: 1,
-    backgroundColor: prim.nylon,
+    backgroundColor: GR.bg,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: prim.nylon,
+    backgroundColor: GR.bg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
   },
   loadingText: {
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     fontSize: typography.md,
   },
   header: {
@@ -627,12 +631,12 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: prim.ruleNylon,
+    borderBottomColor: GR.rule,
   },
   headerTitle: {
     fontSize: typography.lg,
     fontFamily: font.bodyBlack,
-    color: prim.cotton,
+    color: GR.text,
   },
   placeholder: {
     width: 32,
@@ -646,7 +650,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   tierCard: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius: 0,
     padding: spacing.xl,
     alignItems: 'center',
@@ -666,18 +670,18 @@ const styles = StyleSheet.create({
   positionText: {
     fontSize: typography.md,
     fontFamily: font.bodyBold,
-    color: prim.cotton,
+    color: GR.text,
   },
   tierDesc: {
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginTop: spacing.xs,
   },
   takeoverText: {
     fontSize: typography.xs,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     textAlign: 'center',
     marginTop: spacing.sm,
     fontFamily: font.bodyBold,
@@ -685,15 +689,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: typography.md,
     fontFamily: font.bodyBold,
-    color: prim.cotton,
+    color: GR.text,
     marginBottom: spacing.xs,
   },
   statsCard: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
     gap: spacing.md,
   },
   statsGrid: {
@@ -703,21 +707,21 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     borderRadius: 0,
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
   },
   statVal: {
     fontSize: typography.lg,
     fontFamily: font.bodyBlack,
-    color: prim.cotton,
+    color: GR.text,
   },
   statLbl: {
     fontSize: typography.xs,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     textTransform: 'uppercase',
     marginTop: 2,
   },
@@ -725,20 +729,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: prim.ruleNylon,
+    borderTopColor: GR.rule,
     paddingTop: spacing.md,
   },
   rowStatText: {
     fontSize: 10,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     fontFamily: font.bodyMedium,
   },
   highlightsCard: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
     gap: spacing.sm,
   },
   highlightsList: {
@@ -748,20 +752,20 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: 4,
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     padding: spacing.md,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
   },
   highlightLabel: {
     fontSize: typography.sm,
     fontFamily: font.bodyBold,
-    color: prim.cotton,
+    color: GR.text,
   },
   highlightValueBlock: {
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     flexWrap: 'wrap',
     flexShrink: 1,
   },
@@ -775,48 +779,48 @@ const styles = StyleSheet.create({
   highlightChevron: {
     fontSize: typography.md,
     fontFamily: font.bodyBold,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
   },
   tableCard: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius: 0,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
     gap: spacing.xs,
   },
   tableHeader: {
     flexDirection: 'row',
     paddingBottom: spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: prim.ruleNylon,
+    borderBottomColor: GR.rule,
     marginBottom: spacing.xs,
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: prim.ruleNylon,
+    borderBottomColor: GR.rule,
     alignItems: 'center',
   },
   tableRowPlayer: {
-    backgroundColor: prim.cotton + '11',
-    borderColor: prim.cotton,
+    backgroundColor: GR.text + '11',
+    borderColor: GR.text,
     borderWidth: 1,
     borderRadius: 0,
   },
   playerRowText: {
-    color: prim.cotton,
+    color: GR.text,
     fontFamily: font.bodyBold,
   },
   tableCol: {
     fontSize: 10,
     fontFamily: font.bodyBold,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
   },
   tableColData: {
     fontSize: 11,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
   },
   colPos: {
     width: 20,
@@ -835,7 +839,7 @@ const styles = StyleSheet.create({
     fontFamily: font.bodyBold,
   },
   actionBtn: {
-    backgroundColor: prim.cotton,
+    backgroundColor: GR.text,
     borderRadius: 0,
     paddingVertical: spacing.md,
     alignItems: 'center',
@@ -844,14 +848,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionBtnSecondary: {
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
   },
   actionBtnText: {
     fontSize: typography.md,
     fontFamily: font.bodyBlack,
-    color: prim.cotton,
+    color: GR.text,
     letterSpacing: 1.5,
   },
   buttonRow: {
@@ -859,11 +863,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   matchdayCard: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
     gap: spacing.md,
   },
   matchdaySelector: {
@@ -871,32 +875,32 @@ const styles = StyleSheet.create({
   },
   matchdaySelectorLabel: {
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     fontFamily: font.bodyMedium,
   },
   matchdayScroll: {
     flexDirection: 'row',
   },
   matchdayChip: {
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
     marginRight: spacing.sm,
   },
   matchdayChipActive: {
-    backgroundColor: prim.cotton,
-    borderColor: prim.cotton,
+    backgroundColor: GR.text,
+    borderColor: GR.text,
   },
   matchdayChipText: {
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     fontFamily: font.bodyBold,
   },
   matchdayChipTextActive: {
-    color: prim.cotton,
+    color: GR.text,
   },
   matchdayFixtures: {
     gap: spacing.sm,
@@ -904,36 +908,36 @@ const styles = StyleSheet.create({
   matchdaySectionTitle: {
     fontSize: typography.sm,
     fontFamily: font.bodyBold,
-    color: prim.cotton,
+    color: GR.text,
     marginBottom: spacing.xs,
   },
-  squadStatRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  squadPos: { width: 36, fontSize: 10, color: prim.cottonMuted, fontFamily: font.bodyBold },
-  squadName: { flex: 1, fontSize: typography.sm, color: prim.cotton },
-  squadLine: { fontSize: typography.xs, color: prim.cottonMuted },
+  squadStatRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: GR.rule },
+  squadPos: { width: 36, fontSize: 10, color: GR.textMuted, fontFamily: font.bodyBold },
+  squadName: { flex: 1, fontSize: typography.sm, color: GR.text },
+  squadLine: { fontSize: typography.xs, color: GR.textMuted },
   squadNotable: { fontSize: 10, fontFamily: font.bodyBold },
   squadMore: { fontSize: typography.sm, fontFamily: font.bodyBold, textAlign: 'center' },
   fixtureRowWrap: { marginBottom: spacing.sm },
   fixtureScorers: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.xs, marginTop: 3 },
-  fixtureScorerHalf: { flex: 1, fontSize: 10, color: prim.cottonMuted },
+  fixtureScorerHalf: { flex: 1, fontSize: 10, color: GR.textMuted },
   fixtureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     padding: spacing.md,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
   },
   fixtureRowPlayer: {
-    backgroundColor: prim.cotton + '11',
-    borderColor: prim.cotton,
+    backgroundColor: GR.text + '11',
+    borderColor: GR.text,
   },
   fixtureTeam: {
     flex: 1,
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     fontFamily: font.bodyMedium,
   },
   fixtureTeamHome: {
@@ -943,7 +947,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   fixtureTeamPlayer: {
-    color: prim.cotton,
+    color: GR.text,
     fontFamily: font.bodyBold,
   },
   fixtureScore: {
@@ -954,33 +958,33 @@ const styles = StyleSheet.create({
   fixtureScoreText: {
     fontSize: typography.md,
     fontFamily: font.bodyBlack,
-    color: prim.cotton,
+    color: GR.text,
   },
   fixtureScoreWinner: {
     color: prim.volt,
   },
   fixtureScorePlayer: {
-    color: prim.cotton,
+    color: GR.text,
   },
   fixtureScoreDivider: {
     fontSize: typography.md,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
     marginHorizontal: spacing.xs,
   },
   matchdayStandings: {
     gap: spacing.sm,
   },
   graphCard: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius: 0,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: prim.ruleNylon,
+    borderColor: GR.rule,
     gap: spacing.md,
   },
   graphSubtitle: {
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
   },
   graphScrollH: {
     marginHorizontal: -spacing.xs,
@@ -992,25 +996,25 @@ const styles = StyleSheet.create({
   },
   graphEmptyText: {
     fontSize: typography.sm,
-    color: prim.cottonMuted,
+    color: GR.textMuted,
       },
   positionChangeIndicator: {
     fontSize: 10,
     fontFamily: font.bodyBold,
     marginLeft: 4,
   },
-  tapHint: { fontSize: 10, color: prim.cottonMuted, textAlign: 'center', paddingTop: spacing.sm },
+  tapHint: { fontSize: 10, color: GR.textMuted, textAlign: 'center', paddingTop: spacing.sm },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  modalCard: { width: '100%', maxHeight: '80%', backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.lg, gap: spacing.sm },
+  modalCard: { width: '100%', maxHeight: '80%', backgroundColor: GR.surface, borderRadius: 0, borderWidth: 1, borderColor: GR.rule, padding: spacing.lg, gap: spacing.sm },
   modalTitle: { fontSize: typography.lg, fontFamily: font.bodyBlack, marginBottom: spacing.xs },
-  modalClose: { marginTop: spacing.sm, backgroundColor: prim.nylonSunken, borderRadius: 0, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: prim.ruleNylon },
-  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
-  mmRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  mmMd: { width: 38, fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  modalClose: { marginTop: spacing.sm, backgroundColor: GR.sunken, borderRadius: 0, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: GR.rule },
+  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: GR.text },
+  mmRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: GR.rule },
+  mmMd: { width: 38, fontSize: typography.xs, color: GR.textMuted, fontFamily: font.bodyBold },
   mmRes: { width: 24, height: 20, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   mmResText: { fontSize: typography.xs, fontFamily: font.bodyBlack },
-  mmOpp: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted },
-  mmScore: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton, minWidth: 34, textAlign: 'right' },
+  mmOpp: { flex: 1, fontSize: typography.sm, color: GR.textMuted },
+  mmScore: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: GR.text, minWidth: 34, textAlign: 'right' },
   positionUp: {
     color: prim.volt,
   },

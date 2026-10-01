@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useSettingsStore, type EuropeanTarget } from './settingsStore'
 import type { DraftedPlayer, LeagueSeason, Formation, GameMode } from '@/types/game'
 import type { SeasonResult } from '@/types/simulation'
 import type { CLTeam, CLSeasonResult } from '@/engine/cl-sim'
@@ -42,6 +43,9 @@ type GameStore = {
   customUclQual:    QualifyingResult | null   // custom UCL: qualifying-ladder result
   customUclLeagues: SimLeagueTable[] | null   // custom UCL: simulated domestic tables (for the league viewer)
   customUclPlayerClubId: string | null        // custom UCL: which real club you took over
+  /** P8.5-21: the European Full Path's target for THIS run, copied from
+   *  Settings → Achievement hunting when the run starts ('any' = wherever it leads). */
+  europeanTarget: EuropeanTarget
   quickSim:       boolean   // headless tester run — must never be saved to the DB
   // The pundits' preview (src/engine/predictions.ts) is pure and seeded, so the
   // seed alone brings it back; the verdict (Phase 4) checks the run against it.
@@ -125,6 +129,7 @@ const initialState = {
   customUclQual:    null,
   customUclLeagues: null,
   customUclPlayerClubId: null,
+  europeanTarget:  'any' as EuropeanTarget,
   quickSim:        false,
   predictionSeed:  null,
   punditPicks:     null,
@@ -147,6 +152,8 @@ export const useGameStore = create<GameStore>((set) => ({
     mode,
     formation,
     lastFormation: formation,
+    // P8.5-21: the hunting target, fixed for the run from here (see setMode).
+    europeanTarget: mode === 'champions_league_custom' ? useSettingsStore.getState().europeanTarget : 'any',
     difficulty: s.difficulty, // Preserve difficulty when starting a new run
     customDifficulty: s.customDifficulty, // Preserve the custom-difficulty knobs too
     weightedPicksOverride: s.weightedPicksOverride, // Preserve the weighted-picks override too
@@ -204,6 +211,7 @@ export const useGameStore = create<GameStore>((set) => ({
     customUclQual:    null,
     customUclLeagues: null,
     customUclPlayerClubId: null,
+    europeanTarget:  'any' as EuropeanTarget,
     quickSim:        false,
     predictionSeed:  null,
   punditPicks:     null,
@@ -213,7 +221,10 @@ export const useGameStore = create<GameStore>((set) => ({
     testForceWinUntilFinal: false,
     // Keep mode, difficulty, selectedLeague, and accentColor
   })),
-  setMode:        (mode) => set({ mode, runStartedAt: Date.now() }),
+  // The run starts here, so its hunting target is fixed here too: changing the
+  // setting mid-run does nothing.
+  setMode:        (mode) => set({ mode, runStartedAt: Date.now(),
+    europeanTarget: mode === 'champions_league_custom' ? useSettingsStore.getState().europeanTarget : 'any' }),
   setDifficulty:  (difficulty) => set({ difficulty }),
   setCustomDifficulty: (customDifficulty) => set({ customDifficulty }),
   setWeightedPicksOverride: (weightedPicksOverride) => set({ weightedPicksOverride }),

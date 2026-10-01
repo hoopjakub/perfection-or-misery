@@ -10,6 +10,12 @@ import { PressCard } from '@/components/ui'
 import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
 import type { CompetitionStats } from '@/types/stats'
 import type { DraftedPlayer, Formation } from '@/types/game'
+import { ROLES } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too). These
+// old styles named the dark ground's colours; they now take its roles.
+const GR = ROLES[EVERYDAY]
 
 // Your XI with per-player stats, in-lineup positions, and "notable" league ranks
 // (top-3 in any category). Shared by the league/CL/WC result pages. Toggle
@@ -91,17 +97,17 @@ export function SquadSummary({ stats, draftedPlayers, formation, accent, runId }
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: prim.nylonRaised, borderRadius: 0, borderWidth: 1, borderColor: prim.ruleNylon, padding: spacing.md, gap: spacing.xs },
+  card: { backgroundColor: GR.surface, borderRadius: 0, borderWidth: 1, borderColor: GR.rule, padding: spacing.md, gap: spacing.xs },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
-  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
-  toggle: { flexDirection: 'row', backgroundColor: prim.nylonSunken, borderRadius: 0, padding: 2, gap: 2 },
+  title: { fontSize: typography.md, fontFamily: font.bodyBold, color: GR.text },
+  toggle: { flexDirection: 'row', backgroundColor: GR.sunken, borderRadius: 0, padding: 2, gap: 2 },
   toggleBtn: { paddingHorizontal: spacing.md, paddingVertical: 3, borderRadius: 0 },
-  toggleText: { fontSize: typography.xs, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  toggleTextActive: { color: prim.cotton },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
-  pos: { width: 36, fontSize: 10, color: prim.cottonMuted, fontFamily: font.bodyBold },
-  name: { flex: 1, fontSize: typography.sm, color: prim.cotton },
-  line: { fontSize: typography.xs, color: prim.cottonMuted },
+  toggleText: { fontSize: typography.xs, fontFamily: font.bodyBold, color: GR.textMuted },
+  toggleTextActive: { color: GR.text },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: GR.rule },
+  pos: { width: 36, fontSize: 10, color: GR.textMuted, fontFamily: font.bodyBold },
+  name: { flex: 1, fontSize: typography.sm, color: GR.text },
+  line: { fontSize: typography.xs, color: GR.textMuted },
   notable: { fontSize: 10, fontFamily: font.bodyBold },
   potm: { fontSize: 10, fontFamily: font.bodyBlack, color: '#FFD700' },
   subTag: { fontSize: 9, fontFamily: font.bodyBlack, color: colors.warning },

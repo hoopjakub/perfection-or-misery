@@ -8,6 +8,11 @@ import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
 import { screwLevelInfo } from '@/engine/difficulty'
 import type { DifficultyFields } from '@/db/queries/leaderboard'
 import type { RunSaveStatus } from '@/hooks/useRunSave'
+import { ROLES } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too).
+const GR = ROLES[EVERYDAY]
 
 // ── PressCard ────────────────────────────────────────────────────────────────
 // The one interaction primitive every tappable card/row should use: gentle
@@ -49,7 +54,7 @@ const defaultHover: ViewStyle = { backgroundColor: '#18213A', borderColor: '#374
 // ── BackButton ───────────────────────────────────────────────────────────────
 // The standard header back control — was hand-copied as a bare "←" glyph
 // Pressable (no press feedback) across every single screen. One component now.
-export function BackButton({ onPress, color = colors.textPrimary }: { onPress?: () => void; color?: string }) {
+export function BackButton({ onPress, color = GR.text }: { onPress?: () => void; color?: string }) {
   return (
     <PressCard style={backStyles.back} onPress={onPress ?? (() => router.back())}>
       <Ionicons name="chevron-back" size={22} color={color} />
@@ -122,7 +127,7 @@ export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compa
   }
 
   // easy / medium / hard
-  const color = DIFF_COLOR[difficulty] ?? colors.textSecondary
+  const color = DIFF_COLOR[difficulty] ?? GR.textMuted
   return (
     <View>
       <View style={[diffStyles.pill, { backgroundColor: color + '22', borderColor: color }]}>
@@ -144,7 +149,7 @@ export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compa
 export function LoadFailed({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={loadStyles.wrap}>
-      <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} />
+      <Ionicons name="cloud-offline-outline" size={40} color={GR.textMuted} />
       <Text style={loadStyles.text}>Couldn't load this.</Text>
       <PressCard style={loadStyles.retry} onPress={onRetry} accessibilityRole="button">
         <Text style={loadStyles.retryText}>Retry</Text>
@@ -155,12 +160,12 @@ export function LoadFailed({ onRetry }: { onRetry: () => void }) {
 
 const loadStyles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  text: { fontSize: typography.md, color: colors.textSecondary },
+  text: { fontSize: typography.md, color: GR.textMuted },
   retry: {
     paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard,
+    borderWidth: 1, borderColor: GR.rule, backgroundColor: GR.surface,
   },
-  retryText: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.textPrimary },
+  retryText: { fontSize: typography.sm, fontWeight: typography.bold, color: GR.text },
 })
 
 // ── SaveStatusLine ───────────────────────────────────────────────────────────
@@ -169,9 +174,9 @@ const loadStyles = StyleSheet.create({
 // never told their run wouldn't be kept. Renders nothing for history views and
 // tester runs, where there's nothing to say.
 const SAVE_LINE: Record<Exclude<RunSaveStatus, 'off'>, { icon: keyof typeof Ionicons.glyphMap; text: string; color: string }> = {
-  guest:   { icon: 'person-outline',        text: "Playing as a guest — this run won't be kept. Create an account to save your runs.", color: colors.textSecondary },
-  waiting: { icon: 'time-outline',          text: 'Preparing to save…',               color: colors.textSecondary },
-  saving:  { icon: 'cloud-upload-outline',  text: 'Saving your run…',                 color: colors.textSecondary },
+  guest:   { icon: 'person-outline',        text: "Playing as a guest — this run won't be kept. Create an account to save your runs.", color: GR.textMuted },
+  waiting: { icon: 'time-outline',          text: 'Preparing to save…',               color: GR.textMuted },
+  saving:  { icon: 'cloud-upload-outline',  text: 'Saving your run…',                 color: GR.textMuted },
   saved:   { icon: 'checkmark-circle',      text: 'Saved to your runs',               color: colors.success },
   failed:  { icon: 'alert-circle',          text: "Couldn't save this run.",          color: colors.warning },
 }
@@ -211,5 +216,5 @@ const diffStyles = StyleSheet.create({
     borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 3,
   },
   pillText: { fontSize: 10, fontWeight: typography.bold },
-  caption: { fontSize: 9, color: colors.textMuted, marginTop: 2 },
+  caption: { fontSize: 9, color: GR.textMuted, marginTop: 2 },
 })

@@ -21,7 +21,7 @@ import { predictTable, predictChampionsLeagueRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
 import { Plate, KitScreen, KitText, ListRow, Columns } from '@/components/kit'
-import { LeagueTable, ZoneLegend, CL_PHASE_ZONES } from '@/components/season/SeasonParts'
+import { LeagueTable, ZoneLegend, CL_PHASE_ZONES, SegmentSwitch } from '@/components/season/SeasonParts'
 import { ResultFigures, ResultSection, ResultActions, YourMatches } from '@/components/season/ResultParts'
 import { clKoMatchToRow, wcKoMatchToRow, type KoRoundVM } from '@/components/KnockoutRoundsView'
 import { BracketTree, koRoundsToColumns } from '@/components/BracketTree'
@@ -43,11 +43,16 @@ import { clCompetitionMatches } from '@/engine/match-context'
 import { QUAL_ROUND_LABEL, PATH_LABEL, QUAL_EXIT_ROUND } from '@/data/cl-qual-labels'
 import { spacing, typography, MODE_THEMES, prim, font } from '@/theme'
 import { ROLES as KIT_ROLES } from '@/theme'
-import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
+import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch, OtherCompetition } from '@/engine/cl-sim'
+import type { EuroComp } from '@/data/uefa-coefficients'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { DraftedPlayer } from '@/types/game'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too). These
+// old styles named the dark ground's colours; they now take its roles.
+const GR = KIT_ROLES[EVERYDAY]
 
 const CL = MODE_THEMES.champions_league
 
@@ -125,7 +130,7 @@ export default function CustomUclResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <Loader color={prim.cotton} wide />
+        <Loader color={GR.text} wide />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -136,14 +141,14 @@ export default function CustomUclResultScreen() {
       <View style={styles.center}>
         <Text style={styles.errorText}>No custom UCL result found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: spacing.lg }}>
-          <Text style={{ color: prim.cotton, fontFamily: font.bodyBold }}>← Back to Menu</Text>
+          <Text style={{ color: GR.text, fontFamily: font.bodyBold }}>← Back to Menu</Text>
         </Pressable>
       </View>
     )
   }
 
   const { leaguePhaseStandings, playoffRound, r16, qf, sf, final, winner, playerTeam, playerFinalRound, playerPot } = clResult
-  const resultColor = ROUND_COLORS[playerFinalRound] ?? prim.cotton
+  const resultColor = ROUND_COLORS[playerFinalRound] ?? GR.text
   // P8-52: the competition the season went on in, and the tier it earned there.
   const comp = EUROPE[clResult.competition ?? 'ucl']
   const tier = fullPathTier(clResult)
@@ -267,7 +272,12 @@ export default function CustomUclResultScreen() {
         teamOvr: playerTeam.ovr,
         result: clResult!,
         squad: fullSquad,
-        difficulty, custom: customDifficulty, weightedPicksOverride,
+        difficulty, custom: customDifficulty, weightedPicksOverride, target: store.europeanTarget,
+        // For "The Double, Europe" (P8.5-21): your league and its cup, both won.
+        domestic: playerLeague ? {
+          champion: domPos === 1,
+          cupWon: !!customUclQual?.europe?.cups.some(c => c.rank === playerLeague.rank && c.clubId === playerTeam.clubId),
+        } : null,
         stats: runStats?.stats,
         awards: runStats?.awards,
         // P8-150: the panel's place for you, for the career's line against the pundits.
@@ -324,14 +334,17 @@ export default function CustomUclResultScreen() {
   const phaseZones = leaguePhaseStandings.map((_, i) => CL_PHASE_ZONES[Math.min(i, CL_PHASE_ZONES.length - 1)])
   const hubRunId = fromHistory ? params.runId : undefined
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
-  const nylon = KIT_ROLES[FLOODLIT]
+  const nylon = KIT_ROLES[EVERYDAY]
+  const target = fromHistory ? (dbRun?.difficulty_meta as { target?: string } | null)?.target : store.europeanTarget
+  const huntedComp = target && target !== 'any' ? EUROPE[target as 'ucl' | 'uel' | 'uecl']?.name ?? null : null
 
   return (
-    <KitScreen ground={FLOODLIT} width="wide">
+    <KitScreen ground={EVERYDAY} width="wide">
       <VerdictBlock
         tone={verdictOf(tier)}
         title={resultLabel}
-        meta={`${comp.fullName} · the full path · ` + `${playerTeam.clubName} · ${entryText}`}
+        // P8.5-21: a hunting run says so (its target is on the saved run too).
+        meta={`${comp.fullName} · the full path · ` + (huntedComp ? `hunting the ${huntedComp} · ` : '') + `${playerTeam.clubName} · ${entryText}`}
         punditsText={punditsText}
         shareText={`${resultLabel} — ${comp.fullName} · the full path. Perfection or Misery.`}
         runId={params.runId}
@@ -405,6 +418,11 @@ export default function CustomUclResultScreen() {
         <ZoneLegend roles={nylon} zones={phaseZones} />
       </ResultSection>
 
+      {/* P8.5-16: the other two competitions, and how they finished. */}
+      {clResult.others && clResult.others.length > 0 && (
+        <RestOfEurope others={clResult.others} playerClubId={playerTeam?.clubId} />
+      )}
+
       {qualTies.length > 0 && (
         <ResultSection title="Qualifying" right={<InfoBubble topic="qualifying_ladder" accent={nylon.text} />}>
           <KitText t="body" color={nylon.textMuted}>{`How the ${customUclQual!.qualifiers.length} qualifiers reached the league phase`}</KitText>
@@ -425,7 +443,7 @@ export default function CustomUclResultScreen() {
       )}
 
       {/* §10.5 phase 4 (R8) — the medical table. */}
-      <MedicalTable absences={clResult.absences} accent={prim.cotton} />
+      <MedicalTable absences={clResult.absences} accent={GR.text} />
 
       {/* Lineup + squad — live run or rehydrated from a saved one. Bench players
           included so SquadSummary resolves every row (Big Fixes §5.1). */}
@@ -437,7 +455,7 @@ export default function CustomUclResultScreen() {
         return (
           <>
             {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
-            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={prim.cotton} runId={params.runId} />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={GR.text} runId={params.runId} />}
           </>
         )
       })()}
@@ -451,6 +469,36 @@ export default function CustomUclResultScreen() {
   )
 }
 
+// The full path's other two competitions (P8.5-16), played out headless at
+// the end of the run: one at a time, its winner, its bracket and its league
+// phase. Their matches have no sheets (nobody attributed their scorers), so
+// the ties don't open.
+function RestOfEurope({ others, playerClubId }: { others: OtherCompetition[]; playerClubId?: string | null }) {
+  const roles = KIT_ROLES[EVERYDAY]
+  const [shown, setShown] = useState<EuroComp>(others[0].comp)
+  const o = others.find(x => x.comp === shown) ?? others[0]
+  const direct = new Set(o.leaguePhaseStandings.slice(0, 8).map(t => t.clubId))
+  const rounds: KoRoundVM[] = [
+    { key: 'playoff', label: 'Knockout play-off', ties: o.playoffRound },
+    { key: 'r16', label: 'Round of 16', ties: o.r16, direct: true },
+    { key: 'qf', label: 'Quarter-finals', ties: o.qf },
+    { key: 'sf', label: 'Semi-finals', ties: o.sf },
+    { key: 'final', label: 'Final', ties: o.final ? [o.final] : [] },
+  ].filter(r => r.ties.length > 0).map(r => ({ key: r.key, label: r.label, ties: r.ties.map(m => clKoMatchToRow(m, r.direct ? direct : undefined)) }))
+  const zones = o.leaguePhaseStandings.map((_, i) => CL_PHASE_ZONES[Math.min(i, CL_PHASE_ZONES.length - 1)])
+  return (
+    <ResultSection title="The rest of Europe">
+      <SegmentSwitch<EuroComp> roles={roles} value={shown} onChange={setShown}
+        options={others.map(x => ({ id: x.comp, label: EUROPE[x.comp].short }))} />
+      <KitText t="body" color={roles.textMuted}>{`${EUROPE[o.comp].name}: won by ${o.winner.clubName}.`}</KitText>
+      {rounds.length > 0 && <BracketTree {...koRoundsToColumns(rounds)} playerClubId={playerClubId} />}
+      <LeagueTable roles={roles} zones={zones}
+        rows={o.leaguePhaseStandings.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: t.clubId === playerClubId, played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points }))} />
+      <ZoneLegend roles={roles} zones={zones} />
+    </ResultSection>
+  )
+}
+
 const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of 16', qf: 'Quarter-Final', sf: 'Semi-Final', final: 'Final' }
 
 function ordinal(n: number): string {
@@ -461,6 +509,6 @@ const styles = StyleSheet.create({
   kitPlates: { gap: space[3], marginTop: space[5], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
   kitNote: { marginTop: space[2] },
   kitWinner: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
-  center: { flex: 1, backgroundColor: prim.nylon, alignItems: 'center', justifyContent: 'center' },
-  errorText: { fontSize: typography.md, color: prim.cottonMuted },
+  center: { flex: 1, backgroundColor: GR.bg, alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontSize: typography.md, color: GR.textMuted },
 })

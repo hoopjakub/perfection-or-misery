@@ -22,6 +22,7 @@ import { buildCLTeams, drawCLLeaguePhase } from '../src/engine/cl-sim'
 import { fullPathTier } from '../src/engine/europe-path'
 import { CUSTOM_CL_ROUND_SCORE, CL_ROUND_SCORE } from '../supabase/functions/_shared/score'
 import { TIER_LABEL, verdictOf } from '../src/data/tiers'
+import { nationalCupName } from '../src/data/national-cups'
 
 let failures = 0
 const check = (c: boolean, msg: string) => { if (!c) { failures++; if (failures < 40) console.log(`❌ ${msg}`) } }
@@ -50,6 +51,8 @@ check(holders.length === 2 && !!ueclHolder, 'a holder is missing from the databa
 const sizes: Record<EuroComp, number[]> = { ucl: [], uel: [], uecl: [] }
 const routes = new Map<string, number>()
 let runs = 0
+const tiesPlayed = new Map<number, number>()
+const aimed: Record<EuroComp, { lp: number; out: number }> = { ucl: { lp: 0, out: 0 }, uel: { lp: 0, out: 0 }, uecl: { lp: 0, out: 0 } }
 for (const a of scraped) for (let s = 0; s < 6; s++) {
   // A player club from this association (champion to bottom across the seeds).
   const player = a.clubs[Math.min(a.clubs.length - 1, s * 2)]
@@ -68,6 +71,51 @@ for (const a of scraped) for (let s = 0; s < 6; s++) {
   const ex = q.europe!
   runs++
   check(cups.length === scraped.length, `${a.name}: ${cups.length} cups for ${scraped.length} associations`)
+  // P8.5-20: every cup is kept whole. One winner, who won every tie they
+  // played; each round's clubs are the last round's winners and byes, halving.
+  for (const w of cups) {
+    const cup = w.cup
+    check(!!cup, `${w.name}: the cup wasn't kept`)
+    if (!cup) continue
+    check(cup.winner?.clubId === w.clubId, `${w.name}: the kept cup's winner isn't the winner`)
+    for (const r of cup.rounds) for (const t of r.ties) {
+      const inIt = t.home.clubId === w.clubId || t.away.clubId === w.clubId
+      if (inIt) check((t.winner === 'home' ? t.home : t.away).clubId === w.clubId, `${w.name}: the winner lost a tie in the ${r.label}`)
+    }
+    for (let i = 1; i < cup.rounds.length; i++) {
+      const prev = cup.rounds[i - 1], cur = cup.rounds[i]
+      check(cur.ties.length * 2 === prev.ties.length + prev.byes.length, `${w.name}: the ${cur.label} doesn't halve the ${prev.label}`)
+    }
+    check(cup.rounds.at(-1)!.ties.length === 1, `${w.name}: the cup doesn't end in one final`)
+  }
+
+  // P8.5-21: hunting. For each target: you never leave it (every tie you play
+  // is in it, and you end in its league phase or out in its qualifying), you
+  // always get an entry, and every league phase still comes out at 36.
+  {
+    const mineAssoc = simulated.find(x => x.rank === a.rank)!
+    const pos = mineAssoc.clubs.findIndex(c => c.clubId === player.clubId) + 1
+    for (const target of ['ucl', 'uel', 'uecl'] as EuroComp[]) {
+      const club = { clubId: player.clubId, clubName: player.clubName, ovr: player.ovr, associationRank: a.rank, associationName: a.name, associationCountry: a.country, position: pos, entryRound: 'q1' as const, entryPath: 'league' as const }
+      const aq = simulateEurope(ucl, euro, cups, hs, player.clubId, { target, club, champion: pos === 1 })
+      const ae = aq.europe!
+      check(ae.entry?.comp === target, `${a.name} #${pos} hunting ${target}: entered ${ae.entry?.comp ?? 'nothing'}`)
+      check(ae.competition === target, `${a.name} #${pos} hunting ${target}: the season ended in ${ae.competition}`)
+      const myTies = aq.ties.filter(t => t.teamA.clubId === player.clubId || t.teamB?.clubId === player.clubId)
+      check(myTies.every(t => (t.comp ?? 'ucl') === target), `${a.name} #${pos} hunting ${target}: played a tie outside it`)
+      const inPhase = (['ucl', 'uel', 'uecl'] as EuroComp[]).filter(c => ae.fields[c].some(t => t.clubId === player.clubId))
+      const lostLast = myTies.length > 0 && myTies[myTies.length - 1].winnerId !== player.clubId
+      check(inPhase.length === 0 ? lostLast : inPhase.length === 1 && inPhase[0] === target, `${a.name} #${pos} hunting ${target}: in ${inPhase.join('+') || 'no league phase'} without losing in qualifying`)
+      const nat = [...ucl.leaguePhaseDirect, ...ucl.qualifying].find(e => e.clubId === player.clubId) ? 'ucl' : euro.find(e => e.clubId === player.clubId)?.comp ?? 'none'
+      const natAt = [...ucl.leaguePhaseDirect, ...ucl.qualifying, ...euro].find(e => e.clubId === player.clubId)
+      for (const c of ['ucl', 'uel', 'uecl'] as EuroComp[]) check(ae.fields[c].length === 36, `hunting ${target}: the ${c} league phase came out at ${ae.fields[c].length} (natural ${nat}:${natAt?.entryRound ?? '-'}:${natAt?.entryPath ?? '-'} → ${ae.entry?.round}:${ae.entry?.path}${lostLast ? ', lost' : ''})`)
+      aimed[target][inPhase.length ? 'lp' : 'out']++
+    }
+  }
+
+  // How many qualifying ties a season can have you play ("The long way").
+  const tieCount = q.playerPath.length
+  tiesPlayed.set(tieCount, (tiesPlayed.get(tieCount) ?? 0) + 1)
 
   // One club, one competition.
   const uclIds = new Set([...ucl.leaguePhaseDirect, ...ucl.qualifying].map(e => e.clubId))
@@ -120,9 +168,10 @@ for (const a of scraped) for (let s = 0; s < 6; s++) {
   routes.set(route, (routes.get(route) ?? 0) + 1)
 }
 
-// Every tier the full path can give has a score, a name and the right end.
+// Every tier the full path can give has a score, a name and the right end
+// (the Europa League's qualifying exits since hunting, P8.5-21).
 for (const c of ['ucl', 'uel', 'uecl'] as EuroComp[]) {
-  for (const r of [...Object.keys(CL_ROUND_SCORE), ...(c === 'uecl' ? ['q1_exit', 'q2_exit', 'q3_exit', 'quali_playoff_exit'] : [])]) {
+  for (const r of [...Object.keys(CL_ROUND_SCORE), ...(c !== 'ucl' ? ['q1_exit', 'q2_exit', 'q3_exit', 'quali_playoff_exit'] : [])]) {
     const t = fullPathTier({ playerFinalRound: r, competition: c })
     check(t in CUSTOM_CL_ROUND_SCORE, `${t} has no score`)
     check(!!TIER_LABEL[t], `${t} has no name`)
@@ -132,6 +181,25 @@ for (const c of ['ucl', 'uel', 'uecl'] as EuroComp[]) {
 check(fullPathTier({ playerFinalRound: 'not_qualified' }) === 'not_qualified', 'not qualifying got a prefix')
 check(CUSTOM_CL_ROUND_SCORE.uecl_quali_playoff_exit < CUSTOM_CL_ROUND_SCORE.uecl_league_exit && CUSTOM_CL_ROUND_SCORE.uecl_q1_exit > CUSTOM_CL_ROUND_SCORE.not_qualified, 'the Conference League qualifying exits are out of order')
 
+// P8.5-20 step 3: your cup, played through your season, is the one Europe uses.
+{
+  const a = scraped[0], played = playEveryCup([a], null, 7)[0]
+  const again = playEveryCup(scraped, null, 99, { rank: a.rank, cup: played.cup! })
+  const yours = again.find(c => c.rank === a.rank)
+  check(!!yours && yours.clubId === played.clubId && yours.cup === played.cup, `${a.name}: the cup you played wasn't the one Europe used`)
+}
+
+// P8.5-20 step 1: every association in the database has its cup's real name.
+// The personal build's names (the public build says "{country} Cup" for all).
+process.env.EXPO_PUBLIC_BRAND_MODE = 'real'
+for (const a of scraped) {
+  const name = nationalCupName(a.rank)
+  check(name !== 'The Cup', `${a.name} (#${a.rank}) has no cup name`)
+}
+console.log(`cup names: ${scraped.length} associations named`)
+
+console.log('hunting, reached the league phase / out in qualifying:', (['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => `${c} ${aimed[c].lp}/${aimed[c].out}`).join(' · '))
+console.log('qualifying ties you played, per season:', [...tiesPlayed.entries()].sort((x, y) => x[0] - y[0]).map(([n, k]) => `${n}: ${k}`).join(' · '))
 const range = (xs: number[]) => `${Math.min(...xs)}–${Math.max(...xs)}`
 console.log(`${runs} seasons · league phases: UCL ${range(sizes.ucl)}, UEL ${range(sizes.uel)}, UECL ${range(sizes.uecl)}`)
 console.log('your routes:', [...routes.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ×${n}`).join(' · '))

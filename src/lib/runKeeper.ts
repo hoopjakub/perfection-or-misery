@@ -15,6 +15,7 @@ import { useGameStore } from '@/store/gameStore'
 import { settingsStorage } from '@/lib/mmkv'
 import type { GameMode, Formation, DraftedPlayer } from '@/types/game'
 import type { Difficulty, CustomDifficulty } from '@/engine/difficulty'
+import type { EuropeanTarget } from '@/store/settingsStore'
 
 const KEY = 'pom.run.v1'
 
@@ -35,6 +36,8 @@ export type KeptRun = {
   rerollsUsed: number
   spunSeasonIds: string[]
   runStartedAt: number | null
+  /** P8.5-21: the run's own hunting target (absent on older keeps: 'any'). */
+  europeanTarget?: EuropeanTarget
 }
 
 let last = ''
@@ -62,7 +65,7 @@ export function startRunKeeper(): () => void {
       weightedPicksOverride: s.weightedPicksOverride, selectedLeague: s.selectedLeague,
       formation: s.formation, draftedPlayers: s.draftedPlayers, benchPlayers: s.benchPlayers,
       useSubstitutes: s.useSubstitutes, rerollsUsed: s.rerollsUsed, spunSeasonIds: s.spunSeasonIds,
-      runStartedAt: s.runStartedAt,
+      runStartedAt: s.runStartedAt, europeanTarget: s.europeanTarget,
     })
   })
 }
@@ -86,6 +89,8 @@ export function resumeKeptRun(k: KeptRun): void {
     selectedLeague: k.selectedLeague, draftedPlayers: k.draftedPlayers, benchPlayers: k.benchPlayers,
     useSubstitutes: k.useSubstitutes, rerollsUsed: k.rerollsUsed, spunSeasonIds: k.spunSeasonIds,
     runStartedAt: k.runStartedAt ?? Date.now(),
+    // The target it started with, not today's setting.
+    europeanTarget: k.europeanTarget ?? 'any',
   })
 }
 

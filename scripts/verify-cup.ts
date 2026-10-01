@@ -32,7 +32,7 @@ for (let n = 8; n <= 24; n++) {
   const total = (n - 1) * 2
   for (let s = 0; s < 60; s++) {
     const teams = league(n)
-    const cup = planCup(teams, total, 1000 + s * 31 + n, 'premier_league')!
+    const cup = planCup(teams, total, 1000 + s * 31 + n, 'FA Cup')!
     check(!!cup, `${n} clubs: no cup`)
     const days = cup.rounds.map(r => r.afterMatchday)
     check(days.every((d, i) => i === 0 || d > days[i - 1]), `${n} clubs: rounds out of order (${days.join(',')})`)
@@ -69,7 +69,7 @@ for (let n = 8; n <= 24; n++) {
     }
     if (cupReachOf(done, `c${n - 1}`) === 'winner') youWon++
     // Same seed, same draw (the results differ, the first round's pairs don't).
-    const again = playCupAfter(planCup(teams, total, 1000 + s * 31 + n, 'premier_league')!, done.rounds[0].afterMatchday, teams)
+    const again = playCupAfter(planCup(teams, total, 1000 + s * 31 + n, 'FA Cup')!, done.rounds[0].afterMatchday, teams)
     check(JSON.stringify(again.rounds[0].ties.map(t => [t.home.clubId, t.away.clubId])) === JSON.stringify(done.rounds[0].ties.map(t => [t.home.clubId, t.away.clubId])), `${n} clubs: the same seed drew differently`)
   }
 }
@@ -77,6 +77,31 @@ for (let n = 8; n <= 24; n++) {
 console.log(`${runs} cups · the top three rated won ${(favWins / runs * 100).toFixed(1)}% · the lowest-rated club won ${youWon}`)
 // A cup is where the small club can win; the big three should still win most.
 check(favWins / runs > 0.35 && favWins / runs < 0.95, `the top three won ${(favWins / runs * 100).toFixed(1)}%`)
+// P8.5-20 step 4: two-legged semi-finals (the Copa del Rey and three others).
+// Both legs are kept, the aggregate is the two legs (plus extra time), and the
+// aggregate decides the tie unless it went to penalties.
+let twoLeg = 0, onPens = 0
+for (let s = 0; s < 400; s++) {
+  const teams = league(16), total = 30
+  const cup = playAll(planCup(teams, total, 5000 + s, 'Copa del Rey', true)!, teams, total)
+  const sf = cup.rounds.find(r => r.key === 'sf')!
+  for (const t of sf.ties) {
+    twoLeg++
+    check(!!t.legs, 'a two-legged semi-final has no legs')
+    if (!t.legs) continue
+    const a = t.legs.leg1.homeGoals + t.legs.leg2.awayGoals, b = t.legs.leg1.awayGoals + t.legs.leg2.homeGoals
+    if (!t.extraTime) check(t.homeGoals === a && t.awayGoals === b, `the aggregate ${t.homeGoals}–${t.awayGoals} isn't the legs' ${a}–${b}`)
+    else check(a === b && t.homeGoals >= a && t.awayGoals >= b, 'extra time without a level aggregate')
+    if (t.homePens != null) { onPens++; check(t.homeGoals === t.awayGoals, 'penalties with the aggregate not level') }
+    else check((t.winner === 'home') === (t.homeGoals > t.awayGoals), 'the aggregate loser went through')
+  }
+  for (const r of cup.rounds) if (r.key !== 'sf') check(r.ties.every(t => !t.legs), `the ${r.label} has legs`)
+  check(!!cup.winner, 'a two-legged cup has no winner')
+}
+const one = playAll(planCup(league(16), 30, 77, 'FA Cup')!, league(16), 30)
+check(one.rounds.every(r => r.ties.every(t => !t.legs)), 'a one-match cup played a two-legged tie')
+console.log(`${twoLeg} two-legged semi-finals · ${onPens} on penalties`)
+
 console.log(`${failures} failed`)
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 process.exit(failures === 0 ? 0 : 1)

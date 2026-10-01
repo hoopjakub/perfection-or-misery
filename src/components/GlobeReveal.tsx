@@ -1,10 +1,11 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import Svg, { Circle, Path, Defs, Pattern, Image as SvgImage } from 'react-native-svg'
-import Animated, { useSharedValue, useAnimatedProps, withTiming, withRepeat, withSequence, withDelay, Easing, cancelAnimation, runOnJS, interpolateColor } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedProps, withTiming, withSequence, withDelay, Easing, cancelAnimation, runOnJS, interpolateColor } from 'react-native-reanimated'
 import { prim } from '@/theme'
-import { flagImageOf } from '@/lib/flags'
+import { flagLargeOf } from '@/lib/flags'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { useIsFocused } from '@react-navigation/native'
 
 // P8-164: the globe, rebuilt. The old one "looks good but lags badly": every
 // frame (about 30 a second) React re-rendered the whole SVG, about 180
@@ -64,6 +65,37 @@ function ringsOf(feature: any, step: number): Ring[] {
 // went with P8.5-34: its borders read as blurred.)
 const LAND: Ring[] = FEATURES.flatMap(f => ringsOf(f, 2))
 
+// Each ring's cap (P8.5-34, the maintainer's phone "tanks" on the About page):
+// its centre on the sphere and how far it reaches from that centre, four
+// numbers a ring. A frame skips a ring that's wholly out of view without
+// projecting a point of it: half the world is behind the globe on every
+// frame, and zoomed in nearly all of it is off the edges.
+type Caps = number[]
+function capsOf(rings: Ring[]): Caps {
+  const out: Caps = []
+  for (const r of rings) {
+    let x = 0, y = 0, z = 0
+    for (let i = 0; i < r.length; i += 3) { x += r[i]; y += r[i + 1]; z += r[i + 2] }
+    const m = Math.hypot(x, y, z)
+    // A ring round a pole (Antarctica) has no useful centre: never skipped.
+    if (m < 1e-6) { out.push(1, 0, 0, Math.PI); continue }
+    x /= m; y /= m; z /= m
+    let reach = 0
+    for (let i = 0; i < r.length; i += 3) reach = Math.max(reach, Math.acos(Math.max(-1, Math.min(1, r[i] * x + r[i + 1] * y + r[i + 2] * z))))
+    out.push(x, y, z, reach)
+  }
+  return out
+}
+const LAND_CAPS = capsOf(LAND)
+
+/** How far from the view's centre, as an angle on the sphere, the view's
+ *  corners reach at radius R: a quarter turn while the whole globe shows. */
+function viewArc(R: number, C: number): number {
+  'worklet'
+  const k = (C * Math.SQRT2) / R
+  return k >= 1 ? Math.PI / 2 : Math.asin(k)
+}
+
 /** Meridians and parallels every `spacing` degrees, as open lines. */
 function graticule(spacing: number, step: number): Ring[] {
   const lines: Ring[] = []
@@ -112,11 +144,18 @@ function centroidOf(feature: any): [number, number] {
 // y·cosλ₀ − x·sinλ₀, its screen y cosφ₀·z − sinφ₀·(x·cosλ₀ + y·sinλ₀), and it
 // faces you when sinφ₀·z + cosφ₀·(x·cosλ₀ + y·sinλ₀) ≥ 0. The same numbers
 // d3.geoOrthographic gives. A worklet, so the UI thread can call it every frame.
-function project(rings: Ring[], lon: number, lat: number, R: number, C: number, closed: boolean, digits: number): string {
+function project(rings: Ring[], lon: number, lat: number, R: number, C: number, closed: boolean, digits: number, caps?: Caps | null): string {
   'worklet'
   const cl = Math.cos(lon * DEG), sl = Math.sin(lon * DEG), cp = Math.cos(lat * DEG), sp = Math.sin(lat * DEG)
+  const arc = caps ? viewArc(R, C) : 0
   let d = ''
   for (let r = 0; r < rings.length; r++) {
+    if (caps) {
+      // Out of view (behind, or past the edges when zoomed): skip it whole.
+      const k = r * 4
+      const toward = caps[k] * cp * cl + caps[k + 1] * cp * sl + caps[k + 2] * sp
+      if (Math.acos(Math.max(-1, Math.min(1, toward))) - caps[k + 3] > arc) continue
+    }
     const ring = rings[r]
     let seg = '', open = false, seen = false
     for (let i = 0; i < ring.length; i += 3) {
@@ -267,7 +306,7 @@ export function GlobeReveal({ targetId, targetName, flag, accent, size = 220, sp
   // Everything below follows the one zoom value: the radius grows, the land
   // and its borders fade into the fog, the grid and the ring go.
   const landProps = useAnimatedProps(() => ({
-    d: project(LAND, lon.value, lat.value, R0 + (Rz.value - R0) * zoom.value, C, true, 0),
+    d: project(LAND, lon.value, lat.value, R0 + (Rz.value - R0) * zoom.value, C, true, 0, LAND_CAPS),
     fill: interpolateColor(zoom.value, [0, 1], [LAND_FILL, FOG_LAND]),
     stroke: interpolateColor(zoom.value, [0, 1], [BORDER, FOG_BORDER]),
   }))
@@ -294,7 +333,7 @@ export function GlobeReveal({ targetId, targetName, flag, accent, size = 220, sp
       box: target ? boxOf(targetRings, end.lon, end.lat, end.R, C) : null,
     }
   }, [locked, end, target, C])
-  const flagImage = flagImageOf(flag)
+  const flagImage = flagLargeOf(flag)
   const flagged = !!settled?.box && flagImage != null
 
   return (
@@ -336,71 +375,121 @@ export function GlobeReveal({ targetId, targetName, flag, accent, size = 220, sp
 // Stupava, Malacky, Pezinok and Senec); it holds there, then zooms out and
 // spins on, round again.
 //
-// One clock drives it all: `t` runs 0 → 1 over a whole cycle and repeats, and
-// every frame's longitude, tilt, radius and dot come from it in a worklet, so
-// there's still no React render per frame. The spin ends facing the country
-// and the next one starts from the same view (a full turn round), so the loop
-// never jumps.
+// One clock drives it all: `t` counts cycles (its fraction is where in the
+// cycle we are), and every frame's longitude, tilt, radius and dot come from
+// it in a worklet, so there's still no React render per frame. The spin ends
+// facing the country and the next one starts from the same view (a full turn
+// round), so the loop never jumps.
 //
-// "The borders are not sharp" (same note): the old one drew every FOURTH point
-// rounded to whole pixels. Now every second point to a tenth of a pixel, the
-// country itself from every point.
+// What it costs (the maintainer's phone "tanks" scrolling the About page, same
+// day). Every frame projected ~5,300 points into one path string that the
+// native side parsed again, on the UI thread the scroll runs on. Now:
+//  - rings out of view are skipped whole (LAND_CAPS, see capsOf);
+//  - the view is rounded to half a degree of spin and a third of a percent of
+//    zoom, and a frame that rounds to the last one returns the path it already
+//    built, so the hold costs nothing and the spin builds ~20 paths a second;
+//  - it stops while the page is scrolling, while it's scrolled out of sight
+//    (`paused`, from the page) and while another screen covers it.
+// ponytail: still an SVG path rebuilt per frame while it moves; the real fix is
+// drawing the globe without path strings (Phase 9, P9 globe item).
+//
+// "The borders are not sharp" (same note): close in, the world's 1:110m
+// outlines are drawn instead from 1:10m ones round Slovakia
+// (assets/geo/central-europe-10m.geo.json, scripts/build-globe-detail.py):
+// Slovakia is 144 points there against 33.
 const BUILT_AT: [number, number] = [48.32, 17.18]  // lat, lon
 const SPIN_MS = 36000, IN_MS = 2400, HOLD_MS = 3200, OUT_MS = 2400
 const CYCLE = SPIN_MS + IN_MS + HOLD_MS + OUT_MS
+// A long run of cycles to animate through; resumed from wherever it paused.
+const RUN = 1000
 
-export function SpinningGlobe({ targetId = 703, accent, size = 160 }: {
+// The close-up's detail: clipped to a box ±6.8° of arc round Slovakia, so it
+// may only be drawn while the whole view lies inside that box. 4.5°, not 6.8:
+// the view's centre is still sliding north from the spin's 45° tilt to
+// Slovakia's 48.8° as it zooms, so at the switch it sits ~1° south of the
+// box's centre; the hold's corners are ~3.5° out.
+const DETAIL_FEATURES: any[] = require('../../assets/geo/central-europe-10m.geo.json').features
+const DETAIL_LAND: Ring[] = DETAIL_FEATURES.flatMap(f => ringsOf(f, 1))
+const DETAIL_CAPS = capsOf(DETAIL_LAND)
+const DETAIL_ARC = 4.5 * DEG
+const DETAIL_FOR = 703   // the country the box is built round: Slovakia
+
+export const SpinningGlobe = React.memo(function SpinningGlobe({ targetId = DETAIL_FOR, accent, size = 160, paused = false }: {
   targetId?: number
   accent: string
   size?: number
   /** Kept for callers; the spin's speed is now part of the cycle (SPIN_MS). */
   degPerSec?: number
+  /** The page says the globe isn't worth drawing now (scrolling, off screen). */
+  paused?: boolean
 }) {
   const reduced = useReducedMotion()
+  const focused = useIsFocused()
   const R = size * 0.43
   const C = size / 2
   const target = useMemo(() => FEATURES.find(f => Number(f.id) === targetId) ?? null, [targetId])
   const targetRings = useMemo(() => (target ? ringsOf(target, 1) : []), [target])
+  const detailed = targetId === DETAIL_FOR
+  const fineTarget = useMemo(() => (detailed ? ringsOf(DETAIL_FEATURES.find(f => Number(f.id) === DETAIL_FOR), 1) : targetRings), [detailed, targetRings])
   const [tLon, tLat] = useMemo(() => (target ? centroidOf(target) : [0, 15]), [target])
   const tilt = Math.max(-35, Math.min(45, tLat))
-  // Zoomed, the country spans this much of the view (like the draw's reveal).
+  // Zoomed, the country spans 80% of the view. A wider cap than the draw's
+  // (30, not MAX_ZOOM's 16): "until the whole country is visible" means filling it.
   const Rz = useMemo(() => {
     const reach = target ? reachOf(ringsOf(mainFeature(target), 1), tLon, tLat) : Math.PI / 2
-    return Math.max(R, Math.min(R * MAX_ZOOM, (0.4 * size) / Math.sin(Math.min(reach, 80 * DEG))))
-  }, [target, targetRings, tLon, tLat, R, size])
+    return Math.max(R, Math.min(R * 30, (0.4 * size) / Math.sin(Math.min(reach, 80 * DEG))))
+  }, [target, tLon, tLat, R, size])
   const dot = useMemo(() => {
     const l = BUILT_AT[1] * DEG, p = BUILT_AT[0] * DEG
     return [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)]
   }, [])
   const t = useSharedValue(0)
+  const landCache = useSharedValue({ k: '', d: '' })
+  const targetCache = useSharedValue({ k: '', d: '' })
 
+  const running = !reduced && !paused && focused
   useEffect(() => {
     // Less motion: the country zoomed in with its dot, still.
     if (reduced) { t.value = (SPIN_MS + IN_MS + HOLD_MS / 2) / CYCLE; return }
-    t.value = 0
-    t.value = withRepeat(withTiming(1, { duration: CYCLE, easing: Easing.linear }), -1, false)
+    if (!running) { cancelAnimation(t); return }
+    t.value = withTiming(t.value + RUN, { duration: RUN * CYCLE, easing: Easing.linear })
     return () => cancelAnimation(t)
-  }, [reduced])
+  }, [running, reduced])
 
-  // The view at clock time `c`: longitude, zoom (0 spinning, 1 in close).
-  const view = (c: number) => {
-    'worklet'
-    const ms = c * CYCLE
-    const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
-    if (ms < SPIN_MS) return { lon: tLon - 360 + 360 * (ms / SPIN_MS), zoom: 0 }
-    if (ms < SPIN_MS + IN_MS) return { lon: tLon, zoom: ease((ms - SPIN_MS) / IN_MS) }
-    if (ms < SPIN_MS + IN_MS + HOLD_MS) return { lon: tLon, zoom: 1 }
-    return { lon: tLon, zoom: 1 - ease((ms - SPIN_MS - IN_MS - HOLD_MS) / OUT_MS) }
-  }
+  // The view at clock time `c`, rounded (see the note above): longitude, tilt,
+  // radius, zoom (0 spinning, 1 in close), and the key it rounds to.
   const frame = (c: number) => {
     'worklet'
-    const v = view(c)
-    return { lon: v.lon, lat: tilt + (tLat - tilt) * v.zoom, r: R + (Rz - R) * v.zoom, zoom: v.zoom }
+    const ms = (c - Math.floor(c)) * CYCLE
+    const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+    let lon = tLon, zoom = 0
+    if (ms < SPIN_MS) lon = tLon - 360 + 360 * (ms / SPIN_MS)
+    else if (ms < SPIN_MS + IN_MS) zoom = ease((ms - SPIN_MS) / IN_MS)
+    else if (ms < SPIN_MS + IN_MS + HOLD_MS) zoom = 1
+    else zoom = 1 - ease((ms - SPIN_MS - IN_MS - HOLD_MS) / OUT_MS)
+    const lonStep = Math.round(lon * 2)
+    const rStep = Math.round(Math.log(R + (Rz - R) * zoom) * 300)
+    const r = Math.exp(rStep / 300)
+    return { lon: lonStep / 2, lat: tilt + (tLat - tilt) * zoom, r, zoom, key: `${lonStep}:${rStep}` }
   }
 
   const seaProps = useAnimatedProps(() => ({ r: frame(t.value).r }))
-  const landProps = useAnimatedProps(() => { const f = frame(t.value); return { d: project(LAND, f.lon, f.lat, f.r, C, true, 1) } })
-  const targetProps = useAnimatedProps(() => { const f = frame(t.value); return { d: project(targetRings, f.lon, f.lat, f.r, C, true, 1) } })
+  const landProps = useAnimatedProps(() => {
+    const f = frame(t.value)
+    if (landCache.value.k !== f.key) {
+      const fine = detailed && viewArc(f.r, C) < DETAIL_ARC
+      landCache.value = { k: f.key, d: fine ? project(DETAIL_LAND, f.lon, f.lat, f.r, C, true, 1, DETAIL_CAPS) : project(LAND, f.lon, f.lat, f.r, C, true, 1, LAND_CAPS) }
+    }
+    return { d: landCache.value.d }
+  })
+  const targetProps = useAnimatedProps(() => {
+    const f = frame(t.value)
+    if (targetCache.value.k !== f.key) {
+      const fine = detailed && viewArc(f.r, C) < DETAIL_ARC
+      targetCache.value = { k: f.key, d: project(fine ? fineTarget : targetRings, f.lon, f.lat, f.r, C, true, 1) }
+    }
+    return { d: targetCache.value.d }
+  })
   const ringProps = useAnimatedProps(() => ({ strokeOpacity: 0.35 * (1 - frame(t.value).zoom) }))
   // The dot: where the game was built, shown only as the zoom comes in, with a
   // slow pulse while it holds.
@@ -425,7 +514,7 @@ export function SpinningGlobe({ targetId = 703, accent, size = 160 }: {
       </Svg>
     </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

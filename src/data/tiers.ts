@@ -97,6 +97,9 @@ const UECL_QUAL: [string, string, number][] = [['q1_exit', 'Q1', 10.2], ['q2_exi
 for (const [k, round, rank] of UECL_QUAL) {
   TIER_RANK[`uecl_${k}`] = rank
   TIER_LABEL[`uecl_${k}`] = `Out in Conference League ${round}`
+  // P8.5-21: hunting the Europa League, its qualifying can end a run too.
+  TIER_RANK[`uel_${k}`] = rank + 0.1
+  TIER_LABEL[`uel_${k}`] = `Out in Europa League ${round}`
 }
 
 // The highest-ranked tier among a set of run tiers (null if none recognised).
@@ -119,6 +122,7 @@ const MISERY_TIERS = new Set([
   'absolute_misery', 'groups', 'league_exit', 'not_qualified',
   'q1_exit', 'q2_exit', 'q3_exit', 'quali_playoff_exit',
   'uel_league_exit', 'uecl_league_exit', 'uecl_q1_exit', 'uecl_q2_exit', 'uecl_q3_exit', 'uecl_quali_playoff_exit',
+  'uel_q1_exit', 'uel_q2_exit', 'uel_q3_exit', 'uel_quali_playoff_exit',
 ])
 export function verdictOf(tier: string | null | undefined): 'perfection' | 'misery' | 'middle' {
   if (tier && PERFECTION_TIERS.has(tier)) return 'perfection'
@@ -129,7 +133,7 @@ export function verdictOf(tier: string | null | undefined): 'perfection' | 'mise
 // Short mode names for tags ("ALL TIME · HARD").
 export const MODE_TAG: Record<string, string> = {
   all_time: 'All Time', league: 'League', era: 'Era', chaos: 'Chaos', cursed: 'Cursed',
-  champions_league: 'UCL', champions_league_custom: 'UCL Full Path', world_cup: 'World Cup',
+  champions_league: 'UCL', champions_league_custom: 'Europe', world_cup: 'World Cup',
   europa_league: 'UEL', conference_league: 'UECL',
 }
 

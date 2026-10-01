@@ -281,6 +281,10 @@ export async function saveCustomUclRun(params: {
   difficulty: Difficulty | null
   custom?: CustomDifficulty | null
   weightedPicksOverride?: boolean | null   // Big Fixes §4 — CL (full) only
+  /** P8.5-21: the competition this run hunted ('any' or absent: wherever it led). */
+  target?: 'any' | 'ucl' | 'uel' | 'uecl' | null
+  /** P8.5-21: for "The Double, Europe": did you win your league, and its cup. */
+  domestic?: { champion: boolean; cupWon: boolean } | null
   stats?: unknown
   awards?: unknown
   qual?: unknown          // QualifyingResult — stored so history can rebuild the ladder
@@ -310,16 +314,19 @@ export async function saveCustomUclRun(params: {
     goals_for: pt.stats.goalsFor,
     goals_against: pt.stats.goalsAgainst,
     squad: params.squad,
-    ...difficultyColumns(params.difficulty, params.custom, 'champions_league_custom', params.weightedPicksOverride),
+    ...withTarget(difficultyColumns(params.difficulty, params.custom, 'champions_league_custom', params.weightedPicksOverride), params.target),
     // Full tournament + qualifying ladder + domestic tables so the result page
     // can be rebuilt IDENTICALLY from history. The qualifying ladder and the 53
     // simulated league tables are nested INSIDE cl_result (a jsonb column that
     // exists) rather than separate columns — so nothing is dropped even without
     // a Supabase migration. The result page reads them back from here.
-    cl_result: { ...result, _customUclQual: params.qual, _customUclTables: params.leagueTables },
+    cl_result: { ...result, _customUclQual: withoutCupBrackets(params.qual), _customUclTables: params.leagueTables },
     stats:  params.stats,
     awards: params.awards,
-    ...(params.punditsOnYou ? { highlights: { punditsOnYou: params.punditsOnYou } } : {}),
+    ...(params.punditsOnYou || params.domestic ? { highlights: {
+      ...(params.punditsOnYou ? { punditsOnYou: params.punditsOnYou } : {}),
+      ...(params.domestic ? { fullPath: { domesticChampion: params.domestic.champion, cupWon: params.domestic.cupWon } } : {}),
+    } } : {}),
   })
 }
 
@@ -332,4 +339,23 @@ export async function fetchRunById(runId: string) {
 
   if (error) throw error
   return shownRun(data)
+}
+
+// P8.5-21: a hunting run carries its target in difficulty_meta, a jsonb column
+// that exists, so the score (score.ts: TARGET_MULTIPLIER), the server's check
+// and the board's filter all read it without a migration.
+function withTarget<T extends { difficulty_meta: object | null }>(cols: T, target?: string | null): T {
+  if (!target || target === 'any') return cols
+  return { ...cols, difficulty_meta: { ...(cols.difficulty_meta ?? {}), target } }
+}
+
+// P8.5-20: the full path keeps every association's cup whole, to show each as
+// its bracket during the run. The saved run keeps the winners only: the result
+// page never shows the brackets, and 53 cups would add a few hundred KB to
+// every saved full-path run.
+// ponytail: drop this once the result page shows the cups; then measure the row.
+function withoutCupBrackets<T>(qual: T): T {
+  const q = qual as { europe?: { cups?: { cup?: unknown }[] } } | null
+  if (!q?.europe?.cups) return qual
+  return { ...q, europe: { ...q.europe, cups: q.europe.cups.map(({ cup: _cup, ...rest }) => rest) } } as T
 }

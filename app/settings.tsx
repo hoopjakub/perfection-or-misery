@@ -5,6 +5,12 @@ import { PageMeta } from '@/components/PageMeta'
 import { ROLES, space } from '@/theme'
 import { useSettingsStore, type AppearanceChoice } from '@/store/settingsStore'
 import { EVERYDAY, appearanceChangesGround, reloadForAppearance } from '@/lib/appearance'
+import type { EuropeanTarget } from '@/store/settingsStore'
+
+const TARGET_OPTIONS: { id: EuropeanTarget; label: string }[] = [
+  { id: 'any', label: 'Wherever it leads' }, { id: 'ucl', label: 'Champions' }, { id: 'uel', label: 'Europa' }, { id: 'uecl', label: 'Conference' },
+]
+const TARGET_NAME: Record<Exclude<EuropeanTarget, 'any'>, string> = { ucl: 'Champions League', uel: 'Europa League', uecl: 'Conference League' }
 
 // P8-45 · Settings, a screen of its own instead of two switches on You. Every
 // preference is in src/store/settingsStore.ts and kept on the device; every
@@ -41,7 +47,7 @@ export default function SettingsScreen() {
       <KitText t="body" color={roles.textMuted} style={styles.note}>
         {pending
           ? 'Changes the next time you open the app.'
-          : 'System follows your phone. The live match, the draw and the verdict stay under the floodlights either way.'}
+          : 'System follows your phone. The match pitch stays under the floodlights either way.'}
       </KitText>
 
       <SectionTag roles={roles}>Questions before you act</SectionTag>
@@ -55,6 +61,15 @@ export default function SettingsScreen() {
         trailing={<Toggle roles={roles} label="Less motion" value={s.reduceMotion} onChange={s.setReduceMotion} />} />
       <KitText t="body" color={roles.textMuted} style={styles.note}>
         The spins, stamps and swings play still. If your phone asks for less motion, the app always follows it.
+      </KitText>
+
+      {/* P8.5-27: a subcategory of its own; more hunting settings join it later. */}
+      <SectionTag roles={roles}>Achievement hunting</SectionTag>
+      <Chips roles={roles} label="European target" options={TARGET_OPTIONS} value={s.europeanTarget} onChange={s.setEuropeanTarget} />
+      <KitText t="body" color={roles.textMuted} style={styles.note}>
+        {s.europeanTarget === 'any'
+          ? 'European Full Path: your season decides which competition you play in, as always.'
+          : `European Full Path: you hunt the ${TARGET_NAME[s.europeanTarget]}. Your season only decides how deep you enter it; lose in its qualifying and the run ends. An aimed run scores less and has its own board. Starts with your next run.`}
       </KitText>
     </KitScreen>
   )

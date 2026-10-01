@@ -52,6 +52,11 @@ export type LeaderboardFilter = {
   minHardness?: number
   /** P8-99: only these players' runs (you and your friends). */
   userIds?: string[]
+  /** P8.5-21: the full path's competition, read from the tier's prefix. */
+  competition?: 'ucl' | 'uel' | 'uecl'
+  /** P8.5-21: hunting runs. 'none' is the "wherever it leads" board, which an
+   *  aimed run is never on; a competition is the board of runs that aimed at it. */
+  target?: 'none' | 'ucl' | 'uel' | 'uecl'
   limit?: number
   offset?: number
 }
@@ -84,6 +89,26 @@ const LEADERBOARD_COLS_WITH_PROFILE = LEADERBOARD_COLS_WITH_DIFFICULTY.replace('
 // P8-181: and the club's tag beside the name, once supabase/clubs.sql has added it.
 const LEADERBOARD_COLS_WITH_CLUB = LEADERBOARD_COLS_WITH_PROFILE.replace('badge_team_name)', 'badge_team_name, club_tag)')
 
+// P8.5-21 (§6 of docs/europe/07): the full path's tiers carry the competition
+// they ended in: 'uel_qf_exit', 'uecl_winner'; the Champions League's have no
+// prefix. A query, not a migration. The underscore is escaped: in LIKE it
+// matches any one character. Not qualifying belongs to none of the three.
+function byCompetition<Q>(q: Q, comp?: 'ucl' | 'uel' | 'uecl'): Q {
+  const x = q as any
+  if (comp === 'uel') return x.like('tier', 'uel\\_%')
+  if (comp === 'uecl') return x.like('tier', 'uecl\\_%')
+  if (comp === 'ucl') return x.not('tier', 'like', 'uel\\_%').not('tier', 'like', 'uecl\\_%').neq('tier', 'not_qualified')
+  return q
+}
+
+// The target lives in difficulty_meta (runs.ts: withTarget), read by path.
+function byTarget<Q>(q: Q, target?: 'none' | 'ucl' | 'uel' | 'uecl'): Q {
+  const x = q as any
+  if (target === 'none') return x.is('difficulty_meta->>target', null)
+  if (target) return x.eq('difficulty_meta->>target', target)
+  return q
+}
+
 export async function fetchLeaderboard(
   filter: LeaderboardFilter = {}
 ): Promise<LeaderboardEntry[]> {
@@ -102,6 +127,7 @@ export async function fetchLeaderboard(
     if (filter.since)    query = query.gte('created_at', filter.since)
     if (filter.until)    query = query.lt('created_at', filter.until)
     if (filter.leagueId) query = query.eq('league_id', filter.leagueId)
+    query = byTarget(byCompetition(query, filter.competition), filter.target)
     if (filter.period && filter.period !== 'all') {
       const cutoff = new Date()
       if      (filter.period === 'day')   cutoff.setDate(cutoff.getDate() - 1)
@@ -142,7 +168,7 @@ export async function fetchMyPlace(userId: string, filter: LeaderboardFilter): P
     if (filter.since) q = q.gte('created_at', filter.since)
     if (filter.until) q = q.lt('created_at', filter.until)
     if (filter.userIds) q = q.in('user_id', filter.userIds)
-    return q
+    return byTarget(byCompetition(q, filter.competition), filter.target)
   }
   const { data: best, error } = await scoped(supabase.from('runs').select('score').eq('user_id', userId))
     .order('score', { ascending: false }).limit(1).maybeSingle()
@@ -248,6 +274,7 @@ export type AchievementRun = DifficultyFields & {
   losses?: number | null
   squad?: FeatRun['squad']
   highlights?: FeatRun['highlights']
+  fullPath?: FeatRun['fullPath']
 }
 
 export async function fetchAchievementRuns(userId: string): Promise<AchievementRun[]> {
@@ -255,7 +282,11 @@ export async function fetchAchievementRuns(userId: string): Promise<AchievementR
   // Try WITH the difficulty columns; if they don't exist yet, retry without.
   // P8-173: only the cup's winner, read out of the highlights by path (the
   // whole highlights carries the press and the medical table, too much for a list).
-  for (const cols of [`${base}, difficulty, difficulty_meta, cup_winner:highlights->cup->winner`, `${base}, difficulty, difficulty_meta`, base]) {
+  // P8.5-21: the full path's route, by path too: where you came in and your
+  // qualifying ties from the saved ladder (cl_result), the domestic Double from
+  // highlights (saved since 1 Oct 2026). Never the whole jsonb.
+  const route = 'fp_entry:cl_result->_customUclQual->europe->entry, fp_ties:cl_result->_customUclQual->playerPath, fp_home:highlights->fullPath'
+  for (const cols of [`${base}, difficulty, difficulty_meta, cup_winner:highlights->cup->winner, ${route}`, `${base}, difficulty, difficulty_meta, cup_winner:highlights->cup->winner`, `${base}, difficulty, difficulty_meta`, base]) {
     const { data, error } = await supabase
       .from('runs').select(cols).eq('user_id', userId)
     if (!error) return (data as unknown as AchievementRun[]).map(r => ({
@@ -263,6 +294,12 @@ export async function fetchAchievementRuns(userId: string): Promise<AchievementR
       losses: (r as any).losses ?? null, squad: (r as any).squad ?? null,
       difficulty: (r as any).difficulty ?? null, difficulty_meta: (r as any).difficulty_meta ?? null,
       highlights: (r as any).cup_winner ? { cup: { winner: (r as any).cup_winner } } : null,
+      fullPath: r.mode === 'champions_league_custom' ? {
+        entry: (r as any).fp_entry ?? null,
+        qualTies: Array.isArray((r as any).fp_ties) ? (r as any).fp_ties.length : null,
+        domesticChampion: (r as any).fp_home?.domesticChampion ?? null,
+        cupWon: (r as any).fp_home?.cupWon ?? null,
+      } : null,
     }))
     // 42703 = undefined_column; anything else is a real error.
     if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error

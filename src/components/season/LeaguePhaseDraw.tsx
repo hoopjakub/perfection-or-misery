@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, Easing, cancelAnimation } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, Easing, cancelAnimation, type SharedValue } from 'react-native-reanimated'
 import Svg, { Path, Ellipse, Rect } from 'react-native-svg'
 import { type Roles, space, border, POT_COLOURS, withAlpha, prim } from '@/theme'
 import { KitText, Tag, Plate, SectionTag, TeamMark, RoundFlag, VenueMark, Icon } from '@/components/kit'
@@ -286,30 +286,53 @@ function DrawStage({ roles, shown, total, active, reduced, next, last, lastName,
   )
 }
 
-// The capsules inside the bowl: a ring of them turning slowly, seen through
-// the bowl's lower half (the clip is the bowl's own curve), so they tumble.
+// The capsules inside the bowl (P8.5-17: "still a little broken: the balls'
+// spinning"). They were a rigid wheel turning round one centre, with a small
+// pair counter-turning in its middle, and each capsule's band turned with the
+// wheel: it read as a wheel spinning, not balls being mixed. Now they lie in a
+// pile in the bowl's bottom, and each one jostles on its own small loop (its
+// own size, speed and start), the top ones lifting higher, the way air mixes a
+// real draw bowl. One clock drives every ball; each speed is a whole number of
+// loops a cycle, so the cycle repeats with no jump.
+const MIX_MS = 6000
+// Rest spot in the clip (68 x 39, curved bottom), how far it moves, loops a cycle, start.
+const PILE: [number, number, number, number, number][] = [
+  [14, 30, 3, 3, 0.1], [26, 33, 3, 4, 0.5], [40, 33, 3, 3, 0.8], [53, 30, 3, 5, 0.3],
+  [20, 21, 5, 4, 0.6], [34, 23, 5, 5, 0.2], [47, 21, 5, 3, 0.9],
+  [27, 12, 7, 2, 0.4], [41, 12, 7, 3, 0.7],
+]
+
 function Tumble({ colour, line, active }: { colour: string; line: string; active: boolean }) {
-  const turn = useSharedValue(0)
+  const t = useSharedValue(0)
   useEffect(() => {
-    if (active) turn.value = withRepeat(withTiming(360, { duration: 2400, easing: Easing.linear }), -1, false)
-    else cancelAnimation(turn)
+    if (active) t.value = withRepeat(withTiming(1, { duration: MIX_MS, easing: Easing.linear }), -1, false)
+    else cancelAnimation(t)
   }, [active])
-  const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.value}deg` }] }))
-  const counter = useAnimatedStyle(() => ({ transform: [{ rotate: `${-turn.value * 1.7}deg` }] }))
   return (
     <View style={styles.tumbleClip}>
-      <Animated.View style={[styles.tumble, spin]}>
-        {Array.from({ length: CAPSULES }, (_, i) => {
-          const a = (i / CAPSULES) * Math.PI * 2
-          const r = i % 2 ? 22 : 13
-          return <Capsule key={i} colour={colour} line={line} x={32 + Math.cos(a) * r} y={32 + Math.sin(a) * r} />
-        })}
-        <Animated.View style={[styles.tumbleInner, counter]}>
-          <Capsule colour={colour} line={line} x={8} y={2} />
-          <Capsule colour={colour} line={line} x={2} y={12} />
-        </Animated.View>
-      </Animated.View>
+      {PILE.map(([x, y, reach, loops, start], i) => (
+        <MixingCapsule key={i} t={t} colour={colour} line={line} x={x} y={y} reach={reach} loops={loops} start={start} />
+      ))}
     </View>
+  )
+}
+
+function MixingCapsule({ t, colour, line, x, y, reach, loops, start }: {
+  t: SharedValue<number>; colour: string; line: string; x: number; y: number; reach: number; loops: number; start: number
+}) {
+  const style = useAnimatedStyle(() => {
+    const a = (t.value * loops + start) * Math.PI * 2
+    // Wider than tall and mostly upward: balls rest on the ones below them.
+    return { transform: [
+      { translateX: Math.cos(a) * reach },
+      { translateY: -Math.abs(Math.sin(a * 0.5 + start)) * reach * 1.4 },
+      { rotate: `${Math.sin(a) * 35}deg` },
+    ] }
+  })
+  return (
+    <Animated.View style={[{ position: 'absolute', left: x - 6, top: y - 6 }, style]}>
+      <Capsule colour={colour} line={line} x={6} y={6} />
+    </Animated.View>
   )
 }
 
@@ -411,8 +434,6 @@ const styles = StyleSheet.create({
   bowl: { width: BOWL_W, height: BOWL_H },
   // The bowl's lower half, where the capsules show: its own curve as the clip.
   tumbleClip: { position: 'absolute', left: 10, top: 24, width: 68, height: 39, borderBottomLeftRadius: 34, borderBottomRightRadius: 34, overflow: 'hidden' },
-  tumble: { position: 'absolute', left: 2, top: -22, width: 64, height: 64 },
-  tumbleInner: { position: 'absolute', left: 26, top: 26, width: 14, height: 14 },
   capsule: { position: 'absolute', width: 12, height: 12, borderRadius: 6, borderWidth: border.thin, overflow: 'hidden', justifyContent: 'center' },
   capsuleBand: { height: 4 },
   rising: { position: 'absolute', left: 30, top: 8, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },

@@ -9,7 +9,11 @@ import { spacing, typography, MODE_THEMES, ROLES, prim, font } from '@/theme'
 import { LeagueTable, ZoneLegend, WC_GROUP_ZONES } from '@/components/season/SeasonParts'
 import { getFlag } from '@/lib/flagMap'
 import type { WCTeam, WCGroupMatch } from '@/engine/world-cup-sim'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too). These
+// old styles named the dark ground's colours; they now take its roles.
+const GR = ROLES[EVERYDAY]
 
 const WC = MODE_THEMES.world_cup
 
@@ -87,28 +91,28 @@ function WCGroupView({ group, matches, onOpenMatch }: {
   // two, 3RD for the place that goes into the best-thirds race, OUT for last.
   return (
     <View>
-      <LeagueTable roles={ROLES[FLOODLIT]} zones={WC_GROUP_ZONES.slice(0, teams.length)}
+      <LeagueTable roles={ROLES[EVERYDAY]} zones={WC_GROUP_ZONES.slice(0, teams.length)}
         rows={teams.map(t => ({
           clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, flag: getFlag(t.clubId),
           played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points,
         }))} />
-      <ZoneLegend roles={ROLES[FLOODLIT]} zones={WC_GROUP_ZONES} />
+      <ZoneLegend roles={ROLES[EVERYDAY]} zones={WC_GROUP_ZONES} />
       <WCGroupMatchdays matches={matches} onOpenMatch={onOpenMatch} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  mdSection: { gap: spacing.sm, marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.sm },
+  mdSection: { gap: spacing.sm, marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: GR.rule, paddingTop: spacing.sm },
   mdBlock: { gap: 4 },
-  mdLabel: { fontSize: typography.xs, fontFamily: font.bodyBold, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  mdHint: { fontSize: 9, color: prim.cottonMuted, },
+  mdLabel: { fontSize: typography.xs, fontFamily: font.bodyBold, color: GR.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  mdHint: { fontSize: 9, color: GR.textMuted, },
   mdRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
   mdTeam:       { flex: 1 },
   mdTeamRight:  { justifyContent: 'flex-end' },
-  mdTeamText:   { fontSize: 11, color: prim.cottonMuted },
+  mdTeamText:   { fontSize: 11, color: GR.textMuted },
   mdTeamPlayer: { color: WC.accent, fontFamily: font.bodyBold },
   mdScorers:    { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.xs, marginBottom: 4 },
-  mdScorerHalf: { flex: 1, fontSize: 9, color: prim.cottonMuted },
-  mdScore: { fontSize: 12, fontFamily: font.bodyBlack, color: prim.cotton, minWidth: 42, textAlign: 'center' },
+  mdScorerHalf: { flex: 1, fontSize: 9, color: GR.textMuted },
+  mdScore: { fontSize: 12, fontFamily: font.bodyBlack, color: GR.text, minWidth: 42, textAlign: 'center' },
 })

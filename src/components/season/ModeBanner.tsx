@@ -2,6 +2,11 @@ import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { type Roles, space, border, prim, COLOURWAYS } from '@/theme'
 import { KitText, Tape, Stripe, Scanlines, GlitchText, lookFor, CHAOS_RED, CURSED_PURPLE, CURSED_LIGHT } from '@/components/kit'
+import { ROLES } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too).
+const GR = ROLES[EVERYDAY]
 
 // P8-169: the mode's own banner at the top of its screens (the placement, the
 // season, the result), so Chaos and Cursed announce themselves the way their
@@ -33,7 +38,7 @@ export function ModeBanner({ roles, mode }: { roles: Roles; mode: string | null 
   }
   return (
     <View style={styles.wrap} accessible accessibilityRole="header" accessibilityLabel={`Cursed. ${LINES.cursed}`}>
-      <View style={[styles.cursed, { borderColor: CURSED_PURPLE, backgroundColor: prim.nylonSunken }]}>
+      <View style={[styles.cursed, { borderColor: CURSED_PURPLE, backgroundColor: GR.sunken }]}>
         <Scanlines colour={CURSED_LIGHT} opacity={0.12} />
         <GlitchText text="CURSED" t="superM" color={CURSED_LIGHT} seed={7} />
       </View>

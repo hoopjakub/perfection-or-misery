@@ -155,7 +155,9 @@ export const MODE_THEMES: Record<string, ModeTheme> = {
 // ids stay short; this is a display-string-only rename).
 export const MODE_LABELS: Record<string, string> = {
   world_cup:                'FIFA World Cup',
-  champions_league_custom:  'UEFA Champions League',
+  // P8.5-21 (E2): the full path goes on in any of the three, so it's named for
+  // Europe. The id stays champions_league_custom: saved runs carry it.
+  champions_league_custom:  'European Full Path',
   champions_league:         'UEFA Champions League',
   europa_league:            'UEFA Europa League',
   conference_league:        'UEFA Conference League',

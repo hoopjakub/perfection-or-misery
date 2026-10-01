@@ -42,7 +42,11 @@ import { ROLES as KIT_ROLES } from '@/theme'
 import type { CLSeasonResult, CLKnockoutMatch, CLLeagueMatch } from '@/engine/cl-sim'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { DraftedPlayer } from '@/types/game'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too). These
+// old styles named the dark ground's colours; they now take its roles.
+const GR = KIT_ROLES[EVERYDAY]
 
 const CL = MODE_THEMES.champions_league
 
@@ -123,7 +127,7 @@ export default function CLResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <Loader color={prim.cotton} wide />
+        <Loader color={GR.text} wide />
         <Text style={[styles.errorText, { marginTop: spacing.md }]}>Loading run…</Text>
       </View>
     )
@@ -138,14 +142,14 @@ export default function CLResultScreen() {
       <View style={styles.center}>
         <Text style={styles.errorText}>No CL result found.</Text>
         <Pressable onPress={() => router.replace('/game/mode-select')} style={{ marginTop: spacing.lg }}>
-          <Text style={{ color: prim.cotton, fontFamily: font.bodyBold }}>← Back to Menu</Text>
+          <Text style={{ color: GR.text, fontFamily: font.bodyBold }}>← Back to Menu</Text>
         </Pressable>
       </View>
     )
   }
 
   const { leaguePhaseStandings, playoffRound, r16, qf, sf, final, winner, playerTeam, playerFinalRound, playerPot } = clResult
-  const resultColor = ROUND_COLORS[playerFinalRound] ?? prim.cotton
+  const resultColor = ROUND_COLORS[playerFinalRound] ?? GR.text
   const resultLabel = formatTier(playerFinalRound)
   const isChampion  = playerFinalRound === 'winner'
 
@@ -210,7 +214,7 @@ export default function CLResultScreen() {
       drafted: (fromHistory ? dbRun?.squad ?? [] : fullSquad) as DraftedPlayer[],
       playerFormation: (fromHistory ? dbRun?.formation : formation) ?? undefined,
       matchday: m.matchday, contextMatches: clContextMatches,
-    }, prim.cotton)
+    }, GR.text)
   }
   const openKoLegDetail = (m: CLKnockoutMatch, leg: 1 | 2) => {
     const req = koLegDetailRequest(m, leg, {
@@ -219,7 +223,7 @@ export default function CLResultScreen() {
       playerFormation: (fromHistory ? dbRun?.formation : formation) ?? undefined,
     })
     if (req) {
-      openMatchStats({ ...req, matchday: koMatchday(m, leg), contextMatches: clContextMatches }, prim.cotton)
+      openMatchStats({ ...req, matchday: koMatchday(m, leg), contextMatches: clContextMatches }, GR.text)
     }
   }
 
@@ -303,7 +307,7 @@ export default function CLResultScreen() {
   const hasHub = fromHistory ? !!dbRun?.stats : draftedPlayers.length > 0
 
   return (
-    <KitScreen ground={FLOODLIT} width="wide">
+    <KitScreen ground={EVERYDAY} width="wide">
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}
@@ -337,11 +341,11 @@ export default function CLResultScreen() {
             awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
             clubs: [], playerClubId: playerTeam?.clubId, mode: comp.mode,
           })
-          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={KIT_ROLES[FLOODLIT]} onPress={() => openAwardsView(night, params.runId)} />
+          return <Plate label="See the awards" icon="trophy" variant="secondary" roles={KIT_ROLES[EVERYDAY]} onPress={() => openAwardsView(night, params.runId)} />
         })()}
-        {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={KIT_ROLES[FLOODLIT]} onPress={() => openRunHub(undefined, hubRunId)} />}
+        {hasHub && <Plate label="The whole run" icon="stats" variant="secondary" roles={KIT_ROLES[EVERYDAY]} onPress={() => openRunHub(undefined, hubRunId)} />}
         {/* P8-108: every round's team of the matchday, in the run hub. */}
-        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={KIT_ROLES[FLOODLIT]} onPress={() => openRunHub('teams', hubRunId)} />}
+        {hasHub && <Plate label="Teams of the matchday" icon="achievements" variant="secondary" roles={KIT_ROLES[EVERYDAY]} onPress={() => openRunHub('teams', hubRunId)} />}
       </View>
       {/* Expanded (10-ADAPT §2.2): the sections as two newspaper columns. */}
       <Columns>
@@ -349,16 +353,16 @@ export default function CLResultScreen() {
       {winner && (
         <ResultSection title={comp.id === 'ucl' ? 'Champions of Europe' : `${comp.name} winners`}>
           <View style={styles.kitWinner}>
-            <KitText t="superM" color={KIT_ROLES[FLOODLIT].text}>{winner.clubName.toUpperCase()}</KitText>
+            <KitText t="superM" color={KIT_ROLES[EVERYDAY].text}>{winner.clubName.toUpperCase()}</KitText>
           </View>
         </ResultSection>
       )}
 
       {koRounds.length > 0 && (
-        <ResultSection title="Knockouts" right={<InfoBubble topic="knockout_bracket" accent={KIT_ROLES[FLOODLIT].text} />}>
+        <ResultSection title="Knockouts" right={<InfoBubble topic="knockout_bracket" accent={KIT_ROLES[EVERYDAY].text} />}>
           {/* P8-79: the full bracket, the same tree as the preview and the run hub. */}
           <BracketTree {...koRoundsToColumns(koRounds)} playerClubId={playerTeam?.clubId} />
-          <KitText t="tag" color={KIT_ROLES[FLOODLIT].textMuted}>SEED · entered the Round of 16 directly (1st–8th)</KitText>
+          <KitText t="tag" color={KIT_ROLES[EVERYDAY].textMuted}>SEED · entered the Round of 16 directly (1st–8th)</KitText>
         </ResultSection>
       )}
 
@@ -368,15 +372,15 @@ export default function CLResultScreen() {
         </ResultSection>
       )}
 
-      <ResultSection title="League phase" right={<InfoBubble topic="league_phase_zones" accent={KIT_ROLES[FLOODLIT].text} />}>
-        <LeagueTable roles={KIT_ROLES[FLOODLIT]} zones={CL_PHASE_ZONES}
+      <ResultSection title="League phase" right={<InfoBubble topic="league_phase_zones" accent={KIT_ROLES[EVERYDAY].text} />}>
+        <LeagueTable roles={KIT_ROLES[EVERYDAY]} zones={CL_PHASE_ZONES}
           rows={actualLeagueTable}
           onRowPress={hasHub ? id => openClub(id, hubRunId) : undefined} />
-        <ZoneLegend roles={KIT_ROLES[FLOODLIT]} zones={CL_PHASE_ZONES} />
+        <ZoneLegend roles={KIT_ROLES[EVERYDAY]} zones={CL_PHASE_ZONES} />
       </ResultSection>
 
       {/* §10.5 phase 4 (R8) — the medical table. */}
-      <MedicalTable absences={clResult.absences} accent={prim.cotton} />
+      <MedicalTable absences={clResult.absences} accent={GR.text} />
 
       {/* Lineup + squad — live run or rehydrated from a saved one. Bench players
           included so SquadSummary resolves every row (Big Fixes §5.1). */}
@@ -388,14 +392,14 @@ export default function CLResultScreen() {
         return (
           <>
             {form && squad.length > 0 && <LineupPitch formation={form} draftedPlayers={squad} benchPlayers={bench} title="Your Lineup" />}
-            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={prim.cotton} runId={params.runId} />}
+            {st && <SquadSummary stats={st} draftedPlayers={squad} formation={form ?? null} accent={GR.text} runId={params.runId} />}
           </>
         )
       })()}
 
       </Columns>
       <View style={styles.kitPlates}>
-        <ListRow roles={KIT_ROLES[FLOODLIT]} icon="guide" label={`How the ${comp.name} works`} onPress={() => openRules()} />
+        <ListRow roles={KIT_ROLES[EVERYDAY]} icon="guide" label={`How the ${comp.name} works`} onPress={() => openRules()} />
       </View>
       <ResultActions fromHistory={fromHistory} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>
@@ -498,12 +502,12 @@ const CL_KO_NAMES: Record<string, string> = { playoff: 'Playoff', r16: 'Round of
 // Degraded view for older CL runs saved before the full tournament was stored.
 function CLHistorySummary({ run }: { run: any }) {
   const round = String(run.tier ?? '')
-  const color = ROUND_COLORS[round] ?? prim.cotton
+  const color = ROUND_COLORS[round] ?? GR.text
   const label = formatTier(round)
   const games = (run.wins ?? 0) + (run.draws ?? 0) + (run.losses ?? 0)
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: prim.nylon }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: GR.bg }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.competitionLabel}>{(compOfMode(run.mode) ?? EUROPE.ucl).fullName.toUpperCase()}</Text>
         <Text style={[styles.resultBanner, { color }]}>{label.toUpperCase()}</Text>
@@ -543,10 +547,10 @@ function ordinal(n: number): string {
 const styles = StyleSheet.create({
   kitPlates: { gap: space[3], marginTop: space[5], width: '100%', maxWidth: COLUMN, alignSelf: 'center' },
   kitWinner: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
-  container: { flex: 1, backgroundColor: prim.nylon },
+  container: { flex: 1, backgroundColor: GR.bg },
   content:   { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
-  center:    { flex: 1, backgroundColor: prim.nylon, alignItems: 'center', justifyContent: 'center' },
-  errorText: { fontSize: typography.md, color: prim.cottonMuted },
+  center:    { flex: 1, backgroundColor: GR.bg, alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontSize: typography.md, color: GR.textMuted },
 
   header: {
     alignItems:   'center',
@@ -557,7 +561,7 @@ const styles = StyleSheet.create({
   competitionLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         prim.cotton,
+    color:         GR.text,
     letterSpacing: 3,
     textTransform: 'uppercase',
   },
@@ -570,10 +574,10 @@ const styles = StyleSheet.create({
   trophy: { fontSize: 56 },
 
   card: {
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius:    radius.lg,
     borderWidth:     1,
-    borderColor:     prim.ruleNylon,
+    borderColor:     GR.rule,
     padding:         spacing.lg,
     gap:             spacing.md,
     ...shadows.sm,
@@ -584,8 +588,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems:     'center',
   },
-  playerTeamName: { fontSize: typography.xl, fontFamily: font.bodyBlack, color: prim.cotton },
-  playerTeamMeta: { fontSize: typography.sm, color: prim.cottonMuted, marginTop: 2 },
+  playerTeamName: { fontSize: typography.xl, fontFamily: font.bodyBlack, color: GR.text },
+  playerTeamMeta: { fontSize: typography.sm, color: GR.textMuted, marginTop: 2 },
   potPill: {
     borderRadius:      radius.full,
     borderWidth:       2,
@@ -598,14 +602,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap:           spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: prim.ruleNylon,
+    borderTopColor: GR.rule,
     paddingTop:    spacing.md,
   },
   statBox:   { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: typography.md, fontFamily: font.bodyBlack, color: prim.cotton },
-  statLabel: { fontSize: typography.xs, color: prim.cottonMuted, textAlign: 'center' },
+  statValue: { fontSize: typography.md, fontFamily: font.bodyBlack, color: GR.text },
+  statLabel: { fontSize: typography.xs, color: GR.textMuted, textAlign: 'center' },
 
-  sectionTitle: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  sectionTitle: { fontSize: typography.md, fontFamily: font.bodyBold, color: GR.text },
   rulesLink: { alignItems: 'center', paddingVertical: spacing.md },
   rulesLinkText: { fontSize: typography.sm, fontFamily: font.bodyBold },
 
@@ -613,25 +617,25 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     paddingBottom:     spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: prim.ruleNylon,
+    borderBottomColor: GR.rule,
   },
   standingsScroll: { maxHeight: 360 },
   tableRow: {
     flexDirection:     'row',
     paddingVertical:   spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: prim.ruleNylon,
+    borderBottomColor: GR.rule,
     alignItems:        'center',
   },
   tableRowPlayer: {
-    backgroundColor: prim.cotton + '11',
-    borderColor:     prim.cotton,
+    backgroundColor: GR.text + '11',
+    borderColor:     GR.text,
     borderWidth:     1,
     borderRadius:    radius.sm,
   },
-  tableCol:     { fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  tableColData: { fontSize: 11, color: prim.cottonMuted },
-  playerText:   { color: prim.cotton, fontFamily: font.bodyBold },
+  tableCol:     { fontSize: 10, fontFamily: font.bodyBold, color: GR.textMuted },
+  tableColData: { fontSize: 11, color: GR.textMuted },
+  playerText:   { color: GR.text, fontFamily: font.bodyBold },
   colPos:  { width: 34, textAlign: 'center' as any },
   posCell: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   zoneDot: { width: 6, height: 6, borderRadius: 3 },
@@ -641,7 +645,7 @@ const styles = StyleSheet.create({
 
   phaseNote: {
     fontSize:  typography.xs,
-    color:     prim.cottonMuted,
+    color:     GR.textMuted,
     textAlign: 'center',
     marginTop: spacing.xs,
   },
@@ -654,19 +658,19 @@ const styles = StyleSheet.create({
     gap:           spacing.sm,
     paddingVertical: 3,
   },
-  mdNum:   { width: 34, fontSize: 10, fontFamily: font.bodyBold, color: prim.cottonMuted },
-  mdVenue: { width: 16, fontSize: 10, color: prim.cottonMuted },
-  mdOpp:   { flex: 1, fontSize: 12, color: prim.cottonMuted },
+  mdNum:   { width: 34, fontSize: 10, fontFamily: font.bodyBold, color: GR.textMuted },
+  mdVenue: { width: 16, fontSize: 10, color: GR.textMuted },
+  mdOpp:   { flex: 1, fontSize: 12, color: GR.textMuted },
   mdScoreBadge: { borderRadius: 0, paddingHorizontal: spacing.sm, paddingVertical: 2, minWidth: 40, alignItems: 'center' },
   mdScoreText:  { fontSize: 12, fontFamily: font.bodyBlack },
-  mdScorerLine: { fontSize: 9, color: prim.cottonMuted, paddingLeft: 34, paddingBottom: 4 },
-  koTieAgg:     { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton, textAlign: 'center', marginVertical: spacing.xs },
+  mdScorerLine: { fontSize: 9, color: GR.textMuted, paddingLeft: 34, paddingBottom: 4 },
+  koTieAgg:     { fontSize: typography.md, fontFamily: font.bodyBold, color: GR.text, textAlign: 'center', marginVertical: spacing.xs },
   koModalNote:  { fontSize: typography.xs, color: colors.warning, textAlign: 'center' },
-  koModalPens:  { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold, textAlign: 'center', marginBottom: spacing.sm },
-  koLegBlock:   { borderTopWidth: 1, borderTopColor: prim.ruleNylon, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
-  koLegLabel:   { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
-  koLegScore:   { fontSize: typography.sm, color: prim.cotton, fontFamily: font.bodyBold },
-  koLegScorer:  { fontSize: typography.xs, color: prim.cottonMuted },
+  koModalPens:  { fontSize: typography.sm, color: GR.text, fontFamily: font.bodyBold, textAlign: 'center', marginBottom: spacing.sm },
+  koLegBlock:   { borderTopWidth: 1, borderTopColor: GR.rule, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
+  koLegLabel:   { fontSize: typography.xs, color: GR.textMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
+  koLegScore:   { fontSize: typography.sm, color: GR.text, fontFamily: font.bodyBold },
+  koLegScorer:  { fontSize: typography.xs, color: GR.textMuted },
 
   // knockout bracket
   bracketScroll: { marginHorizontal: -spacing.xs, marginTop: spacing.sm },
@@ -675,29 +679,29 @@ const styles = StyleSheet.create({
   bracketColLabel: {
     fontSize:      typography.xs,
     fontWeight:    typography.black,
-    color:         prim.cottonMuted,
+    color:         GR.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     textAlign:     'center',
   },
   bracketColSub: {
     fontSize:  8,
-    color:     prim.cotton,
+    color:     GR.text,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   bracketColBody: { justifyContent: 'space-around' },
   bracketCard: {
-    backgroundColor:   prim.nylonSunken,
+    backgroundColor:   GR.sunken,
     borderRadius:      radius.md,
     borderWidth:       1,
-    borderColor:       prim.ruleNylon,
+    borderColor:       GR.rule,
     paddingVertical:   4,
     paddingHorizontal: spacing.sm,
   },
   bracketCardPlayer: {
-    borderColor:     prim.cotton,
-    backgroundColor: prim.cotton + '11',
+    borderColor:     GR.text,
+    backgroundColor: GR.text + '11',
   },
   bracketTeamRow: {
     flexDirection:  'row',
@@ -705,23 +709,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap:            4,
   },
-  bracketTeamName:   { flex: 1, fontSize: 10, color: prim.cottonMuted },
-  bracketTeamWon:    { color: prim.cotton, fontFamily: font.bodyBlack },
-  bracketTeamPlayer: { color: prim.cotton },
-  bracketTeamGoals:  { fontSize: 11, fontFamily: font.bodyBold, color: prim.cottonMuted, width: 14, textAlign: 'right' },
+  bracketTeamName:   { flex: 1, fontSize: 10, color: GR.textMuted },
+  bracketTeamWon:    { color: GR.text, fontFamily: font.bodyBlack },
+  bracketTeamPlayer: { color: GR.text },
+  bracketTeamGoals:  { fontSize: 11, fontFamily: font.bodyBold, color: GR.textMuted, width: 14, textAlign: 'right' },
   bracketDirect:     { color: colors.tiers.perfection },
   bracketDivider: { minHeight: 10, alignItems: 'center', justifyContent: 'center' },
   bracketSuffix: { fontSize: 8, color: colors.warning, fontFamily: font.bodyBold },
-  bracketLegs:   { fontSize: 8, color: prim.cottonMuted },
+  bracketLegs:   { fontSize: 8, color: GR.textMuted },
 
   winnerCard: {
     alignItems:      'center',
     backgroundColor: colors.tiers.perfection + '11',
     borderColor:     colors.tiers.perfection,
   },
-  winnerLabel: { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
+  winnerLabel: { fontSize: typography.xs, color: GR.textMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1 },
   winnerName:  { fontSize: typography.xxl, fontFamily: font.bodyBlack, color: colors.tiers.perfection },
-  winnerOvr:   { fontSize: typography.sm, color: prim.cottonMuted },
+  winnerOvr:   { fontSize: typography.sm, color: GR.textMuted },
 
   // modal
   modalOverlay: {
@@ -734,43 +738,43 @@ const styles = StyleSheet.create({
   modalCard: {
     width:           '100%',
     maxHeight:       '80%',
-    backgroundColor: prim.nylonRaised,
+    backgroundColor: GR.surface,
     borderRadius:    radius.lg,
     borderWidth:     1,
-    borderColor:     prim.ruleNylon,
+    borderColor:     GR.rule,
     padding:         spacing.lg,
     gap:             spacing.sm,
   },
-  modalTitle: { fontSize: typography.lg, fontFamily: font.bodyBlack, color: prim.cotton },
+  modalTitle: { fontSize: typography.lg, fontFamily: font.bodyBlack, color: GR.text },
   modalClose: {
     marginTop:       spacing.md,
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     borderRadius:    radius.md,
     paddingVertical: spacing.md,
     alignItems:      'center',
     borderWidth:     1,
-    borderColor:     prim.ruleNylon,
+    borderColor:     GR.rule,
   },
-  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: prim.cotton },
+  modalCloseText: { fontSize: typography.md, fontFamily: font.bodyBold, color: GR.text },
 
   buttonRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   actionBtn: {
     flex:            1,
-    backgroundColor: prim.cotton,
+    backgroundColor: GR.text,
     borderRadius:    radius.md,
     paddingVertical: spacing.lg,
     alignItems:      'center',
     ...shadows.md,
   },
   actionBtnSecondary: {
-    backgroundColor: prim.nylonSunken,
+    backgroundColor: GR.sunken,
     borderWidth:     1,
-    borderColor:     prim.ruleNylon,
+    borderColor:     GR.rule,
   },
   actionBtnText: {
     fontSize:      typography.md,
     fontWeight:    typography.black,
-    color:         prim.cotton,
+    color:         GR.text,
     letterSpacing: 1.5,
   },
 })

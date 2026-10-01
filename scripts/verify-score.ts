@@ -85,6 +85,21 @@ const bad: [string, Partial<RunRow>][] = [
 ]
 for (const [what, o] of bad) check(invalidRun(base(o)) !== null, `accepted an impossible row: ${what}`)
 
+// P8.5-21: a hunting run scores its competition's ladder times the target's
+// multiplier, and can only end in that competition.
+{
+  const run = (tier: string, target?: string) => base({ mode: 'champions_league_custom', tier, team_ovr: 85, losses: 2, difficulty_meta: { hardness: 3.9, ...(target ? { target } : {}) } })
+  for (const [tier, target] of [['winner', 'ucl'], ['uel_winner', 'uel'], ['uecl_sf_exit', 'uecl'], ['uel_q2_exit', 'uel']] as const) {
+    check(invalidRun(run(tier, target)) === null, `refused a real ${target} hunt ending ${tier}: ${invalidRun(run(tier, target))}`)
+    const free = scoreRun(run(tier)), aimed = scoreRun(run(tier, target))
+    check(aimed < free, `an aimed ${tier} (${aimed}) didn't score under a lucky one (${free})`)
+  }
+  for (const [tier, target] of [['winner', 'uel'], ['uel_winner', 'uecl'], ['not_qualified', 'ucl'], ['winner', 'moon']] as const) {
+    check(invalidRun(run(tier, target)) !== null, `accepted a ${target} hunt ending ${tier}`)
+  }
+  check(invalidRun(base({ mode: 'champions_league', tier: 'winner', difficulty_meta: { target: 'ucl' } })) !== null, 'accepted a target outside the full path')
+}
+
 console.log(`\n${checks} checks, ${failures} failed`)
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 process.exit(failures === 0 ? 0 : 1)

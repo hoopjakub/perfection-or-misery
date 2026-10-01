@@ -20,7 +20,7 @@ export type RunRow = {
   losses: number
   goals_for: number
   goals_against: number
-  difficulty_meta?: { hardness?: number } | null
+  difficulty_meta?: { hardness?: number; target?: string } | null
 }
 
 // ── Difficulty ────────────────────────────────────────────────────────────────
@@ -93,12 +93,23 @@ const prefixed = (p: string, ladder: Record<string, number>, w: number) =>
   Object.fromEntries(Object.entries(ladder).map(([k, v]) => [`${p}_${k}`, Math.round(v * w)]))
 Object.assign(CUSTOM_CL_ROUND_SCORE, prefixed('uel', CL_ROUND_SCORE, 0.8), prefixed('uecl', CL_ROUND_SCORE, 0.65), {
   uecl_q1_exit: 40, uecl_q2_exit: 60, uecl_q3_exit: 85, uecl_quali_playoff_exit: 110,
+  // P8.5-21: hunting the Europa League, a loss in its qualifying ends the run
+  // (nobody drops out of it otherwise). Between the other two's exits.
+  uel_q1_exit: 45, uel_q2_exit: 75, uel_q3_exit: 108, uel_quali_playoff_exit: 140,
 })
 Object.assign(CUSTOM_CL_ROUND_TO_POSITION,
   Object.fromEntries(Object.entries(CL_ROUND_TO_POSITION).map(([k, v]) => [`uel_${k}`, v + 36])),
   Object.fromEntries(Object.entries(CL_ROUND_TO_POSITION).map(([k, v]) => [`uecl_${k}`, v + 72])),
   { uecl_q1_exit: 98, uecl_q2_exit: 96, uecl_q3_exit: 94, uecl_quali_playoff_exit: 92 },
+  { uel_q1_exit: 97, uel_q2_exit: 95, uel_q3_exit: 93, uel_quali_playoff_exit: 91 },
 )
+
+// P8.5-21 (option B, E5): an aimed run (Settings → Achievement hunting) didn't
+// have to earn its way to the competition, so it's worth less than a lucky
+// one, and the easier the target's field the more less. The plan's starting
+// figures (docs/europe/07 §3), to be tuned with scripts/measure-europe.ts.
+export const TARGET_MULTIPLIER: Record<string, number> = { ucl: 0.9, uel: 0.85, uecl: 0.7 }
+const compOfTier = (tier: string) => tier.startsWith('uecl_') ? 'uecl' : tier.startsWith('uel_') ? 'uel' : 'ucl'
 
 // P8-172: the Europa and Conference Leagues climb the same ladder, weighed
 // down — the same round against a weaker field is worth less (docs/europe/02).
@@ -120,7 +131,10 @@ export function scoreRun(row: RunRow): number {
   switch (row.mode) {
     case 'world_cup':               return knockoutScore(WC_ROUND_SCORE[row.tier] ?? 100, row.team_ovr, row.losses, mult)
     case 'champions_league':        return knockoutScore(CL_ROUND_SCORE[row.tier] ?? 100, row.team_ovr, row.losses, mult)
-    case 'champions_league_custom': return knockoutScore(CUSTOM_CL_ROUND_SCORE[row.tier] ?? 30, row.team_ovr, row.losses, mult)
+    case 'champions_league_custom': {
+      const target = row.difficulty_meta?.target
+      return knockoutScore(CUSTOM_CL_ROUND_SCORE[row.tier] ?? 30, row.team_ovr, row.losses, mult * (target ? TARGET_MULTIPLIER[target] ?? 1 : 1))
+    }
     case 'europa_league':           return knockoutScore(UEL_ROUND_SCORE[row.tier] ?? 80, row.team_ovr, row.losses, mult)
     case 'conference_league':       return knockoutScore(UECL_ROUND_SCORE[row.tier] ?? 65, row.team_ovr, row.losses, mult)
     default: return leagueScore({
@@ -166,5 +180,11 @@ export function invalidRun(row: RunRow): string | null {
     : null
   if (!ladder) return `unknown mode ${row.mode}`
   if (!(row.tier in ladder)) return `unknown round ${row.tier}`
+  // A hunting run stays in its target: its tier is that competition's.
+  const target = row.difficulty_meta?.target
+  if (target != null) {
+    if (row.mode !== 'champions_league_custom' || !(target in TARGET_MULTIPLIER)) return `unknown target ${target}`
+    if (row.tier === 'not_qualified' || compOfTier(row.tier) !== target) return `a ${target} hunt can't end as ${row.tier}`
+  }
   return null
 }

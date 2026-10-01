@@ -3,7 +3,8 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet } from 'react-native'
 import { useUserStore } from '@/store/userStore'
 import { fetchAchievementRuns, isRunWon, type AchievementRun } from '@/db/queries/leaderboard'
-import { FEATS, featCounts } from '@/lib/feats'
+import { FEATS, featCounts, fullPathTrophy, type EuroTrophy } from '@/lib/feats'
+import { EUROPE } from '@/data/europe'
 import { ROLES, space, border, font, colourwayFor, MODE_LABELS } from '@/theme'
 import { KitScreen, KitText, BackControl, Tag, Tape, EmptyState, SectionTag } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
@@ -22,9 +23,10 @@ export const ERA_RETIRED_LABEL = 'Era (retired)'
 
 // Which modes to show, in display order, with their identity + whether they have
 // a base-difficulty axis (chaos/cursed don't — they're a single conquest).
-const MODE_META: { mode: string; title: string; hasDifficulty: boolean; trophy: string }[] = [
+const MODE_META: { mode: string; title: string; hasDifficulty: boolean; trophy: string; byTrophy?: boolean }[] = [
   { mode: 'world_cup',               title: MODE_LABELS.world_cup,               hasDifficulty: true,  trophy: 'Lift the FIFA World Cup' },
-  { mode: 'champions_league_custom', title: MODE_LABELS.champions_league_custom, hasDifficulty: true,  trophy: 'Win the full UCL journey' },
+  // P8.5-21: the full path can end with any of three trophies; each has its own line.
+  { mode: 'champions_league_custom', title: MODE_LABELS.champions_league_custom, hasDifficulty: true,  trophy: 'Win any of the three European trophies', byTrophy: true },
   { mode: 'champions_league',        title: MODE_LABELS.champions_league,        hasDifficulty: true,  trophy: 'Win the finals-only UCL' },
   { mode: 'europa_league',           title: MODE_LABELS.europa_league,           hasDifficulty: true,  trophy: 'Lift the Europa League' },
   { mode: 'conference_league',       title: MODE_LABELS.conference_league,       hasDifficulty: true,  trophy: 'Lift the Conference League' },
@@ -50,9 +52,21 @@ function computeAchievements(runs: AchievementRun[]): Record<string, ModeAch> {
   const out: Record<string, ModeAch> = {}
   const metaByMode = new Map(MODE_META.map(m => [m.mode, m]))
   for (const m of MODE_META) out[m.mode] = emptyAch()
+  for (const c of TROPHIES) { out[trophyKey(c)] = emptyAch(); out[trophyKey(c, true)] = emptyAch() }
   for (const run of runs) {
     const a = out[run.mode]
     if (!a || !isRunWon(run)) continue
+    mark(a, run)
+    // The full path's grid: the line of the competition it was won in. An
+    // aimed run (Settings → Achievement hunting) fills that line's own "aimed"
+    // layer, so a lucky win and an aimed one are both collectable and neither
+    // counts as the other (docs/europe/07 §5.2).
+    const won = fullPathTrophy(run)
+    if (won) mark(out[trophyKey(won, !!targetOf(run))], run)
+  }
+  return out
+
+  function mark(a: ModeAch, run: AchievementRun) {
     a.conquered = true
     switch (run.difficulty) {
       case 'easy':   a.wonEasy = true; break
@@ -71,8 +85,11 @@ function computeAchievements(runs: AchievementRun[]): Record<string, ModeAch> {
         if (metaByMode.get(run.mode)?.hasDifficulty) a.legacyWins++
     }
   }
-  return out
 }
+
+const TROPHIES: EuroTrophy[] = ['ucl', 'uel', 'uecl']
+const trophyKey = (c: EuroTrophy, aimed = false) => `champions_league_custom:${c}${aimed ? ':aimed' : ''}`
+const targetOf = (run: AchievementRun) => (run.difficulty_meta as { target?: string } | null)?.target ?? null
 
 export default function AchievementsScreen() {
   const { user, isGuest } = useUserStore()
@@ -139,20 +156,16 @@ export default function AchievementsScreen() {
                     </View>
                     {a.conquered && <Tag roles={roles} variant="win">WON</Tag>}
                   </View>
-                  <View style={styles.tags}>
-                    {meta.hasDifficulty ? (
-                      <>
-                        <Tag roles={roles} variant={a.wonEasy ? 'win' : 'data'}>EASY</Tag>
-                        <Tag roles={roles} variant={a.wonMedium ? 'win' : 'data'}>MEDIUM</Tag>
-                        <Tag roles={roles} variant={a.wonHard ? 'win' : 'data'}>HARD</Tag>
-                        <Tag roles={roles} variant={a.customBestHardness != null ? 'win' : 'data'}>
-                          {a.customBestHardness != null ? `CUSTOM ${a.customBestHardness.toFixed(1)}/11` : 'CUSTOM'}
-                        </Tag>
-                      </>
-                    ) : (
+                  {meta.byTrophy ? TROPHIES.flatMap(c => [false, true].map(aimed => (
+                    <View key={`${c}${aimed}`} style={styles.trophyLine}>
+                      <KitText t="tag" color={roles.textMuted}>{`${EUROPE[c].name.toUpperCase()}${aimed ? ', AIMED' : ''}`}</KitText>
+                      <DifficultyTags a={ach[trophyKey(c, aimed)] ?? emptyAch()} />
+                    </View>
+                  ))) : meta.hasDifficulty ? <DifficultyTags a={a} /> : (
+                    <View style={styles.tags}>
                       <Tag roles={roles} variant={a.conquered ? 'win' : 'data'}>{a.conquered ? 'CONQUERED' : 'NOT YET'}</Tag>
-                    )}
-                  </View>
+                    </View>
+                  )}
                   {a.legacyWins > 0 && (
                     <KitText t="tag" color={roles.textMuted}>{`+${a.legacyWins} older win${a.legacyWins > 1 ? 's' : ''} from before difficulty was tracked`}</KitText>
                   )}
@@ -185,6 +198,19 @@ export default function AchievementsScreen() {
   )
 }
 
+function DifficultyTags({ a }: { a: ModeAch }) {
+  return (
+    <View style={styles.tags}>
+      <Tag roles={roles} variant={a.wonEasy ? 'win' : 'data'}>EASY</Tag>
+      <Tag roles={roles} variant={a.wonMedium ? 'win' : 'data'}>MEDIUM</Tag>
+      <Tag roles={roles} variant={a.wonHard ? 'win' : 'data'}>HARD</Tag>
+      <Tag roles={roles} variant={a.customBestHardness != null ? 'win' : 'data'}>
+        {a.customBestHardness != null ? `CUSTOM ${a.customBestHardness.toFixed(1)}/11` : 'CUSTOM'}
+      </Tag>
+    </View>
+  )
+}
+
 function Big({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1 }}>
@@ -205,5 +231,6 @@ const styles = StyleSheet.create({
   modeHead: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   modeTitle: { fontFamily: font.bodyBold },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  trophyLine: { gap: space[1] },
   foot: { marginTop: space[2], marginBottom: space[5] },
 })

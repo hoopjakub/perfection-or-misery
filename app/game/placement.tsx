@@ -440,7 +440,8 @@ function CLPlacement() {
 type ChosenClub = { clubId: string; clubName: string; leagueRank: number; leagueName: string; country?: string }
 
 function CustomCLPlacement() {
-  const { draftedPlayers, formation, setClYear, setCustomUclPlayerClubId } = useGameStore()
+  const { draftedPlayers, formation, setClYear, setCustomUclPlayerClubId, europeanTarget } = useGameStore()
+  const hunting = europeanTarget && europeanTarget !== 'any' ? EUROPE[europeanTarget].name : null
   const { profile, isGuest } = useUserStore()   // your side takes your name, as in a league run
   const [loading, setLoading] = useState(true)
   useSimBackGuard(!loading)   // §3 — club is picked before loading flips false
@@ -493,9 +494,19 @@ function CustomCLPlacement() {
             flag={flagForCountry(chosen.country) || undefined}
             meta={`${chosen.leagueName} · ${leagueSize} CLUBS · ASSOCIATION #${chosen.leagueRank}`.toUpperCase()}
           />
-          <KitText t="body" color={roles.textMuted}>
-            First you play your domestic season. Where you finish (or the cup) decides where you go: the Champions League, the Europa League or the Conference League. Finish too low and there's no Europe at all.
-          </KitText>
+          {/* P8.5-21: a hunting run says so wherever it shows, so it's never taken for a normal one. */}
+          {hunting ? (
+            <>
+              <Tag roles={roles} variant="selected">{`HUNTING · ${hunting.toUpperCase()}`}</Tag>
+              <KitText t="body" color={roles.textMuted}>
+                {`First you play your domestic season. You're hunting the ${hunting}: where you finish only decides how deep you enter it. A place in a stronger competition takes you straight into its league phase; a weaker one, or none, into its first qualifying round. Lose in its qualifying and the run ends.`}
+              </KitText>
+            </>
+          ) : (
+            <KitText t="body" color={roles.textMuted}>
+              First you play your domestic season. Where you finish (or the cup) decides where you go: the Champions League, the Europa League or the Conference League. Finish too low and there's no Europe at all.
+            </KitText>
+          )}
           <View style={styles.stakesHead}>
             <SectionTag roles={roles}>What each finish earns</SectionTag>
             <InfoBubble topic="entry_point" accent={roles.text} size={15} />

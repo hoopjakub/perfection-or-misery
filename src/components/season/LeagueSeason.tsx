@@ -44,7 +44,9 @@ import {
   LeagueTable, ZoneLegend, leagueTableZones, StandingFigure, SeasonStrip, ScorelineCard,
   ResultRow, SegmentSwitch, Ticker, StoryItem, type TableRowVM, type Mark,
 } from './SeasonParts'
-import { FLOODLIT } from '@/lib/appearance'
+import { EVERYDAY } from '@/lib/appearance'
+import { nationalCupForLeague, semisTwoLeggedForLeague } from '@/data/national-cups'
+import { CupPane, CupNow } from './CupParts'
 
 // C1 · The league season (docs/ui-overhaul/07c), on nylon. Your table under
 // floodlights with the real season's zones; your match lands first and the
@@ -53,7 +55,7 @@ import { FLOODLIT } from '@/lib/appearance'
 // screen: seed first, then rotation and availability, then the result, then
 // scorers attributed once and stored on the fixture.
 
-const roles = ROLES[FLOODLIT]
+const roles = ROLES[EVERYDAY]
 
 type Speed = 'slow' | 'normal' | 'fast'
 const SPEED_MS: Record<Speed, number> = { slow: 2000, normal: 400, fast: 100 }
@@ -172,7 +174,7 @@ export default function LeagueSeason() {
     setSimTeams(teams)
     setAllFixtures(fixtures)
     // Drawn from the run's seed where there is one, so the same run draws the same cup.
-    cupRef.current = planCup(teams, Math.max(...fixtures.map(f => f.matchday)), predictionSeed ?? randomSeed(), placedLeague.leagueId)
+    cupRef.current = planCup(teams, Math.max(...fixtures.map(f => f.matchday)), predictionSeed ?? randomSeed(), nationalCupForLeague(placedLeague.leagueId), semisTwoLeggedForLeague(placedLeague.leagueId))
     setCup(cupRef.current)
     loadLeaguePools(placedLeague.teams, fullSquad, placedLeague.yearStart, useSubstitutes)
       .then(p => {
@@ -459,7 +461,7 @@ export default function LeagueSeason() {
 
   if (!formation || !placedLeague || draftedPlayers.length === 0) {
     return (
-      <KitScreen ground={FLOODLIT} scroll={false}>
+      <KitScreen ground={EVERYDAY} scroll={false}>
         <EmptyState roles={roles} title="No squad or draw found" body="This run lost its squad, usually after a reload. Start a new one." />
         <Plate label="Start a new run" roles={roles} onPress={() => router.replace('/game/mode-select')} />
       </KitScreen>
@@ -512,43 +514,8 @@ export default function LeagueSeason() {
       ] : [])
     )
   )
-  // P8-173: the cup, newest round first; your tie leads each round.
-  const isYourTie = (t: CupTie) => t.home.isPlayer || t.away.isPlayer
-  const tieRow = (t: CupTie, label: string) => {
-    const note = tieNote(t)
-    return (
-      <ResultRow key={`${label}-${t.home.clubId}-${t.away.clubId}`} roles={roles}
-        homeName={t.home.clubName} awayName={t.away.clubName} homeClubId={t.home.clubId} awayClubId={t.away.clubId}
-        homeGoals={t.homeGoals} awayGoals={t.awayGoals}
-        youSide={t.home.isPlayer ? 'home' : t.away.isPlayer ? 'away' : null}
-        round={[label, note].filter(Boolean).join(' · ').toUpperCase()}
-        neutral={label === 'Final'} />
-    )
-  }
-  const nextCupRound = cup?.rounds.find(r => !r.played)
-  const yourOut = cup?.rounds.find(r => r.played && r.ties.some(t => isYourTie(t) && !(t.winner === 'home' ? t.home : t.away).isPlayer))
-  const youHaveBye = !!cup && !cup.rounds[0].played && cup.rounds[0].byes.some(b => b.isPlayer)
-  const cupPane = cup ? (
-    <>
-      <KitText t="body" color={roles.textMuted} style={styles.pre}>
-        {cup.winner
-          ? `${cup.winner.isPlayer ? 'You won' : `${cup.winner.clubName} won`} the ${cup.name}.`
-          : yourOut ? `You went out in the ${yourOut.label.toLowerCase()}.`
-          : nextCupRound ? `${nextCupRound.label}: after matchday ${nextCupRound.afterMatchday}.${youHaveBye ? ` You have a bye to the ${cup.rounds[1]?.label.toLowerCase()}.` : ''}`
-          : ''}
-        {' The cup here is the top flight only, drawn open each round, one match with extra time and penalties.'}
-      </KitText>
-      {[...cup.rounds].filter(r => r.played).reverse().map(r => (
-        <View key={r.key} style={styles.cupRound}>
-          <SectionTag roles={roles}>{`${r.label} · after MD ${r.afterMatchday}`}</SectionTag>
-          {[...r.ties].sort((a, b) => Number(isYourTie(b)) - Number(isYourTie(a))).map(t => tieRow(t, r.label))}
-        </View>
-      ))}
-    </>
-  ) : null
-  // Your cup tie, when a round has just been played after the matchday on show.
-  const cupNow = cup?.rounds.find(r => r.played && r.afterMatchday === cardMD)
-  const yourCupTie = cupNow?.ties.find(isYourTie)
+  // P8-173: the cup (src/components/season/CupParts.tsx, shared with the full path).
+  const cupPane = cup ? <CupPane roles={roles} cup={cup} playerClubId={simTeams.find(t => t.isPlayer)?.clubId} /> : null
 
   const pressPane = (
     stories.length === 0 ? (
@@ -574,7 +541,7 @@ export default function LeagueSeason() {
   return (
     <ModeLookProvider look={lookFor(mode)}>
     <View style={[styles.fill, { backgroundColor: roles.bg }]}>
-      <KitScreen ground={FLOODLIT} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
+      <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
         {/* Web keys (10-ADAPT §2.3): Space/Enter play or pause, arrows scrub the strip. */}
         <WebKeys onKey={k => {
           if (k === ' ' || k === 'Enter') onPlate()
@@ -628,12 +595,7 @@ export default function LeagueSeason() {
             {poolsReady ? 'The table is in the pundits’ order until a ball is kicked.' : 'Loading the squads…'}
           </KitText>
         ) : null}
-        {cupNow && yourCupTie ? (
-          <View style={styles.cupNow}>
-            <SectionTag roles={roles}>{`${cup!.name} · ${cupNow.label}`}</SectionTag>
-            {tieRow(yourCupTie, cupNow.label)}
-          </View>
-        ) : null}
+        <CupNow roles={roles} cup={cup} md={cardMD} />
 
 
         {wide ? (
@@ -688,8 +650,6 @@ const styles = StyleSheet.create({
   close: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   live: { alignSelf: 'flex-start', borderWidth: border.thin, paddingHorizontal: space[2], minHeight: 32, justifyContent: 'center' },
   pre: { paddingVertical: space[3] },
-  cupRound: { marginTop: space[3], gap: space[1] },
-  cupNow: { marginTop: space[2], gap: space[1] },
   bar: { paddingHorizontal: space[4], paddingTop: space[1], gap: space[2], borderTopWidth: border.hair },
   barInner: { width: '100%', alignSelf: 'center', gap: space[2] },
   panes: { flexDirection: 'row', gap: space[5], alignItems: 'flex-start', marginTop: space[3] },

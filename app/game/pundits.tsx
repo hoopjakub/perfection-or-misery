@@ -3,7 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { forCompetition } from '@/data/competition'
 import { View, StyleSheet } from 'react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
+import { takePundits } from '@/lib/punditsHandoff'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated'
 import { useGameStore } from '@/store/gameStore'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
@@ -40,19 +41,26 @@ const ordinal = (n: number) => {
 
 export default function PunditsScreen() {
   const { mode, placedLeague, clTeams, wcTeams, predictionSeed, clYear, draftedPlayers, benchPlayers } = useGameStore()
-  useSimBackGuard(true)   // the draw already happened; there's nothing to go back and re-roll
+  // P8.5-15: the full path's domestic league, handed over by its own screen.
+  const params = useLocalSearchParams<{ field?: string }>()
+  const [field] = useState(() => (params.field ? takePundits() : null))
+  // The draw already happened; there's nothing to go back and re-roll. The
+  // full path's pre-season has nothing decided yet, so back simply returns.
+  useSimBackGuard(!field)
   const [seed] = useState(() => predictionSeed ?? randomSeed())
   const [lights, setLights] = useState(false)
 
   const teams: PredictionTeam[] | null =
-    isClassicEurope(mode) ? clTeams?.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })) ?? null
+    field ? field.teams
+    : isClassicEurope(mode) ? clTeams?.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })) ?? null
     : mode === 'world_cup' ? wcTeams?.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })) ?? null
     : placedLeague?.teams ?? null
   // P8-13: the pundits call the points, so they need how many matches each club
   // plays — eight in the league phase, three in a World Cup group, a double
   // round robin in a league.
   const matchesPerClub =
-    isClassicEurope(mode) ? compOfMode(mode)!.matchdays
+    field ? undefined
+    : isClassicEurope(mode) ? compOfMode(mode)!.matchdays
     : mode === 'world_cup' ? WC_GROUP_MATCHDAYS
     : undefined
   const pred = useMemo(() => (teams ? predictTable(teams, seed, undefined, matchesPerClub) : null), [teams, seed, matchesPerClub])
@@ -64,7 +72,7 @@ export default function PunditsScreen() {
   // draw of their own (the real one comes later). The result screen replays
   // exactly this one against what happened.
   const tournament = useMemo(() => {
-    if (!teams || (mode !== 'world_cup' && !isClassicEurope(mode))) return null
+    if (!teams || field || (mode !== 'world_cup' && !isClassicEurope(mode))) return null
     // The Conference League's pundits draw its six pots, one from each (P8-172).
     const comp = compOfMode(mode) ?? undefined
     const build = mode === 'world_cup' ? worldCupPunditTournament
@@ -79,7 +87,7 @@ export default function PunditsScreen() {
   useEffect(() => {
     if (!teams) return
     let alive = true
-    const yearStart = mode === 'world_cup' ? 2026 : isClassicEurope(mode) ? (clYear ?? 2025) : (placedLeague?.yearStart ?? 2025)
+    const yearStart = field ? field.yearStart : mode === 'world_cup' ? 2026 : isClassicEurope(mode) ? (clYear ?? 2025) : (placedLeague?.yearStart ?? 2025)
     loadLeaguePools(teams, [...draftedPlayers, ...benchPlayers], yearStart)
       .then(pools => {
         if (!alive) return
@@ -110,10 +118,10 @@ export default function PunditsScreen() {
   const viewPicks = pundit ? (players ? predictPlayers(players, pundit.picksSeed) : null) : picks
   const place = view.player?.predicted ?? pred.player.predicted
   // How a panellist's place reads: a round in a cup, a place in a league.
-  const callFor = (at: number) => mode === 'world_cup' ? predictWorldCupRound(at).label
-    : isClassicEurope(mode) ? predictChampionsLeagueRound(at).label : ordinal(at)
-  const round = mode === 'world_cup' ? predictWorldCupRound(place)
-    : isClassicEurope(mode) ? predictChampionsLeagueRound(place) : null
+  // The full path's field is a league: a place, never a round.
+  const cup = !field && (mode === 'world_cup' || isClassicEurope(mode))
+  const callFor = (at: number) => !cup ? ordinal(at) : mode === 'world_cup' ? predictWorldCupRound(at).label : predictChampionsLeagueRound(at).label
+  const round = !cup ? null : mode === 'world_cup' ? predictWorldCupRound(place) : predictChampionsLeagueRound(place)
   const who_ = pundit ? pundit.name.split(' ')[0] : 'The pundits'
   const headline = round
     ? `${who_} ${pundit ? 'says' : 'say'} ${round.label.toLowerCase()}`
@@ -126,11 +134,14 @@ export default function PunditsScreen() {
     : view.table
 
   function start() {
-    useGameStore.setState({ predictionSeed: seed, punditPicks: picks })
+    // The full path keeps its domestic prediction to itself: the run's
+    // predictionSeed is checked against the league phase's field at the end.
+    if (!field) useGameStore.setState({ predictionSeed: seed, punditPicks: picks })
     setLights(true)
   }
 
   function afterLights() {
+    if (field) { field.onStart(seed); router.back(); return }
     router.replace(isClassicEurope(mode) || mode === 'world_cup' ? '/game/simulation' : '/game/simulation?start=1')
   }
 
@@ -191,7 +202,7 @@ export default function PunditsScreen() {
         {viewPicks && (
           <>
             <SectionTag roles={roles}>Their picks</SectionTag>
-            {([[forCompetition('Player of the season', mode), viewPicks.pots], ['Top scorer', viewPicks.topScorer], ['Best under-21', viewPicks.bestU21]] as const)
+            {([[forCompetition('Player of the season', field ? null : mode), viewPicks.pots], ['Top scorer', viewPicks.topScorer], ['Best under-21', viewPicks.bestU21]] as const)
               .filter(([, p]) => !!p)
               .map(([label, p]) => (
                 <View key={label} style={styles.pickRow}>
@@ -215,7 +226,7 @@ export default function PunditsScreen() {
         {/* P8-40: the dare sat unfocused above the button. It IS the button now —
             what you press to start is the answer to the pundits. */}
         <Plate label="Prove them wrong" icon="forward" roles={roles} onPress={start} style={[styles.plate, styles.dare]}
-          accessibilityHint={forCompetition('Starts the season', mode)} />
+          accessibilityHint={forCompetition('Starts the season', field ? null : mode)} />
       </KitScreen>
       {lights && <LightsOn colourway={colourwayFor(mode)} onDone={afterLights} />}
     </View>

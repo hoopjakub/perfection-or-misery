@@ -1,6 +1,6 @@
 # 06 · Cups for every nation
 
-> Part of [the Europe research](00-README.md). Status: **research and plan**, 29 September 2026. Nothing here is built. Companion: [`04-DOMESTIC-CUPS.md`](04-DOMESTIC-CUPS.md) (the rules), [`05-THE-FULL-PATH.md`](05-THE-FULL-PATH.md) (where every cup is played today).
+> Part of [the Europe research](00-README.md). Status: **as built** (steps 1 to 4), 1 October 2026; researched 29 September. Not built: seeds and sheets for cup matches (§4.2 item 5). The two-legged semi-finals are the four cups checked for 2025–26: the Copa del Rey, the Coppa Italia, the Taça de Portugal and the Belgian Cup (`semisTwoLegged`, `src/data/national-cups.ts`). Companion: [`04-DOMESTIC-CUPS.md`](04-DOMESTIC-CUPS.md) (the rules), [`05-THE-FULL-PATH.md`](05-THE-FULL-PATH.md) (where every cup is played today).
 
 The maintainer, 29 September: "for domestic cups making them for all nations. Not just the top 5." Today there are two kinds of cup in the game. A league run plays its league's cup, and there are five leagues. The full path plays every association's cup to find the cup winners the access lists need, but only keeps the winner, calls most of them "the Latvia cup", and never shows one. This document is what "every nation" takes.
 

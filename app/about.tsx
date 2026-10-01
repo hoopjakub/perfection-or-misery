@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Loader } from '@/components/kit'
 import { KitScreen, KitText, SectionTag, BackControl, Plate, RoundFlag } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native'
+import { View, Text, StyleSheet, Pressable, Linking, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { router } from 'expo-router'
 import { VersionButton } from '@/components/VersionButton'
 import { useGameStore } from '@/store/gameStore'
@@ -23,6 +23,34 @@ const roles = ROLES[EVERYDAY]
 const DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1'
 
 
+// P8.5-34: the globe and the scroll share the UI thread, and the maintainer's
+// phone lagged scrolling this page. The globe holds still while the page
+// moves, and stays still once it's scrolled out of sight (its bottom edge is
+// about 260 points down the page). Drag and momentum both count: a fling
+// keeps scrolling after the finger lifts. The web scrolls by wheel without
+// these events, so the globe there simply keeps turning.
+const GLOBE_GONE_AT = 260
+function useGlobePause() {
+  const [scrolling, setScrolling] = useState(false)
+  const [gone, setGone] = useState(false)
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ended = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setGone(e.nativeEvent.contentOffset.y > GLOBE_GONE_AT)
+    setScrolling(false)
+  }
+  const scrollProps = {
+    onScrollBeginDrag: () => { if (settle.current) clearTimeout(settle.current); setScrolling(true) },
+    // A momentum phase may follow the drag; give it a moment to start.
+    onScrollEndDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const ev = { nativeEvent: { contentOffset: { y: e.nativeEvent.contentOffset.y } } } as NativeSyntheticEvent<NativeScrollEvent>
+      settle.current = setTimeout(() => ended(ev), 120)
+    },
+    onMomentumScrollBegin: () => { if (settle.current) clearTimeout(settle.current); setScrolling(true) },
+    onMomentumScrollEnd: ended,
+  }
+  return { paused: scrolling || gone, scrollProps }
+}
+
 type Family = 'league' | 'champions_league' | 'custom_ucl' | 'world_cup' | 'test_final'
 const TESTER_FAMILIES: [Family, string][] = [['league', 'League'], ['champions_league', 'UCL'], ['custom_ucl', 'UCL full'], ['world_cup', 'WC']]
 
@@ -30,6 +58,7 @@ export default function AboutScreen() {
   const [taps, setTaps] = useState(0)
   const [showTester, setShowTester] = useState(false)
   const [busy, setBusy] = useState(false)
+  const globe = useGlobePause()
 
   // P8-73: the tester is behind "Made in Slovakia" now; the version is a real
   // button (it opens the version history), so it can't be the secret door too.
@@ -83,14 +112,14 @@ export default function AboutScreen() {
   }
 
   return (
-    <KitScreen ground={EVERYDAY}>
+    <KitScreen ground={EVERYDAY} {...globe.scrollProps}>
       <PageMeta title="About" path="/about" />
       <BackControl roles={roles} />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>ABOUT</KitText>
 
       {/* The globe is always spinning, Slovakia always lit up. */}
       <View style={styles.hero}>
-        <SpinningGlobe accent={roles.text} size={180} />
+        <SpinningGlobe accent={roles.text} size={180} paused={globe.paused} />
         {/* Eight taps here open the Quick Sim Tester, in dev builds only. */}
         <Pressable onPress={tapMadeIn} style={styles.madeIn} accessibilityRole="text">
           <KitText t="title" color={roles.text}>Made in Slovakia</KitText>

@@ -4,6 +4,11 @@ import { View, StyleSheet } from 'react-native'
 import { ScaleText as Text } from '@/components/kit'
 import { colors, spacing, typography, prim, font } from '@/theme'
 import type { PenKick } from '@/engine/knockout-match'
+import { ROLES } from '@/theme'
+import { EVERYDAY } from '@/lib/appearance'
+
+// The page's ground (1 Oct: result screens follow light and dark too).
+const GR = ROLES[EVERYDAY]
 
 // Renders a stored penalty shootout (kicker name + ✅/❌) for the result screens.
 export function PenShootout({ teamA, teamB, kicksA, kicksB, reveal }: {
@@ -42,10 +47,10 @@ export function PenShootout({ teamA, teamB, kicksA, kicksB, reveal }: {
 
 const styles = StyleSheet.create({
   box:    { borderTopWidth: 1, borderTopColor: prim.ruleNylon, marginTop: spacing.sm, paddingTop: spacing.sm, gap: 2 },
-  title:  { fontSize: typography.xs, color: prim.cottonMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 2 },
+  title:  { fontSize: typography.xs, color: GR.textMuted, fontFamily: font.bodyBold, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 2 },
   header: { flexDirection: 'row', alignItems: 'center' },
-  team:   { flex: 1, fontSize: 10, color: prim.cottonMuted, fontFamily: font.bodyBold },
+  team:   { flex: 1, fontSize: 10, color: GR.textMuted, fontFamily: font.bodyBold },
   row:    { flexDirection: 'row', alignItems: 'center' },
-  name:   { flex: 1, fontSize: typography.xs, color: prim.cotton },
-  num:    { width: 18, textAlign: 'center', fontSize: 9, color: prim.cottonMuted },
+  name:   { flex: 1, fontSize: typography.xs, color: GR.text },
+  num:    { width: 18, textAlign: 'center', fontSize: 9, color: GR.textMuted },
 })

@@ -1,12 +1,14 @@
 // P8.5-25 · Dark mode and light mode (decided 1 Oct 2026: "all screens follow
-// them", except the floodlit moments, which stay dark in both).
+// them").
 //
 // Two grounds, as before (DESIGN.md): cotton (light) and nylon (dark). What
 // changed is who picks. A screen no longer names cotton for "everyday"; it asks
-// for EVERYDAY, which is cotton in light mode and nylon in dark mode. The
-// floodlit moments (the live match, the draw's reveal, the verdict, the
-// ceremonies) ask for FLOODLIT, nylon in both, because the lights going on is
-// part of their story.
+// for EVERYDAY, which is cotton in light mode and nylon in dark mode. FLOODLIT,
+// nylon in both, is left for what is drawn as a place rather than a page: the
+// live match's pitch, the trophy ceremony's stage, the pundits' season-start
+// overlay, and the match sheet until it's rebuilt on the Kit. (First cut, same
+// morning: the simulation, the reveal, the results and Awards Night stayed
+// floodlit too. After the playtest the maintainer had them follow.)
 //
 // WHY a value read once at start-up rather than a hook: 57 files fix their
 // ground at module level (`const roles = ROLES.cotton`) and feed it to static
@@ -29,7 +31,7 @@ function resolve(choice: AppearanceChoice): Ground {
 /** The ground of every everyday screen: cotton in light mode, nylon in dark. */
 export const EVERYDAY: Ground = resolve(useSettingsStore.getState().appearance)
 
-/** The floodlit moments' ground: nylon whatever the mode. */
+/** The floodlit places' ground (the pitch, the ceremony): nylon whatever the mode. */
 export const FLOODLIT: Ground = 'nylon'
 
 /** True when a new choice would change the ground this launch is drawn in. */
