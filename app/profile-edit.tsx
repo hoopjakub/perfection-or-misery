@@ -1,26 +1,35 @@
 import React, { useEffect, useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { KitScreen, KitText, SectionTag, BackControl, Plate, Field, Chips, Toggle, ListRow, ClubName, StripedNotice, Loader, RunLabel, Swatches, crestHex } from '@/components/kit'
+import { KitScreen, KitText, SectionTag, BackControl, Plate, Field, Chips, Toggle, ListRow, ClubName, StripedNotice, Loader, RunLabel, ColourField, crestHex, IdTag } from '@/components/kit'
 import { CREST_COLOURS, type SideColours } from '@/lib/yourCrest'
 import { useCrestStore } from '@/store/crestStore'
 import { PageMeta } from '@/components/PageMeta'
-import { Avatar, LookBand, LOOK_COLOURS, LOOK_EFFECTS } from '@/components/profile/ProfileParts'
+import { ProfileCard, LOOK_COLOURS, LOOK_EFFECTS } from '@/components/profile/ProfileParts'
 import {
   fetchOwnDetails, saveProfile, pickAvatar, uploadAvatar, searchTeams, earnedTrophies, EMPTY_DETAILS, fetchCrest, saveSideColours,
-  type ProfileDetails, type ProfileLook, type LookEffect,
+  fetchPin, savePin, DEFAULT_PIN, type Pin,
+  pickBanner, uploadBanner, AVATAR_FRAMES, LOOK_LIMITS,
+  type ProfileDetails, type ProfileLook, type LookEffect, type AvatarFrame, type BannerKind,
 } from '@/db/queries/profile'
 import { fetchRunHistory, fetchAchievementRuns, type RunHistoryEntry } from '@/db/queries/leaderboard'
 import { formatTier, runMeta, verdictOf } from '@/data/tiers'
 import { useUserStore } from '@/store/userStore'
-import { ROLES, space, border, colourwayFor } from '@/theme'
+import { ROLES, space, border, colourwayFor, choiceHex } from '@/theme'
 
 // P8-88: shaping your profile — your picture, the team you support and your
 // favourite player, the look of the page, what others may see, and the runs
 // and trophies you put on show. Saved in one go.
+//
+// P8-178 (the maintainer: "tenfold… on the level of Discord customisation"):
+// your card at the top, live, as others will see it; then a frame for your
+// picture, a banner (a colour, a gradient or a picture), a profile theme of two
+// colours that tints the whole card, your status, pronouns and an about-me.
+// Every colour is any colour (P8-177's picker), the palette's as quick picks.
 const roles = ROLES.cotton
 const MAX_PINS = 3
 const SIDE_SWATCHES = CREST_COLOURS.map(c => ({ ...c, hex: crestHex(c.id) }))
+const BANNER_KINDS: { id: BannerKind; label: string }[] = [{ id: 'colour', label: 'Colour' }, { id: 'gradient', label: 'Gradient' }, { id: 'picture', label: 'Picture' }]
 const PAGE = 8
 
 export default function ProfileEditScreen() {
@@ -43,7 +52,12 @@ export default function ProfileEditScreen() {
   const [note, setNote] = useState<string | null>(null)
   // P8-142: your club's colours, kept with the crest on the look row.
   const [sideColours, setSideColours] = useState<SideColours>({ main: 'orange', second: 'ink' })
-  const [coloursNeedDb, setColoursNeedDb] = useState(false)
+  // The migrations a save found missing: what's in them waits, the rest is saved.
+  const [waiting, setWaiting] = useState<string[]>([])
+  // P8-168: your pin and your letters.
+  const [pin, setPin] = useState<Pin>(DEFAULT_PIN)
+  // P8-178: whether supabase/profile-plus.sql has run (banner, theme, frame, about).
+  const [plusReady, setPlusReady] = useState(true)
 
   useEffect(() => {
     if (!uid) return
@@ -55,9 +69,10 @@ export default function ProfileEditScreen() {
         setRuns(history)
         setTrophies(earnedTrophies(achRuns))
         if (!own) { setReady('needs-db'); return }
-        setDetails(own.details); setLook(own.look); setAvatarPath(own.avatarPath)
-        const crest = await fetchCrest(uid)
+        setDetails(own.details); setLook(own.look); setAvatarPath(own.avatarPath); setPlusReady(own.plus)
+        const [crest, ownPin] = await Promise.all([fetchCrest(uid), fetchPin(uid)])
         if (active && crest?.colours) setSideColours(crest.colours)
+        if (active && ownPin) setPin(ownPin)
         setReady('ok')
       } catch (e) {
         console.warn('[profile-edit] load failed:', e)
@@ -95,17 +110,42 @@ export default function ProfileEditScreen() {
     }
   }
 
+  async function changeBanner() {
+    if (!uid) return
+    try {
+      const jpeg = await pickBanner()
+      if (!jpeg) return
+      const path = await uploadBanner(uid, jpeg, look.banner?.path ?? null)
+      setLook(l => ({ ...l, banner: { kind: 'picture', from: l.banner?.from ?? choiceHex(l.colour), to: l.banner?.to ?? choiceHex(l.colour), path } }))
+    } catch (e) {
+      console.warn('[profile-edit] banner failed:', e)
+      setNote("The banner couldn't be uploaded.")
+    }
+  }
+  // The banner's colours, starting from the look's colour when there's no banner yet.
+  const bannerFrom = look.banner?.from ?? choiceHex(LOOK_COLOURS.find(c => c.id === look.colour)?.hex ?? look.colour)
+  const setBanner = (patch: Partial<NonNullable<ProfileLook['banner']>>) =>
+    setLook(l => {
+      const b = { kind: 'colour' as BannerKind, from: bannerFrom, to: l.banner?.to ?? bannerFrom, path: l.banner?.path ?? null, ...l.banner, ...patch }
+      // The plain colour also goes in the look's own colour, which every build reads.
+      return { ...l, banner: b, colour: b.from }
+    })
+
   async function save() {
     if (!uid) return
     setSaving(true)
     try {
-      await saveProfile(uid, details, look)
-      // The colours wait for supabase/side-colours.sql; the rest saves either way.
-      const saved = await saveSideColours(uid, sideColours)
+      const { plus } = await saveProfile(uid, details, look)
+      // The colours wait for supabase/side-colours.sql and the pin for
+      // supabase/pin.sql; the rest saves either way.
+      const [saved, pinSaved] = await Promise.all([saveSideColours(uid, sideColours), savePin(uid, pin)])
+      if (pinSaved) useCrestStore.getState().setPin({ hex: choiceHex(pin.colour) })
       const crestStore = useCrestStore.getState()
       if (saved) crestStore.setMine({ ...(crestStore.mine ?? { design: null, imagePath: null, everywhere: false }), colours: sideColours })
       useUserStore.getState().fetchProfile()
-      if (!saved) { setColoursNeedDb(true); return }
+      const wantsPlus = !!(look.banner && look.banner.kind !== 'colour') || !!look.theme || (look.frame ?? 'none') !== 'none' || !!look.status || !!look.pronouns || !!look.about
+      const missingSql = [...(saved ? [] : ['supabase/side-colours.sql']), ...(pinSaved ? [] : ['supabase/pin.sql']), ...(plus || !wantsPlus ? [] : ['supabase/profile-plus.sql'])]
+      if (missingSql.length) { setWaiting(missingSql); return }
       router.back()
     } catch (e) {
       console.warn('[profile-edit] save failed:', e)
@@ -134,11 +174,53 @@ export default function ProfileEditScreen() {
 
       {ready === 'ok' && (
         <>
+          {/* P8-178: your card, live, as others see it on your profile. */}
+          <ProfileCard roles={roles} name={name} avatarPath={avatarPath} look={look}
+            badgeTeamId={details.show_favourites ? details.favourite_team_id : null} badgeTeamName={details.show_favourites ? details.favourite_team_name : null} />
+          {!plusReady && (
+            <StripedNotice roles={roles}>The banner's gradient and picture, the theme, the frame and the about-me need supabase/profile-plus.sql run first; a plain colour works already.</StripedNotice>
+          )}
+
           <SectionTag roles={roles}>Picture</SectionTag>
-          <View style={styles.row}>
-            <Avatar roles={roles} path={avatarPath} name={name} size={64} />
-            <Plate label="Change picture" variant="secondary" roles={roles} onPress={changePicture} />
-          </View>
+          <Plate label="Change picture" variant="secondary" roles={roles} onPress={changePicture} />
+          <Chips<AvatarFrame> roles={roles} label="Frame" options={AVATAR_FRAMES} value={look.frame ?? 'none'} onChange={f => setLook(l => ({ ...l, frame: f }))} />
+
+          <SectionTag roles={roles}>Banner</SectionTag>
+          <Chips<BannerKind> roles={roles} options={BANNER_KINDS} value={look.banner?.kind ?? 'colour'}
+            onChange={k => (k === 'picture' && !look.banner?.path ? changeBanner() : setBanner({ kind: k }))} />
+          {(look.banner?.kind ?? 'colour') !== 'picture' ? (
+            <>
+              <ColourField roles={roles} label={look.banner?.kind === 'gradient' ? 'From' : 'Colour'} quick={LOOK_COLOURS} value={bannerFrom} onChange={h => setBanner({ from: h })} />
+              {look.banner?.kind === 'gradient' && (
+                <ColourField roles={roles} label="To" quick={LOOK_COLOURS} value={look.banner.to} onChange={h => setBanner({ to: h })} />
+              )}
+            </>
+          ) : (
+            <Plate label="Choose another picture" variant="quiet" roles={roles} onPress={changeBanner} />
+          )}
+          <Chips<LookEffect> roles={roles} label="Trim" options={LOOK_EFFECTS} value={look.effect} onChange={e => setLook(l => ({ ...l, effect: e }))} />
+
+          <SectionTag roles={roles}>Profile theme</SectionTag>
+          <ListRow roles={roles} label="Tint your whole card" sub="Two colours, top to bottom, behind everything on it"
+            trailing={<Toggle roles={roles} label="Profile theme" value={!!look.theme}
+              onChange={v => setLook(l => ({ ...l, theme: v ? { primary: '#141416', accent: '#ff5a00' } : null }))} />} />
+          {look.theme && (
+            <>
+              <ColourField roles={roles} label="Top" quick={LOOK_COLOURS} value={look.theme.primary} onChange={h => setLook(l => ({ ...l, theme: { ...l.theme!, primary: h } }))} />
+              <ColourField roles={roles} label="Bottom" quick={LOOK_COLOURS} value={look.theme.accent} onChange={h => setLook(l => ({ ...l, theme: { ...l.theme!, accent: h } }))} />
+            </>
+          )}
+
+          <SectionTag roles={roles}>About you</SectionTag>
+          <Field roles={roles} label={`Status · ${(look.status ?? '').length}/${LOOK_LIMITS.status}`} value={look.status ?? ''} maxLength={LOOK_LIMITS.status}
+            onChangeText={v => setLook(l => ({ ...l, status: v }))} />
+          <Field roles={roles} label={`Pronouns · ${(look.pronouns ?? '').length}/${LOOK_LIMITS.pronouns}`} value={look.pronouns ?? ''} maxLength={LOOK_LIMITS.pronouns}
+            onChangeText={v => setLook(l => ({ ...l, pronouns: v }))} />
+          <Field roles={roles} label={`About me · ${(look.about ?? '').length}/${LOOK_LIMITS.about}`} value={look.about ?? ''} maxLength={LOOK_LIMITS.about}
+            multiline onChangeText={v => setLook(l => ({ ...l, about: v }))} />
+          {waiting.includes('supabase/profile-plus.sql') && (
+            <StripedNotice roles={roles}>Everything else is saved. The banner, theme, frame and about-me need supabase/profile-plus.sql run first, then save again.</StripedNotice>
+          )}
 
           <SectionTag roles={roles}>Favourite team</SectionTag>
           {details.favourite_team_id && details.favourite_team_name ? (
@@ -161,18 +243,23 @@ export default function ProfileEditScreen() {
           {/* P8-142: your club's colours, on your side wherever a club's colours show. */}
           <SectionTag roles={roles}>Your club's colours</SectionTag>
           <KitText t="body" color={roles.textMuted}>Your side wears these on the match sheet, the momentum graph and the feed, in place of the club it took over.</KitText>
-          <Swatches roles={roles} label="Main" options={SIDE_SWATCHES} value={sideColours.main} onChange={v => setSideColours(c => ({ ...c, main: v }))} />
-          <Swatches roles={roles} label="Second" options={SIDE_SWATCHES} value={sideColours.second} onChange={v => setSideColours(c => ({ ...c, second: v }))} />
-          {coloursNeedDb && (
+          <ColourField roles={roles} label="Main" quick={SIDE_SWATCHES} value={sideColours.main} onChange={v => setSideColours(c => ({ ...c, main: v }))} />
+          <ColourField roles={roles} label="Second" quick={SIDE_SWATCHES} value={sideColours.second} onChange={v => setSideColours(c => ({ ...c, second: v }))} />
+          {waiting.includes('supabase/side-colours.sql') && (
             <StripedNotice roles={roles}>Everything else is saved. Your club's colours need the database set up first: run supabase/side-colours.sql, then save again.</StripedNotice>
+          )}
+          {/* P8-168: the pin on your ID tag (its letters are your club's tag now, P8-181). */}
+          <SectionTag roles={roles}>Your pin</SectionTag>
+          <IdTag roles={roles} name={name} state="REG" detail="AS YOUR TAG WILL LOOK" pin={{ hex: crestHex(pin.colour) }}
+            tag={profile?.club_tag ? { text: profile.club_tag, colour: crestHex(pin.colour) } : null} />
+          <ColourField roles={roles} label="Pin" quick={SIDE_SWATCHES} value={pin.colour} onChange={v => setPin(p => ({ ...p, colour: v }))} />
+          <KitText t="body" color={roles.textMuted}>The letters on your tag are your club's. Join one, or start one, in Clubs.</KitText>
+          {waiting.includes('supabase/pin.sql') && (
+            <StripedNotice roles={roles}>Everything else is saved. Your pin needs the database set up first: run supabase/pin.sql, then save again.</StripedNotice>
           )}
           {/* P8-132: your own crest has its own editor. */}
           <SectionTag roles={roles}>Your crest</SectionTag>
           <ListRow roles={roles} label="Make your crest" sub="A crest of your own on the side you field" onPress={() => router.push('/crest-edit')} />
-          <SectionTag roles={roles}>The look</SectionTag>
-          <LookBand roles={roles} colour={look.colour} effect={look.effect} />
-          <Chips roles={roles} label="Colour" options={LOOK_COLOURS.map(c => ({ id: c.id, label: c.label }))} value={look.colour} onChange={c => setLook(l => ({ ...l, colour: c }))} />
-          <Chips<LookEffect> roles={roles} label="Trim" options={LOOK_EFFECTS} value={look.effect} onChange={e => setLook(l => ({ ...l, effect: e }))} />
 
           <SectionTag roles={roles}>{`Pinned runs · up to ${MAX_PINS}`}</SectionTag>
           {runs.length === 0 ? <KitText t="body" color={roles.textMuted}>No saved runs yet.</KitText> : (

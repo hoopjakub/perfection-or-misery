@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { KitScreen, KitText, SectionTag, BackControl, Plate, Tag, ClubName, RunLabel, InlineError, EmptyState } from '@/components/kit'
+import { KitScreen, KitText, SectionTag, BackControl, Plate, Tag, ClubName, RunLabel, InlineError, EmptyState, ListRow } from '@/components/kit'
+import { fetchClubOf, type Club } from '@/db/queries/clubs'
 import { PageMeta } from '@/components/PageMeta'
-import { PlayerName, LookBand, SeasonBadgeCard } from '@/components/profile/ProfileParts'
-import { fetchPublicProfile, fetchRunsByIds, formatPlaytime, trophyLabel, type PublicProfile } from '@/db/queries/profile'
+import { ProfileCard, SeasonBadgeCard } from '@/components/profile/ProfileParts'
+import { fetchPublicProfile, fetchRunsByIds, formatPlaytime, trophyLabel, readLook, type PublicProfile } from '@/db/queries/profile'
 import { fetchMyPlace, fetchUserStats, fetchSeasonBadges, type UserStats, type SeasonBadge } from '@/db/queries/leaderboard'
 import { formatTier, verdictOf, runMeta } from '@/data/tiers'
 import { ordinal } from '@/lib/format'
@@ -28,6 +29,7 @@ export default function ProfileScreen() {
   const [place, setPlace] = useState<number | null>(null)
   const [pins, setPins] = useState<any[]>([])
   const [badges, setBadges] = useState<SeasonBadge[]>([])
+  const [club, setClub] = useState<Club | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'failed' | 'missing'>('loading')
   const [attempt, setAttempt] = useState(0)
 
@@ -40,14 +42,15 @@ export default function ProfileScreen() {
         if (!p) { setState('missing'); return }
         setProfile(p)
         setState('ready')
-        const [s, rank, runs, seasons] = await Promise.all([
+        const [s, rank, runs, seasons, clubOf] = await Promise.all([
           fetchUserStats(id).catch(() => null),
           fetchMyPlace(id, {}).catch(() => null),
           fetchRunsByIds(p.pinned_run_ids ?? []).catch(() => []),
           fetchSeasonBadges(id).catch(e => { console.warn('[profile] season badges failed:', e); return [] }),
+          fetchClubOf(id).catch(() => null),
         ])
         if (!active) return
-        setStats(s); setPlace(rank?.place ?? null); setPins(runs); setBadges(seasons)
+        setStats(s); setPlace(rank?.place ?? null); setPins(runs); setBadges(seasons); setClub(clubOf)
       } catch (e) {
         console.warn('[profile] load failed:', e)
         if (active) setState('failed')
@@ -71,9 +74,13 @@ export default function ProfileScreen() {
         <EmptyState roles={roles} title="No such player" body="This profile doesn't exist, or the account was deleted." />
       ) : (
         <>
-          <LookBand roles={roles} colour={profile.colour} effect={profile.effect} />
-          <PlayerName roles={roles} name={name} avatarPath={profile.avatar_path} size={64}
-            badgeTeamId={profile.badge_team_id} badgeTeamName={profile.badge_team_name} style={styles.name} />
+          {/* P8-178: the player's card, Discord's way: banner, framed picture,
+              name and badge, pronouns, status and about-me, on their own theme. */}
+          <ProfileCard roles={roles} name={name} avatarPath={profile.avatar_path} look={readLook(profile)}
+            badgeTeamId={profile.badge_team_id} badgeTeamName={profile.badge_team_name} tag={club?.tag} />
+          {club ? (
+            <ListRow roles={roles} label={club.name} sub={`Their club · ${club.tag}`} onPress={() => router.push({ pathname: '/club/[id]', params: { id: club.id } })} />
+          ) : null}
           {own && (
             <View style={styles.actions}>
               <Plate label="Edit your profile" variant="secondary" roles={roles} onPress={() => router.push('/profile-edit')} />
@@ -182,7 +189,6 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   top: { marginTop: space[4] },
-  name: { marginTop: space[3], marginBottom: space[2] },
   record: { flexDirection: 'row', flexWrap: 'wrap', gap: space[5], marginBottom: space[2] },
   fact: { gap: 2, minWidth: 80 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space[3], marginBottom: space[2] },

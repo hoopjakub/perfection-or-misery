@@ -4,9 +4,10 @@ import { flagImageOf } from '@/lib/flags'
 import { useCrestStore } from '@/store/crestStore'
 import { getFlag } from '@/lib/flagMap'
 import { clubCode } from '@/data/club-codes'
+import { ratio } from '@/lib/contrast'
 import React from 'react'
 import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle, Image } from 'react-native'
-import { type Roles, space, border, OFFSET } from '@/theme'
+import { type Roles, space, border, OFFSET, prim } from '@/theme'
 import { KitText, Stripe, Tape, Rivets, ZipTag, Icon, Crest, YourCrest } from './primitives'
 
 // ── Tag ──────────────────────────────────────────────────────────────────────
@@ -190,7 +191,7 @@ export function Wordmark({ roles, size = 'superL' }: { roles: Roles; size?: 'sup
 
 // ── IdTag ────────────────────────────────────────────────────────────────────
 // The player as a garment ID tag, not a profile card.
-export function IdTag({ roles, name, state, detail, mark, badge }: {
+export function IdTag({ roles, name, state, detail, mark, badge, pin, tag }: {
   roles: Roles
   name: string
   state: 'REG' | 'GUEST'
@@ -200,7 +201,12 @@ export function IdTag({ roles, name, state, detail, mark, badge }: {
   mark?: React.ReactNode
   /** The favourite team's badge, beside the name. */
   badge?: React.ReactNode
+  /** P8-168: your pin's colour. */
+  pin?: { hex: string }
+  /** P8-181: your club's tag. No club, no tag (there's no REG any more). */
+  tag?: { text: string; colour: string } | null
 }) {
+  const tagInk = tag ? (ratio(prim.ink, tag.colour) >= ratio(prim.cotton, tag.colour) ? prim.ink : prim.cotton) : prim.ink
   return (
     <View style={[styles.idTag, { borderColor: roles.line, backgroundColor: roles.surface }]}
       accessible accessibilityLabel={`${name}, ${state === 'REG' ? 'registered' : 'guest'}${detail ? `, ${detail}` : ''}`}>
@@ -214,11 +220,13 @@ export function IdTag({ roles, name, state, detail, mark, badge }: {
           <KitText t="tag" color={roles.textMuted}>ID</KitText>
           <KitText t="title" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{name}</KitText>
           {badge}
-          <Tag roles={roles} variant={state === 'REG' ? 'selected' : 'data'}>{state}</Tag>
+          {state === 'GUEST' ? <Tag roles={roles}>GUEST</Tag>
+            : tag ? <View style={[styles.idClub, { backgroundColor: tag.colour, borderColor: roles.line }]}><KitText t="tag" color={tagInk}>{tag.text}</KitText></View>
+            : null}
         </View>
         {detail ? <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{detail}</KitText> : null}
       </View>
-      {state === 'REG' && <ZipTag size={14} style={styles.idZip} />}
+      {state === 'REG' && <ZipTag size={14} style={styles.idZip} colour={pin?.hex} />}
     </View>
   )
 }
@@ -275,6 +283,7 @@ export function ClubTag({ roles, code, colour, you, eliminated }: {
 }
 
 const styles = StyleSheet.create({
+  idClub: { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1 },
   tagWrap: { flexDirection: 'row' },
   clubName: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexShrink: 1, minWidth: 0 },
   clubNameText: { flexShrink: 1 },

@@ -1,0 +1,695 @@
+{
+ "league": {
+  "id": "uecl_2025",
+  "name": "UEFA Conference League",
+  "country": "Europe",
+  "games_per_season": 6,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "acf_fiorentina_uecl",
+   "league_id": "uecl_2025",
+   "name": "ACF Fiorentina",
+   "short_name": "FIO",
+   "primary_color": "#61358B",
+   "secondary_color": "#DD3224",
+   "seasons": [
+    {
+     "id": "acf_fiorentina_uecl_2025",
+     "club_id": "acf_fiorentina_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "az_alkmaar_uecl",
+   "league_id": "uecl_2025",
+   "name": "AZ Alkmaar",
+   "short_name": "ALK",
+   "primary_color": "#DA0020",
+   "secondary_color": "#1A161A",
+   "seasons": [
+    {
+     "id": "az_alkmaar_uecl_2025",
+     "club_id": "az_alkmaar_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "shakhtar_donetsk_uecl",
+   "league_id": "uecl_2025",
+   "name": "Shakhtar Donetsk",
+   "short_name": "SHA",
+   "primary_color": "#EB6A0A",
+   "secondary_color": "#D0D0D0",
+   "seasons": [
+    {
+     "id": "shakhtar_donetsk_uecl_2025",
+     "club_id": "shakhtar_donetsk_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "slovan_bratislava_uecl",
+   "league_id": "uecl_2025",
+   "name": "Slovan Bratislava",
+   "short_name": "BRA",
+   "primary_color": "#026291",
+   "secondary_color": "#E32219",
+   "seasons": [
+    {
+     "id": "slovan_bratislava_uecl_2025",
+     "club_id": "slovan_bratislava_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 74,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rapid_vienna_uecl",
+   "league_id": "uecl_2025",
+   "name": "Rapid Vienna",
+   "short_name": "VIE",
+   "primary_color": "#005081",
+   "secondary_color": "#FEEC00",
+   "seasons": [
+    {
+     "id": "rapid_vienna_uecl_2025",
+     "club_id": "rapid_vienna_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "legia_warszawa_uecl",
+   "league_id": "uecl_2025",
+   "name": "Legia Warszawa",
+   "short_name": "WAR",
+   "primary_color": "#00A553",
+   "secondary_color": "#ED1B23",
+   "seasons": [
+    {
+     "id": "legia_warszawa_uecl_2025",
+     "club_id": "legia_warszawa_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 71,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ac_sparta_prague_uecl",
+   "league_id": "uecl_2025",
+   "name": "AC Sparta Prague",
+   "short_name": "SPA",
+   "primary_color": "#1C1C1A",
+   "secondary_color": "#C91919",
+   "seasons": [
+    {
+     "id": "ac_sparta_prague_uecl_2025",
+     "club_id": "ac_sparta_prague_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "dynamo_kyiv_uecl",
+   "league_id": "uecl_2025",
+   "name": "Dynamo Kyiv",
+   "short_name": "DYN",
+   "primary_color": "#166EC2",
+   "secondary_color": "#E4AA24",
+   "seasons": [
+    {
+     "id": "dynamo_kyiv_uecl_2025",
+     "club_id": "dynamo_kyiv_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "crystal_palace_uecl",
+   "league_id": "uecl_2025",
+   "name": "Crystal Palace",
+   "short_name": "CRY",
+   "primary_color": "#1B458F",
+   "secondary_color": "#D2D0D1",
+   "seasons": [
+    {
+     "id": "crystal_palace_uecl_2025",
+     "club_id": "crystal_palace_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "lech_poznan_uecl",
+   "league_id": "uecl_2025",
+   "name": "Lech Poznan",
+   "short_name": "POZ",
+   "primary_color": "#024994",
+   "secondary_color": "#8DABCE",
+   "seasons": [
+    {
+     "id": "lech_poznan_uecl_2025",
+     "club_id": "lech_poznan_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rayo_vallecano_uecl",
+   "league_id": "uecl_2025",
+   "name": "Rayo Vallecano",
+   "short_name": "VAL",
+   "primary_color": "#E7B72B",
+   "secondary_color": "#FE332A",
+   "seasons": [
+    {
+     "id": "rayo_vallecano_uecl_2025",
+     "club_id": "rayo_vallecano_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "shamrock_rovers_uecl",
+   "league_id": "uecl_2025",
+   "name": "Shamrock Rovers",
+   "short_name": "SHA",
+   "primary_color": "#188E3C",
+   "secondary_color": "#CEE6D5",
+   "seasons": [
+    {
+     "id": "shamrock_rovers_uecl_2025",
+     "club_id": "shamrock_rovers_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 64,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "omonia_nicosia_uecl",
+   "league_id": "uecl_2025",
+   "name": "Omonia Nicosia",
+   "short_name": "NIC",
+   "primary_color": "#046F3C",
+   "secondary_color": "#E9FBF3",
+   "seasons": [
+    {
+     "id": "omonia_nicosia_uecl_2025",
+     "club_id": "omonia_nicosia_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 71,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "1_fsv_mainz_05_uecl",
+   "league_id": "uecl_2025",
+   "name": "1.FSV Mainz 05",
+   "short_name": "MAI",
+   "primary_color": "#C3141E",
+   "secondary_color": "#E9ACB0",
+   "seasons": [
+    {
+     "id": "1_fsv_mainz_05_uecl_2025",
+     "club_id": "1_fsv_mainz_05_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rc_strasbourg_alsace_uecl",
+   "league_id": "uecl_2025",
+   "name": "RC Strasbourg Alsace",
+   "short_name": "STR",
+   "primary_color": "#009FE2",
+   "secondary_color": "#DB2E33",
+   "seasons": [
+    {
+     "id": "rc_strasbourg_alsace_uecl_2025",
+     "club_id": "rc_strasbourg_alsace_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "jagiellonia_bialystok_uecl",
+   "league_id": "uecl_2025",
+   "name": "Jagiellonia Bialystok",
+   "short_name": "JAG",
+   "primary_color": "#D71921",
+   "secondary_color": "#FEF100",
+   "seasons": [
+    {
+     "id": "jagiellonia_bialystok_uecl_2025",
+     "club_id": "jagiellonia_bialystok_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "nk_celje_uecl",
+   "league_id": "uecl_2025",
+   "name": "NK Celje",
+   "short_name": "CEL",
+   "primary_color": "#031A5A",
+   "secondary_color": "#E9EEF3",
+   "seasons": [
+    {
+     "id": "nk_celje_uecl_2025",
+     "club_id": "nk_celje_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 68,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hnk_rijeka_uecl",
+   "league_id": "uecl_2025",
+   "name": "HNK Rijeka",
+   "short_name": "RIJ",
+   "primary_color": "#BE9F57",
+   "secondary_color": "#89C2EA",
+   "seasons": [
+    {
+     "id": "hnk_rijeka_uecl_2025",
+     "club_id": "hnk_rijeka_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 72,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hsk_zrinjski_mostar_uecl",
+   "league_id": "uecl_2025",
+   "name": "HSK Zrinjski Mostar",
+   "short_name": "ZRI",
+   "primary_color": "#2A57A5",
+   "secondary_color": "#EE3439",
+   "seasons": [
+    {
+     "id": "hsk_zrinjski_mostar_uecl_2025",
+     "club_id": "hsk_zrinjski_mostar_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 65,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "lincoln_red_imps_fc_uecl",
+   "league_id": "uecl_2025",
+   "name": "Lincoln Red Imps FC",
+   "short_name": "LIN",
+   "primary_color": "#BD0706",
+   "secondary_color": "#CE5050",
+   "seasons": [
+    {
+     "id": "lincoln_red_imps_fc_uecl_2025",
+     "club_id": "lincoln_red_imps_fc_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 60,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "kuopion_palloseura_uecl",
+   "league_id": "uecl_2025",
+   "name": "Kuopion Palloseura",
+   "short_name": "PAL",
+   "primary_color": "#F9CC01",
+   "secondary_color": "#171611",
+   "seasons": [
+    {
+     "id": "kuopion_palloseura_uecl_2025",
+     "club_id": "kuopion_palloseura_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 63,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "aek_athens_uecl",
+   "league_id": "uecl_2025",
+   "name": "AEK Athens",
+   "short_name": "ATH",
+   "primary_color": "#FBD10E",
+   "secondary_color": "#221E20",
+   "seasons": [
+    {
+     "id": "aek_athens_uecl_2025",
+     "club_id": "aek_athens_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "aberdeen_fc_uecl",
+   "league_id": "uecl_2025",
+   "name": "Aberdeen FC",
+   "short_name": "ABE",
+   "primary_color": "#ED1D24",
+   "secondary_color": "#F36D72",
+   "seasons": [
+    {
+     "id": "aberdeen_fc_uecl_2025",
+     "club_id": "aberdeen_fc_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 69,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_drita_uecl",
+   "league_id": "uecl_2025",
+   "name": "FC Drita",
+   "short_name": "DRI",
+   "primary_color": "#414194",
+   "secondary_color": "#AFAFD2",
+   "seasons": [
+    {
+     "id": "fc_drita_uecl_2025",
+     "club_id": "fc_drita_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 66,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "breidablik_kopavogur_uecl",
+   "league_id": "uecl_2025",
+   "name": "Breidablik Kópavogur",
+   "short_name": "BRE",
+   "primary_color": "#005B53",
+   "secondary_color": "#EC4801",
+   "seasons": [
+    {
+     "id": "breidablik_kopavogur_uecl_2025",
+     "club_id": "breidablik_kopavogur_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 61,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sk_sigma_olomouc_uecl",
+   "league_id": "uecl_2025",
+   "name": "SK Sigma Olomouc",
+   "short_name": "OLO",
+   "primary_color": "#005B9E",
+   "secondary_color": "#4D88B9",
+   "seasons": [
+    {
+     "id": "sk_sigma_olomouc_uecl_2025",
+     "club_id": "sk_sigma_olomouc_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 69,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "samsunspor_uecl",
+   "league_id": "uecl_2025",
+   "name": "Samsunspor",
+   "short_name": "SAM",
+   "primary_color": "#C70A0C",
+   "secondary_color": "#EDB3B4",
+   "seasons": [
+    {
+     "id": "samsunspor_uecl_2025",
+     "club_id": "samsunspor_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rakow_czestochowa_uecl",
+   "league_id": "uecl_2025",
+   "name": "Raków Częstochowa",
+   "short_name": "CZS",
+   "primary_color": "#0346AB",
+   "secondary_color": "#F00010",
+   "seasons": [
+    {
+     "id": "rakow_czestochowa_uecl_2025",
+     "club_id": "rakow_czestochowa_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "aek_larnaca_uecl",
+   "league_id": "uecl_2025",
+   "name": "AEK Larnaca",
+   "short_name": "LAR",
+   "primary_color": "#FCE100",
+   "secondary_color": "#008741",
+   "seasons": [
+    {
+     "id": "aek_larnaca_uecl_2025",
+     "club_id": "aek_larnaca_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 70,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "shkendija_tetovo_uecl",
+   "league_id": "uecl_2025",
+   "name": "Shkendija Tetovo",
+   "short_name": "SHK",
+   "primary_color": "#E42326",
+   "secondary_color": "#241E1E",
+   "seasons": [
+    {
+     "id": "shkendija_tetovo_uecl_2025",
+     "club_id": "shkendija_tetovo_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 66,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bk_hacken_uecl",
+   "league_id": "uecl_2025",
+   "name": "BK Häcken",
+   "short_name": "HCK",
+   "primary_color": "#FEEC00",
+   "secondary_color": "#B59655",
+   "seasons": [
+    {
+     "id": "bk_hacken_uecl_2025",
+     "club_id": "bk_hacken_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 69,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_lausanne_sport_uecl",
+   "league_id": "uecl_2025",
+   "name": "FC Lausanne-Sport",
+   "short_name": "LAU",
+   "primary_color": "#002D72",
+   "secondary_color": "#8CA1C0",
+   "seasons": [
+    {
+     "id": "fc_lausanne_sport_uecl_2025",
+     "club_id": "fc_lausanne_sport_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 71,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "universitatea_craiova_uecl",
+   "league_id": "uecl_2025",
+   "name": "Universitatea Craiova",
+   "short_name": "UNI",
+   "primary_color": "#0469B3",
+   "secondary_color": "#71A8D3",
+   "seasons": [
+    {
+     "id": "universitatea_craiova_uecl_2025",
+     "club_id": "universitatea_craiova_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hamrun_spartans_uecl",
+   "league_id": "uecl_2025",
+   "name": "Hamrun Spartans",
+   "short_name": "SPA",
+   "primary_color": "#242623",
+   "secondary_color": "#F7CA01",
+   "seasons": [
+    {
+     "id": "hamrun_spartans_uecl_2025",
+     "club_id": "hamrun_spartans_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 63,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_noah_yerevan_uecl",
+   "league_id": "uecl_2025",
+   "name": "FC Noah Yerevan",
+   "short_name": "YER",
+   "primary_color": "#E8E8E8",
+   "secondary_color": "#484848",
+   "seasons": [
+    {
+     "id": "fc_noah_yerevan_uecl_2025",
+     "club_id": "fc_noah_yerevan_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 68,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "shelbourne_fc_uecl",
+   "league_id": "uecl_2025",
+   "name": "Shelbourne FC",
+   "short_name": "SHE",
+   "primary_color": "#ED2531",
+   "secondary_color": "#F8AFB3",
+   "seasons": [
+    {
+     "id": "shelbourne_fc_uecl_2025",
+     "club_id": "shelbourne_fc_uecl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 61,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

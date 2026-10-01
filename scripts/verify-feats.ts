@@ -41,6 +41,13 @@ check(has({ mode: 'world_cup', tier: 'winner', final_position: null, difficulty:
 check(has(league(null, true, { losses: 0 }), 'invincibles'), 'a title with no defeats: Invincibles')
 check(!has(league(null, true, { losses: 1 }), 'invincibles'), 'one defeat spoils Invincibles')
 check(!has({ mode: 'world_cup', tier: 'winner', final_position: null, losses: 0 }, 'invincibles'), 'a cup is never Invincibles')
+// P8-173: the league's cup.
+const won = { cup: { winner: { isPlayer: true } } }, lost = { cup: { winner: { isPlayer: false } } }
+check(has(league(null, false, { highlights: won }), 'cup-winners'), 'the cup won in a mid-table season: Cup winners')
+check(!has(league(null, false, { highlights: won }), 'the-double'), 'the cup without the league is no Double')
+check(has(league(null, true, { highlights: won }), 'the-double'), 'the league and the cup: the Double')
+check(!has(league(null, true, { highlights: lost }), 'the-double'), 'the league alone is no Double')
+check(!has(league(null, true, {}), 'cup-winners'), 'a run saved before the cup has no cup feat')
 
 // A short squad earns no squad feat; the win rule is the app's.
 check(!has(league(xi(() => ({ nationality: 'England' })).slice(0, 10)), 'one-nation'), 'ten players is not an eleven')

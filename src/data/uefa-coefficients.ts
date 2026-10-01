@@ -178,3 +178,63 @@ export const ROUND_ADVANCERS = {
   po_champions_to_lp: 5,
   po_league_to_lp:    2,
 } as const
+
+// ── P8-52: the Europa League and the Conference League (2026/27) ─────────────
+// Taken from The Dugout's access lists (src/world/uefa.ts), which were
+// rewritten against UEFA's own lists (archived in The Dugout's
+// docs/reference/uefa) after a first guess was wrong; docs/europe/02 §2–3.
+// `cupWinner` rules take the association's cup winner instead of a league
+// position. Everything else a round holds arrives by the ladder: winners from
+// the round before, and the losers dropping from the competition above
+// (europe-path.ts).
+export type EuroComp = 'ucl' | 'uel' | 'uecl'
+export type EuroAccessRule = AccessRule & { comp: EuroComp; cupWinner?: boolean }
+
+export const UEL_ACCESS: EuroAccessRule[] = [
+  { comp: 'uel', round: 'league_phase', path: 'none', ranks: r(1, 7), position: 0, cupWinner: true, note: 'cup winners, assoc 1–7' },
+  { comp: 'uel', round: 'league_phase', path: 'none', ranks: r(1, 5), position: 5, note: 'fifth, assoc 1–5' },
+  { comp: 'uel', round: 'playoff', path: 'league', ranks: r(8, 12), position: 0, cupWinner: true, note: 'cup winners, assoc 8–12' },
+  { comp: 'uel', round: 'q3', path: 'league', ranks: r(13, 15), position: 0, cupWinner: true, note: 'cup winners, assoc 13–15' },
+  { comp: 'uel', round: 'q2', path: 'league', ranks: [6], position: 4, note: 'fourth, assoc 6' },
+  { comp: 'uel', round: 'q2', path: 'league', ranks: r(7, 12), position: 3, note: 'third, assoc 7–12' },
+  { comp: 'uel', round: 'q2', path: 'league', ranks: r(16, 20), position: 0, cupWinner: true, note: 'cup winners, assoc 16–20' },
+  { comp: 'uel', round: 'q1', path: 'league', ranks: r(21, 33), position: 0, cupWinner: true, note: 'cup winners, assoc 21–33' },
+]
+
+export const UECL_ACCESS: EuroAccessRule[] = [
+  { comp: 'uecl', round: 'playoff', path: 'league', ranks: r(1, 5), position: 6, note: 'sixth, assoc 1–5' },
+  { comp: 'uecl', round: 'q2', path: 'league', ranks: [6], position: 5, note: 'fifth, assoc 6' },
+  { comp: 'uecl', round: 'q2', path: 'league', ranks: r(7, 15), position: 4, note: 'fourth, assoc 7–15' },
+  { comp: 'uecl', round: 'q2', path: 'league', ranks: r(13, 29), position: 3, note: 'third, assoc 13–29' },
+  { comp: 'uecl', round: 'q2', path: 'league', ranks: r(16, 33), position: 2, note: 'runners-up, assoc 16–33' },
+  { comp: 'uecl', round: 'q2', path: 'league', ranks: r(34, 44), position: 0, cupWinner: true, note: 'cup winners, assoc 34–44' },
+  { comp: 'uecl', round: 'q1', path: 'league', ranks: r(45, 55), position: 0, cupWinner: true, note: 'cup winners, assoc 45–55' },
+  { comp: 'uecl', round: 'q1', path: 'league', ranks: r(30, 50), position: 3, note: 'third, assoc 30–50' },
+  { comp: 'uecl', round: 'q1', path: 'league', ranks: r(34, 55), position: 2, note: 'runners-up, assoc 34–55' },
+]
+
+/**
+ * The 2026/27 holders (the 2025/26 winners), from UEFA's access lists as
+ * archived: Paris Saint-Germain won the Champions League, Aston Villa the
+ * Europa League, Crystal Palace the Conference League. A winner never defends
+ * in the same competition: the Europa League's goes up into the Champions
+ * League, the Conference League's into the Europa League (docs/europe/02 §2).
+ */
+export const EURO_HOLDERS = { ucl: 'Paris Saint-Germain', uel: 'Aston Villa', uecl: 'Crystal Palace' } as const
+
+/**
+ * What a league position earns in any of the three competitions, the
+ * Champions League first (cup places aside: a cup winner isn't a position).
+ * This is the default list; in a real season the places also pass down when a
+ * cup winner has already qualified.
+ */
+export function europeBerthFor(rank: number, position: number): { comp: EuroComp; round: UclRound; path: UclPath } | null {
+  const ucl = berthForPosition(rank, position)
+  if (ucl) return { comp: 'ucl', ...ucl }
+  const assoc = UEFA_ASSOCIATIONS[rank - 1]
+  if (!assoc || !assoc.active) return null
+  for (const rule of [...UEL_ACCESS, ...UECL_ACCESS]) {
+    if (!rule.cupWinner && rule.position === position && rule.ranks.includes(rank)) return { comp: rule.comp, round: rule.round, path: rule.path }
+  }
+  return null
+}

@@ -54,7 +54,8 @@ export const colors = {
 
   // draft-pot badges (UCL seeding, 1–4) — was duplicated as a local
   // `POT_COLORS`/`potColors` object in 3+ separate screens.
-  pots: { 1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA' } as Record<number, string>,
+  // Pots five and six for the Conference League's six (P8-172); each reads as text on nylon.
+  pots: { 1: '#F59E0B', 2: '#A78BFA', 3: '#34D399', 4: '#60A5FA', 5: '#F472B6', 6: '#22D3EE' } as Record<number, string>,
 
   // modal/overlay scrim — was hardcoded 'rgba(0,0,0,0.7|0.75)' inline in every modal.
   overlay: 'rgba(0, 0, 0, 0.72)',
@@ -119,6 +120,23 @@ export const MODE_THEMES: Record<string, ModeTheme> = {
     bgTint:    '#0E0614',
     banner:    '#1E0A2E',
   },
+  // P8-172: the Europa League's orange, the Conference League's green.
+  europa_league: {
+    accent:    '#F26722',
+    accentDim: '#8A3208',
+    secondary: '#FDBA74',
+    highlight: '#FB923C',
+    bgTint:    '#140A05',
+    banner:    '#2A1206',
+  },
+  conference_league: {
+    accent:    '#1DB954',
+    accentDim: '#0B3D2E',
+    secondary: '#86EFAC',
+    highlight: '#4ADE80',
+    bgTint:    '#05140C',
+    banner:    '#0B2A1A',
+  },
   champions_league_custom: {
     accent:    '#0232FF',
     accentDim: '#010056',
@@ -139,6 +157,8 @@ export const MODE_LABELS: Record<string, string> = {
   world_cup:                'FIFA World Cup',
   champions_league_custom:  'UEFA Champions League',
   champions_league:         'UEFA Champions League',
+  europa_league:            'UEFA Europa League',
+  conference_league:        'UEFA Conference League',
 }
 
 // Resolve the active palette: mode-specific theme, else the league accent (or
@@ -274,6 +294,18 @@ export const shadows = {
 // ground it stands on and asks for roles; it never picks a primitive itself.
 // ════════════════════════════════════════════════════════════════════════════
 
+// A draft card's line (P8-163 notes): keeper, defence, midfield, attack, so a
+// grid of sixteen players reads by shape before anyone reads a word. Each
+// takes ink text; the attack is Misery red (ink on it 5.4:1).
+export const LINE_TINT = { GK: '#FFB224', DEF: '#4DA3FF', MID: '#3DDC84', ATT: '#FF2E4D' } as const
+export type Line = keyof typeof LINE_TINT
+export function lineOf(position: string): Line {
+  if (position === 'GK') return 'GK'
+  if (/^(CB|LB|RB|LWB|RWB|SW)$/.test(position)) return 'DEF'
+  if (/^(CDM|DM|CM|CAM|AM|LM|RM)$/.test(position)) return 'MID'
+  return 'ATT'
+}
+
 export const prim = {
   cotton:      '#F3F3F0',  // white cotton twill, a touch cool of cream on purpose
   label:       '#E2E2DE',  // a printed care label; the sunken surface on cotton
@@ -360,6 +392,8 @@ const PALETTE_HEX: Record<string, string> = {
   gold: prim.gold, pitch: prim.pitch, amber: POT_COLOURS[1], violet: POT_COLOURS[2], green: POT_COLOURS[3], blue: POT_COLOURS[4],
 }
 export const paletteHex = (id: string) => PALETTE_HEX[id] ?? prim.ink
+/** A colour the player chose: a palette id, or (P8-177's picker) any #rrggbb. */
+export const choiceHex = (v: string | null | undefined): string => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : paletteHex(v ?? 'ink'))
 
 export const ROLES: Record<Ground, Roles> = {
   cotton: {
@@ -402,6 +436,9 @@ export const COLOURWAYS: Record<string, string[]> = {
   champions_league_custom: ['#2F4BFF', '#F3F3F0', '#0B1650'],
   chaos:                   ['#E0301E', '#F3F3F0', '#141416'],  // a warning: red, white, black
   cursed:                  ['#7234F0', '#B98CFF', '#141416'],  // two purples going dark
+  // P8-172: the Europa League's orange and the Conference League's green.
+  europa_league:           ['#F26722', '#F3F3F0', '#141416'],
+  conference_league:       ['#1DB954', '#F3F3F0', '#0B3D2E'],
 }
 
 // P8-55: a league run's tape was plain ink — the season screen's colourway is

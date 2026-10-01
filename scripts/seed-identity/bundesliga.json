@@ -1,0 +1,1597 @@
+{
+ "league": {
+  "id": "bundesliga",
+  "name": "Bundesliga",
+  "country": "Germany",
+  "games_per_season": 34,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "bayern_munich",
+   "league_id": "bundesliga",
+   "name": "Bayern Munich",
+   "short_name": "BAY",
+   "primary_color": "#ED0038",
+   "secondary_color": "#296CFD",
+   "seasons": [
+    {
+     "id": "bayern_munich_2018",
+     "club_id": "bayern_munich",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2019",
+     "club_id": "bayern_munich",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2020",
+     "club_id": "bayern_munich",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2021",
+     "club_id": "bayern_munich",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2022",
+     "club_id": "bayern_munich",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2023",
+     "club_id": "bayern_munich",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2024",
+     "club_id": "bayern_munich",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_2025",
+     "club_id": "bayern_munich",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rb_leipzig",
+   "league_id": "bundesliga",
+   "name": "RB Leipzig",
+   "short_name": "LEI",
+   "primary_color": "#DD0841",
+   "secondary_color": "#001F47",
+   "seasons": [
+    {
+     "id": "rb_leipzig_2018",
+     "club_id": "rb_leipzig",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 85,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2019",
+     "club_id": "rb_leipzig",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 85,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2020",
+     "club_id": "rb_leipzig",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 86,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2021",
+     "club_id": "rb_leipzig",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2022",
+     "club_id": "rb_leipzig",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 86,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2023",
+     "club_id": "rb_leipzig",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 87,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2024",
+     "club_id": "rb_leipzig",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "rb_leipzig_2025",
+     "club_id": "rb_leipzig",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "borussia_dortmund",
+   "league_id": "bundesliga",
+   "name": "Borussia Dortmund",
+   "short_name": "BOR",
+   "primary_color": "#FDE100",
+   "secondary_color": "#231F20",
+   "seasons": [
+    {
+     "id": "borussia_dortmund_2018",
+     "club_id": "borussia_dortmund",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 87,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2019",
+     "club_id": "borussia_dortmund",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 87,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2020",
+     "club_id": "borussia_dortmund",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 86,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2021",
+     "club_id": "borussia_dortmund",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2022",
+     "club_id": "borussia_dortmund",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 87,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2023",
+     "club_id": "borussia_dortmund",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2024",
+     "club_id": "borussia_dortmund",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_2025",
+     "club_id": "borussia_dortmund",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bayer_04_leverkusen",
+   "league_id": "bundesliga",
+   "name": "Bayer 04 Leverkusen",
+   "short_name": "LEV",
+   "primary_color": "#FC0000",
+   "secondary_color": "#FCFC00",
+   "seasons": [
+    {
+     "id": "bayer_04_leverkusen_2018",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2019",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2020",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2021",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2022",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2023",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 88,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2024",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_2025",
+     "club_id": "bayer_04_leverkusen",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "vfb_stuttgart",
+   "league_id": "bundesliga",
+   "name": "VfB Stuttgart",
+   "short_name": "STU",
+   "primary_color": "#D3012A",
+   "secondary_color": "#FDDB00",
+   "seasons": [
+    {
+     "id": "vfb_stuttgart_2018",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "vfb_stuttgart_2020",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "vfb_stuttgart_2021",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "vfb_stuttgart_2022",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "vfb_stuttgart_2023",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "vfb_stuttgart_2024",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "vfb_stuttgart_2025",
+     "club_id": "vfb_stuttgart",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "eintracht_frankfurt",
+   "league_id": "bundesliga",
+   "name": "Eintracht Frankfurt",
+   "short_name": "EIN",
+   "primary_color": "#CC0101",
+   "secondary_color": "#DB4F4F",
+   "seasons": [
+    {
+     "id": "eintracht_frankfurt_2018",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2019",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2020",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2021",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2022",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2023",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2024",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "eintracht_frankfurt_2025",
+     "club_id": "eintracht_frankfurt",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "tsg_1899_hoffenheim",
+   "league_id": "bundesliga",
+   "name": "TSG 1899 Hoffenheim",
+   "short_name": "HOF",
+   "primary_color": "#165AA4",
+   "secondary_color": "#6C96C5",
+   "seasons": [
+    {
+     "id": "tsg_1899_hoffenheim_2018",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2019",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2020",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2021",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2022",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2023",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2024",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "tsg_1899_hoffenheim_2025",
+     "club_id": "tsg_1899_hoffenheim",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sc_freiburg",
+   "league_id": "bundesliga",
+   "name": "SC Freiburg",
+   "short_name": "FRE",
+   "primary_color": "#D0D0D0",
+   "secondary_color": "#2F2F2F",
+   "seasons": [
+    {
+     "id": "sc_freiburg_2018",
+     "club_id": "sc_freiburg",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2019",
+     "club_id": "sc_freiburg",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2020",
+     "club_id": "sc_freiburg",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2021",
+     "club_id": "sc_freiburg",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2022",
+     "club_id": "sc_freiburg",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 82,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2023",
+     "club_id": "sc_freiburg",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2024",
+     "club_id": "sc_freiburg",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "sc_freiburg_2025",
+     "club_id": "sc_freiburg",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 8,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "vfl_wolfsburg",
+   "league_id": "bundesliga",
+   "name": "VfL Wolfsburg",
+   "short_name": "WOL",
+   "primary_color": "#09633D",
+   "secondary_color": "#B5D0C5",
+   "seasons": [
+    {
+     "id": "vfl_wolfsburg_2018",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2019",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2020",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2021",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 82,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2022",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 82,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2023",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 82,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2024",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "vfl_wolfsburg_2025",
+     "club_id": "vfl_wolfsburg",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 9,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hamburger_sv",
+   "league_id": "bundesliga",
+   "name": "Hamburger SV",
+   "short_name": "HAM",
+   "primary_color": "#005FAF",
+   "secondary_color": "#231F20",
+   "seasons": [
+    {
+     "id": "hamburger_sv_2025",
+     "club_id": "hamburger_sv",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sv_werder_bremen",
+   "league_id": "bundesliga",
+   "name": "SV Werder Bremen",
+   "short_name": "WER",
+   "primary_color": "#1D9053",
+   "secondary_color": "#6FB891",
+   "seasons": [
+    {
+     "id": "sv_werder_bremen_2018",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "sv_werder_bremen_2019",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "sv_werder_bremen_2020",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 79,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "sv_werder_bremen_2022",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 78,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "sv_werder_bremen_2023",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 80,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "sv_werder_bremen_2024",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "sv_werder_bremen_2025",
+     "club_id": "sv_werder_bremen",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_augsburg",
+   "league_id": "bundesliga",
+   "name": "FC Augsburg",
+   "short_name": "AUG",
+   "primary_color": "#CD1719",
+   "secondary_color": "#FDD701",
+   "seasons": [
+    {
+     "id": "fc_augsburg_2018",
+     "club_id": "fc_augsburg",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2019",
+     "club_id": "fc_augsburg",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2020",
+     "club_id": "fc_augsburg",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2021",
+     "club_id": "fc_augsburg",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2022",
+     "club_id": "fc_augsburg",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2023",
+     "club_id": "fc_augsburg",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2024",
+     "club_id": "fc_augsburg",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "fc_augsburg_2025",
+     "club_id": "fc_augsburg",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "1_fsv_mainz_05",
+   "league_id": "bundesliga",
+   "name": "1.FSV Mainz 05",
+   "short_name": "MAI",
+   "primary_color": "#C3141E",
+   "secondary_color": "#E9ACB0",
+   "seasons": [
+    {
+     "id": "1_fsv_mainz_05_2018",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2019",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2020",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 79,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2021",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2022",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2023",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2024",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "1_fsv_mainz_05_2025",
+     "club_id": "1_fsv_mainz_05",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "1_fc_koln",
+   "league_id": "bundesliga",
+   "name": "1.FC Köln",
+   "short_name": "KLN",
+   "primary_color": "#EC1C24",
+   "secondary_color": "#231F20",
+   "seasons": [
+    {
+     "id": "1_fc_koln_2019",
+     "club_id": "1_fc_koln",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "1_fc_koln_2020",
+     "club_id": "1_fc_koln",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "1_fc_koln_2021",
+     "club_id": "1_fc_koln",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "1_fc_koln_2022",
+     "club_id": "1_fc_koln",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "1_fc_koln_2023",
+     "club_id": "1_fc_koln",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 76,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "1_fc_koln_2025",
+     "club_id": "1_fc_koln",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "borussia_monchengladbach",
+   "league_id": "bundesliga",
+   "name": "Borussia Mönchengladbach",
+   "short_name": "MNC",
+   "primary_color": "#D2D2D2",
+   "secondary_color": "#2F2F2F",
+   "seasons": [
+    {
+     "id": "borussia_monchengladbach_2018",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2019",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2020",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2021",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2022",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2023",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2024",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "borussia_monchengladbach_2025",
+     "club_id": "borussia_monchengladbach",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "1_fc_union_berlin",
+   "league_id": "bundesliga",
+   "name": "1.FC Union Berlin",
+   "short_name": "BER",
+   "primary_color": "#D4021D",
+   "secondary_color": "#FBE910",
+   "seasons": [
+    {
+     "id": "1_fc_union_berlin_2019",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 74,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "1_fc_union_berlin_2020",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "1_fc_union_berlin_2021",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "1_fc_union_berlin_2022",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "1_fc_union_berlin_2023",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "1_fc_union_berlin_2024",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "1_fc_union_berlin_2025",
+     "club_id": "1_fc_union_berlin",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "1_fc_heidenheim_1846",
+   "league_id": "bundesliga",
+   "name": "1.FC Heidenheim 1846",
+   "short_name": "HEI",
+   "primary_color": "#003A79",
+   "secondary_color": "#E2001A",
+   "seasons": [
+    {
+     "id": "1_fc_heidenheim_1846_2023",
+     "club_id": "1_fc_heidenheim_1846",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "1_fc_heidenheim_1846_2024",
+     "club_id": "1_fc_heidenheim_1846",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 75,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "1_fc_heidenheim_1846_2025",
+     "club_id": "1_fc_heidenheim_1846",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 74,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_st_pauli",
+   "league_id": "bundesliga",
+   "name": "FC St. Pauli",
+   "short_name": "PAU",
+   "primary_color": "#E30613",
+   "secondary_color": "#63483A",
+   "seasons": [
+    {
+     "id": "fc_st_pauli_2024",
+     "club_id": "fc_st_pauli",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "fc_st_pauli_2025",
+     "club_id": "fc_st_pauli",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "vfl_bochum",
+   "league_id": "bundesliga",
+   "name": "VfL Bochum",
+   "short_name": "BOC",
+   "primary_color": "#005BA4",
+   "secondary_color": "#8FB7D7",
+   "seasons": [
+    {
+     "id": "vfl_bochum_2021",
+     "club_id": "vfl_bochum",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 75,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "vfl_bochum_2022",
+     "club_id": "vfl_bochum",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 76,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "vfl_bochum_2023",
+     "club_id": "vfl_bochum",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "vfl_bochum_2024",
+     "club_id": "vfl_bochum",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "holstein_kiel",
+   "league_id": "bundesliga",
+   "name": "Holstein Kiel",
+   "short_name": "HOL",
+   "primary_color": "#00599D",
+   "secondary_color": "#EC1A3B",
+   "seasons": [
+    {
+     "id": "holstein_kiel_2024",
+     "club_id": "holstein_kiel",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 74,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sv_darmstadt_98",
+   "league_id": "bundesliga",
+   "name": "SV Darmstadt 98",
+   "short_name": "DAR",
+   "primary_color": "#024E9D",
+   "secondary_color": "#8FAFCE",
+   "seasons": [
+    {
+     "id": "sv_darmstadt_98_2023",
+     "club_id": "sv_darmstadt_98",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 72,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hertha_bsc",
+   "league_id": "bundesliga",
+   "name": "Hertha BSC",
+   "short_name": "HER",
+   "primary_color": "#004BA3",
+   "secondary_color": "#00152F",
+   "seasons": [
+    {
+     "id": "hertha_bsc_2018",
+     "club_id": "hertha_bsc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 82,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "hertha_bsc_2019",
+     "club_id": "hertha_bsc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "hertha_bsc_2020",
+     "club_id": "hertha_bsc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "hertha_bsc_2021",
+     "club_id": "hertha_bsc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "hertha_bsc_2022",
+     "club_id": "hertha_bsc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_schalke_04",
+   "league_id": "bundesliga",
+   "name": "FC Schalke 04",
+   "short_name": "SCH",
+   "primary_color": "#004B9C",
+   "secondary_color": "#4279B5",
+   "seasons": [
+    {
+     "id": "fc_schalke_04_2018",
+     "club_id": "fc_schalke_04",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "fc_schalke_04_2019",
+     "club_id": "fc_schalke_04",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 81,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "fc_schalke_04_2020",
+     "club_id": "fc_schalke_04",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "fc_schalke_04_2022",
+     "club_id": "fc_schalke_04",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "arminia_bielefeld",
+   "league_id": "bundesliga",
+   "name": "Arminia Bielefeld",
+   "short_name": "BIE",
+   "primary_color": "#005B9C",
+   "secondary_color": "#508EB9",
+   "seasons": [
+    {
+     "id": "arminia_bielefeld_2020",
+     "club_id": "arminia_bielefeld",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 74,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "arminia_bielefeld_2021",
+     "club_id": "arminia_bielefeld",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 75,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "spvgg_greuther_furth",
+   "league_id": "bundesliga",
+   "name": "SpVgg Greuther Fürth",
+   "short_name": "GRE",
+   "primary_color": "#009D3B",
+   "secondary_color": "#6DC78F",
+   "seasons": [
+    {
+     "id": "spvgg_greuther_furth_2021",
+     "club_id": "spvgg_greuther_furth",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 71,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fortuna_dusseldorf",
+   "league_id": "bundesliga",
+   "name": "Fortuna Düsseldorf",
+   "short_name": "DSS",
+   "primary_color": "#DA251D",
+   "secondary_color": "#E7726D",
+   "seasons": [
+    {
+     "id": "fortuna_dusseldorf_2018",
+     "club_id": "fortuna_dusseldorf",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "fortuna_dusseldorf_2019",
+     "club_id": "fortuna_dusseldorf",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sc_paderborn_07",
+   "league_id": "bundesliga",
+   "name": "SC Paderborn 07",
+   "short_name": "PAD",
+   "primary_color": "#005CAA",
+   "secondary_color": "#373737",
+   "seasons": [
+    {
+     "id": "sc_paderborn_07_2019",
+     "club_id": "sc_paderborn_07",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 71,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hannover_96",
+   "league_id": "bundesliga",
+   "name": "Hannover 96",
+   "short_name": "HAN",
+   "primary_color": "#179D33",
+   "secondary_color": "#E8EDE9",
+   "seasons": [
+    {
+     "id": "hannover_96_2018",
+     "club_id": "hannover_96",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 75,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "1_fc_nuremberg",
+   "league_id": "bundesliga",
+   "name": "1.FC Nuremberg",
+   "short_name": "NUR",
+   "primary_color": "#AD1732",
+   "secondary_color": "#C4586B",
+   "seasons": [
+    {
+     "id": "1_fc_nuremberg_2018",
+     "club_id": "1_fc_nuremberg",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 74,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

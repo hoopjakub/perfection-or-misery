@@ -10,7 +10,7 @@
  *   - rows no run could produce are refused
  * Run: npx tsx scripts/verify-score.ts
  */
-import { scoreRun, invalidRun, scoreMultiplierFor, WC_ROUND_SCORE, CL_ROUND_SCORE, CUSTOM_CL_ROUND_SCORE, type RunRow } from '../supabase/functions/_shared/score'
+import { scoreRun, invalidRun, scoreMultiplierFor, WC_ROUND_SCORE, CL_ROUND_SCORE, CUSTOM_CL_ROUND_SCORE, UEL_ROUND_SCORE, UECL_ROUND_SCORE, type RunRow } from '../supabase/functions/_shared/score'
 import { assignTier } from '../src/engine/tier'
 import { resolveDifficulty } from '../src/engine/difficulty'
 import type { ZoneKey } from '../src/data/qualification-bands'
@@ -45,11 +45,14 @@ for (let teams = 10; teams <= 24; teams++) {
 check(invalidRun(base({ teams_in_league: 12, final_position: 3, tier: 'title_contender', wins: 20, draws: 8, losses: 10 })) === null, 'a Scottish split season is refused')
 
 // ── 2. Every knockout round passes ───────────────────────────────────────────
-for (const [mode, ladder] of [['world_cup', WC_ROUND_SCORE], ['champions_league', CL_ROUND_SCORE], ['champions_league_custom', CUSTOM_CL_ROUND_SCORE]] as const) {
+for (const [mode, ladder] of [['world_cup', WC_ROUND_SCORE], ['champions_league', CL_ROUND_SCORE], ['champions_league_custom', CUSTOM_CL_ROUND_SCORE], ['europa_league', UEL_ROUND_SCORE], ['conference_league', UECL_ROUND_SCORE]] as const) {
   for (const tier of Object.keys(ladder)) {
     check(invalidRun(base({ mode, tier, final_position: 4, teams_in_league: 36, wins: 5, draws: 1, losses: 2 })) === null, `${mode} round ${tier} refused`)
   }
 }
+
+// P8-172: the smaller competitions' ladders sit under the Champions League's, round for round.
+for (const tier of Object.keys(CL_ROUND_SCORE)) check(UECL_ROUND_SCORE[tier] < UEL_ROUND_SCORE[tier] && UEL_ROUND_SCORE[tier] < CL_ROUND_SCORE[tier], `${tier}: the ladders are out of order`)
 
 // ── 3. The score is the pre-Phase-6 formula ──────────────────────────────────
 const oldLeague = (pos: number, teams: number, ovr: number, l: number, d: number, modeMult: number, mult: number) =>

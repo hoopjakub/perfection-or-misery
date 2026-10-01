@@ -22,7 +22,7 @@ Two separate audiences care about this:
 **Options, lowest risk first:**
 1. Replace the source with openly licensed data (check licences of open football datasets) or data you compile yourself.
 2. Keep names and seasons, rebuild ratings from facts that aren't one site's editorial work (minutes, goals, appearances).
-3. Ask Transfermarkt for permission.
+3. Ask Transfermarkt for permission. **Being done** (29 Sept 2026): email draft in [`../release/07-ASKING-TRANSFERMARKT.md`](../release/07-ASKING-TRANSFERMARKT.md), logged in [`06-NOTES.md`](06-NOTES.md); the open-data plan for option 1 is [`../release/06-OUR-OWN-DATA.md`](../release/06-OUR-OWN-DATA.md).
 4. Keep as is for a private or school build only, and say so in the thesis.
 
 **For the CD:** the handover includes "other relevant files". Decide whether the CD carries the built database or the scripts only.

@@ -19,13 +19,16 @@ export type FeatRun = {
   difficulty?: string | null
   difficulty_meta?: { ratingsShown?: boolean } | null
   squad?: SquadPlayer[] | null
+  /** P8-173: the league's cup, where the run had one. */
+  highlights?: { cup?: { winner?: { isPlayer?: boolean } | null } | null } | null
 }
 
-const CUPS = new Set(['world_cup', 'champions_league', 'champions_league_custom'])
+const CUPS = new Set(['world_cup', 'champions_league', 'champions_league_custom', 'europa_league', 'conference_league'])
 
 /** A trophy: the cup lifted, or the league won. */
 export function isRunWon(run: { mode: string; tier: string | null; final_position: number | null }): boolean {
-  if (CUPS.has(run.mode)) return run.tier === 'winner'
+  // P8-52: the full path can end with the Europa or Conference League's trophy ('uel_winner').
+  if (CUPS.has(run.mode)) return run.tier === 'winner' || run.tier === 'uel_winner' || run.tier === 'uecl_winner'
   return run.final_position === 1
 }
 
@@ -70,12 +73,23 @@ export const FEATS: Feat[] = [
   {
     id: 'blind-perfect', title: 'Blind and perfect',
     how: 'Perfection, or the trophy in a cup, with the ratings hidden the whole draft.',
-    earned: r => (r.tier === 'perfection' || (CUPS.has(r.mode) && r.tier === 'winner')) && ratingsWereHidden(r),
+    earned: r => (r.tier === 'perfection' || (CUPS.has(r.mode) && isRunWon(r))) && ratingsWereHidden(r),
   },
   {
     id: 'invincibles', title: 'Invincibles',
     how: 'Win a league without losing a match.',
     earned: r => !CUPS.has(r.mode) && r.final_position === 1 && r.losses === 0,
+  },
+  // P8-173: the league's cup.
+  {
+    id: 'cup-winners', title: 'Cup winners',
+    how: "Win the league's cup in a league run.",
+    earned: r => !CUPS.has(r.mode) && !!r.highlights?.cup?.winner?.isPlayer,
+  },
+  {
+    id: 'the-double', title: 'The Double',
+    how: 'Win the league and its cup in the same run.',
+    earned: r => !CUPS.has(r.mode) && r.final_position === 1 && !!r.highlights?.cup?.winner?.isPlayer,
   },
 ]
 

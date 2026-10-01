@@ -32,7 +32,7 @@ export type LeaderboardEntry = DifficultyFields & {
   losses: number
   created_at: string
   user_id: string
-  profiles: { username: string | null; avatar_path?: string | null; badge_team_id?: string | null; badge_team_name?: string | null }
+  profiles: { username: string | null; avatar_path?: string | null; badge_team_id?: string | null; badge_team_name?: string | null; club_tag?: string | null }
 }
 
 export type LeaderboardFilter = {
@@ -80,6 +80,8 @@ const LEADERBOARD_COLS_WITH_DIFFICULTY = `${LEADERBOARD_COLS}, difficulty, diffi
 // P8-88: the picture and the favourite team's badge beside each name, once
 // supabase/profile.sql has added them; without them the board still loads.
 const LEADERBOARD_COLS_WITH_PROFILE = LEADERBOARD_COLS_WITH_DIFFICULTY.replace('profiles!inner(username)', 'profiles!inner(username, avatar_path, badge_team_id, badge_team_name)')
+// P8-181: and the club's tag beside the name, once supabase/clubs.sql has added it.
+const LEADERBOARD_COLS_WITH_CLUB = LEADERBOARD_COLS_WITH_PROFILE.replace('badge_team_name)', 'badge_team_name, club_tag)')
 
 export async function fetchLeaderboard(
   filter: LeaderboardFilter = {}
@@ -111,7 +113,7 @@ export async function fetchLeaderboard(
 
   // Try WITH the newer columns; if they don't exist yet in this DB, retry
   // without them (same degrade-gracefully pattern as fetchAchievementRuns).
-  for (const cols of [LEADERBOARD_COLS_WITH_PROFILE, LEADERBOARD_COLS_WITH_DIFFICULTY, LEADERBOARD_COLS]) {
+  for (const cols of [LEADERBOARD_COLS_WITH_CLUB, LEADERBOARD_COLS_WITH_PROFILE, LEADERBOARD_COLS_WITH_DIFFICULTY, LEADERBOARD_COLS]) {
     const { data, error } = await buildQuery(cols)
     if (!error) return ((data as unknown as LeaderboardEntry[]) ?? [])
       .map(r => ({ ...r, difficulty: r.difficulty ?? null, difficulty_meta: r.difficulty_meta ?? null }))
@@ -244,18 +246,22 @@ export type AchievementRun = DifficultyFields & {
   /** P8-126: what the feats read (the squad, the defeats). */
   losses?: number | null
   squad?: FeatRun['squad']
+  highlights?: FeatRun['highlights']
 }
 
 export async function fetchAchievementRuns(userId: string): Promise<AchievementRun[]> {
   const base = 'mode, tier, final_position, losses, squad'
   // Try WITH the difficulty columns; if they don't exist yet, retry without.
-  for (const cols of [`${base}, difficulty, difficulty_meta`, base]) {
+  // P8-173: only the cup's winner, read out of the highlights by path (the
+  // whole highlights carries the press and the medical table, too much for a list).
+  for (const cols of [`${base}, difficulty, difficulty_meta, cup_winner:highlights->cup->winner`, `${base}, difficulty, difficulty_meta`, base]) {
     const { data, error } = await supabase
       .from('runs').select(cols).eq('user_id', userId)
     if (!error) return (data as unknown as AchievementRun[]).map(r => ({
       mode: r.mode, tier: r.tier ?? null, final_position: r.final_position ?? null,
       losses: (r as any).losses ?? null, squad: (r as any).squad ?? null,
       difficulty: (r as any).difficulty ?? null, difficulty_meta: (r as any).difficulty_meta ?? null,
+      highlights: (r as any).cup_winner ? { cup: { winner: (r as any).cup_winner } } : null,
     }))
     // 42703 = undefined_column; anything else is a real error.
     if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error

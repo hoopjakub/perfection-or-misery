@@ -12,6 +12,11 @@
 // `npx tsx scripts/verify-club-codes.ts` fails if any competition has a clash.
 
 export const CLUB_CODE_OVERRIDES: Record<string, string> = {
+  // P8-172: the Europa and Conference League fields' clashes.
+  'Celta de Vigo': 'CEV', 'SK Brann': 'BRN', 'Shamrock Rovers': 'SHR', 'Hamrun Spartans': 'HAM',
+  // P8.5-32: clubs new to the open-data build (Wikipedia's 2025 line-ups) that
+  // clashed with a club already in their league.
+  'Vestri': 'VST', 'FC Kyzylzhar': 'QYZ', 'JK Kalev Tallinn': 'KLV',
   // Premier League
   'Manchester City': 'MCI', 'Manchester United': 'MUN',
   'West Ham United': 'WHU', 'Leeds United': 'LEE',

@@ -28,11 +28,14 @@ import { predictTable } from '@/engine/predictions'
 import { writePress, type Story } from '@/engine/press'
 import { zonesFor } from '@/data/qualification-bands'
 import { useModeTheme } from '@/hooks/useModeTheme'
+import { ModeLookProvider, lookFor } from '@/components/kit'
+import { ModeBanner } from '@/components/season/ModeBanner'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { openMatchStats } from '@/lib/matchStats'
 import { openConfirm } from '@/lib/confirm'
 import { SkipPlate } from '@/components/season/RunChrome'
 import { randomSeed } from '@/lib/rng'
+import { planCup, playCupAfter, tieNote, type DomesticCup, type CupTie } from '@/engine/domestic-cup'
 import { ROLES, space, border, colourwayFor } from '@/theme'
 import { KitScreen, KitText, RunHeader, Plate, Chips, Icon, SectionTag, EmptyState } from '@/components/kit'
 import type { SimTeam, Fixture, SeasonResult, MatchdaySnapshot } from '@/types/simulation'
@@ -55,7 +58,7 @@ type Speed = 'slow' | 'normal' | 'fast'
 const SPEED_MS: Record<Speed, number> = { slow: 2000, normal: 400, fast: 100 }
 // How long after your result the rest of the round and the table land.
 const BEAT_SHARE = 0.45
-type Tab = 'table' | 'results' | 'press'
+type Tab = 'table' | 'results' | 'cup' | 'press'
 
 // §10.5 — a league side rests players once the table says the game can no
 // longer change its season, and never while anything is still live. Your own
@@ -144,6 +147,10 @@ export default function LeagueSeason() {
   const worstLossMarginRef = useRef(-1)
   const historyRef = useRef<MatchdaySnapshot[]>([])
   const pressRef = useRef<Story[]>([])
+  // P8-173: the league's cup. The ref is the truth during a skip (every round
+  // played in one go); the state is what's drawn.
+  const cupRef = useRef<DomesticCup | null>(null)
+  const [cup, setCup] = useState<DomesticCup | null>(null)
 
   // Goalscorer pools, the lineup context and the availability ledger. See the
   // comments in engine/run-stats.ts and engine/availability.ts.
@@ -163,6 +170,9 @@ export default function LeagueSeason() {
     const fixtures = generateFixtures(teams)
     setSimTeams(teams)
     setAllFixtures(fixtures)
+    // Drawn from the run's seed where there is one, so the same run draws the same cup.
+    cupRef.current = planCup(teams, Math.max(...fixtures.map(f => f.matchday)), predictionSeed ?? randomSeed(), placedLeague.leagueId)
+    setCup(cupRef.current)
     loadLeaguePools(placedLeague.teams, fullSquad, placedLeague.yearStart, useSubstitutes)
       .then(p => {
         poolByClubRef.current = p.poolByClub
@@ -284,6 +294,8 @@ export default function LeagueSeason() {
     })
     pressRef.current = [...pressRef.current, ...fresh]
     setLivePress(pressRef.current)   // so a story opened mid-season can be read
+    // P8-173: any cup round due after this matchday, with the clubs' form as it now stands.
+    if (cupRef.current) cupRef.current = playCupAfter(cupRef.current, md, teams)
     return true
   }
 
@@ -293,6 +305,7 @@ export default function LeagueSeason() {
     const teams = [...simTeams]
     playMatchday(md, teams)
     setSimTeams(teams)
+    setCup(cupRef.current)
     setStories(pressRef.current)
     setLandedMD(md)
     if (speed === 'fast') setRestMD(md)
@@ -320,6 +333,7 @@ export default function LeagueSeason() {
     const teams = [...simTeams]
     for (let md = nextMD; md <= totalMatchdays; md++) playMatchday(md, teams)
     setSimTeams(teams)
+    setCup(cupRef.current)
     setStories(pressRef.current)
     setLandedMD(totalMatchdays)
     setRestMD(totalMatchdays)
@@ -362,6 +376,7 @@ export default function LeagueSeason() {
       matchdayHistory: historyRef.current,
       absences: availabilityRef.current?.absences() ?? [],
       press: pressRef.current,
+      cup: cupRef.current,
     })
     router.push('/game/awards?to=league')
   }
@@ -496,6 +511,44 @@ export default function LeagueSeason() {
       ] : [])
     )
   )
+  // P8-173: the cup, newest round first; your tie leads each round.
+  const isYourTie = (t: CupTie) => t.home.isPlayer || t.away.isPlayer
+  const tieRow = (t: CupTie, label: string) => {
+    const note = tieNote(t)
+    return (
+      <ResultRow key={`${label}-${t.home.clubId}-${t.away.clubId}`} roles={roles}
+        homeName={t.home.clubName} awayName={t.away.clubName} homeClubId={t.home.clubId} awayClubId={t.away.clubId}
+        homeGoals={t.homeGoals} awayGoals={t.awayGoals}
+        youSide={t.home.isPlayer ? 'home' : t.away.isPlayer ? 'away' : null}
+        round={[label, note].filter(Boolean).join(' · ').toUpperCase()}
+        neutral={label === 'Final'} />
+    )
+  }
+  const nextCupRound = cup?.rounds.find(r => !r.played)
+  const yourOut = cup?.rounds.find(r => r.played && r.ties.some(t => isYourTie(t) && !(t.winner === 'home' ? t.home : t.away).isPlayer))
+  const youHaveBye = !!cup && !cup.rounds[0].played && cup.rounds[0].byes.some(b => b.isPlayer)
+  const cupPane = cup ? (
+    <>
+      <KitText t="body" color={roles.textMuted} style={styles.pre}>
+        {cup.winner
+          ? `${cup.winner.isPlayer ? 'You won' : `${cup.winner.clubName} won`} the ${cup.name}.`
+          : yourOut ? `You went out in the ${yourOut.label.toLowerCase()}.`
+          : nextCupRound ? `${nextCupRound.label}: after matchday ${nextCupRound.afterMatchday}.${youHaveBye ? ` You have a bye to the ${cup.rounds[1]?.label.toLowerCase()}.` : ''}`
+          : ''}
+        {' The cup here is the top flight only, drawn open each round, one match with extra time and penalties.'}
+      </KitText>
+      {[...cup.rounds].filter(r => r.played).reverse().map(r => (
+        <View key={r.key} style={styles.cupRound}>
+          <SectionTag roles={roles}>{`${r.label} · after MD ${r.afterMatchday}`}</SectionTag>
+          {[...r.ties].sort((a, b) => Number(isYourTie(b)) - Number(isYourTie(a))).map(t => tieRow(t, r.label))}
+        </View>
+      ))}
+    </>
+  ) : null
+  // Your cup tie, when a round has just been played after the matchday on show.
+  const cupNow = cup?.rounds.find(r => r.played && r.afterMatchday === cardMD)
+  const yourCupTie = cupNow?.ties.find(isYourTie)
+
   const pressPane = (
     stories.length === 0 ? (
       <KitText t="body" color={roles.textMuted} style={styles.pre}>
@@ -512,11 +565,13 @@ export default function LeagueSeason() {
     <SegmentSwitch<Tab> roles={roles} value={tab} onChange={setTab} options={[
       { id: 'table', label: 'Table' },
       { id: 'results', label: shownMD > 0 ? `Results MD ${shownMD}` : 'Results' },
+      ...(cup ? [{ id: 'cup' as const, label: 'Cup' }] : []),
       { id: 'press', label: 'Press', count: stories.length },
     ]} />
   )
 
   return (
+    <ModeLookProvider look={lookFor(mode)}>
     <View style={[styles.fill, { backgroundColor: roles.bg }]}>
       <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
         {/* Web keys (10-ADAPT §2.3): Space/Enter play or pause, arrows scrub the strip. */}
@@ -536,6 +591,8 @@ export default function LeagueSeason() {
               <Icon name="close" size={24} color={roles.text} />
             </Pressable>
           } />
+        {/* P8-169: Chaos and Cursed announce themselves. */}
+        <ModeBanner roles={roles} mode={mode} />
         <KitText t="tag" color={roles.textMuted}>
           {`${placedLeague.leagueName} · ${season} · MD ${Math.min(landedMD, totalMatchdays)}/${totalMatchdays}`}
         </KitText>
@@ -570,6 +627,12 @@ export default function LeagueSeason() {
             {poolsReady ? 'The table is in the pundits’ order until a ball is kicked.' : 'Loading the squads…'}
           </KitText>
         ) : null}
+        {cupNow && yourCupTie ? (
+          <View style={styles.cupNow}>
+            <SectionTag roles={roles}>{`${cup!.name} · ${cupNow.label}`}</SectionTag>
+            {tieRow(yourCupTie, cupNow.label)}
+          </View>
+        ) : null}
 
 
         {wide ? (
@@ -577,6 +640,7 @@ export default function LeagueSeason() {
             <View style={styles.pane}>
               <SectionTag roles={roles}>{shownMD > 0 ? `Results · MD ${shownMD}` : 'Results'}</SectionTag>
               {resultsPane}
+              {cupPane ? <><SectionTag roles={roles}>{cup!.name}</SectionTag>{cupPane}</> : null}
             </View>
             <View style={styles.paneWide}>{tablePane}</View>
             <View style={styles.pane}>
@@ -589,6 +653,7 @@ export default function LeagueSeason() {
             {switcher}
             {tab === 'table' && tablePane}
             {tab === 'results' && resultsPane}
+            {tab === 'cup' && cupPane}
             {tab === 'press' && pressPane}
           </>
         )}
@@ -612,6 +677,7 @@ export default function LeagueSeason() {
         </View>
       </View>
     </View>
+    </ModeLookProvider>
   )
 }
 
@@ -621,6 +687,8 @@ const styles = StyleSheet.create({
   close: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   live: { alignSelf: 'flex-start', borderWidth: border.thin, paddingHorizontal: space[2], minHeight: 32, justifyContent: 'center' },
   pre: { paddingVertical: space[3] },
+  cupRound: { marginTop: space[3], gap: space[1] },
+  cupNow: { marginTop: space[2], gap: space[1] },
   bar: { paddingHorizontal: space[4], paddingTop: space[1], gap: space[2], borderTopWidth: border.hair },
   barInner: { width: '100%', alignSelf: 'center', gap: space[2] },
   panes: { flexDirection: 'row', gap: space[5], alignItems: 'flex-start', marginTop: space[3] },

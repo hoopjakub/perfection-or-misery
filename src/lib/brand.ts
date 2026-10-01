@@ -10,6 +10,8 @@
 // Everything that shows a crest reads it through `crestFor`, so the switch is
 // this one place.
 import { getLogo, getCompetitionLogo } from './logoMap'
+import { CREST_COLOURS, FLAG_COLOURS } from './markColours'
+import { getFlag, flagCodeOf } from './flagMap'
 
 export type BrandMode = 'real' | 'original'
 export const BRAND_MODE: BrandMode = process.env.EXPO_PUBLIC_BRAND_MODE === 'real' ? 'real' : 'original'
@@ -57,6 +59,18 @@ export function crestFor(clubId: string | null | undefined, name: string): Crest
     if (source != null) return { kind: 'image', source }
   }
   return { kind: 'drawn', device: DEVICES[hash(clubId || name) % DEVICES.length], initials: crestInitials(name) }
+}
+
+/** P8-163: a mark's own colours, [main, second], read off the picture itself
+ *  (scripts/mark-colours.ts): a nation's flag, or a club's real crest. null for
+ *  a drawn crest, whose colours the caller already has. A national side is
+ *  found by its id or by the flag the caller passes (the World Cup's draft
+ *  pool knows a nation by name). */
+export function markColoursOf(clubId?: string | null, flag?: string | null): [string, string] | null {
+  const code = flagCodeOf(flag ?? getFlag(clubId))
+  if (code && FLAG_COLOURS[code]) return FLAG_COLOURS[code]
+  if (BRAND_MODE === 'real' && clubId && CREST_COLOURS[clubId]) return CREST_COLOURS[clubId]
+  return null
 }
 
 /** The same for a competition (P8-12): the Champions League's and each league's

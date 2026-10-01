@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useId, useState } from 'react'
 import { router } from 'expo-router'
 import { View, Image, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { type Roles, space, border, prim } from '@/theme'
 import { KitText, TeamMark, Tape, Stripe, Rivets, Tag, Twinkle } from '@/components/kit'
+import { ratio } from '@/lib/contrast'
 import { BADGE_TIERS, seasonDates } from '@/data/seasons'
 import type { SeasonBadge } from '@/db/queries/leaderboard'
 import { ordinal } from '@/lib/format'
-import { avatarUrl, fetchPublicProfile, type LookEffect, type PublicProfile } from '@/db/queries/profile'
+import { isHex } from '@/lib/colour'
+import { avatarUrl, fetchPublicProfile, type LookEffect, type PublicProfile, type Banner, type AvatarFrame, type ProfileLook } from '@/db/queries/profile'
 import { useUserStore } from '@/store/userStore'
 import { crestInitials } from '@/lib/brand'
 
@@ -28,12 +31,14 @@ export function Avatar({ roles, path, name, size = 40 }: { roles: Roles; path?: 
 }
 
 /** A player as picture, name and the badge of their favourite team. */
-export function PlayerName({ roles, name, avatarPath, badgeTeamId, badgeTeamName, size = 24, onPress, style }: {
+export function PlayerName({ roles, name, avatarPath, badgeTeamId, badgeTeamName, size = 24, onPress, style, tag }: {
   roles: Roles
   name: string
   avatarPath?: string | null
   badgeTeamId?: string | null
   badgeTeamName?: string | null
+  /** P8-181: the player's club tag. */
+  tag?: string | null
   size?: 24 | 40 | 64
   onPress?: () => void
   style?: StyleProp<ViewStyle>
@@ -42,6 +47,7 @@ export function PlayerName({ roles, name, avatarPath, badgeTeamId, badgeTeamName
     <>
       <Avatar roles={roles} path={avatarPath} name={name} size={size} />
       <KitText t={size >= 40 ? 'title' : 'body'} color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{name}</KitText>
+      {tag ? <View style={[styles.nameTag, { borderColor: roles.line }]}><KitText t="tag" color={roles.text}>{tag}</KitText></View> : null}
       {badgeTeamId && badgeTeamName ? <TeamMark roles={roles} clubId={badgeTeamId} name={badgeTeamName} size={16} /> : null}
     </>
   )
@@ -49,6 +55,101 @@ export function PlayerName({ roles, name, avatarPath, badgeTeamId, badgeTeamName
     ? <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={`${name}, open profile`}
         style={({ pressed }) => [styles.name, style, pressed && { opacity: 0.7 }]}>{body}</Pressable>
     : <View style={[styles.name, style]}>{body}</View>
+}
+
+// ── The frame around your picture (P8-178) ───────────────────────────────────
+// Discord's avatar decorations, in the kit's own materials: a ring, a double
+// line, a strip of tape, rivets, a stitched edge, gold, or stars that live.
+export function FramedAvatar({ roles, path, name, size = 64, frame = 'none', accent = prim.ink }: {
+  roles: Roles; path?: string | null; name: string; size?: number; frame?: AvatarFrame; accent?: string
+}) {
+  const pad = frame === 'none' ? 0 : frame === 'double' ? 6 : 4
+  const outer = size + pad * 2
+  return (
+    <View style={{ width: outer, height: outer }} accessible accessibilityLabel={`${name}'s picture`}>
+      <View style={[StyleSheet.absoluteFill, frameStyle(frame, accent)]} />
+      {frame === 'double' && <View style={[StyleSheet.absoluteFill, { margin: 3, borderWidth: 1.5, borderColor: accent }]} />}
+      <View style={{ position: 'absolute', left: pad, top: pad }}>
+        <Avatar roles={roles} path={path} name={name} size={size} />
+      </View>
+      {frame === 'tape' && <Tape colours={[prim.orange, prim.cotton, prim.ink]} roles={roles} style={styles.frameTape} />}
+      {frame === 'rivets' && <Rivets color={accent} />}
+      {frame === 'stars' && (
+        <>
+          <View style={styles.starA}><Twinkle i={0} /></View>
+          <View style={styles.starB}><Twinkle i={3} /></View>
+        </>
+      )}
+    </View>
+  )
+}
+
+function frameStyle(frame: AvatarFrame, accent: string): ViewStyle {
+  switch (frame) {
+    case 'ring': return { borderWidth: 3, borderColor: accent }
+    case 'double': return { borderWidth: 1.5, borderColor: accent }
+    case 'stitch': return { borderWidth: 2, borderColor: accent, borderStyle: 'dashed' }
+    case 'gold': return { borderWidth: 4, borderColor: prim.gold }
+    case 'tape': case 'rivets': case 'stars': return { borderWidth: 1, borderColor: accent }
+    default: return {}
+  }
+}
+
+// ── The profile card (P8-178) ────────────────────────────────────────────────
+// A player's profile the way Discord shows one: the banner across the top,
+// the picture in its frame overlapping it, the name with the team badge and
+// the pronouns, the status, then the about-me — all on the player's own theme
+// (two colours, a gradient behind the whole card), with the text in whichever
+// of ink or cotton reads on it.
+export function ProfileCard({ roles, name, avatarPath, look, badgeTeamId, badgeTeamName, tag, children }: {
+  roles: Roles
+  name: string
+  avatarPath?: string | null
+  look: ProfileLook
+  badgeTeamId?: string | null
+  badgeTeamName?: string | null
+  /** A club's tag beside the name (P8-181). */
+  tag?: string | null
+  children?: React.ReactNode
+}) {
+  const gid = useId().replace(/[^a-zA-Z0-9]/g, '')
+  const theme = look.theme
+  // The text colour: ink or cotton, whichever stands out against both ends of the theme.
+  const onTheme = theme
+    ? Math.min(ratio(prim.ink, theme.primary), ratio(prim.ink, theme.accent)) >= Math.min(ratio(prim.cotton, theme.primary), ratio(prim.cotton, theme.accent)) ? prim.ink : prim.cotton
+    : roles.text
+  const muted = theme ? onTheme : roles.textMuted
+  const frameAccent = theme ? onTheme : roles.line
+  return (
+    <View style={[styles.card, { borderColor: roles.line, backgroundColor: theme ? theme.primary : roles.surface }]}>
+      {theme && (
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs><LinearGradient id={`card${gid}`} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={theme.primary} /><Stop offset="1" stopColor={theme.accent} /></LinearGradient></Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#card${gid})`} />
+        </Svg>
+      )}
+      <LookBand roles={roles} colour={look.colour} effect={look.effect} banner={look.banner} height={96} />
+      <View style={styles.cardBody}>
+        <View style={styles.cardAvatar}>
+          <FramedAvatar roles={roles} path={avatarPath} name={name} size={72} frame={look.frame} accent={frameAccent} />
+        </View>
+        <View style={styles.cardName}>
+          <KitText t="superS" color={onTheme} numberOfLines={1} style={{ flexShrink: 1 }}>{name.toUpperCase()}</KitText>
+          {tag ? <View style={[styles.cardTag, { borderColor: onTheme }]}><KitText t="tag" color={onTheme}>{tag}</KitText></View> : null}
+          {badgeTeamId && badgeTeamName ? <TeamMark roles={roles} clubId={badgeTeamId} name={badgeTeamName} size={20} /> : null}
+        </View>
+        {look.pronouns ? <KitText t="tag" color={muted} style={{ opacity: 0.8 }}>{look.pronouns.toUpperCase()}</KitText> : null}
+        {look.status ? <KitText t="body" color={onTheme} style={styles.cardStatus}>{look.status}</KitText> : null}
+        {look.about ? (
+          <View style={[styles.cardAbout, { borderTopColor: theme ? onTheme : roles.rule }]}>
+            <KitText t="tag" color={muted} style={{ opacity: 0.8 }}>ABOUT ME</KitText>
+            <KitText t="body" color={onTheme}>{look.about}</KitText>
+          </View>
+        ) : null}
+        {children}
+      </View>
+    </View>
+  )
 }
 
 // The look's colours: tokens from the palette (P8-74), never a free hex.
@@ -66,11 +167,22 @@ export const LOOK_EFFECTS: { id: LookEffect; label: string }[] = [
 ]
 
 /** The profile's backdrop: a band in the chosen colour, finished with one of
- *  the kit's garment trims. Nothing is written on it, so any colour reads. */
-export function LookBand({ roles, colour, effect, height = 72 }: { roles: Roles; colour?: string | null; effect?: string | null; height?: number }) {
-  const hex = LOOK_COLOURS.find(c => c.id === colour)?.hex ?? prim.ink
+ *  the kit's garment trims. Nothing is written on it, so any colour reads.
+ *  P8-178: or a banner — a colour, a gradient between two, or a picture. */
+export function LookBand({ roles, colour, effect, banner, height = 72 }: { roles: Roles; colour?: string | null; effect?: string | null; banner?: Banner | null; height?: number }) {
+  // A palette id, or (P8-177) any colour picked.
+  const hex = banner?.from ?? (isHex(colour) ? colour : LOOK_COLOURS.find(c => c.id === colour)?.hex ?? prim.ink)
+  const gid = useId().replace(/[^a-zA-Z0-9]/g, '')
+  const picture = banner?.kind === 'picture' ? avatarUrl(banner.path) : null
   return (
     <View style={[styles.band, { height, backgroundColor: hex, borderColor: roles.line }, effect === 'stitch' && styles.stitch]} accessible={false}>
+      {banner?.kind === 'gradient' && (
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs><LinearGradient id={`band${gid}`} x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={banner.from} /><Stop offset="1" stopColor={banner.to} /></LinearGradient></Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#band${gid})`} />
+        </Svg>
+      )}
+      {picture && <Image source={{ uri: picture }} resizeMode="cover" style={StyleSheet.absoluteFill} accessibilityIgnoresInvertColors />}
       {effect === 'tape' && <Tape colours={[prim.orange, prim.cotton, prim.ink]} roles={roles} style={styles.bandTape} />}
       {effect === 'stripe' && <Stripe roles={roles} band={6} style={styles.bandStripe} />}
       {/* Rivets in ink on the light colours, in cotton on the dark ones. */}
@@ -80,6 +192,17 @@ export function LookBand({ roles, colour, effect, height = 72 }: { roles: Roles;
 }
 
 const styles = StyleSheet.create({
+  nameTag: { borderWidth: 1, paddingHorizontal: 4 },
+  frameTape: { position: 'absolute', left: 0, right: 0, bottom: -2 },
+  starA: { position: 'absolute', top: -8, right: -8 },
+  starB: { position: 'absolute', bottom: -8, left: -8 },
+  card: { borderWidth: border.thin, overflow: 'hidden' },
+  cardBody: { paddingHorizontal: space[3], paddingBottom: space[3], gap: 4 },
+  cardAvatar: { marginTop: -40, marginBottom: space[1], alignSelf: 'flex-start' },
+  cardName: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  cardTag: { borderWidth: border.thin, paddingHorizontal: 5, paddingVertical: 1 },
+  cardStatus: { marginTop: 2 },
+  cardAbout: { marginTop: space[2], paddingTop: space[2], borderTopWidth: border.hair, gap: 2 },
   avatar: { borderWidth: border.thin, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   name: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 44 },
   owner: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[2] },

@@ -7,6 +7,9 @@ import { View, Pressable, TextInput, Animated, Easing, StyleSheet, type StylePro
 import { router } from 'expo-router'
 import { type Roles, space, border, OFFSET, density, font, withAlpha } from '@/theme'
 import { KitText, Rivets, Stripe, Icon, H2, type IconName } from './primitives'
+import { useModeLook, tiltOf, GlitchText } from './modeLook'
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
+import { hexToHsv, hsvToHex, readHex, isHex, type HSV } from '@/lib/colour'
 
 // ── Plate ────────────────────────────────────────────────────────────────────
 // The one control that commits to an action. Primary = orange, one per screen.
@@ -158,9 +161,22 @@ export function BackControl({ roles, onPress }: { roles: Roles; onPress?: () => 
 
 // ── SectionTag ───────────────────────────────────────────────────────────────
 export function SectionTag({ children, roles, style }: { children: string; roles: Roles; style?: StyleProp<ViewStyle> }) {
+  // P8-169: in Chaos a heading sits askew over a strip of ripped hazard tape;
+  // in Cursed it glitches now and then.
+  const look = useModeLook()
+  if (look === 'chaos') {
+    return (
+      <View style={[styles.sectionTag, style, { transform: [{ rotate: `${tiltOf(children)}deg` }] }]} accessibilityRole="header" {...H2}>
+        <KitText t="tag" color={roles.text}>{children}</KitText>
+        <Stripe roles={roles} band={4} style={styles.rip} />
+      </View>
+    )
+  }
   return (
     <View style={[styles.sectionTag, style]} accessibilityRole="header" {...H2}>
-      <KitText t="tag" color={roles.textMuted}>{children}</KitText>
+      {look === 'cursed'
+        ? <GlitchText text={children} t="tag" color={roles.textMuted} seed={children.length} />
+        : <KitText t="tag" color={roles.textMuted}>{children}</KitText>}
     </View>
   )
 }
@@ -259,6 +275,120 @@ export function Toggle({ value, onChange, roles, label }: {
 // ── Field ────────────────────────────────────────────────────────────────────
 // A text input that looks like a care label: tag-mono label above, square
 // field on the sunken ground, striped edge + message on error.
+// ── ColourField (P8-177) ─────────────────────────────────────────────────────
+// Any colour, "like a normal human being" (the maintainer, 27 Sept): the
+// palette's colours as quick picks, and a last swatch that opens a picker —
+// a hue bar, a saturation-and-brightness square and a hex field — for any
+// colour at all. The value is a palette id or a #rrggbb; `onChange` always
+// gives the #rrggbb. Readability is the caller's: where a chosen colour becomes
+// text or a line, it's lifted until it reads (the team colours, P8-49).
+export function ColourField({ roles, label, value, onChange, quick }: {
+  roles: Roles
+  label: string
+  /** A palette id or a #rrggbb. */
+  value: string
+  onChange: (hex: string) => void
+  /** The quick picks: the palette's own colours. */
+  quick: { id: string; label: string; hex: string }[]
+}) {
+  const hex = isHex(value) ? value.toLowerCase() : quick.find(q => q.id === value)?.hex.toLowerCase() ?? quick[0]?.hex ?? '#000000'
+  const custom = !quick.some(q => q.hex.toLowerCase() === hex)
+  const [open, setOpen] = useState(false)
+  return (
+    <View style={styles.colourField}>
+      <View style={styles.swatchRow} accessibilityRole="radiogroup" accessibilityLabel={`${label} colour`}>
+        <KitText t="tag" color={roles.textMuted} style={styles.swatchLabel}>{label}</KitText>
+        {quick.map(c => {
+          const on = c.hex.toLowerCase() === hex
+          return (
+            <Pressable key={c.id} onPress={() => { onChange(c.hex.toLowerCase()); setOpen(false) }} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={c.label}
+              style={[styles.swatch, { backgroundColor: c.hex, borderColor: roles.line, borderWidth: on ? border.tape : border.thin }]} />
+          )
+        })}
+        {/* Any colour: shows the chosen one when it isn't the palette's. */}
+        <Pressable onPress={() => setOpen(o => !o)} accessibilityRole="button" accessibilityState={{ expanded: open, selected: custom }}
+          accessibilityLabel={custom ? `Your own colour, ${hex}. Change it` : 'Any colour'}
+          style={[styles.swatch, styles.anySwatch, { backgroundColor: custom ? hex : roles.surface, borderColor: roles.line, borderWidth: custom ? border.tape : border.thin }]}>
+          {!custom && <Icon name="add" size={16} color={roles.text} />}
+        </Pressable>
+      </View>
+      {open && <ColourPicker roles={roles} hex={hex} onChange={onChange} />}
+    </View>
+  )
+}
+
+const HUES = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000']
+
+/** The picker: a saturation (across) and brightness (down) square in the chosen
+ *  hue, a hue bar under it, and the hex. Dragging anywhere on either moves it. */
+function ColourPicker({ roles, hex, onChange }: { roles: Roles; hex: string; onChange: (hex: string) => void }) {
+  const [hsv, setHsv] = useState(() => hexToHsv(hex))
+  const [typed, setTyped] = useState(hex)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+  const [bar, setBar] = useState(0)
+  // Follow a colour chosen elsewhere (a quick pick) without losing the hue of a grey.
+  useEffect(() => {
+    if (hsvToHex(hsv) !== hex) { const next = hexToHsv(hex); setHsv(h => (next.s === 0 || next.v === 0 ? { ...next, h: h.h } : next)) }
+    setTyped(hex)
+  }, [hex])
+  const set = (next: HSV) => { setHsv(next); const h = hsvToHex(next); setTyped(h); onChange(h) }
+  const clamp = (x: number) => Math.max(0, Math.min(1, x))
+  const onSquare = (e: { nativeEvent: { locationX: number; locationY: number } }) => {
+    if (!box.w || !box.h) return
+    set({ ...hsv, s: clamp(e.nativeEvent.locationX / box.w), v: 1 - clamp(e.nativeEvent.locationY / box.h) })
+  }
+  const onBar = (e: { nativeEvent: { locationX: number } }) => {
+    if (!bar) return
+    set({ ...hsv, h: clamp(e.nativeEvent.locationX / bar) * 359.9 })
+  }
+  const drag = (handler: (e: any) => void) => ({
+    onStartShouldSetResponder: () => true, onMoveShouldSetResponder: () => true,
+    onResponderTerminationRequest: () => false,
+    onResponderGrant: handler, onResponderMove: handler,
+  })
+  const pure = hsvToHex({ h: hsv.h, s: 1, v: 1 })
+  return (
+    <View style={[styles.picker, { borderColor: roles.line, backgroundColor: roles.surface }]}>
+      <View style={styles.square} onLayout={e => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        accessibilityLabel="Saturation and brightness" {...drag(onSquare)}>
+        <Svg width="100%" height="100%" pointerEvents="none">
+          <Defs>
+            <LinearGradient id="pickWhite" x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0" stopColor="#ffffff" stopOpacity={1} />
+              <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
+            </LinearGradient>
+            <LinearGradient id="pickBlack" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#000000" stopOpacity={0} />
+              <Stop offset="1" stopColor="#000000" stopOpacity={1} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill={pure} />
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#pickWhite)" />
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#pickBlack)" />
+        </Svg>
+        <View pointerEvents="none" style={[styles.thumb, { left: hsv.s * box.w - 9, top: (1 - hsv.v) * box.h - 9, borderColor: hsv.v > 0.5 ? '#000000' : '#ffffff', backgroundColor: hex }]} />
+      </View>
+      <View style={styles.hueBar} onLayout={e => setBar(e.nativeEvent.layout.width)} accessibilityLabel="Hue" {...drag(onBar)}>
+        <Svg width="100%" height="100%" pointerEvents="none">
+          <Defs>
+            <LinearGradient id="pickHue" x1="0" y1="0" x2="1" y2="0">
+              {HUES.map((c, i) => <Stop key={i} offset={String(i / (HUES.length - 1))} stopColor={c} />)}
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#pickHue)" />
+        </Svg>
+        <View pointerEvents="none" style={[styles.hueThumb, { left: (hsv.h / 360) * bar - 4, borderColor: roles.line, backgroundColor: pure }]} />
+      </View>
+      <View style={styles.hexRow}>
+        <View style={[styles.hexSwatch, { backgroundColor: hex, borderColor: roles.line }]} />
+        <TextInput value={typed} onChangeText={t => { setTyped(t); const h = readHex(t); if (h) { setHsv(hexToHsv(h)); onChange(h) } }}
+          autoCapitalize="none" autoCorrect={false} maxLength={7} accessibilityLabel="Hex colour"
+          style={[styles.hexInput, { color: roles.text, borderColor: roles.line, fontFamily: font.tag }]} />
+      </View>
+    </View>
+  )
+}
+
 export function Field({ label, roles, error, secure, style, ...input }: TextInputProps & {
   label: string
   roles: Roles
@@ -329,6 +459,18 @@ const styles = StyleSheet.create({
   swatchRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[2], marginBottom: space[2] },
   swatchLabel: { width: 56 },
   swatch: { width: 32, height: 32 },
+  // Chaos's strip of hazard tape under a heading (P8-169).
+  rip: { width: 44, height: 5, marginTop: 3 },
+  anySwatch: { alignItems: 'center', justifyContent: 'center' },
+  colourField: { gap: space[1] },
+  picker: { borderWidth: border.thin, padding: space[2], gap: space[2], marginBottom: space[2] },
+  square: { height: 150, overflow: 'hidden' },
+  thumb: { position: 'absolute', width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
+  hueBar: { height: 24, overflow: 'hidden' },
+  hueThumb: { position: 'absolute', top: 0, bottom: 0, width: 8, borderWidth: 2 },
+  hexRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  hexSwatch: { width: 32, height: 32, borderWidth: border.thin },
+  hexInput: { flex: 1, minHeight: 40, borderWidth: border.thin, paddingHorizontal: space[2], fontSize: 16 },
   offset: { position: 'absolute', left: OFFSET, top: OFFSET, right: 0, bottom: 0 },
   plate: {
     minHeight: 52, paddingHorizontal: space[5], justifyContent: 'center', overflow: 'hidden',

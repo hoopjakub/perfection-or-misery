@@ -1,5 +1,7 @@
 # The Perfection or Misery website — brief and prompts
 
+> **29 September 2026:** the plan that builds on this brief is [`00-README.md`](00-README.md) (the community and questions section, the admin, the security design, 31 open questions). The modes list below predates the Europa League, the Conference League and the European Full Path, and the new logo (`assets/Group 3.png`).
+
 *Written 24 September 2026, from the maintainer's note: "This website is something you cannot undershoot." Nothing here is built yet. This file is the brief, the skills to run it through, a Claude Design prompt to see how it could look, and the prompt for the build itself.*
 
 ---
@@ -100,5 +102,6 @@ The site is the app's world, not a generic landing page. Read `DESIGN.md` and `P
 ## 8. Open questions for the maintainer
 
 - **Where it lives:** its own repo and domain, or a route on the app's web build? A separate static site is faster and freer to design; the app's web build already hosts the game itself.
+- **Analytics:** decided, not open: the site measures itself with Vercel Web Analytics and Speed Insights, set up as [`docs/Web Analytics & Speed Insights.md`](../Web%20Analytics%20%26%20Speed%20Insights.md) §5 says (its own Vercel project, the plain-HTML snippet, the two plates measured without paid events). The site is built as the roadmap's Phase 10.
 - **The stack:** Astro (static, one island) or Next.js (the Colorbound site's stack, so shared know-how)?
 - **Counter labels:** is "seasons played" the right name for the live number when it counts every mode's runs? The alternative is "runs played", with seasons as one line under it.

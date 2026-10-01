@@ -1,22 +1,26 @@
+import { compOfMode, isClassicEurope } from '@/data/europe'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { forCompetition } from '@/data/competition'
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated'
 import { useGameStore } from '@/store/gameStore'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { randomSeed } from '@/lib/rng'
 import {
-  predictTable, predictWorldCupRound, predictChampionsLeagueRound, predictPlayers, punditPanel,
+  predictTable, predictWorldCupRound, predictChampionsLeagueRound, predictPlayers, punditPanel, punditRatings,
   type PredictionTeam, type PredictedRow, type PunditPicks, type PickablePlayer,
 } from '@/engine/predictions'
 import { loadLeaguePools } from '@/engine/run-stats'
 import { ROLES, space, border, colourwayFor, prim, type Roles } from '@/theme'
-import { KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Tape, ClubName, RoundFlag } from '@/components/kit'
-import { flagForCountry } from '@/data/geo-iso'
+import { KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Tape, ClubName } from '@/components/kit'
+import { PunditRail } from '@/components/season/PunditRail'
+import { TheirTournament } from '@/components/season/VerdictBlock'
+import { worldCupPunditTournament, championsLeaguePunditTournament } from '@/engine/cup-calls'
+import { getFlag } from '@/lib/flagMap'
 import type { Panellist } from '@/engine/predictions'
-import { CL_LEAGUE_MATCHDAYS, WC_GROUP_MATCHDAYS } from '@/engine/knockout-availability'
+import { WC_GROUP_MATCHDAYS } from '@/engine/knockout-availability'
 
 // Stage 6 · Pre-season: the pundits' predictions — docs/ui-overhaul/07b B8.
 // A predicted table from squad strength (with the pundits' deliberate noise),
@@ -40,14 +44,14 @@ export default function PunditsScreen() {
   const [lights, setLights] = useState(false)
 
   const teams: PredictionTeam[] | null =
-    mode === 'champions_league' ? clTeams?.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })) ?? null
+    isClassicEurope(mode) ? clTeams?.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })) ?? null
     : mode === 'world_cup' ? wcTeams?.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })) ?? null
     : placedLeague?.teams ?? null
   // P8-13: the pundits call the points, so they need how many matches each club
   // plays — eight in the league phase, three in a World Cup group, a double
   // round robin in a league.
   const matchesPerClub =
-    mode === 'champions_league' ? CL_LEAGUE_MATCHDAYS
+    isClassicEurope(mode) ? compOfMode(mode)!.matchdays
     : mode === 'world_cup' ? WC_GROUP_MATCHDAYS
     : undefined
   const pred = useMemo(() => (teams ? predictTable(teams, seed, undefined, matchesPerClub) : null), [teams, seed, matchesPerClub])
@@ -55,6 +59,17 @@ export default function PunditsScreen() {
   // P8-56's follow-up: whose preview you're reading — null is the panel
   // together (the consensus, which the verdict checks), or one pundit's own.
   const [who, setWho] = useState<number | null>(null)
+  // P8-165: in a cup, the chosen view's whole tournament, played out now from a
+  // draw of their own (the real one comes later). The result screen replays
+  // exactly this one against what happened.
+  const tournament = useMemo(() => {
+    if (!teams || (mode !== 'world_cup' && !isClassicEurope(mode))) return null
+    // The Conference League's pundits draw its six pots, one from each (P8-172).
+    const comp = compOfMode(mode) ?? undefined
+    const build = mode === 'world_cup' ? worldCupPunditTournament
+      : (f: typeof teams, r: Map<string, number>, s: number) => championsLeaguePunditTournament(f, r, s, undefined, comp)
+    return who == null ? build(teams, punditRatings(teams, seed), seed) : panel[who] ? build(teams, panel[who].ratings, panel[who].picksSeed) : null
+  }, [teams?.length, seed, who, panel])
 
   // The three names need every squad in the field, so they arrive a moment
   // after the table. Your own drafted players are eligible like anyone else.
@@ -63,7 +78,7 @@ export default function PunditsScreen() {
   useEffect(() => {
     if (!teams) return
     let alive = true
-    const yearStart = mode === 'world_cup' ? 2026 : mode === 'champions_league' ? (clYear ?? 2025) : (placedLeague?.yearStart ?? 2025)
+    const yearStart = mode === 'world_cup' ? 2026 : isClassicEurope(mode) ? (clYear ?? 2025) : (placedLeague?.yearStart ?? 2025)
     loadLeaguePools(teams, [...draftedPlayers, ...benchPlayers], yearStart)
       .then(pools => {
         if (!alive) return
@@ -95,9 +110,9 @@ export default function PunditsScreen() {
   const place = view.player?.predicted ?? pred.player.predicted
   // How a panellist's place reads: a round in a cup, a place in a league.
   const callFor = (at: number) => mode === 'world_cup' ? predictWorldCupRound(at).label
-    : mode === 'champions_league' ? predictChampionsLeagueRound(at).label : ordinal(at)
+    : isClassicEurope(mode) ? predictChampionsLeagueRound(at).label : ordinal(at)
   const round = mode === 'world_cup' ? predictWorldCupRound(place)
-    : mode === 'champions_league' ? predictChampionsLeagueRound(place) : null
+    : isClassicEurope(mode) ? predictChampionsLeagueRound(place) : null
   const who_ = pundit ? pundit.name.split(' ')[0] : 'The pundits'
   const headline = round
     ? `${who_} ${pundit ? 'says' : 'say'} ${round.label.toLowerCase()}`
@@ -115,7 +130,7 @@ export default function PunditsScreen() {
   }
 
   function afterLights() {
-    router.replace(mode === 'champions_league' || mode === 'world_cup' ? '/game/simulation' : '/game/simulation?start=1')
+    router.replace(isClassicEurope(mode) || mode === 'world_cup' ? '/game/simulation' : '/game/simulation?start=1')
   }
 
   return (
@@ -137,29 +152,16 @@ export default function PunditsScreen() {
             <KitText t="body" color={roles.textMuted}>
               {panelLine(panel, round ? null : place, mode)}
             </KitText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.panelRail} contentContainerStyle={styles.panelRailContent}>
-              <Pressable onPress={() => setWho(null)} accessibilityRole="button" accessibilityState={{ selected: who == null }}
-                accessibilityLabel="The panel together"
-                style={({ pressed }) => [styles.pundit, { borderColor: roles.line, backgroundColor: who == null ? roles.yours : roles.surface, borderWidth: who == null ? 3 : 1 }, pressed && { opacity: 0.8 }]}>
-                <KitText t="tag" color={roles.textMuted}>ALL {panel.length}</KitText>
-                <KitText t="title" color={roles.text} numberOfLines={1}>The panel</KitText>
-                <KitText t="tag" color={roles.text}>{`YOU: ${callFor(pred.player.predicted).toUpperCase()}`}</KitText>
-                <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`CHAMPIONS: ${pred.table[0].isPlayer ? 'YOU' : pred.table[0].clubName.toUpperCase()}`}</KitText>
-              </Pressable>
-              {panel.map((p, i) => (
-                <Pressable key={p.name} onPress={() => setWho(i)} accessibilityRole="button" accessibilityState={{ selected: who === i }}
-                  style={({ pressed }) => [styles.pundit, { borderColor: roles.line, backgroundColor: who === i ? roles.yours : roles.surface, borderWidth: who === i ? 3 : 1 }, pressed && { opacity: 0.8 }]}
-                  accessibilityLabel={`${p.name}, ${p.country}: has you ${callFor(p.youAt)}, champions ${p.champion.clubName}. Open their preview`}>
-                  <View style={styles.punditTop}>
-                    {flagForCountry(p.country) ? <RoundFlag emoji={flagForCountry(p.country)} code={p.country.slice(0, 3)} size={20} roles={roles} /> : null}
-                    <KitText t="tag" color={roles.textMuted} numberOfLines={1} style={{ flex: 1 }}>{p.country}</KitText>
-                  </View>
-                  <KitText t="title" color={roles.text} numberOfLines={1}>{p.name}</KitText>
-                  <KitText t="tag" color={roles.text}>{`YOU: ${callFor(p.youAt).toUpperCase()}`}</KitText>
-                  <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`CHAMPIONS: ${p.champion.isPlayer ? 'YOU' : p.champion.clubName.toUpperCase()}`}</KitText>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <PunditRail roles={roles} selected={who == null ? 0 : who + 1} onSelect={i => setWho(i === 0 ? null : i - 1)}
+              cards={[
+                { key: 'panel', top: `ALL ${panel.length}`, title: 'The panel', accessibilityLabel: 'The panel together',
+                  lines: [`YOU: ${callFor(pred.player.predicted).toUpperCase()}`, `CHAMPIONS: ${pred.table[0].isPlayer ? 'YOU' : pred.table[0].clubName.toUpperCase()}`] },
+                ...panel.map(p => ({
+                  key: p.name, country: p.country, title: p.name,
+                  lines: [`YOU: ${callFor(p.youAt).toUpperCase()}`, `CHAMPIONS: ${p.champion.isPlayer ? 'YOU' : p.champion.clubName.toUpperCase()}`],
+                  accessibilityLabel: `${p.name}, ${p.country}: has you ${callFor(p.youAt)}, champions ${p.champion.clubName}. Open their preview`,
+                })),
+              ]} />
           </>
         )}
 
@@ -197,6 +199,16 @@ export default function PunditsScreen() {
                   <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{p!.clubName}</KitText>
                 </View>
               ))}
+          </>
+        )}
+        {tournament && (
+          <>
+            <SectionTag roles={roles}>{`${pundit ? `${pundit.name.split(' ')[0]}'s` : "The panel's"} tournament`}</SectionTag>
+            <KitText t="body" color={roles.textMuted}>
+              {`The draw comes later, so ${pundit ? 'they' : 'the panel'} drew it their own way, the field in four pots by how they rate it, and played it out. Their champions: ${tournament.champion.isPlayer ? 'you' : tournament.champion.clubName}.`}
+            </KitText>
+            <TheirTournament roles={roles} t={tournament} name={pundit ? pundit.name : 'The panel'}
+              playerClubId={pred.player.clubId} flagOf={mode === 'world_cup' ? getFlag : undefined} />
           </>
         )}
         {/* P8-40: the dare sat unfocused above the button. It IS the button now —
@@ -254,10 +266,6 @@ function LightsOn({ colourway, onDone }: { colourway: string[]; onDone: () => vo
 }
 
 const styles = StyleSheet.create({
-  panelRail: { marginHorizontal: -space[4], marginBottom: space[3] },
-  panelRailContent: { paddingHorizontal: space[4], gap: space[2] },
-  pundit: { width: 176, borderWidth: border.thin, padding: space[3], gap: 4 },
-  punditTop: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   fill: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[4] },
   row: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 36, borderBottomWidth: StyleSheet.hairlineWidth },

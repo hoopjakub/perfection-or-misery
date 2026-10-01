@@ -18,8 +18,23 @@ export type VersionEntry = {
 
 export const VERSION_HISTORY: VersionEntry[] = [
   {
-    version: '0.8.0', when: 'From 19 September 2026',
-    source: 'the roadmap (docs/ui-overhaul/11-ROADMAP.md, Phases 7 and 8); not committed yet',
+    version: '0.9.0', when: '26–28 September 2026',
+    source: 'the roadmap (docs/ui-overhaul/11-ROADMAP.md, Phase 8, batches 19 to 24) and docs/europe; not committed yet',
+    title: 'A whole season, and Europe',
+    changes: [
+      'The Europa League and the Conference League, on their real 2025–26 fields and pots.',
+      "A league run plays its league's cup too, and winning both is the Double.",
+      'The full path runs through all three European competitions: every cup, every access list, and the drop when you lose in qualifying.',
+      'The pundits play out their own whole tournament, before the run and against what happened.',
+      'Seasons with ranks and badges, a career screen rebuilt, and the golden glove winner in goal.',
+      'Clubs with a tag and a chat, a profile you can dress like a Discord card, a real colour picker and your pin everywhere.',
+      'A new globe that zooms into your country, flags on every draft card, and Chaos and Cursed with a look of their own.',
+      'Run links that open the app directly, and web analytics.',
+    ],
+  },
+  {
+    version: '0.8.0', when: '19–25 September 2026',
+    source: 'the roadmap (docs/ui-overhaul/11-ROADMAP.md, Phases 7 and 8 to batch 18)',
     title: 'The identity pass',
     changes: [
       'Real flags for every nation, crests for every club, and team colours on the match sheet.',

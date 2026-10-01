@@ -41,6 +41,9 @@ function poisson(r: () => number, mean: number) {
 const POS = ['GK', 'RB', 'CB', 'CB', 'LB', 'CDM', 'CM', 'CAM', 'RW', 'LW', 'ST', 'GK', 'CB', 'LB', 'CM', 'LW', 'ST']
 const SEASONS = 60
 const potsLines = new Map<string, number>()
+let gloveSeasons = 0, gloveInTeam = 0
+const gloveRanks: number[] = []
+const csGap: number[] = [], csRank: number[] = []
 const CLUBS = 20
 
 const isCB = (pos: string) => pos === 'CB'
@@ -106,6 +109,20 @@ for (let s = 1; s <= SEASONS; s++) {
     if (a) check(positions.includes(a.winner.position), `season ${s}: ${key} went to a ${a.winner.position}`)
   }
   for (const a of night.players) winners.add(a.winner.position)
+  // P8-170: the golden glove and the team of the season's keeper.
+  const glove = night.players.find(x => x.key === 'glove')
+  const teamGK = night.teamOfTheSeason?.xi.find(x => lineOf(x.player.position) === 'GK')?.player
+  if (glove && teamGK) {
+    gloveSeasons++
+    if (glove.winner.playerId === teamGK.id) gloveInTeam++
+    const keepers = awards.playerOfTheSeason.filter(c => lineOf(c.position) === 'GK')
+    const rank = [...keepers].sort((x, y) => y.score - x.score).findIndex(c => c.playerId === glove.winner.playerId) + 1
+    gloveRanks.push(rank)
+    const bestGK = [...keepers].sort((x, y) => y.score - x.score)[0]
+    const maxCS = Math.max(...keepers.map(c => c.cleanSheets))
+    csGap.push(maxCS - bestGK.cleanSheets)
+    csRank.push([...keepers].sort((x, y) => y.cleanSheets - x.cleanSheets).findIndex(c => c.playerId === bestGK.playerId) + 1)
+  }
 
   const defenders = awards.playerOfTheSeason.filter(c => lineOf(c.position) === 'DEF')
   const by = (f: (c: AwardCandidate) => number) => [...defenders].sort((x, y) => f(y) - f(x))[0]
@@ -133,10 +150,13 @@ for (const [k, t] of perPos) {
 const pct = (n: number) => `${Math.round(n / seasons * 100)}%`
 console.log(`Defender of the season to a centre-back over ${seasons} seasons — old award ${pct(oldCB)}, new ${pct(newCB)} (raw defensive numbers: ${pct(numbersCB)})`)
 console.log(`Positions that won at least one award: ${[...winners].sort().join(', ')}`)
+console.log(`Best keeper by season score: clean sheets behind the most ${[0,1,2,3,4].map(g => `${g}: ${csGap.filter(x => x === g).length}`).join(' · ')} · 5+: ${csGap.filter(x => x >= 5).length}; his clean-sheet rank ${[1,2,3].map(r => `${r}: ${csRank.filter(x => x === r).length}`).join(' · ')} · 4+: ${csRank.filter(x => x > 3).length}`)
+console.log(`Golden glove winner in the team of the season: ${gloveInTeam}/${gloveSeasons}; his rank among keepers by season score: ${[1, 2, 3, 4, 5].map(r => `${r}: ${gloveRanks.filter(x => x === r).length}`).join(' · ')} · 6+: ${gloveRanks.filter(x => x > 5).length}`)
 console.log(`Player of the season by line: ${['GK', 'DEF', 'MID', 'FWD'].map(l => `${l} ${potsLines.get(l) ?? 0}`).join(' · ')}`)
 // P8-155: a spread, not a strikers' list: forwards under two thirds, and at
 // least three lines win it over the seasons.
 check((potsLines.get('FWD') ?? 0) / seasons <= 0.66, `Player of the season to a forward ${pct(potsLines.get('FWD') ?? 0)}: a strikers' list`)
+check(gloveInTeam === gloveSeasons, `the golden glove winner kept goal in the team of the season ${gloveInTeam}/${gloveSeasons} times`)
 check([...potsLines.values()].filter(n => n > 0).length >= 3, `Player of the season only ever went to ${[...potsLines.keys()].join(', ')}`)
 // P8-36 (the maintainer, 23 Sept): a really great full-back season should be
 // able to win Defender of the season, but centre-backs, who defend more, should

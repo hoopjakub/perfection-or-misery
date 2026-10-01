@@ -6,7 +6,7 @@ import type { LineAwardKey } from '@/types/stats'
 import React, { useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { type Roles, space, border } from '@/theme'
-import { KitText, Tag, SectionTag, Icon, RatingSquare, Pitch, Twinkle } from '@/components/kit'
+import { KitText, Tag, SectionTag, Icon, RatingSquare, Pitch, Twinkle, TeamMark } from '@/components/kit'
 import { getFormationRows } from '@/engine/formations'
 import { clubCode } from '@/data/club-codes'
 import type { AwardsNight, ClubAward, PickedTeam, PlayerAward, Pick } from '@/engine/awards'
@@ -17,6 +17,9 @@ export type OpenPlayer = (playerId: string) => void
 // ── A team, on a pitch, in its own shape ─────────────────────────────────────
 // Rows run from the attack at the top to the keeper at the bottom, the way the
 // formation reads out loud ("four-two-three-one"), with the bench beneath.
+/** How the team of the season is picked (P8-170), said on both awards screens. */
+export const TEAM_HOW = 'Picked by the scoring model, in the shape that suits the best players. In goal, the golden glove winner.'
+
 export function FormationPitch({ roles, team, onPlayer, showScores, caption = 'The shape the best players fit.', benchLabel = 'Honourable mentions', benchScores, scoreText }: {
   roles: Roles
   team: PickedTeam
@@ -59,8 +62,12 @@ export function FormationPitch({ roles, team, onPlayer, showScores, caption = 'T
                 <KitText t="tag" color={roles.textMuted}>{x.slot.label}</KitText>
                 <KitText t="body" color={roles.text} numberOfLines={1} style={styles.shirtName}>{surname(x.player.name)}</KitText>
                 {/* P8-34: where he plays, as the short code the rest of the app uses —
-                    a team of the season is unreadable without it. */}
-                <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{clubCode(x.player.clubName)}</KitText>
+                    a team of the season is unreadable without it. P8-171: with
+                    its crest (or a nation's flag) beside it, when the pick knows the club. */}
+                <View style={styles.shirtClub}>
+                  {x.player.clubId ? <TeamMark roles={roles} clubId={x.player.clubId} name={x.player.clubName} size={16} /> : null}
+                  <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{clubCode(x.player.clubName)}</KitText>
+                </View>
                 {figure(x.player) ? <KitText t="tag" color={roles.text}>{figure(x.player)}</KitText> : null}
                 {rated(x.player) ? <RatingSquare value={x.player.rating!} size="sm" decimals={showScores === 'score' ? 2 : 1} /> : null}
                 {/* P8-145: a round's best player lives a little, on the team of the matchday. */}
@@ -232,6 +239,7 @@ export function AwardsSection({ roles, night, onPlayer }: { roles: Roles; night:
       {night.teamOfTheSeason && (
         <View style={styles.award}>
           <SectionTag roles={roles}>{`Team of the ${night.word ?? 'season'}`}</SectionTag>
+          <KitText t="body" color={roles.textMuted}>{TEAM_HOW}</KitText>
           <FormationPitch roles={roles} team={night.teamOfTheSeason} onPlayer={onPlayer} />
         </View>
       )}
@@ -262,6 +270,7 @@ export function AwardsSection({ roles, night, onPlayer }: { roles: Roles; night:
 }
 
 const styles = StyleSheet.create({
+  shirtClub: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   section: { gap: space[3], marginTop: space[5] },
   award: { gap: space[2], marginBottom: space[3] },
   winner: { borderWidth: border.plate, padding: space[3], gap: space[2] },

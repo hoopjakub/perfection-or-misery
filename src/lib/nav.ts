@@ -29,7 +29,7 @@ export function restartToModeSelect() {
 export function runRoute(mode: string): '/game/wc-result' | '/game/custom-ucl-result' | '/game/cl-result' | '/game/result' {
   return mode === 'world_cup' ? '/game/wc-result'
     : mode === 'champions_league_custom' ? '/game/custom-ucl-result'
-    : mode === 'champions_league' ? '/game/cl-result'
+    : mode === 'champions_league' || mode === 'europa_league' || mode === 'conference_league' ? '/game/cl-result'
     : '/game/result'
 }
 

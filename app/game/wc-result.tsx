@@ -14,8 +14,9 @@ import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { formatTier, verdictOf } from '@/data/tiers'
 import { useRunSave } from '@/hooks/useRunSave'
-import { VerdictBlock, PunditsRoundTable, PunditsTournament } from '@/components/season/VerdictBlock'
-import { worldCupCalls, worldCupTournament } from '@/engine/cup-calls'
+import { VerdictBlock, PunditsPlayedOut } from '@/components/season/VerdictBlock'
+import { punditsOnYouFor } from '@/engine/predictions'
+import { worldCupPunditTournament } from '@/engine/cup-calls'
 import { predictTable, predictWorldCupRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
@@ -309,6 +310,8 @@ export default function WCResultScreen() {
         difficulty, custom: customDifficulty,
         stats: runStats?.stats,
         awards: runStats?.awards,
+        // P8-150: the panel's place for you, for the career's line against the pundits.
+        punditsOnYou: punditsOnYouFor(store.wcTeams, store.predictionSeed),
       })
     }
     if (user && !isGuest && runStats) {
@@ -401,8 +404,9 @@ export default function WCResultScreen() {
       {/* P8-24 for the cups — every side's call, checked against how far it got. */}
       {store.predictionSeed != null && store.wcTeams && store.wcResult && (
         <>
-          <PunditsRoundTable rows={worldCupCalls(store.wcResult as any, store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
-          <PunditsTournament calls={worldCupTournament(store.wcResult as any, store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+          <PunditsPlayedOut field={store.wcTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer }))} seed={store.predictionSeed}
+            build={(rating, seed) => worldCupPunditTournament(store.wcTeams!.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), rating, seed, store.wcResult as any)} playerClubId={playerTeam?.clubId} flagOf={getFlag}
+            actual={{ groups: wall, bracket: koRoundsToColumns(koRounds) }} />
         </>
       )}
 

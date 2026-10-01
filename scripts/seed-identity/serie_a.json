@@ -1,0 +1,1771 @@
+{
+ "league": {
+  "id": "serie_a",
+  "name": "Serie A",
+  "country": "Italy",
+  "games_per_season": 38,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "inter_milan",
+   "league_id": "serie_a",
+   "name": "Inter Milan",
+   "short_name": "INT",
+   "primary_color": "#011EA0",
+   "secondary_color": "#6475C5",
+   "seasons": [
+    {
+     "id": "inter_milan_2018",
+     "club_id": "inter_milan",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2019",
+     "club_id": "inter_milan",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 88,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2020",
+     "club_id": "inter_milan",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 89,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2021",
+     "club_id": "inter_milan",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 89,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2022",
+     "club_id": "inter_milan",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 90,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2023",
+     "club_id": "inter_milan",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2024",
+     "club_id": "inter_milan",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "inter_milan_2025",
+     "club_id": "inter_milan",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 89,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "juventus_fc",
+   "league_id": "serie_a",
+   "name": "Juventus FC",
+   "short_name": "JUV",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "juventus_fc_2018",
+     "club_id": "juventus_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2019",
+     "club_id": "juventus_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2020",
+     "club_id": "juventus_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 89,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2021",
+     "club_id": "juventus_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 88,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2022",
+     "club_id": "juventus_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 87,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2023",
+     "club_id": "juventus_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2024",
+     "club_id": "juventus_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_2025",
+     "club_id": "juventus_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "as_roma",
+   "league_id": "serie_a",
+   "name": "AS Roma",
+   "short_name": "ROM",
+   "primary_color": "#FEB400",
+   "secondary_color": "#961B2F",
+   "seasons": [
+    {
+     "id": "as_roma_2018",
+     "club_id": "as_roma",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "as_roma_2019",
+     "club_id": "as_roma",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "as_roma_2020",
+     "club_id": "as_roma",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 86,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "as_roma_2021",
+     "club_id": "as_roma",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "as_roma_2022",
+     "club_id": "as_roma",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "as_roma_2023",
+     "club_id": "as_roma",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "as_roma_2024",
+     "club_id": "as_roma",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "as_roma_2025",
+     "club_id": "as_roma",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ac_milan",
+   "league_id": "serie_a",
+   "name": "AC Milan",
+   "short_name": "MIL",
+   "primary_color": "#E21C2A",
+   "secondary_color": "#1F211D",
+   "seasons": [
+    {
+     "id": "ac_milan_2018",
+     "club_id": "ac_milan",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 87,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2019",
+     "club_id": "ac_milan",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2020",
+     "club_id": "ac_milan",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2021",
+     "club_id": "ac_milan",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2022",
+     "club_id": "ac_milan",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2023",
+     "club_id": "ac_milan",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 88,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2024",
+     "club_id": "ac_milan",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "ac_milan_2025",
+     "club_id": "ac_milan",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "atalanta_bc",
+   "league_id": "serie_a",
+   "name": "Atalanta BC",
+   "short_name": "ATA",
+   "primary_color": "#0D68B1",
+   "secondary_color": "#151515",
+   "seasons": [
+    {
+     "id": "atalanta_bc_2018",
+     "club_id": "atalanta_bc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 85,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2019",
+     "club_id": "atalanta_bc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 86,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2020",
+     "club_id": "atalanta_bc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2021",
+     "club_id": "atalanta_bc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2022",
+     "club_id": "atalanta_bc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2023",
+     "club_id": "atalanta_bc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2024",
+     "club_id": "atalanta_bc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_2025",
+     "club_id": "atalanta_bc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ssc_napoli",
+   "league_id": "serie_a",
+   "name": "SSC Napoli",
+   "short_name": "NAP",
+   "primary_color": "#00A7E1",
+   "secondary_color": "#8ED7F1",
+   "seasons": [
+    {
+     "id": "ssc_napoli_2018",
+     "club_id": "ssc_napoli",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 89,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2019",
+     "club_id": "ssc_napoli",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2020",
+     "club_id": "ssc_napoli",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 88,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2021",
+     "club_id": "ssc_napoli",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 88,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2022",
+     "club_id": "ssc_napoli",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 88,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2023",
+     "club_id": "ssc_napoli",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2024",
+     "club_id": "ssc_napoli",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "ssc_napoli_2025",
+     "club_id": "ssc_napoli",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "como_1907",
+   "league_id": "serie_a",
+   "name": "Como 1907",
+   "short_name": "COM",
+   "primary_color": "#0F4169",
+   "secondary_color": "#EBF0F2",
+   "seasons": [
+    {
+     "id": "como_1907_2024",
+     "club_id": "como_1907",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "como_1907_2025",
+     "club_id": "como_1907",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bologna_fc_1909",
+   "league_id": "serie_a",
+   "name": "Bologna FC 1909",
+   "short_name": "BOL",
+   "primary_color": "#1A2F48",
+   "secondary_color": "#A21C26",
+   "seasons": [
+    {
+     "id": "bologna_fc_1909_2018",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2019",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2020",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2021",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2022",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2023",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2024",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "bologna_fc_1909_2025",
+     "club_id": "bologna_fc_1909",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 84,
+     "league_position": 8,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "acf_fiorentina",
+   "league_id": "serie_a",
+   "name": "ACF Fiorentina",
+   "short_name": "FIO",
+   "primary_color": "#61358B",
+   "secondary_color": "#DD3224",
+   "seasons": [
+    {
+     "id": "acf_fiorentina_2018",
+     "club_id": "acf_fiorentina",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2019",
+     "club_id": "acf_fiorentina",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2020",
+     "club_id": "acf_fiorentina",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2021",
+     "club_id": "acf_fiorentina",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2022",
+     "club_id": "acf_fiorentina",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2023",
+     "club_id": "acf_fiorentina",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2024",
+     "club_id": "acf_fiorentina",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "acf_fiorentina_2025",
+     "club_id": "acf_fiorentina",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ss_lazio",
+   "league_id": "serie_a",
+   "name": "SS Lazio",
+   "short_name": "LAZ",
+   "primary_color": "#D1A32E",
+   "secondary_color": "#76D1F6",
+   "seasons": [
+    {
+     "id": "ss_lazio_2018",
+     "club_id": "ss_lazio",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2019",
+     "club_id": "ss_lazio",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 85,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2020",
+     "club_id": "ss_lazio",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 86,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2021",
+     "club_id": "ss_lazio",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 85,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2022",
+     "club_id": "ss_lazio",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2023",
+     "club_id": "ss_lazio",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2024",
+     "club_id": "ss_lazio",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "ss_lazio_2025",
+     "club_id": "ss_lazio",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "us_sassuolo",
+   "league_id": "serie_a",
+   "name": "US Sassuolo",
+   "short_name": "SAS",
+   "primary_color": "#0FA553",
+   "secondary_color": "#1E1E1C",
+   "seasons": [
+    {
+     "id": "us_sassuolo_2018",
+     "club_id": "us_sassuolo",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "us_sassuolo_2019",
+     "club_id": "us_sassuolo",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "us_sassuolo_2020",
+     "club_id": "us_sassuolo",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "us_sassuolo_2021",
+     "club_id": "us_sassuolo",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "us_sassuolo_2022",
+     "club_id": "us_sassuolo",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "us_sassuolo_2023",
+     "club_id": "us_sassuolo",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "us_sassuolo_2025",
+     "club_id": "us_sassuolo",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "parma_calcio_1913",
+   "league_id": "serie_a",
+   "name": "Parma Calcio 1913",
+   "short_name": "CAL",
+   "primary_color": "#344B8F",
+   "secondary_color": "#FDCB02",
+   "seasons": [
+    {
+     "id": "parma_calcio_1913_2018",
+     "club_id": "parma_calcio_1913",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "parma_calcio_1913_2019",
+     "club_id": "parma_calcio_1913",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "parma_calcio_1913_2020",
+     "club_id": "parma_calcio_1913",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "parma_calcio_1913_2024",
+     "club_id": "parma_calcio_1913",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "parma_calcio_1913_2025",
+     "club_id": "parma_calcio_1913",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "udinese_calcio",
+   "league_id": "serie_a",
+   "name": "Udinese Calcio",
+   "short_name": "UDI",
+   "primary_color": "#A28349",
+   "secondary_color": "#B3B3B3",
+   "seasons": [
+    {
+     "id": "udinese_calcio_2018",
+     "club_id": "udinese_calcio",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 81,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2019",
+     "club_id": "udinese_calcio",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2020",
+     "club_id": "udinese_calcio",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2021",
+     "club_id": "udinese_calcio",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2022",
+     "club_id": "udinese_calcio",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2023",
+     "club_id": "udinese_calcio",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2024",
+     "club_id": "udinese_calcio",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "udinese_calcio_2025",
+     "club_id": "udinese_calcio",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 13,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "cagliari_calcio",
+   "league_id": "serie_a",
+   "name": "Cagliari Calcio",
+   "short_name": "CAG",
+   "primary_color": "#B10D27",
+   "secondary_color": "#022350",
+   "seasons": [
+    {
+     "id": "cagliari_calcio_2018",
+     "club_id": "cagliari_calcio",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "cagliari_calcio_2019",
+     "club_id": "cagliari_calcio",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "cagliari_calcio_2020",
+     "club_id": "cagliari_calcio",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "cagliari_calcio_2021",
+     "club_id": "cagliari_calcio",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 78,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "cagliari_calcio_2023",
+     "club_id": "cagliari_calcio",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 76,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "cagliari_calcio_2024",
+     "club_id": "cagliari_calcio",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "cagliari_calcio_2025",
+     "club_id": "cagliari_calcio",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "genoa_cfc",
+   "league_id": "serie_a",
+   "name": "Genoa CFC",
+   "short_name": "GEN",
+   "primary_color": "#AD1919",
+   "secondary_color": "#00263D",
+   "seasons": [
+    {
+     "id": "genoa_cfc_2018",
+     "club_id": "genoa_cfc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "genoa_cfc_2019",
+     "club_id": "genoa_cfc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "genoa_cfc_2020",
+     "club_id": "genoa_cfc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "genoa_cfc_2021",
+     "club_id": "genoa_cfc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "genoa_cfc_2023",
+     "club_id": "genoa_cfc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "genoa_cfc_2024",
+     "club_id": "genoa_cfc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "genoa_cfc_2025",
+     "club_id": "genoa_cfc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "torino_fc",
+   "league_id": "serie_a",
+   "name": "Torino FC",
+   "short_name": "TOR",
+   "primary_color": "#881F19",
+   "secondary_color": "#EBB015",
+   "seasons": [
+    {
+     "id": "torino_fc_2018",
+     "club_id": "torino_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2019",
+     "club_id": "torino_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2020",
+     "club_id": "torino_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2021",
+     "club_id": "torino_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2022",
+     "club_id": "torino_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2023",
+     "club_id": "torino_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2024",
+     "club_id": "torino_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "torino_fc_2025",
+     "club_id": "torino_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "pisa_sporting_club",
+   "league_id": "serie_a",
+   "name": "Pisa Sporting Club",
+   "short_name": "SPO",
+   "primary_color": "#0761AF",
+   "secondary_color": "#E30613",
+   "seasons": [
+    {
+     "id": "pisa_sporting_club_2025",
+     "club_id": "pisa_sporting_club",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "us_lecce",
+   "league_id": "serie_a",
+   "name": "US Lecce",
+   "short_name": "LEC",
+   "primary_color": "#012856",
+   "secondary_color": "#C79B66",
+   "seasons": [
+    {
+     "id": "us_lecce_2019",
+     "club_id": "us_lecce",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 74,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "us_lecce_2022",
+     "club_id": "us_lecce",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "us_lecce_2023",
+     "club_id": "us_lecce",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 77,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "us_lecce_2024",
+     "club_id": "us_lecce",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "us_lecce_2025",
+     "club_id": "us_lecce",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "hellas_verona",
+   "league_id": "serie_a",
+   "name": "Hellas Verona",
+   "short_name": "HEL",
+   "primary_color": "#FFCC0F",
+   "secondary_color": "#FFE893",
+   "seasons": [
+    {
+     "id": "hellas_verona_2019",
+     "club_id": "hellas_verona",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "hellas_verona_2020",
+     "club_id": "hellas_verona",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "hellas_verona_2021",
+     "club_id": "hellas_verona",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "hellas_verona_2022",
+     "club_id": "hellas_verona",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "hellas_verona_2023",
+     "club_id": "hellas_verona",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "hellas_verona_2024",
+     "club_id": "hellas_verona",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "hellas_verona_2025",
+     "club_id": "hellas_verona",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "us_cremonese",
+   "league_id": "serie_a",
+   "name": "US Cremonese",
+   "short_name": "CRE",
+   "primary_color": "#ED1C24",
+   "secondary_color": "#CE9B51",
+   "seasons": [
+    {
+     "id": "us_cremonese_2022",
+     "club_id": "us_cremonese",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "us_cremonese_2025",
+     "club_id": "us_cremonese",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_empoli",
+   "league_id": "serie_a",
+   "name": "FC Empoli",
+   "short_name": "EMP",
+   "primary_color": "#175090",
+   "secondary_color": "#10253B",
+   "seasons": [
+    {
+     "id": "fc_empoli_2018",
+     "club_id": "fc_empoli",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "fc_empoli_2021",
+     "club_id": "fc_empoli",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "fc_empoli_2022",
+     "club_id": "fc_empoli",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "fc_empoli_2023",
+     "club_id": "fc_empoli",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "fc_empoli_2024",
+     "club_id": "fc_empoli",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ac_monza",
+   "league_id": "serie_a",
+   "name": "AC Monza",
+   "short_name": "MON",
+   "primary_color": "#E4022E",
+   "secondary_color": "#EC4F6D",
+   "seasons": [
+    {
+     "id": "ac_monza_2022",
+     "club_id": "ac_monza",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "ac_monza_2023",
+     "club_id": "ac_monza",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "ac_monza_2024",
+     "club_id": "ac_monza",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "venezia_fc",
+   "league_id": "serie_a",
+   "name": "Venezia FC",
+   "short_name": "VEN",
+   "primary_color": "#A08D55",
+   "secondary_color": "#FD6A01",
+   "seasons": [
+    {
+     "id": "venezia_fc_2021",
+     "club_id": "venezia_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "venezia_fc_2024",
+     "club_id": "venezia_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "frosinone_calcio",
+   "league_id": "serie_a",
+   "name": "Frosinone Calcio",
+   "short_name": "FRO",
+   "primary_color": "#014392",
+   "secondary_color": "#FCDB01",
+   "seasons": [
+    {
+     "id": "frosinone_calcio_2018",
+     "club_id": "frosinone_calcio",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 73,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "frosinone_calcio_2023",
+     "club_id": "frosinone_calcio",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "us_salernitana_1919",
+   "league_id": "serie_a",
+   "name": "US Salernitana 1919",
+   "short_name": "SAL",
+   "primary_color": "#831D1C",
+   "secondary_color": "#F6B517",
+   "seasons": [
+    {
+     "id": "us_salernitana_1919_2021",
+     "club_id": "us_salernitana_1919",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "us_salernitana_1919_2022",
+     "club_id": "us_salernitana_1919",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "us_salernitana_1919_2023",
+     "club_id": "us_salernitana_1919",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 77,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "spezia_calcio",
+   "league_id": "serie_a",
+   "name": "Spezia Calcio",
+   "short_name": "SPE",
+   "primary_color": "#EAEAEA",
+   "secondary_color": "#B0B0B0",
+   "seasons": [
+    {
+     "id": "spezia_calcio_2020",
+     "club_id": "spezia_calcio",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 74,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "spezia_calcio_2021",
+     "club_id": "spezia_calcio",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "spezia_calcio_2022",
+     "club_id": "spezia_calcio",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "uc_sampdoria",
+   "league_id": "serie_a",
+   "name": "UC Sampdoria",
+   "short_name": "SAM",
+   "primary_color": "#014896",
+   "secondary_color": "#E30613",
+   "seasons": [
+    {
+     "id": "uc_sampdoria_2018",
+     "club_id": "uc_sampdoria",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "uc_sampdoria_2019",
+     "club_id": "uc_sampdoria",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "uc_sampdoria_2020",
+     "club_id": "uc_sampdoria",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "uc_sampdoria_2021",
+     "club_id": "uc_sampdoria",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "uc_sampdoria_2022",
+     "club_id": "uc_sampdoria",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_crotone",
+   "league_id": "serie_a",
+   "name": "FC Crotone",
+   "short_name": "CRO",
+   "primary_color": "#201C5E",
+   "secondary_color": "#E30016",
+   "seasons": [
+    {
+     "id": "fc_crotone_2020",
+     "club_id": "fc_crotone",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 75,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "benevento_calcio",
+   "league_id": "serie_a",
+   "name": "Benevento Calcio",
+   "short_name": "BEN",
+   "primary_color": "#E31523",
+   "secondary_color": "#FEED01",
+   "seasons": [
+    {
+     "id": "benevento_calcio_2020",
+     "club_id": "benevento_calcio",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 76,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "brescia_calcio_2025",
+   "league_id": "serie_a",
+   "name": "Brescia Calcio (- 2025)",
+   "short_name": "BRE",
+   "primary_color": "#3A5A95",
+   "secondary_color": "#D6AD5D",
+   "seasons": [
+    {
+     "id": "brescia_calcio_2025_2019",
+     "club_id": "brescia_calcio_2025",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "spal",
+   "league_id": "serie_a",
+   "name": "SPAL",
+   "short_name": "SPA",
+   "primary_color": "#00A3DC",
+   "secondary_color": "#C8AD76",
+   "seasons": [
+    {
+     "id": "spal_2018",
+     "club_id": "spal",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "spal_2019",
+     "club_id": "spal",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "chievo_verona",
+   "league_id": "serie_a",
+   "name": "Chievo Verona",
+   "short_name": "CHI",
+   "primary_color": "#FDF401",
+   "secondary_color": "#0366FC",
+   "seasons": [
+    {
+     "id": "chievo_verona_2018",
+     "club_id": "chievo_verona",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 75,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

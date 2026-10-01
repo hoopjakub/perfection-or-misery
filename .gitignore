@@ -41,3 +41,5 @@ yarn-error.*
 /android
 
 .impeccable
+# Wikipedia/Wikidata response cache (scripts/lib/wikipedia.ts)
+scripts/.cache/

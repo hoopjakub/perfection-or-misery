@@ -8,7 +8,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { Text, View, Image, StyleSheet, type TextProps, type StyleProp, type ViewStyle, type TextStyle, Platform } from 'react-native'
 import Svg, { Defs, Pattern, Rect, Circle, Path, ClipPath, G, Polygon } from 'react-native-svg'
 import { Ionicons } from '@expo/vector-icons'
-import { type, prim, font, ROLES, paletteHex, type Roles, type TypeToken, border, ratingColor, ratingInk, formatRating } from '@/theme'
+import { type, prim, font, ROLES, choiceHex, type Roles, type TypeToken, border, ratingColor, ratingInk, formatRating } from '@/theme'
 import { ratio } from '@/lib/contrast'
 import { crestFor, competitionCrestFor, shortCrestInitials } from '@/lib/brand'
 import { useCrestStore } from '@/store/crestStore'
@@ -217,14 +217,24 @@ export function Twinkle({ i = 0 }: { i?: number }) {
 // way the kit draws a club's badge: the shape in the first colour, the shirt
 // device in the second, clipped to the shape, and the letters on top in the
 // super face. At small sizes two letters, as a club's badge shows (P8-119).
-// Each crest colour id's palette colour (the theme's paletteHex).
-export const crestHex = paletteHex
+// A crest colour: a palette id's colour, or (P8-177) any #rrggbb as it is.
+export const crestHex = choiceHex
 
 const SHAPE_PATH: Record<string, string> = {
   square: 'M3 3 H97 V97 H3 Z',
   shield: 'M6 4 H94 V52 C94 78 72 92 50 98 C28 92 6 78 6 52 Z',
   round: 'M50 3 A47 47 0 1 1 49.9 3 Z',
+  // P8-175: six more.
+  heater: 'M6 4 H94 V40 C94 72 76 88 50 98 C24 88 6 72 6 40 Z',
+  pennant: 'M8 3 H92 V70 L50 97 L8 70 Z',
+  oval: 'M50 3 C80 3 92 25 92 50 C92 75 80 97 50 97 C20 97 8 75 8 50 C8 25 20 3 50 3 Z',
+  diamond: 'M50 2 L98 50 L50 98 L2 50 Z',
+  hexagon: 'M50 3 L93 27 V73 L50 97 L7 73 V27 Z',
+  octagon: 'M30 3 H70 L97 30 V70 L70 97 H30 L3 70 V30 Z',
 }
+// The five-point star and the ball's panel (P8-175's devices), as points.
+const STAR_POINTS = '50.0,18.0 57.3,37.9 78.5,38.7 61.9,51.9 67.6,72.3 50.0,60.5 32.4,72.3 38.1,51.9 21.5,38.7 42.7,37.9'
+const BALL_PANEL = '50.0,40.0 59.5,46.9 55.9,58.1 44.1,58.1 40.5,46.9'
 export function YourCrest({ choice, size = 24, name = 'Your crest' }: { choice: CrestChoice; size?: number; name?: string }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, '')
   const uri = choice.imagePath ? crestImageUrl(choice.imagePath) : null
@@ -234,6 +244,8 @@ export function YourCrest({ choice, size = 24, name = 'Your crest' }: { choice: 
   const d = choice.design
   if (!d) return null
   const bg = crestHex(d.primary), fg = crestHex(d.secondary)
+  const outline = SHAPE_PATH[d.shape] ?? SHAPE_PATH.square
+  const trim = d.trim ?? 'ink'
   // The letters in whichever of ink or cotton reads on the first colour.
   const ink = ratio(prim.ink, bg) >= ratio(prim.cotton, bg) ? prim.ink : prim.cotton
   const letters = size < 24 ? d.initials.slice(0, 2) : d.initials
@@ -251,8 +263,18 @@ export function YourCrest({ choice, size = 24, name = 'Your crest' }: { choice: 
           {d.device === 'sash' && <Polygon points="0,72 72,0 100,0 100,28 28,100 0,100" fill={fg} />}
           {d.device === 'chevron' && <Polygon points="0,30 50,58 100,30 100,52 50,80 0,52" fill={fg} />}
           {d.device === 'solid' && <Rect x={0} y={68} width={100} height={32} fill={fg} />}
+          {d.device === 'stripes' && [1, 3, 5].map(k => <Rect key={k} x={k * (100 / 7)} y={0} width={100 / 7} height={100} fill={fg} />)}
+          {d.device === 'hoops' && [14, 42, 70].map(y => <Rect key={y} x={0} y={y} width={100} height={16} fill={fg} />)}
+          {d.device === 'quarters' && <><Rect x={0} y={0} width={50} height={50} fill={fg} /><Rect x={50} y={50} width={50} height={50} fill={fg} /></>}
+          {d.device === 'cross' && <><Rect x={40} y={0} width={20} height={100} fill={fg} /><Rect x={0} y={38} width={100} height={20} fill={fg} /></>}
+          {d.device === 'saltire' && <><Polygon points="0,0 14,0 100,86 100,100 86,100 0,14" fill={fg} /><Polygon points="100,0 100,14 14,100 0,100 0,86 86,0" fill={fg} /></>}
+          {d.device === 'star' && <Polygon points={STAR_POINTS} fill={fg} />}
+          {d.device === 'ball' && <><Circle cx={50} cy={50} r={28} fill={fg} /><Polygon points={BALL_PANEL} fill={bg} /></>}
         </G>
-        <Path d={SHAPE_PATH[d.shape] ?? SHAPE_PATH.square} fill="none" stroke={prim.ink} strokeWidth={4} />
+        {/* The trim (P8-175): the outline's weight, a second line inside it, or gold. */}
+        {trim === 'gold' && <Path d={outline} fill="none" stroke={prim.gold} strokeWidth={8} />}
+        {trim !== 'none' && <Path d={outline} fill="none" stroke={prim.ink} strokeWidth={trim === 'thin' ? 2 : trim === 'gold' ? 2.5 : 4} />}
+        {trim === 'double' && <G transform="translate(9 9) scale(0.82)"><Path d={outline} fill="none" stroke={prim.ink} strokeWidth={3} /></G>}
       </Svg>
       {letters ? (
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, crestStyles.letters]}>
@@ -376,14 +398,20 @@ export function Rivets({ color }: { color: string }) {
 // ── ZipTag ───────────────────────────────────────────────────────────────────
 // The orange tag that marks what you're holding or who you are. One on screen
 // at a time. Static here; the swing arrives with the draft (Phase 2).
-export function ZipTag({ size = 20, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
+export function ZipTag({ size = 20, style, colour: given }: { size?: number; style?: StyleProp<ViewStyle>; colour?: string }) {
+  // P8-168: every pin is yours: the colour you chose, or the default orange.
+  const mine = useCrestStore(st => st.pin?.hex)
+  const colour = given ?? mine ?? prim.orange
   const h = size * 1.6
+  // P8-168: a pin of your own colour. The hole takes whichever of ink and
+  // cotton stands out on it, so a black or pitch-green pin still has one.
+  const hole = ratio(colour, prim.ink) >= ratio(colour, prim.cotton) ? prim.ink : prim.cotton
   return (
     <View style={style} pointerEvents="none" importantForAccessibility="no-hide-descendants">
       <Svg width={size} height={h} viewBox="0 0 20 32">
-        <Path d="M10 9 L10 32" stroke={prim.orange} strokeWidth={3} strokeLinecap="square" />
-        <Circle cx={10} cy={6} r={6} fill={prim.orange} />
-        <Circle cx={10} cy={6} r={2} fill={prim.ink} />
+        <Path d="M10 9 L10 32" stroke={colour} strokeWidth={3} strokeLinecap="square" />
+        <Circle cx={10} cy={6} r={6} fill={colour} />
+        <Circle cx={10} cy={6} r={2} fill={hole} />
       </Svg>
     </View>
   )
@@ -411,7 +439,7 @@ const ICONS = {
   // Finals and the Full path share a competition, so the icon is what tells
   // them apart: a star for the competition itself, a signpost for the road to it.
   modeAllTime: 'infinite-sharp', modeLeague: 'football-sharp', modeChaos: 'flash-sharp', modeCursed: 'skull-sharp',
-  modeClFinals: 'star-sharp', modeClPath: 'trail-sign-sharp', modeWorldCup: 'globe-sharp',
+  modeClFinals: 'star-sharp', modeClPath: 'trail-sign-sharp', modeWorldCup: 'globe-sharp', add: 'add-sharp', palette: 'color-palette-sharp', modeElFinals: 'medal-sharp', modeEclFinals: 'shield-half-sharp',
 } as const
 export type IconName = keyof typeof ICONS
 

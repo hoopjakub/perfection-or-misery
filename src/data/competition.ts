@@ -4,7 +4,7 @@
 // A cup is a tournament, not a season: "Simulate tournament", Player of the
 // Tournament. One place decides the word per mode; everything else asks here.
 export const isTournament = (mode: string | null | undefined): boolean =>
-  mode === 'world_cup' || mode === 'champions_league' || mode === 'champions_league_custom'
+  mode === 'world_cup' || mode === 'champions_league' || mode === 'champions_league_custom' || mode === 'europa_league' || mode === 'conference_league'
 
 /** 'tournament' in a cup mode, 'season' otherwise. */
 export const seasonWord = (mode: string | null | undefined): 'season' | 'tournament' => (isTournament(mode) ? 'tournament' : 'season')

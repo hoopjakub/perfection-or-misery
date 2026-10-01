@@ -2,6 +2,8 @@
 // carry it in the DB (typed as plain `string` there, not GameMode), but it's no
 // longer a selectable/live mode, so it's dropped from this union.
 export type GameMode = 'league' | 'all_time' | 'chaos' | 'cursed' | 'champions_league' | 'champions_league_custom' | 'world_cup'
+  // P8-172: the Europa League and the Conference League, each on its own.
+  | 'europa_league' | 'conference_league'
 
 export type Position =
   'GK' | 'CB' | 'LB' | 'RB' | 'CDM' |

@@ -11,7 +11,7 @@
 // (3:1, the bar for graphics), and the away side steps to its other colour, then to a neutral, when the two
 // would be too alike to tell apart.
 import { createContext, useContext, useEffect, useState } from 'react'
-import { prim, paletteHex } from '@/theme'
+import { prim, choiceHex } from '@/theme'
 import { useCrestStore } from '@/store/crestStore'
 import { ratio } from '@/lib/contrast'
 import { getClubColours } from '@/db/queries/seasons'
@@ -62,7 +62,7 @@ export function useTeamColours(homeId?: string, awayId?: string): { home: string
   const yourClub = useCrestStore(st => st.active?.clubId ?? null)
   const colours = useCrestStore(st => st.active?.choice.colours ?? null)
   const yours = yourClub && colours ? { clubId: yourClub, colours } : null
-  const yourKit: Kit | null = yours ? { primary: paletteHex(yours.colours.main), secondary: paletteHex(yours.colours.second) } : null
+  const yourKit: Kit | null = yours ? { primary: choiceHex(yours.colours.main), secondary: choiceHex(yours.colours.second) } : null
   useEffect(() => {
     if (!homeId || !awayId) return
     let alive = true

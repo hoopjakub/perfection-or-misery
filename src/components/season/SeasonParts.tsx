@@ -7,7 +7,7 @@ import { View, Pressable, ScrollView, StyleSheet } from 'react-native'
 import Animated, { LinearTransition, FadeIn } from 'react-native-reanimated'
 import { type Roles, space, border, density, SERIES } from '@/theme'
 import Svg, { Polyline, Line, Circle } from 'react-native-svg'
-import { KitText, Stripe, Tape, Icon, Tag, RoundFlag, VenueMark, TeamMark, Field, Twinkle } from '@/components/kit'
+import { KitText, Stripe, Tape, Icon, Tag, RoundFlag, VenueMark, TeamMark, Field, Twinkle, useModeLook, tiltOf, Scanlines } from '@/components/kit'
 import { ZONES, type ZoneKey } from '@/data/qualification-bands'
 import { storyText, type Story } from '@/engine/press'
 
@@ -114,8 +114,12 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
   const tracksMoves = rows.some(r => r.move !== undefined)
   const layout = moveMs ? LinearTransition.duration(moveMs) : undefined
   const fig = muted ? roles.textFaint : roles.text
+  // P8-169: Chaos runs a hazard edge down the table; Cursed lays scanlines over it.
+  const look = useModeLook()
   return (
-    <View accessibilityRole="list">
+    <View accessibilityRole="list" style={look === 'chaos' ? styles.chaosTable : undefined}>
+      {look === 'chaos' && <Stripe roles={roles} band={4} style={styles.chaosEdge} />}
+      {look === 'cursed' && <Scanlines />}
       <View style={[styles.row, styles.headRow, { borderBottomColor: roles.line }]}>
         <View style={styles.edgeSlot} />
         <KitText t="tag" color={roles.textMuted} style={styles.code}> </KitText>
@@ -295,11 +299,14 @@ export function ScorelineCard({ roles, label, homeName, awayName, homeClubId, aw
 }) {
   const mine = youHome ? homeGoals - awayGoals : awayGoals - homeGoals
   const mark: Mark = mine > 0 ? 'W' : mine < 0 ? 'L' : 'D'
+  const look = useModeLook()
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button"
       accessibilityLabel={`${label}. ${homeName} ${homeGoals}, ${awayName} ${awayGoals}. ${mark === 'W' ? 'Won' : mark === 'L' ? 'Lost' : 'Drawn'}`}
       accessibilityHint="Opens the match sheet"
-      style={({ pressed }) => [styles.scoreCard, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
+      style={({ pressed }) => [styles.scoreCard, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface },
+        look === 'chaos' && { transform: [{ rotate: `${tiltOf(label, 1.2)}deg` }] }]}>
+      {look === 'cursed' && <Scanlines />}
       <View style={styles.scoreTop}>
         {/* P8-134: home or away as the house or the plane (P8-09), not the word. */}
         <VenueMark roles={roles} home={youHome} />
@@ -683,19 +690,20 @@ export type MiniGroup = { id: string; you: boolean; rows: { clubId: string; club
 export function GroupWall({ roles, groups, onOpen, cut = 2 }: {
   roles: Roles
   groups: MiniGroup[]
-  onOpen: (id: string) => void
+  /** Opens a group; without it the wall is for reading only (the pundits' groups, P8-165). */
+  onOpen?: (id: string) => void
   cut?: number     // rows above this line are through
 }) {
   return (
     <View style={styles.wall}>
       {groups.map(g => (
-        <Pressable key={g.id} onPress={() => onOpen(g.id)} accessibilityRole="button"
+        <Pressable key={g.id} disabled={!onOpen} onPress={() => onOpen?.(g.id)} accessibilityRole={onOpen ? 'button' : undefined}
           accessibilityLabel={`Group ${g.id}: ${g.rows.map(r => `${r.clubName} ${r.points}`).join(', ')}`}
           style={({ pressed }) => [styles.mini, { borderColor: g.you ? roles.line : roles.rule, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
           <View style={styles.miniTop}>
             <KitText t="tag" color={roles.text}>{`GROUP ${g.id}`}</KitText>
             <View style={{ flex: 1 }} />
-            <Icon name="chevron" size={16} color={roles.textMuted} />
+            {onOpen ? <Icon name="chevron" size={16} color={roles.textMuted} /> : null}
           </View>
           {g.rows.map((r, i) => (
             <View key={r.clubId} style={[styles.miniRow, i === cut && { borderTopWidth: border.thin, borderTopColor: roles.rule }]}>
@@ -915,6 +923,8 @@ export const StoryItem = memo(function StoryItem({ roles, story, onPress }: { ro
 })
 
 const styles = StyleSheet.create({
+  chaosTable: { paddingLeft: 8 },
+  chaosEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
   compare: { gap: space[1], marginTop: space[2] },
   compareRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
   compareHit: { flexDirection: 'row', alignItems: 'center', minHeight: 44, borderBottomWidth: border.hair },

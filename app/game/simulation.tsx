@@ -1,10 +1,10 @@
+import { compOfMode, isClassicEurope, EUROPE } from '@/data/europe'
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { openSheet } from '@/lib/sheet'
 import { BracketTree } from '@/components/BracketTree'
 import { liveBracket, liveProgress } from '@/lib/liveBracket'
 import { kickoffFor } from '@/engine/schedule'
 import { punditPanel, panelLineFor } from '@/engine/predictions'
-import { CL_LEAGUE_MATCHDAYS } from '@/engine/knockout-availability'
 import { RoundTeam } from '@/components/season/RoundTeam'
 import { usePauseOnBlur } from '@/hooks/usePauseOnBlur'
 import { useIsFocused } from '@react-navigation/native'
@@ -46,7 +46,7 @@ import {
 } from '@/engine/run-stats'
 import {
   clKnockoutAvailabilityHook, wcKnockoutAvailabilityHook,
-  CL_TOTAL_MATCHDAYS, WC_TOTAL_MATCHDAYS,
+  WC_TOTAL_MATCHDAYS,
 } from '@/engine/knockout-availability'
 import type { RosterPlayer, MatchScorers } from '@/types/stats'
 import { randomSeed } from '@/lib/rng'
@@ -172,7 +172,7 @@ export default function SimulationScreen() {
   // it in an effect would race the children's own mount-time sim effects (React
   // fires child effects before parent effects).
   setMatchTilt(resolveDifficulty(difficulty, customDifficulty, mode).tilt)
-  if (mode === 'champions_league') return <CLSimulation />
+  if (isClassicEurope(mode)) return <CLSimulation />   // P8-172: all three European competitions
   if (mode === 'world_cup')        return <WCSimulation />
   return <LeagueSeason />
 }
@@ -180,11 +180,13 @@ export default function SimulationScreen() {
 // ── Champions League Simulation ──────────────────────────────────────────────
 
 function CLSimulation() {
-  const { draftedPlayers, benchPlayers, useSubstitutes, formation, clTeams, clYear, setClResult } = useGameStore()
+  const { draftedPlayers, benchPlayers, useSubstitutes, formation, clTeams, clYear, setClResult, mode } = useGameStore()
+  // P8-172: which competition this is — its name, its league phase's shape.
+  const comp = compOfMode(mode) ?? EUROPE.ucl
   // P8-57: the same panel the pundits screen showed (same seed, same field).
   const predictionSeed = useGameStore(s => s.predictionSeed)
   const clPanel = useMemo(() => clTeams && predictionSeed != null
-    ? punditPanel(clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), predictionSeed, undefined, CL_LEAGUE_MATCHDAYS)
+    ? punditPanel(clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), predictionSeed, undefined, comp.matchdays)
     : [], [clTeams, predictionSeed])
   const fullSquad = [...draftedPlayers, ...benchPlayers]
   const clPoolYear = clYear ?? 2025   // UCL edition you were placed in (for scorer rosters)
@@ -238,7 +240,7 @@ function CLSimulation() {
           // The bracket keeps counting matchdays after the league phase, so an
           // injury on matchday 8 can still cost somebody the round of 16.
           poolByClub: p.poolByClub, playerClubId: p.playerClubId,
-          totalMatchdays: CL_TOTAL_MATCHDAYS,
+          totalMatchdays: comp.matchdays + 4 * 2 + 1,   // the league phase, four two-legged rounds, the final
         })
       })
       .catch(e => console.warn('[cl] pool load failed:', e))
@@ -278,7 +280,7 @@ function CLSimulation() {
     }
   }, [phase, koVisibleCount, koRounds, koLiveDone, koAway, focused])
 
-  const totalMatchdays = 8
+  const totalMatchdays = comp.matchdays
 
   useEffect(() => {
     if (!clTeams) return
@@ -291,7 +293,7 @@ function CLSimulation() {
     setSimTeams(teams)
     // P8-114: drawn for real, the country rule read from the club's name (the
     // classic editions carry no country of their own; geo-iso knows them all).
-    const draw = drawCLLeaguePhase(teams, clCountryOf)
+    const draw = drawCLLeaguePhase(teams, clCountryOf, { pots: comp.pots, perPot: comp.perPot })
     setLpDraw(draw)
     setFixtures(draw.fixtures)
   }, [clTeams, totalTeamOvr])
@@ -402,7 +404,7 @@ function CLSimulation() {
         pool = p.poolByClub; ctx = lineupCtxOf(p)
         availabilityRef.current ??= createAvailabilityLedger({
           poolByClub: p.poolByClub, playerClubId: p.playerClubId,
-          totalMatchdays: CL_TOTAL_MATCHDAYS,
+          totalMatchdays: comp.matchdays + 4 * 2 + 1,   // the league phase, four two-legged rounds, the final
         })
       } catch (e) { console.warn('[cl] pool load failed:', e) }
     }
@@ -466,7 +468,7 @@ function CLSimulation() {
         ? { round: 'sf', label: 'Semi-Finals', autoDelay: 5000, ties: result.sf.map(buildTie) }
         : null,
       result.final
-        ? { round: 'final', label: 'UCL Final', autoDelay: 0, ties: [buildTie(result.final)] }
+        ? { round: 'final', label: comp.finalLabel, autoDelay: 0, ties: [buildTie(result.final)] }
         : null,
     ].filter(Boolean) as KnockoutRound[]
 
@@ -556,7 +558,7 @@ function CLSimulation() {
     )
     openDeepMatch({
       detail,
-      competitionLabel: 'UEFA Champions League',
+      competitionLabel: comp.fullName,
       roundLabel: clFinalRound.label,
       accent: theme.accent,
       playerWon: clPlayerFinal.winner.isPlayer,
@@ -614,9 +616,9 @@ function CLSimulation() {
           <KnockoutPhaseView
             rounds={koRounds}
             visibleCount={koVisibleCount}
-            competitionLabel="UEFA Champions League"
+            competitionLabel={comp.fullName}
             yearStart={clPoolYear}
-            colourway={colourwayFor('champions_league')}
+            colourway={colourwayFor(comp.mode)}
             onAbandon={() => askAbandon(() => {})}
             onFinish={finishKnockoutPhase}
             deepFinal={clPlayerFinal ? { watched: deepFinalWatched, onSeeLineups: openClDeepFinal } : undefined}
@@ -648,11 +650,11 @@ function CLSimulation() {
   return (
     <View style={[styles.container, { backgroundColor: nylon.bg }]}>
       <KitScreen ground="nylon" width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
-        <RunHeader roles={nylon} stage={6} colourway={colourwayFor('champions_league')} back={false} tournament
+        <RunHeader roles={nylon} stage={6} colourway={colourwayFor(comp.mode)} back={false} tournament
           title={clStarted ? undefined : 'The league phase'}
           right={<CloseRun onPress={() => askAbandon(() => setIsPlaying(false))} />} />
         <KitText t="tag" color={nylon.textMuted}>
-          {`UEFA Champions League · 36 clubs · MD ${clLatestMD}/${totalMatchdays}`}
+          {`${comp.fullName} · ${simTeams.length || 36} clubs · MD ${clLatestMD}/${totalMatchdays}`}
         </KitText>
 
         {!clStarted ? (

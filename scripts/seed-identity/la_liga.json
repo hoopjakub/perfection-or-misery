@@ -1,0 +1,1731 @@
+{
+ "league": {
+  "id": "la_liga",
+  "name": "LaLiga",
+  "country": "Spain",
+  "games_per_season": 38,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "real_madrid",
+   "league_id": "la_liga",
+   "name": "Real Madrid",
+   "short_name": "MAD",
+   "primary_color": "#FABE01",
+   "secondary_color": "#1C5BA2",
+   "seasons": [
+    {
+     "id": "real_madrid_2018",
+     "club_id": "real_madrid",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 91,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2019",
+     "club_id": "real_madrid",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2020",
+     "club_id": "real_madrid",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 90,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2021",
+     "club_id": "real_madrid",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2022",
+     "club_id": "real_madrid",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2023",
+     "club_id": "real_madrid",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2024",
+     "club_id": "real_madrid",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "real_madrid_2025",
+     "club_id": "real_madrid",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_barcelona",
+   "league_id": "la_liga",
+   "name": "FC Barcelona",
+   "short_name": "BAR",
+   "primary_color": "#E2B900",
+   "secondary_color": "#004A93",
+   "seasons": [
+    {
+     "id": "fc_barcelona_2018",
+     "club_id": "fc_barcelona",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2019",
+     "club_id": "fc_barcelona",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2020",
+     "club_id": "fc_barcelona",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 89,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2021",
+     "club_id": "fc_barcelona",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 87,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2022",
+     "club_id": "fc_barcelona",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 89,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2023",
+     "club_id": "fc_barcelona",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 89,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2024",
+     "club_id": "fc_barcelona",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 90,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_2025",
+     "club_id": "fc_barcelona",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "atletico_de_madrid",
+   "league_id": "la_liga",
+   "name": "Atlético de Madrid",
+   "short_name": "ATL",
+   "primary_color": "#041971",
+   "secondary_color": "#E2211C",
+   "seasons": [
+    {
+     "id": "atletico_de_madrid_2018",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2019",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 89,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2020",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 90,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2021",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 89,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2022",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2023",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 87,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2024",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_2025",
+     "club_id": "atletico_de_madrid",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "villarreal_cf",
+   "league_id": "la_liga",
+   "name": "Villarreal CF",
+   "short_name": "VIL",
+   "primary_color": "#015187",
+   "secondary_color": "#FEE567",
+   "seasons": [
+    {
+     "id": "villarreal_cf_2018",
+     "club_id": "villarreal_cf",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2019",
+     "club_id": "villarreal_cf",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 83,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2020",
+     "club_id": "villarreal_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2021",
+     "club_id": "villarreal_cf",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2022",
+     "club_id": "villarreal_cf",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 86,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2023",
+     "club_id": "villarreal_cf",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2024",
+     "club_id": "villarreal_cf",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "villarreal_cf_2025",
+     "club_id": "villarreal_cf",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "real_sociedad",
+   "league_id": "la_liga",
+   "name": "Real Sociedad",
+   "short_name": "SOC",
+   "primary_color": "#0066B0",
+   "secondary_color": "#D77621",
+   "seasons": [
+    {
+     "id": "real_sociedad_2018",
+     "club_id": "real_sociedad",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2019",
+     "club_id": "real_sociedad",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2020",
+     "club_id": "real_sociedad",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2021",
+     "club_id": "real_sociedad",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 85,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2022",
+     "club_id": "real_sociedad",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2023",
+     "club_id": "real_sociedad",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2024",
+     "club_id": "real_sociedad",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "real_sociedad_2025",
+     "club_id": "real_sociedad",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "real_betis_balompie",
+   "league_id": "la_liga",
+   "name": "Real Betis Balompié",
+   "short_name": "BAL",
+   "primary_color": "#CF8A01",
+   "secondary_color": "#018835",
+   "seasons": [
+    {
+     "id": "real_betis_balompie_2018",
+     "club_id": "real_betis_balompie",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2019",
+     "club_id": "real_betis_balompie",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2020",
+     "club_id": "real_betis_balompie",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2021",
+     "club_id": "real_betis_balompie",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 85,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2022",
+     "club_id": "real_betis_balompie",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2023",
+     "club_id": "real_betis_balompie",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 82,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2024",
+     "club_id": "real_betis_balompie",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "real_betis_balompie_2025",
+     "club_id": "real_betis_balompie",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "athletic_bilbao",
+   "league_id": "la_liga",
+   "name": "Athletic Bilbao",
+   "short_name": "ATH",
+   "primary_color": "#FE1E11",
+   "secondary_color": "#CFCFCF",
+   "seasons": [
+    {
+     "id": "athletic_bilbao_2018",
+     "club_id": "athletic_bilbao",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2019",
+     "club_id": "athletic_bilbao",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2020",
+     "club_id": "athletic_bilbao",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2021",
+     "club_id": "athletic_bilbao",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2022",
+     "club_id": "athletic_bilbao",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2023",
+     "club_id": "athletic_bilbao",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2024",
+     "club_id": "athletic_bilbao",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "athletic_bilbao_2025",
+     "club_id": "athletic_bilbao",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 7,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "celta_de_vigo",
+   "league_id": "la_liga",
+   "name": "Celta de Vigo",
+   "short_name": "CEL",
+   "primary_color": "#E5254E",
+   "secondary_color": "#8BC3EE",
+   "seasons": [
+    {
+     "id": "celta_de_vigo_2018",
+     "club_id": "celta_de_vigo",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2019",
+     "club_id": "celta_de_vigo",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2020",
+     "club_id": "celta_de_vigo",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 82,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2021",
+     "club_id": "celta_de_vigo",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2022",
+     "club_id": "celta_de_vigo",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2023",
+     "club_id": "celta_de_vigo",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2024",
+     "club_id": "celta_de_vigo",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "celta_de_vigo_2025",
+     "club_id": "celta_de_vigo",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sevilla_fc",
+   "league_id": "la_liga",
+   "name": "Sevilla FC",
+   "short_name": "SEV",
+   "primary_color": "#CB0F21",
+   "secondary_color": "#B17016",
+   "seasons": [
+    {
+     "id": "sevilla_fc_2018",
+     "club_id": "sevilla_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2019",
+     "club_id": "sevilla_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2020",
+     "club_id": "sevilla_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2021",
+     "club_id": "sevilla_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 87,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2022",
+     "club_id": "sevilla_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2023",
+     "club_id": "sevilla_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2024",
+     "club_id": "sevilla_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "sevilla_fc_2025",
+     "club_id": "sevilla_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "girona_fc",
+   "league_id": "la_liga",
+   "name": "Girona FC",
+   "short_name": "GIR",
+   "primary_color": "#F1092B",
+   "secondary_color": "#FFB802",
+   "seasons": [
+    {
+     "id": "girona_fc_2018",
+     "club_id": "girona_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "girona_fc_2022",
+     "club_id": "girona_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "girona_fc_2023",
+     "club_id": "girona_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "girona_fc_2024",
+     "club_id": "girona_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "girona_fc_2025",
+     "club_id": "girona_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "valencia_cf",
+   "league_id": "la_liga",
+   "name": "Valencia CF",
+   "short_name": "VAL",
+   "primary_color": "#FEDE1C",
+   "secondary_color": "#EE3524",
+   "seasons": [
+    {
+     "id": "valencia_cf_2018",
+     "club_id": "valencia_cf",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 87,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2019",
+     "club_id": "valencia_cf",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2020",
+     "club_id": "valencia_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2021",
+     "club_id": "valencia_cf",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2022",
+     "club_id": "valencia_cf",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 82,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2023",
+     "club_id": "valencia_cf",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2024",
+     "club_id": "valencia_cf",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "valencia_cf_2025",
+     "club_id": "valencia_cf",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rcd_espanyol_barcelona",
+   "league_id": "la_liga",
+   "name": "RCD Espanyol Barcelona",
+   "short_name": "BAR",
+   "primary_color": "#FD1119",
+   "secondary_color": "#1E6BC0",
+   "seasons": [
+    {
+     "id": "rcd_espanyol_barcelona_2018",
+     "club_id": "rcd_espanyol_barcelona",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "rcd_espanyol_barcelona_2019",
+     "club_id": "rcd_espanyol_barcelona",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "rcd_espanyol_barcelona_2021",
+     "club_id": "rcd_espanyol_barcelona",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "rcd_espanyol_barcelona_2022",
+     "club_id": "rcd_espanyol_barcelona",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "rcd_espanyol_barcelona_2024",
+     "club_id": "rcd_espanyol_barcelona",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "rcd_espanyol_barcelona_2025",
+     "club_id": "rcd_espanyol_barcelona",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "levante_ud",
+   "league_id": "la_liga",
+   "name": "Levante UD",
+   "short_name": "LEV",
+   "primary_color": "#B3053E",
+   "secondary_color": "#005CA4",
+   "seasons": [
+    {
+     "id": "levante_ud_2018",
+     "club_id": "levante_ud",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "levante_ud_2019",
+     "club_id": "levante_ud",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "levante_ud_2020",
+     "club_id": "levante_ud",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "levante_ud_2021",
+     "club_id": "levante_ud",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "levante_ud_2025",
+     "club_id": "levante_ud",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 13,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rayo_vallecano",
+   "league_id": "la_liga",
+   "name": "Rayo Vallecano",
+   "short_name": "VAL",
+   "primary_color": "#E7B72B",
+   "secondary_color": "#FE332A",
+   "seasons": [
+    {
+     "id": "rayo_vallecano_2018",
+     "club_id": "rayo_vallecano",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "rayo_vallecano_2021",
+     "club_id": "rayo_vallecano",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 77,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "rayo_vallecano_2022",
+     "club_id": "rayo_vallecano",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "rayo_vallecano_2023",
+     "club_id": "rayo_vallecano",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "rayo_vallecano_2024",
+     "club_id": "rayo_vallecano",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "rayo_vallecano_2025",
+     "club_id": "rayo_vallecano",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ca_osasuna",
+   "league_id": "la_liga",
+   "name": "CA Osasuna",
+   "short_name": "OSA",
+   "primary_color": "#9F8400",
+   "secondary_color": "#C30001",
+   "seasons": [
+    {
+     "id": "ca_osasuna_2019",
+     "club_id": "ca_osasuna",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "ca_osasuna_2020",
+     "club_id": "ca_osasuna",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "ca_osasuna_2021",
+     "club_id": "ca_osasuna",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "ca_osasuna_2022",
+     "club_id": "ca_osasuna",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "ca_osasuna_2023",
+     "club_id": "ca_osasuna",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "ca_osasuna_2024",
+     "club_id": "ca_osasuna",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "ca_osasuna_2025",
+     "club_id": "ca_osasuna",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "elche_cf",
+   "league_id": "la_liga",
+   "name": "Elche CF",
+   "short_name": "ELC",
+   "primary_color": "#E5C676",
+   "secondary_color": "#C5112E",
+   "seasons": [
+    {
+     "id": "elche_cf_2020",
+     "club_id": "elche_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "elche_cf_2021",
+     "club_id": "elche_cf",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 77,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "elche_cf_2022",
+     "club_id": "elche_cf",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "elche_cf_2025",
+     "club_id": "elche_cf",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rcd_mallorca",
+   "league_id": "la_liga",
+   "name": "RCD Mallorca",
+   "short_name": "MAL",
+   "primary_color": "#ED1B24",
+   "secondary_color": "#FCF304",
+   "seasons": [
+    {
+     "id": "rcd_mallorca_2019",
+     "club_id": "rcd_mallorca",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 74,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "rcd_mallorca_2021",
+     "club_id": "rcd_mallorca",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "rcd_mallorca_2022",
+     "club_id": "rcd_mallorca",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "rcd_mallorca_2023",
+     "club_id": "rcd_mallorca",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "rcd_mallorca_2024",
+     "club_id": "rcd_mallorca",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 79,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "rcd_mallorca_2025",
+     "club_id": "rcd_mallorca",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "getafe_cf",
+   "league_id": "la_liga",
+   "name": "Getafe CF",
+   "short_name": "GET",
+   "primary_color": "#0B5298",
+   "secondary_color": "#66A926",
+   "seasons": [
+    {
+     "id": "getafe_cf_2018",
+     "club_id": "getafe_cf",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2019",
+     "club_id": "getafe_cf",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2020",
+     "club_id": "getafe_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 81,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2021",
+     "club_id": "getafe_cf",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 82,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2022",
+     "club_id": "getafe_cf",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2023",
+     "club_id": "getafe_cf",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2024",
+     "club_id": "getafe_cf",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "getafe_cf_2025",
+     "club_id": "getafe_cf",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "deportivo_alaves",
+   "league_id": "la_liga",
+   "name": "Deportivo Alavés",
+   "short_name": "DEP",
+   "primary_color": "#0433A1",
+   "secondary_color": "#4E6BBA",
+   "seasons": [
+    {
+     "id": "deportivo_alaves_2018",
+     "club_id": "deportivo_alaves",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "deportivo_alaves_2019",
+     "club_id": "deportivo_alaves",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "deportivo_alaves_2020",
+     "club_id": "deportivo_alaves",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "deportivo_alaves_2021",
+     "club_id": "deportivo_alaves",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 77,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "deportivo_alaves_2023",
+     "club_id": "deportivo_alaves",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "deportivo_alaves_2024",
+     "club_id": "deportivo_alaves",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "deportivo_alaves_2025",
+     "club_id": "deportivo_alaves",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "real_oviedo",
+   "league_id": "la_liga",
+   "name": "Real Oviedo",
+   "short_name": "OVI",
+   "primary_color": "#D5AF48",
+   "secondary_color": "#122680",
+   "seasons": [
+    {
+     "id": "real_oviedo_2025",
+     "club_id": "real_oviedo",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ud_las_palmas",
+   "league_id": "la_liga",
+   "name": "UD Las Palmas",
+   "short_name": "PAL",
+   "primary_color": "#014B9B",
+   "secondary_color": "#FEE300",
+   "seasons": [
+    {
+     "id": "ud_las_palmas_2023",
+     "club_id": "ud_las_palmas",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "ud_las_palmas_2024",
+     "club_id": "ud_las_palmas",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "real_valladolid_cf",
+   "league_id": "la_liga",
+   "name": "Real Valladolid CF",
+   "short_name": "VAL",
+   "primary_color": "#E9221A",
+   "secondary_color": "#144F32",
+   "seasons": [
+    {
+     "id": "real_valladolid_cf_2018",
+     "club_id": "real_valladolid_cf",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "real_valladolid_cf_2019",
+     "club_id": "real_valladolid_cf",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "real_valladolid_cf_2020",
+     "club_id": "real_valladolid_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "real_valladolid_cf_2022",
+     "club_id": "real_valladolid_cf",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 78,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "real_valladolid_cf_2024",
+     "club_id": "real_valladolid_cf",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 74,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "cd_leganes",
+   "league_id": "la_liga",
+   "name": "CD Leganés",
+   "short_name": "LEG",
+   "primary_color": "#CD9803",
+   "secondary_color": "#2F8D29",
+   "seasons": [
+    {
+     "id": "cd_leganes_2018",
+     "club_id": "cd_leganes",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "cd_leganes_2019",
+     "club_id": "cd_leganes",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "cd_leganes_2024",
+     "club_id": "cd_leganes",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "granada_cf",
+   "league_id": "la_liga",
+   "name": "Granada CF",
+   "short_name": "GRA",
+   "primary_color": "#E21C19",
+   "secondary_color": "#ED7472",
+   "seasons": [
+    {
+     "id": "granada_cf_2019",
+     "club_id": "granada_cf",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 75,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "granada_cf_2020",
+     "club_id": "granada_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "granada_cf_2021",
+     "club_id": "granada_cf",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "granada_cf_2023",
+     "club_id": "granada_cf",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 77,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ud_almeria",
+   "league_id": "la_liga",
+   "name": "UD Almería",
+   "short_name": "ALM",
+   "primary_color": "#FECE00",
+   "secondary_color": "#E30612",
+   "seasons": [
+    {
+     "id": "ud_almeria_2022",
+     "club_id": "ud_almeria",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "ud_almeria_2023",
+     "club_id": "ud_almeria",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 77,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "cadiz_cf",
+   "league_id": "la_liga",
+   "name": "Cádiz CF",
+   "short_name": "CDI",
+   "primary_color": "#0045A6",
+   "secondary_color": "#FCE507",
+   "seasons": [
+    {
+     "id": "cadiz_cf_2020",
+     "club_id": "cadiz_cf",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 75,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "cadiz_cf_2021",
+     "club_id": "cadiz_cf",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "cadiz_cf_2022",
+     "club_id": "cadiz_cf",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 76,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "cadiz_cf_2023",
+     "club_id": "cadiz_cf",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sd_eibar",
+   "league_id": "la_liga",
+   "name": "SD Eibar",
+   "short_name": "EIB",
+   "primary_color": "#A75832",
+   "secondary_color": "#063A77",
+   "seasons": [
+    {
+     "id": "sd_eibar_2018",
+     "club_id": "sd_eibar",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 80,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "sd_eibar_2019",
+     "club_id": "sd_eibar",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "sd_eibar_2020",
+     "club_id": "sd_eibar",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sd_huesca",
+   "league_id": "la_liga",
+   "name": "SD Huesca",
+   "short_name": "HUE",
+   "primary_color": "#22327E",
+   "secondary_color": "#BD0E17",
+   "seasons": [
+    {
+     "id": "sd_huesca_2018",
+     "club_id": "sd_huesca",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "sd_huesca_2020",
+     "club_id": "sd_huesca",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

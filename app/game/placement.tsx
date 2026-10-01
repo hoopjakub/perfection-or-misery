@@ -1,3 +1,4 @@
+import { compOfMode, isClassicEurope, EUROPE } from '@/data/europe'
 import React, { useState, useEffect, useMemo } from 'react'
 import { Loader } from '@/components/kit'
 import { useSizeClass } from '@/hooks/useSizeClass'
@@ -14,6 +15,7 @@ import { buildCLTeams } from '@/engine/cl-sim'
 import { buildWCTeams } from '@/engine/world-cup-sim'
 import { generateFixtures } from '@/engine/fixtures'
 import { GlobeReveal } from '@/components/GlobeReveal'
+import { ModeBanner } from '@/components/season/ModeBanner'
 import { InfoBubble } from '@/components/InfoBubble'
 import { PositionStakes } from '@/components/CustomUclViewers'
 import { isoForLeague, isoForNationId, isoForCountryName, flagForCountry, flagForLeague, countryForClClub } from '@/data/geo-iso'
@@ -41,7 +43,8 @@ const globeMs = () => (drawsThisSession++ === 0 ? 2600 : 1300)
 
 export default function PlacementScreen() {
   const { mode } = useGameStore()
-  if (mode === 'champions_league')        return <CLPlacement />
+  // P8-172: the Europa and Conference Leagues are drawn the Champions League's way.
+  if (isClassicEurope(mode))                return <CLPlacement />
   if (mode === 'champions_league_custom') return <CustomCLPlacement />
   if (mode === 'world_cup')               return <WCPlacement />
   return <LeaguePlacement />
@@ -94,9 +97,11 @@ function DrawScreen({ title, children, cta }: { title: string; children: React.R
   )
 }
 
-function GlobePanel({ targetId, targetName, spinMs, onLock, locked }: {
+function GlobePanel({ targetId, targetName, flag, spinMs, onLock, locked }: {
   targetId?: number | null
   targetName?: string | null
+  /** P8-164: the country lands wearing its flag. */
+  flag?: string | null
   spinMs: number
   onLock: () => void
   locked: boolean
@@ -112,7 +117,7 @@ function GlobePanel({ targetId, targetName, spinMs, onLock, locked }: {
       style={[styles.globePanel, { backgroundColor: prim.nylon }]}
     >
       {/* Bigger in the wide layout's own pane; same path count, so no extra cost per frame. */}
-      <GlobeReveal targetId={targetId} targetName={targetName} accent={prim.orange} spinMs={spinMs} onLock={onLock} skip={skip} size={wide ? 360 : 220} />
+      <GlobeReveal targetId={targetId} targetName={targetName} flag={flag} accent={prim.orange} spinMs={spinMs} onLock={onLock} skip={skip} size={wide ? 360 : 220} />
       {!locked && <KitText t="tag" color={ROLES.nylon.textMuted}>TAP TO LAND IT</KitText>}
     </Pressable>
   )
@@ -310,13 +315,15 @@ function LeaguePlacement() {
     >
       {phase === 'ready' ? (
         <View style={styles.ready}>
+          {/* P8-169: Chaos and Cursed announce themselves from the draw on. */}
+          <ModeBanner roles={roles} mode={mode} />
           <KitText t="superS" color={roles.text}>WHERE ARE YOU GOING?</KitText>
           <Tag roles={roles}>{`${eligible.length} LEAGUE-SEASON${eligible.length === 1 ? '' : 'S'} IN THE DRAW`}</Tag>
           <KitText t="body" color={roles.textMuted}>{`Your squad rates ${teamOvr}. You'll replace a real club in a real season.`}</KitText>
         </View>
       ) : placed && (
         <>
-          <GlobePanel targetId={isoForLeague(placed.leagueId)} spinMs={spinMs} onLock={lock} locked={phase === 'revealed'} />
+          <GlobePanel targetId={isoForLeague(placed.leagueId)} flag={flagForLeague(placed.leagueId)} spinMs={spinMs} onLock={lock} locked={phase === 'revealed'} />
           {phase === 'revealed' && (
             <>
               {/* P8-11: the competition you've landed in, with its country's
@@ -349,7 +356,8 @@ function LeaguePlacement() {
 // ── Champions League (finals) ───────────────────────────────────────────────
 
 function CLPlacement() {
-  const { draftedPlayers, formation, setClTeams, setClYear } = useGameStore()
+  const { draftedPlayers, formation, setClTeams, setClYear, mode } = useGameStore()
+  const comp = compOfMode(mode) ?? EUROPE.ucl
   const [loading, setLoading] = useState(true)
   // §3 — the club is picked in the mount effect, before any animation.
   useSimBackGuard(!loading)
@@ -362,7 +370,7 @@ function CLPlacement() {
     async function init() {
       if (!formation || draftedPlayers.length === 0) { setLoading(false); return }
       const ovr = calcTeamOvr(draftedPlayers, getSlotsForFormation(formation))
-      const rows = await getClubSeasonsForMode('champions_league')
+      const rows = await getClubSeasonsForMode(comp.mode)
       if (rows.length === 0) { setLoading(false); return }
       // A random UCL edition, then a random club within it.
       const years = [...new Set(rows.map(r => r.year_start))]
@@ -373,11 +381,14 @@ function CLPlacement() {
       setClYear(year)
       const sorted = [...edition].sort((a, b) => a.historical_ovr - b.historical_ovr)
       const pick = Math.floor(Math.random() * sorted.length)
-      const clubs = sorted.map((r, i) => ({ clubId: r.club_id, clubName: r.club_name, ovr: i === pick ? ovr : r.historical_ovr, isPlayer: i === pick }))
+      // The Europa and Conference Leagues keep their real pots (kept in the
+      // club-season's league_position); you take the pot of the club you replace.
+      const clubs = sorted.map((r, i) => ({ clubId: r.club_id, clubName: r.club_name, ovr: i === pick ? ovr : r.historical_ovr, isPlayer: i === pick,
+        ...(comp.realPots && r.league_position ? { pot: r.league_position } : {}) }))
       // P8-114: the pots made drawable for the country rule.
       const teams = buildCLTeams(clubs, t => countryForClClub(t.clubName))
       setClTeams(teams)
-      activateCrestFor(teams.find(t => t.isPlayer)?.clubId, 'champions_league')   // P8-132, with "everywhere" only
+      activateCrestFor(teams.find(t => t.isPlayer)?.clubId, comp.mode)   // P8-132, with "everywhere" only
       setInfo({
         name: sorted[pick].club_name,
         clubId: sorted[pick].club_id,
@@ -390,14 +401,14 @@ function CLPlacement() {
     init().catch(e => { console.warn('[draw] ucl failed:', e); setLoading(false) })
   }, [])
 
-  if (loading) return <Loading text="Drawing the Champions League…" />
+  if (loading) return <Loading text={`Drawing the ${comp.name}…`} />
   if (!formation || draftedPlayers.length === 0) return <Failed noSquad message="" />
   if (!info) return <Failed noSquad={false} message={count > 0 ? 'Not enough clubs loaded to play this competition.' : "This competition's data didn't load."} />
 
   return (
     <DrawScreen title="The draw"
       cta={revealed ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={toPundits} /> : null}>
-      <GlobePanel targetId={isoForCountryName(info.country)} targetName={info.country} spinMs={spinMs}
+      <GlobePanel targetId={isoForCountryName(info.country)} targetName={info.country} flag={flagForCountry(info.country)} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>
@@ -405,10 +416,12 @@ function CLPlacement() {
             name={info.name}
             clubId={info.clubId}
             flag={flagForCountry(info.country) || undefined}
-            meta={`CHAMPIONS LEAGUE · ${season(info.year)} · POT ${info.pot} · ${info.count} CLUBS`}
+            meta={`${comp.name.toUpperCase()} · ${season(info.year)} · POT ${info.pot} · ${info.count} CLUBS`}
           />
           <KitText t="body" color={roles.textMuted}>
-            Eight league-phase games. The top eight go straight to the round of 16; ninth to 24th play off.
+            {comp.perPot === 1
+              ? 'Six league-phase games, one against each pot. The top eight go straight to the round of 16; ninth to 24th play off.'
+              : 'Eight league-phase games. The top eight go straight to the round of 16; ninth to 24th play off.'}
           </KitText>
           <Rivals teamOvr={info.ovr} teams={info.rivals} />
         </>
@@ -466,7 +479,7 @@ function CustomCLPlacement() {
   return (
     <DrawScreen title="The draw"
       cta={revealed ? <Plate label="Start your league season" icon="forward" roles={roles} onPress={start} /> : null}>
-      <GlobePanel targetId={isoForCountryName(chosen.country)} spinMs={spinMs}
+      <GlobePanel targetId={isoForCountryName(chosen.country)} flag={flagForCountry(chosen.country)} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>
@@ -478,7 +491,7 @@ function CustomCLPlacement() {
             meta={`${chosen.leagueName} · ${leagueSize} CLUBS · ASSOCIATION #${chosen.leagueRank}`.toUpperCase()}
           />
           <KitText t="body" color={roles.textMuted}>
-            First you play your domestic season. Where you finish decides your Champions League entry. Finish too low and there's no Europe at all.
+            First you play your domestic season. Where you finish (or the cup) decides where you go: the Champions League, the Europa League or the Conference League. Finish too low and there's no Europe at all.
           </KitText>
           <View style={styles.stakesHead}>
             <SectionTag roles={roles}>What each finish earns</SectionTag>
@@ -538,7 +551,7 @@ function WCPlacement() {
   return (
     <DrawScreen title="The draw"
       cta={revealed ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={toPundits} /> : null}>
-      <GlobePanel targetId={isoForNationId(info.id)} spinMs={spinMs}
+      <GlobePanel targetId={isoForNationId(info.id)} flag={flagForCountry(info.name)} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>

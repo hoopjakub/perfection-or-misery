@@ -1,3 +1,4 @@
+import { compOfMode, EUROPE } from '@/data/europe'
 import React, { useEffect, useRef, useState } from 'react'
 import { Loader } from '@/components/kit'
 import { COLUMN } from '@/hooks/useSizeClass'
@@ -12,8 +13,9 @@ import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { formatTier, verdictOf } from '@/data/tiers'
 import { useRunSave } from '@/hooks/useRunSave'
-import { VerdictBlock, PunditsRoundTable, PunditsTournament } from '@/components/season/VerdictBlock'
-import { championsLeagueCalls, championsLeagueTournament } from '@/engine/cup-calls'
+import { VerdictBlock, PunditsPlayedOut } from '@/components/season/VerdictBlock'
+import { punditsOnYouFor } from '@/engine/predictions'
+import { championsLeaguePunditTournament } from '@/engine/cup-calls'
 import { predictTable, predictChampionsLeagueRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
@@ -101,6 +103,8 @@ export default function CLResultScreen() {
 
   const clResult: CLSeasonResult | null =
     (dbRun?.cl_result as CLSeasonResult | undefined) ?? store.clResult ?? null
+  // P8-172: the Champions, Europa or Conference League — a saved run says which.
+  const comp = compOfMode(fromHistory ? dbRun?.mode : store.mode) ?? EUROPE.ucl
 
   // Squad stats (fresh runs only — needs the live drafted XI).
   useEffect(() => {
@@ -241,16 +245,19 @@ export default function CLResultScreen() {
         formation,
         teamOvr: playerTeam.ovr,
         result: clResult!,
+        mode: comp.mode,
         squad: fullSquad,
         difficulty, custom: customDifficulty,
         stats: runStats?.stats,
         awards: runStats?.awards,
+        // P8-150: the panel's place for you, for the career's line against the pundits.
+        punditsOnYou: punditsOnYouFor(store.clTeams, store.predictionSeed),
       })
     }
     if (user && !isGuest && runStats) {
       const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
       await mergeCareerFromRun(user.id, {
-        competition: 'champions_league',
+        competition: comp.mode,
         yourPlayers: runStats.stats.players.filter(p => p.isPlayerClub),
         goalsFor: playerTeam.stats.goalsFor, goalsAgainst: playerTeam.stats.goalsAgainst,
         potsWinnerId: pots?.isPlayerClub ? pots.playerId : undefined,
@@ -279,6 +286,8 @@ export default function CLResultScreen() {
 
   // P8-54 — the result as the end of the live competition: the same zoned
   // league-phase table, result rows and knockout list the live screens use.
+  // The league phase as it finished: its table, and the pundits' comparison (P8-165).
+  const actualLeagueTable = leaguePhaseStandings.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points }))
   const koRounds: KoRoundVM[] = [
     { key: 'playoff', label: 'Knockout play-off', ties: playoffRound },
     { key: 'r16', label: 'Round of 16', ties: r16, direct: true },
@@ -297,9 +306,9 @@ export default function CLResultScreen() {
       <VerdictBlock
         tone={verdictOf(playerFinalRound)}
         title={resultLabel}
-        meta={`UEFA Champions League · ` + `${playerTeam.clubName} · ${playerPos}${ordinal(playerPos)} in the league phase`}
+        meta={`${comp.fullName} · ` + `${playerTeam.clubName} · ${playerPos}${ordinal(playerPos)} in the league phase`}
         punditsText={punditsText}
-        shareText={`${resultLabel} — UEFA Champions League. Perfection or Misery.`}
+        shareText={`${resultLabel} — ${comp.fullName}. Perfection or Misery.`}
         runId={params.runId}
         ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
       />
@@ -313,8 +322,9 @@ export default function CLResultScreen() {
       {/* P8-24 for the cups — every side's call, checked against how far it got. */}
       {store.predictionSeed != null && store.clTeams && store.clResult && (
         <>
-          <PunditsRoundTable rows={championsLeagueCalls(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
-          <PunditsTournament calls={championsLeagueTournament(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+          <PunditsPlayedOut field={store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer }))} seed={store.predictionSeed}
+            build={(rating, seed) => championsLeaguePunditTournament(store.clTeams!.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), rating, seed, store.clResult as any, comp)} playerClubId={playerTeam?.clubId}
+            actual={{ table: actualLeagueTable, bracket: koRoundsToColumns(koRounds) }} />
         </>
       )}
 
@@ -324,7 +334,7 @@ export default function CLResultScreen() {
           if (!src) return null
           const night = buildAwardsNight({
             awards: src.awards, stats: src.stats, rounds: (src as RunStats).rounds,
-            clubs: [], playerClubId: playerTeam?.clubId, mode: 'champions_league',
+            clubs: [], playerClubId: playerTeam?.clubId, mode: comp.mode,
           })
           return <Plate label="See the awards" icon="trophy" variant="secondary" roles={KIT_ROLES.nylon} onPress={() => openAwardsView(night, params.runId)} />
         })()}
@@ -336,7 +346,7 @@ export default function CLResultScreen() {
       <Columns>
 
       {winner && (
-        <ResultSection title="Champions of Europe">
+        <ResultSection title={comp.id === 'ucl' ? 'Champions of Europe' : `${comp.name} winners`}>
           <View style={styles.kitWinner}>
             <KitText t="superM" color={KIT_ROLES.nylon.text}>{winner.clubName.toUpperCase()}</KitText>
           </View>
@@ -359,7 +369,7 @@ export default function CLResultScreen() {
 
       <ResultSection title="League phase" right={<InfoBubble topic="league_phase_zones" accent={KIT_ROLES.nylon.text} />}>
         <LeagueTable roles={KIT_ROLES.nylon} zones={CL_PHASE_ZONES}
-          rows={leaguePhaseStandings.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points }))}
+          rows={actualLeagueTable}
           onRowPress={hasHub ? id => openClub(id, hubRunId) : undefined} />
         <ZoneLegend roles={KIT_ROLES.nylon} zones={CL_PHASE_ZONES} />
       </ResultSection>
@@ -384,7 +394,7 @@ export default function CLResultScreen() {
 
       </Columns>
       <View style={styles.kitPlates}>
-        <ListRow roles={KIT_ROLES.nylon} icon="guide" label="How the Champions League works" onPress={() => openRules()} />
+        <ListRow roles={KIT_ROLES.nylon} icon="guide" label={`How the ${comp.name} works`} onPress={() => openRules()} />
       </View>
       <ResultActions fromHistory={fromHistory} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>
@@ -494,7 +504,7 @@ function CLHistorySummary({ run }: { run: any }) {
   return (
     <ScrollView style={[styles.container, { backgroundColor: prim.nylon }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.competitionLabel}>UEFA CHAMPIONS LEAGUE</Text>
+        <Text style={styles.competitionLabel}>{(compOfMode(run.mode) ?? EUROPE.ucl).fullName.toUpperCase()}</Text>
         <Text style={[styles.resultBanner, { color }]}>{label.toUpperCase()}</Text>
         {round === 'winner' && <Text style={styles.trophy}>CHAMPIONS</Text>}
       </View>

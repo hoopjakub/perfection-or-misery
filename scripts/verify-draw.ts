@@ -5,7 +5,9 @@
 // could never draw, so this times every draw and fails on a slow one.
 // npx tsx scripts/verify-draw.ts
 import { buildCLTeams, drawCLLeaguePhase, type CLTeam } from '../src/engine/cl-sim'
-import { minimumCap } from '../src/engine/cl-draw'
+import { minimumCap, FOUR_POTS, SIX_POTS } from '../src/engine/cl-draw'
+import fs from 'fs'
+import path from 'path'
 import { countryForClClub } from '../src/data/geo-iso'
 
 let failures = 0
@@ -118,7 +120,7 @@ for (const [name, shape] of Object.entries(SHAPES)) {
 // draw under the full rules.
 {
   const Database = require('better-sqlite3')
-  const db = new Database('assets/db/players_v5.db', { readonly: true })
+  const db = new Database(process.env.POM_DB ?? 'assets/db/players_v5.db', { readonly: true })
   const rows: { year_start: number; club_id: string; club_name: string; historical_ovr: number }[] = db.prepare(
     `SELECT cs.year_start, c.id AS club_id, c.name AS club_name, cs.historical_ovr
      FROM club_seasons cs JOIN clubs c ON c.id = cs.club_id JOIN leagues l ON l.id = c.league_id
@@ -167,6 +169,45 @@ for (const [name, shape] of Object.entries(SHAPES)) {
   check(minimumCap(pots, nine) === 3, `nine from one country: cap ${minimumCap(pots, nine)}, expected 3`)
   const english = (inPot1: number) => pots.flatMap((p, k) => p.map((_, j) => (k === 0 && j < inPot1) || (k === 1 && j < 6 - inPot1) ? 'ENG' : `X${k}${j}`))
   check(minimumCap(pots, english(4)) > 2 && minimumCap(pots, english(3)) === 2, 'the count got six English clubs wrong (four in pot 1 is too many, three is the limit)')
+}
+
+// P8-172: the real Europa League and Conference League 2025–26 fields, in their
+// real pots (scripts/seed-open), drawn as they are in the game: four pots of two in
+// the Europa League, six pots of one in the Conference League.
+for (const [file, format] of [['europa_league.json', FOUR_POTS], ['conference_league.json', SIX_POTS]] as const) {
+  const seedData = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed-open', file), 'utf-8'))
+  const clubs = seedData.clubs.map((c: any, i: number) => ({ clubId: c.id, clubName: c.name, ovr: c.seasons[0].historical_ovr, isPlayer: i === 0, pot: c.seasons[0].league_position }))
+  const perClub = format.pots * format.perPot
+  for (let run = 0; run < RUNS; run++) {
+    const teams = buildCLTeams(clubs, t => countryForClClub(t.clubName))
+    const t0 = performance.now()
+    const { fixtures, relaxed } = drawCLLeaguePhase(teams, t => countryForClClub(t.clubName), format)
+    const ms = performance.now() - t0
+    times.push(ms)
+    relaxedSeen.set(`${file}:${relaxed}`, (relaxedSeen.get(`${file}:${relaxed}`) ?? 0) + 1)
+    check(ms < 1500, `${file}: a draw took ${Math.round(ms)} ms`)
+    check(relaxed !== 'fixed', `${file}: the draw fell back to the fixed pairing`)
+    for (const t of teams) {
+      const mine = fixtures.filter(f => f.home.clubId === t.clubId || f.away.clubId === t.clubId)
+      const opp = mine.map(f => (f.home.clubId === t.clubId ? f.away : f.home))
+      const home = mine.filter(f => f.home.clubId === t.clubId).length
+      check(mine.length === perClub && new Set(opp.map(o => o.clubId)).size === perClub, `${file}: ${t.clubName} has ${mine.length} matches`)
+      for (let p = 1; p <= format.pots; p++) check(opp.filter(o => o.pot === p).length === format.perPot, `${file}: ${t.clubName} doesn't meet ${format.perPot} from pot ${p}`)
+      check(home === perClub / 2, `${file}: ${t.clubName} is at home ${home} of ${perClub}`)
+      const c = countryForClClub(t.clubName)
+      if (relaxed === 'none' && c) {
+        check(!opp.some(o => countryForClClub(o.clubName) === c), `${file}: ${t.clubName} meets a club from its own country`)
+        const per = new Map<string, number>()
+        for (const o of opp) { const oc = countryForClClub(o.clubName); if (oc) per.set(oc, (per.get(oc) ?? 0) + 1) }
+        check([...per.values()].every(n => n <= 2), `${file}: ${t.clubName} meets three from one country`)
+      }
+    }
+    for (let md = 1; md <= perClub; md++) {
+      const day = fixtures.filter(f => f.matchday === md)
+      const seen = new Set(day.flatMap(f => [f.home.clubId, f.away.clubId]))
+      check(seen.size === teams.length && day.length === teams.length / 2, `${file}: matchday ${md} doesn't have every club once`)
+    }
+  }
 }
 
 times.sort((a, b) => a - b)

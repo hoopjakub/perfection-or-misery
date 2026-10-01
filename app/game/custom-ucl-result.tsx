@@ -1,3 +1,5 @@
+import { EUROPE } from '@/data/europe'
+import { fullPathTier, runQualTies } from '@/engine/europe-path'
 import React, { useEffect, useRef, useState } from 'react'
 import { Loader } from '@/components/kit'
 import { COLUMN } from '@/hooks/useSizeClass'
@@ -12,8 +14,9 @@ import { adoptRunCrest } from '@/store/crestStore'
 import { useUserStore } from '@/store/userStore'
 import { formatTier, verdictOf } from '@/data/tiers'
 import { useRunSave } from '@/hooks/useRunSave'
-import { VerdictBlock, PunditsRoundTable, PunditsTournament } from '@/components/season/VerdictBlock'
-import { championsLeagueCalls, championsLeagueTournament } from '@/engine/cup-calls'
+import { VerdictBlock, PunditsPlayedOut } from '@/components/season/VerdictBlock'
+import { punditsOnYouFor } from '@/engine/predictions'
+import { championsLeaguePunditTournament } from '@/engine/cup-calls'
 import { predictTable, predictChampionsLeagueRound } from '@/engine/predictions'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
@@ -112,7 +115,7 @@ export default function CustomUclResultScreen() {
     // them back saves regenerating every match sheet a second time.
     const ready = takeRunStats()
     if (ready) { setRunStats(ready); setStatsDone(true); return }
-    computeCLRunStats(store.clResult, fullSquad, clYear ?? 2025, store.customUclQual?.ties, store.useSubstitutes)
+    computeCLRunStats(store.clResult, fullSquad, clYear ?? 2025, runQualTies(store.customUclQual, store.clResult.playerTeam.clubId), store.useSubstitutes)
       .then(res => res && setRunStats(res))
       .catch(e => console.warn('[custom-ucl-result] stats failed:', e))
       .finally(() => setStatsDone(true))
@@ -140,7 +143,10 @@ export default function CustomUclResultScreen() {
 
   const { leaguePhaseStandings, playoffRound, r16, qf, sf, final, winner, playerTeam, playerFinalRound, playerPot } = clResult
   const resultColor = ROUND_COLORS[playerFinalRound] ?? prim.cotton
-  const resultLabel = formatTier(playerFinalRound)
+  // P8-52: the competition the season went on in, and the tier it earned there.
+  const comp = EUROPE[clResult.competition ?? 'ucl']
+  const tier = fullPathTier(clResult)
+  const resultLabel = formatTier(tier)
   const isChampion = playerFinalRound === 'winner'
 
   // D1 — the verdict, in the shared treatment. The pundits' pre-season call is
@@ -152,7 +158,7 @@ export default function CustomUclResultScreen() {
     const pred = predictTable(field.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), seed)
     if (!pred.player) return undefined
     const said = predictChampionsLeagueRound(pred.player.predicted)
-    return `They said ${said.label.toLowerCase()}. You finished as ${formatTier(playerFinalRound).toLowerCase()}.`
+    return `They said ${said.label.toLowerCase()}. You finished as ${formatTier(tier).toLowerCase()}.`
   })()
   const playerPos = leaguePhaseStandings.findIndex(t => t.isPlayer) + 1
   const leagueMatchdays: CLLeagueMatch[] = clResult.leagueMatchdays ?? []
@@ -223,12 +229,12 @@ export default function CustomUclResultScreen() {
   const entryRound = playerEntry?.entryRound ?? playerQualPath[0]?.round ?? 'league_phase'
   const entryPath = playerEntry?.entryPath ?? playerQualPath[0]?.path ?? 'none'
   const entryText = notQualified
-    ? `Finished ${domPos}${ordinal(domPos)} in the ${playerLeague?.name ?? 'league'} — below every UEFA Champions League spot. No Europe this season.`
+    ? `Finished ${domPos}${ordinal(domPos)} in the ${playerLeague?.name ?? 'league'}, below every European place. No Europe this season.`
     : qualExitRound
-    ? `Eliminated in the ${QUAL_ROUND_LABEL[qualExitRound]} (${PATH_LABEL[entryPath]})`
+    ? `Eliminated in the ${comp.name}'s ${QUAL_ROUND_LABEL[qualExitRound]} (${PATH_LABEL[playerQualPath[playerQualPath.length - 1]?.path ?? entryPath]})`
     : entryRound === 'league_phase'
-    ? 'Entered the League Phase directly'
-    : `Reached the League Phase via the ${PATH_LABEL[entryPath]} — entered at the ${QUAL_ROUND_LABEL[entryRound]}`
+    ? `Entered the ${comp.name}'s league phase directly`
+    : `Reached the ${comp.name}'s league phase via the ${PATH_LABEL[entryPath]}, entered at the ${QUAL_ROUND_LABEL[entryRound]}`
   const reachedLeaguePhase = !qualExitRound && !notQualified
   const domesticLine = playerLeague && domRow
     ? `Domestic season: ${domPos}${ordinal(domPos)} in the ${playerLeague.name} · ${domRow.won}W ${domRow.drawn}D ${domRow.lost}L`
@@ -246,7 +252,8 @@ export default function CustomUclResultScreen() {
     koW += w; koD += d; koL += l
   })
 
-  const qualTies = customUclQual?.ties ?? []
+  // Your ties wherever they were, and the ladder of the competition you ended in.
+  const qualTies = runQualTies(customUclQual, playerTeam.clubId)
   const associations = [...(customUclLeagues ?? [])].sort((a, b) => a.rank - b.rank)
 
   // Awaited (not fire-and-forget) so the run is in the DB before we navigate.
@@ -262,6 +269,8 @@ export default function CustomUclResultScreen() {
         difficulty, custom: customDifficulty, weightedPicksOverride,
         stats: runStats?.stats,
         awards: runStats?.awards,
+        // P8-150: the panel's place for you, for the career's line against the pundits.
+        punditsOnYou: punditsOnYouFor(store.clTeams, store.predictionSeed),
         qual: customUclQual,
         leagueTables: customUclLeagues,
       })
@@ -298,6 +307,8 @@ export default function CustomUclResultScreen() {
 
   // P8-54 — the full path's result as the end of the live competition: its
   // qualifying ladder, the zoned league phase, and the shared knockout list.
+  // The league phase as it finished: its table, and the pundits' comparison (P8-165).
+  const actualLeagueTable = leaguePhaseStandings.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points }))
   const koRounds: KoRoundVM[] = [
     { key: 'playoff', label: 'Knockout play-off', ties: playoffRound, info: 'knockout_playoff' },
     { key: 'r16', label: 'Round of 16', ties: r16, direct: true },
@@ -317,11 +328,11 @@ export default function CustomUclResultScreen() {
   return (
     <KitScreen ground="nylon" width="wide">
       <VerdictBlock
-        tone={verdictOf(playerFinalRound)}
+        tone={verdictOf(tier)}
         title={resultLabel}
-        meta={`UEFA Champions League · the full path · ` + `${playerTeam.clubName} · ${entryText}`}
+        meta={`${comp.fullName} · the full path · ` + `${playerTeam.clubName} · ${entryText}`}
         punditsText={punditsText}
-        shareText={`${resultLabel} — UEFA Champions League · the full path. Perfection or Misery.`}
+        shareText={`${resultLabel} — ${comp.fullName} · the full path. Perfection or Misery.`}
         runId={params.runId}
         ownerId={params.runId ? dbRun?.user_id ?? null : undefined}
       />
@@ -341,8 +352,9 @@ export default function CustomUclResultScreen() {
       {/* P8-24 for the cups — every side's call, checked against how far it got. */}
       {store.predictionSeed != null && store.clTeams && store.clResult && (
         <>
-          <PunditsRoundTable rows={championsLeagueCalls(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
-          <PunditsTournament calls={championsLeagueTournament(store.clResult as any, store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), store.predictionSeed)} />
+          <PunditsPlayedOut field={store.clTeams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer }))} seed={store.predictionSeed}
+            build={(rating, seed) => championsLeaguePunditTournament(store.clTeams!.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), rating, seed, store.clResult as any)} playerClubId={playerTeam?.clubId}
+            actual={{ table: actualLeagueTable, bracket: koRoundsToColumns(koRounds) }} />
         </>
       )}
 
@@ -387,7 +399,7 @@ export default function CustomUclResultScreen() {
 
       <ResultSection title={`League phase · ${leaguePhaseStandings.length} clubs`} right={<InfoBubble topic="league_phase_zones" accent={nylon.text} />}>
         <LeagueTable roles={nylon} zones={phaseZones}
-          rows={leaguePhaseStandings.map(t => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer, played: t.stats.played, gd: t.stats.goalsFor - t.stats.goalsAgainst, points: t.stats.points }))}
+          rows={actualLeagueTable}
           onRowPress={hasHub ? id => openClub(id, hubRunId) : undefined} />
         <ZoneLegend roles={nylon} zones={phaseZones} />
       </ResultSection>
@@ -395,7 +407,7 @@ export default function CustomUclResultScreen() {
       {qualTies.length > 0 && (
         <ResultSection title="Qualifying" right={<InfoBubble topic="qualifying_ladder" accent={nylon.text} />}>
           <KitText t="body" color={nylon.textMuted}>{`How the ${customUclQual!.qualifiers.length} qualifiers reached the league phase`}</KitText>
-          <QualifyingLadder ties={qualTies} onTiePress={t => { const m = qualTieToKoMatch(t); if (m) openKoLeg(m, QUAL_ROUND_LABEL[m.round] ?? m.round, true) }} />
+          <QualifyingLadder ties={qualTies} onTiePress={t => { const m = qualTieToKoMatch(t); if (m) openKoLeg(m, `${EUROPE[t.comp ?? 'ucl'].short} · ${QUAL_ROUND_LABEL[m.round] ?? m.round}`, true) }} />
         </ResultSection>
       )}
 

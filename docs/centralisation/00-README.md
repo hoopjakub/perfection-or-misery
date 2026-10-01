@@ -1,6 +1,8 @@
 # 00 · Centralisation: one base, only extend (P8-71)
 
-**Date:** 24 September 2026. **Status:** phase one (research) complete. Phase two (the changes) is planned in [07](07-PHASE-TWO-PLAN.md) and not started.
+**Date:** 24 September 2026; **re-audited 29 September 2026**, after Phase 8. **Status:** research complete, re-audited. Phase two (the changes) is planned in [10](10-PHASE-TWO-REVISED.md), which supersedes 07's order, and is not started.
+
+> **29 September 2026, the re-audit.** Of the 72 items, 10 are closed (the one team mark and the one bracket did most of it), 16 partly, 36 still open, 4 worse and 2 still wrong; 18 new items came with Phase 8 ([08](08-RE-AUDIT.md), [09](09-NEW-ITEMS.md)). The maintainer's playtest notes of that day go first ([10](10-PHASE-TWO-REVISED.md) §2).
 
 ## What this is
 
@@ -31,7 +33,10 @@ Many items are groups. C-01 alone is twelve table drawings, and A-01 is seventee
 | 04 | [Computed differently](04-COMPUTED-DIFFERENTLY.md) | Where is one answer worked out several times, and which copies are wrong? |
 | 05 | [Marks and colours](05-MARKS-AND-COLOURS.md) | Why do nation flags and crests still break? |
 | 06 | [Screen walk](06-SCREEN-WALK.md) | For one screen, which items touch it? |
-| 07 | [Phase two plan](07-PHASE-TWO-PLAN.md) | What is the base, in what order is it built, and how does each step prove itself? |
+| 07 | [Phase two plan](07-PHASE-TWO-PLAN.md) | What is the base, and how does each step prove itself? (Its order is superseded by 10.) |
+| 08 | [The re-audit](08-RE-AUDIT.md) | Where does each of the 72 items stand on 29 September, after Phase 8? |
+| 09 | [New items](09-NEW-ITEMS.md) | What did Phase 8 add that should share one base, and where do the playtest notes meet this set? |
+| 10 | [Phase two, revised](10-PHASE-TWO-REVISED.md) | In what order now, starting with the playtest notes, and how does each step prove itself? |
 
 ## Findings worth knowing up front
 
@@ -41,6 +46,13 @@ Many items are groups. C-01 alone is twelve table drawings, and A-01 is seventee
 4. **The full path has drifted furthest.** No abandon button, no pundits, no standing movement, its own slower speed values, match sheets opened without rotation or context, and a domestic season that counts for nothing on the result screen (F-07, F-10, F-20, F-22, L-02, L-05).
 5. **The league screens are the reference.** The league season is the most complete live screen, and the league result screen is the only one with round-by-round lookup, a team of the matchday, a position graph and highlights (F-13 to F-16). The base grows out of those two screens.
 6. **Copies breed bugs.** The standings order is written 16 times, match-sheet requests are built by hand in 16 places, the awards night is built in 6. Two batch-13 bugs (P8-156, the lost crests, and P8-159, leg 2 skipping extra time) were copies drifting apart.
+
+### Worth knowing from the re-audit (29 September)
+
+7. **Where a shared piece existed, it got used; where it didn't, new code copied.** `TeamMark` (31 call sites) and `BracketTree` (9) spread by themselves. The standings order (14 copies), the speed table (3) and the match-sheet request (18) didn't have one, and three items got worse ([08](08-RE-AUDIT.md) §7).
+8. **The "21th" and "Dijk" bugs are still there** (L-10, L-11): step 0 was never done.
+9. **The Europa and Conference League modes inherited the Champions League's gaps**, and one is wrong: "Your eight" for a six-game league phase (N-02).
+10. **Sixteen shared components are fixed to one ground**, which is the "black box" behind the globe and the bracket (N-12); it's what "a light and a dark variant for every component" means in practice.
 
 ## Decisions taken
 

@@ -12,6 +12,12 @@ import { readDesign, readColours, type CrestChoice } from '@/lib/yourCrest'
 // one is opened; cleared when you leave for a new run.
 type CrestState = {
   mine: CrestChoice | null
+  /** P8-168: your pin's colour, loaded with the profile. Every pin in the app
+   *  (the ID tag, a drafted player's, your club's in a table) is the kit's
+   *  ZipTag, which reads this; null is the default orange. (Its letters became
+   *  your club's tag, P8-181.) */
+  pin: { hex: string } | null
+  setPin: (p: { hex: string } | null) => void
   active: { clubId: string; choice: CrestChoice } | null
   setMine: (c: CrestChoice | null) => void
   setActive: (a: { clubId: string; choice: CrestChoice } | null) => void
@@ -19,6 +25,8 @@ type CrestState = {
 
 export const useCrestStore = create<CrestState>(set => ({
   mine: null,
+  pin: null,
+  setPin: pin => set({ pin }),
   active: null,
   setMine: mine => set({ mine }),
   setActive: active => set({ active }),
@@ -40,7 +48,8 @@ export function adoptRunCrest(highlights: { crest?: unknown } | null | undefined
   const clubId = typeof raw?.clubId === 'string' ? raw.clubId : null
   const design = readDesign(raw?.choice?.design)
   const path = raw?.choice?.imagePath
-  const imagePath = typeof path === 'string' && /^[0-9a-f-]{36}\/crest-\d+\.jpg$/i.test(path) ? path : null
+  // A crest file or (P8-175) a profile picture, in a user's own folder.
+  const imagePath = typeof path === 'string' && /^[0-9a-f-]{36}\/(crest|avatar)-\d+\.jpg$/i.test(path) ? path : null
   const colours = readColours((raw?.choice as { colours?: unknown } | undefined)?.colours)
   useCrestStore.getState().setActive(clubId && (design || imagePath || colours) ? { clubId, choice: { design, imagePath, everywhere: !!raw?.choice?.everywhere, colours } } : null)
 }

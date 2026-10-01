@@ -44,6 +44,8 @@ const byThenId = <T extends { id: string }>(score: (x: T) => number) =>
 export type Pick = {
   id: string; name: string; position: string; score: number
   clubName: string; isPlayerClub?: boolean
+  /** P8-171: his club's id, for its crest on the shirt (the code stays beside it). */
+  clubId?: string
   /** His rating — the match rating for a team of the matchday, the season
    *  average for the team of the season — drawn as the rating square on the
    *  pitch, so who was better reads from the colour. */
@@ -107,14 +109,17 @@ export function teamInFormation(formation: Formation, all: Pick[]): PickedTeam |
   return { formation, xi: filled.xi, bench, total: filled.total }
 }
 
-export function pickTeam(all: Pick[]): PickedTeam | null {
+// P8-170: `keeperId` puts that keeper in goal (the golden glove winner in the
+// team of the season); the other keepers can still make the bench.
+export function pickTeam(all: Pick[], keeperId?: string): PickedTeam | null {
   if (all.length === 0) return null
+  const pool = keeperId && all.some(p => p.id === keeperId) ? all.filter(p => lineOf(p.position) !== 'GK' || p.id === keeperId) : all
   const byPosition = new Map<string, Pick[]>()
-  for (const p of all) byPosition.set(p.position, [...(byPosition.get(p.position) ?? []), p])
+  for (const p of pool) byPosition.set(p.position, [...(byPosition.get(p.position) ?? []), p])
   const shortlisted = [...byPosition.values()].flatMap(list => [...list].sort(byThenId<Pick>(x => x.score)).slice(0, SHORTLIST_PER_POSITION))
 
   const byLine = new Map<Line, number[]>()
-  for (const p of all) byLine.set(lineOf(p.position), [...(byLine.get(lineOf(p.position)) ?? []), p.score])
+  for (const p of pool) byLine.set(lineOf(p.position), [...(byLine.get(lineOf(p.position)) ?? []), p.score])
   const baseline = new Map<Line, number>()
   for (const [line, scores] of byLine) {
     const top = scores.sort((a, b) => b - a).slice(0, LINE_STARTERS[line])
@@ -138,7 +143,7 @@ export function pickTeam(all: Pick[]): PickedTeam | null {
 
 const candidatePick = (c: AwardCandidate): Pick => ({
   id: c.playerId, name: c.name, position: c.position, score: c.score,
-  clubName: c.clubName, isPlayerClub: c.isPlayerClub, rating: c.avgRating,
+  clubName: c.clubName, clubId: c.clubId, isPlayerClub: c.isPlayerClub, rating: c.avgRating,
 })
 
 // ── Player awards ────────────────────────────────────────────────────────────
@@ -327,7 +332,7 @@ export type AwardsInput = {
   awards: SeasonAwards
   stats: CompetitionStats
   /** Every round's players and ratings (run-stats `rounds`). */
-  rounds?: { label: string; lines: { playerId: string; name: string; position: string; rating: number; clubName: string; isPlayerClub: boolean }[] }[]
+  rounds?: { label: string; lines: { playerId: string; name: string; position: string; rating: number; clubName: string; clubId?: string; isPlayerClub: boolean }[] }[]
   /** For the manager award; only competitions with a predicted table have one. */
   clubs?: ClubRow[]
   playerClubId?: string
@@ -361,7 +366,7 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
     const best = new Map<string, Pick>()
     for (const l of r.lines) {
       const cur = best.get(l.playerId)
-      if (!cur || l.rating > cur.score) best.set(l.playerId, { id: l.playerId, name: l.name, position: l.position, score: l.rating, rating: l.rating, clubName: l.clubName, isPlayerClub: l.isPlayerClub })
+      if (!cur || l.rating > cur.score) best.set(l.playerId, { id: l.playerId, name: l.name, position: l.position, score: l.rating, rating: l.rating, clubName: l.clubName, clubId: l.clubId, isPlayerClub: l.isPlayerClub })
     }
     const team = pickTeam([...best.values()])
     return team ? { label: r.label, team } : null
@@ -382,7 +387,14 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
   }
 
   // The team of the season, once: the manager award counts each club's players in it.
-  const teamOfTheSeason = pickTeam(candidates.map(candidatePick))
+  // P8-170: the golden glove winner keeps goal. The two used to disagree in 46
+  // of 60 seasons (verify-defender): the glove is clean sheets, which go to the
+  // keeper behind the best defence, while a keeper's season score is carried
+  // by saves, ratings and how hard his club had it, which favour the busy
+  // keeper at a weak side. Both are fair; the night can't crown one keeper and
+  // pick another, and the glove keeps its real meaning (most clean sheets).
+  const glove = players.find(a => a.key === 'glove')
+  const teamOfTheSeason = pickTeam(candidates.map(candidatePick), glove?.winner.playerId)
 
   // Every title, explanation and headline in the competition's own word.
   const w = (t: string) => forCompetition(t, input.mode)

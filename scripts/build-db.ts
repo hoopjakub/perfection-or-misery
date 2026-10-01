@@ -7,8 +7,14 @@ import { UCL_LEAGUES } from './lib/ucl-leagues'
 // tweak just needs a rebuild — no re-scrape. Keyed by cucl seedId.
 const FORMAT_BY_SEED = new Map(UCL_LEAGUES.map(l => [l.seedId, l.format]))
 
-const DB_PATH  = path.join(__dirname, '../assets/db/players_v5.db')
-const SEED_DIR = path.join(__dirname, 'seed')
+// The app's data is the OPEN data (scripts/seed-open, from Wikipedia +
+// Wikidata, built by build-open-seeds.ts: docs/release/06-OUR-OWN-DATA.md).
+// The Transfermarkt seeds and scrapers were deleted on 30 Sept 2026 (they're in
+// git history). DB_OUT writes somewhere else instead (a check build for the
+// verify scripts) and leaves DB_VERSION alone.
+const DB_OUT   = process.env.DB_OUT
+const DB_PATH  = DB_OUT ?? path.join(__dirname, '../assets/db/players_v5.db')
+const SEED_DIR = path.join(__dirname, 'seed-open')
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
 if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH)
@@ -126,6 +132,9 @@ for (const file of files) {
     ingestCustomUcl(data)
     continue
   }
+  // Not every file in seed/ is a league: the grounds (P8-93, stadiums.json) live
+  // there too and are bundled by the app as data, not as a league.
+  if (!data.league) { console.log('  (not a league seed; skipped)'); continue }
 
   insertLeague.run(
     data.league.id,
@@ -196,6 +205,7 @@ const setupPath = path.join(__dirname, '../src/db/setup.ts')
 let newVersion = 8
 try {
   const setup = fs.readFileSync(setupPath, 'utf-8')
+  if (DB_OUT) throw new Error('DB_OUT build, not the app\'s database: version left as is')
   const m = setup.match(/const DB_VERSION = (\d+)/)
   if (!m) throw new Error('DB_VERSION not found in setup.ts')
   newVersion = parseInt(m[1], 10) + 1
@@ -220,6 +230,19 @@ const COLOUR_FIX = `
     AND EXISTS (SELECT 1 FROM clubs c2 WHERE c2.name = clubs.name AND upper(c2.primary_color) != '#1E293B')`
 const fixed = db.prepare(COLOUR_FIX).run().changes
 console.log(`✓ ${fixed} placeholder club colours replaced with the club's real ones`)
+
+// A club-season with no players is an empty team on the draft wheel. It's what
+// the first open build shipped (player-season ids repeated across seed files,
+// and INSERT OR IGNORE dropped every repeat without a word), so the build now
+// refuses to finish quietly with one.
+const empty = db.prepare(`
+  SELECT c.name, cs.year_start, c.league_id FROM club_seasons cs JOIN clubs c ON c.id = cs.club_id
+  WHERE NOT EXISTS (SELECT 1 FROM player_seasons ps WHERE ps.club_season_id = cs.id)`).all() as { name: string; year_start: number; league_id: string }[]
+if (empty.length) {
+  console.error(`✗ ${empty.length} club-seasons have NO players, e.g. ${empty.slice(0, 5).map(e => `${e.name} ${e.year_start} (${e.league_id})`).join(', ')}`)
+  db.close()
+  process.exit(1)
+}
 
 // Bake the same version into the asset's _meta for reference.
 db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', ?)`).run(newVersion)

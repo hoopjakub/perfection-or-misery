@@ -1,3 +1,4 @@
+import { isEuropeMode } from '@/data/europe'
 import React, { useMemo, useState } from 'react'
 import { FormationPitch } from '@/components/season/AwardsParts'
 import { buildAwardsNight } from '@/engine/awards'
@@ -190,7 +191,7 @@ function zonesForTable(data: RunData, group: string, n: number, thirdThrough?: b
   if (data.mode === 'world_cup' && group) {
     return WC_GROUP_ZONES.slice(0, n).map((z, i) => (i === 2 && thirdThrough !== undefined ? WC_THIRD_ZONES[thirdThrough ? 0 : 11] : z))
   }
-  if (data.mode?.startsWith('champions_league')) return CL_PHASE_ZONES.slice(0, n)
+  if (isEuropeMode(data.mode)) return CL_PHASE_ZONES.slice(0, n)
   if (data.leagueId && data.yearStart) return leagueTableZones(zonesFor(data.leagueId, data.yearStart, n))
   return Array(n).fill(null)
 }

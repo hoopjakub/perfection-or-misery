@@ -30,6 +30,7 @@ This set reads both files closely, maps the app onto the template chapter by cha
 | 03 | [`03-PERSPECTIVES.md`](03-PERSPECTIVES.md) | Programming, game design, digital media design, the website and economics: what each adds, what exists, what to read |
 | 04 | [`04-LICENSING-AND-RELEASE.md`](04-LICENSING-AND-RELEASE.md) | Data rights, names and marks, third-party licences, AI disclosure, GDPR, Google Play, website; a decision table |
 | 05 | [`05-TIMELINE-AND-DEFENCE.md`](05-TIMELINE-AND-DEFENCE.md) | Phases to submission, handover checklist, formal check, questions for the consultant, defence structure and question bank |
+| 06 | [`06-NOTES.md`](06-NOTES.md) | A running, dated log of things the maintainer flags for the thesis or defence (from 29 Sept 2026: the legal part of the presentation, the Transfermarkt request) |
 
 ## Worth knowing now
 

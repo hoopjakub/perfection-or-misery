@@ -4,14 +4,18 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import React, { useEffect, useRef, useState } from 'react'
 import { View, Pressable, StyleSheet, Image, type LayoutChangeEvent } from 'react-native'
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withSpring, cancelAnimation, runOnJS, Easing,
+  useSharedValue, useAnimatedStyle, withTiming, withSpring, withSequence, cancelAnimation, runOnJS, Easing,
+  useAnimatedReaction, type SharedValue,
 } from 'react-native-reanimated'
-import { type Roles, space, border, prim, ROLES, towardInk } from '@/theme'
+import { type Roles, space, border, prim, ROLES, towardInk, LINE_TINT, lineOf } from '@/theme'
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { spring } from '@/lib/motion'
 import { KitText, Stripe, Tape, ZipTag, RoundFlag, Plate, Crest } from '@/components/kit'
 import { getFlag } from '@/lib/flagMap'
 import { flagImageOf } from '@/lib/flags'
-import { flagForCountry } from '@/data/geo-iso'
+import { flagForNationality } from '@/data/geo-iso'
+import { crestFor, markColoursOf } from '@/lib/brand'
+import { ratio } from '@/lib/contrast'
 
 // ── SwingTag ─────────────────────────────────────────────────────────────────
 // The zip tag, attached with the app's one overshoot. Remounting it (a new
@@ -38,9 +42,19 @@ export function SwingTag({ size = 14, style }: { size?: number; style?: any }) {
 // reel's edges strobe through the colour of whichever club is passing the
 // marker. The landing's flash and tint live on the ClubCard, which is what
 // mounts the moment the reel lands.
-export type SpinItem = { title: string; sub?: string; colour?: string }
+// P8-163: each item wears its own mark. A club's card is its crest's colour
+// with the crest big across it, bleeding off the edge; a nation's card is its
+// flag. The colour is read off the picture itself (markColoursOf), so a nation
+// has one too, and the scrapers' slate placeholder never shows. The name sits
+// on a small ink label, so it reads on any colour. And two things that make
+// the spin feel like one: the card passing the marker swells (a lens), and the
+// marker is a flapper that clicks over as each card goes by, slowing with the
+// reel like a prize wheel's. Both live on the UI thread, off the one translate.
+export type SpinItem = { title: string; sub?: string; colour?: string; clubId?: string; flag?: string | null }
 const ITEM_W = 156
 const TAIL = 5
+const LENS = 0.12       // how much the card under the marker swells
+const FLAP_DEG = 22     // how far the flapper kicks as a card passes
 
 export function RackSpin({ roles, items, durationMs, onLanded }: {
   roles: Roles
@@ -70,7 +84,19 @@ export function RackSpin({ roles, items, durationMs, onLanded }: {
   const strip = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }))
   // The club under the marker, read off the one translate: no per-tick state.
   const reel = [...items, ...items.slice(0, TAIL)]
-  const colours = reel.map(it => it.colour ?? prim.inkFaint)
+  const colours = reel.map(it => markColoursOf(it.clubId, it.flag)?.[0] ?? it.colour ?? prim.inkFaint)
+  // The flapper: each time a new card reaches the marker it kicks over and
+  // springs back. Fast at first (a blur of clicks), then one by one.
+  const flap = useSharedValue(0)
+  useAnimatedReaction(
+    () => Math.round((start - x.value) / ITEM_W),
+    (cur, prev) => {
+      if (reduced || prev === null || cur === prev) return
+      flap.value = withSequence(withTiming(1, { duration: 35 }), withSpring(0, { damping: 9, stiffness: 320 }))
+    },
+    [start, reduced],
+  )
+  const flapper = useAnimatedStyle(() => ({ transform: [{ rotate: `${-flap.value * FLAP_DEG}deg` }] }))
   const edge = useAnimatedStyle(() => {
     const i = Math.max(0, Math.min(colours.length - 1, Math.round((start - x.value) / ITEM_W)))
     return { backgroundColor: colours[i] }
@@ -95,25 +121,52 @@ export function RackSpin({ roles, items, durationMs, onLanded }: {
         <View style={styles.spinCenter}><SpinCard roles={roles} item={last} /></View>
       ) : (
         <Animated.View style={[styles.strip, strip]}>
-          {reel.map((it, i) => <SpinCard key={i} roles={roles} item={it} />)}
+          {reel.map((it, i) => <SpinCard key={i} roles={roles} item={it} x={x} i={i} start={start} />)}
         </Animated.View>
       )}
       {!reduced && <Animated.View pointerEvents="none" style={[styles.spinEdge, styles.spinEdgeTop, edge]} />}
       {!reduced && <Animated.View pointerEvents="none" style={[styles.spinEdge, styles.spinEdgeBottom, edge]} />}
       <View pointerEvents="none" style={[styles.spinMarker, { backgroundColor: prim.orange }]} />
+      {/* The flapper, hanging from the top of the marker. */}
+      <Animated.View pointerEvents="none" style={[styles.flapper, { transformOrigin: 'top' } as any, flapper]}>
+        <View style={[styles.flapperTip, { backgroundColor: prim.orange, borderColor: prim.ink }]} />
+      </Animated.View>
     </Pressable>
   )
 }
 
-function SpinCard({ roles, item }: { roles: Roles; item: SpinItem }) {
+function SpinCard({ roles, item, x, i = 0, start = 0 }: { roles: Roles; item: SpinItem; x?: SharedValue<number>; i?: number; start?: number }) {
+  const flagImage = flagImageOf(item.flag ?? getFlag(item.clubId))
+  // A nation's card is its flag and nothing else, as the draft's backdrop and
+  // the landed card show it (the maintainer, 28 Sept: the flag with its own
+  // colours banded on top "looks awful"). A club's card wears its crest's colours.
+  const marks = flagImage != null ? null : markColoursOf(item.clubId, item.flag)
+  const bg = flagImage != null ? prim.ink : marks?.[0] ?? item.colour ?? roles.surface
+  const crest = !flagImage && item.clubId ? crestFor(item.clubId, item.title) : null
+  // The second colour as a band along the foot, in whichever of ink and cotton
+  // stands out when it's the same as the ground (a one-colour crest).
+  const second = marks && marks[1] !== marks[0] ? marks[1] : ratio(bg, prim.ink) >= ratio(bg, prim.cotton) ? prim.ink : prim.cotton
+  // The lens: 1 at a card's width from the marker, 1 + LENS right under it.
+  const lens = useAnimatedStyle(() => {
+    if (!x) return {}
+    const d = Math.abs(x.value + i * ITEM_W - start) / ITEM_W
+    return { transform: [{ scale: 1 + LENS * Math.max(0, 1 - d) }] }
+  })
   return (
-    <View style={[styles.spinCard, { borderColor: roles.line, backgroundColor: roles.surface }]}>
-      {item.colour ? <Tape colours={[item.colour]} roles={roles} vertical thickness={4} /> : null}
+    <Animated.View style={[styles.spinCard, { borderColor: roles.line, backgroundColor: bg }, lens]}>
+      {flagImage != null ? (
+        <Image source={flagImage} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+      ) : crest?.kind === 'image' ? (
+        <Image source={crest.source} style={styles.spinCrest} resizeMode="contain" accessibilityIgnoresInvertColors />
+      ) : null}
+      {flagImage == null && <View style={[styles.spinSecond, { backgroundColor: second }]} />}
       <View style={styles.spinCardBody}>
-        <KitText t="title" color={roles.text} numberOfLines={1}>{item.title}</KitText>
-        {item.sub ? <KitText t="tag" color={roles.textMuted}>{item.sub}</KitText> : null}
+        <View style={[styles.spinLabel, { backgroundColor: prim.ink }]}>
+          <KitText t="title" color={prim.cotton} numberOfLines={1}>{item.title}</KitText>
+        </View>
+        {item.sub ? <View style={[styles.spinLabel, { backgroundColor: prim.ink }]}><KitText t="tag" color={prim.cotton}>{item.sub}</KitText></View> : null}
       </View>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -183,7 +236,7 @@ export type PlayerMark = { clubId?: string | null; clubName: string; nationality
 
 export function MarkBackdrop({ roles, clubId, clubName, nationality, full }: PlayerMark & { roles: Roles; full?: boolean }) {
   const nationSide = getFlag(clubId)
-  const flag = flagImageOf(nationSide ?? flagForCountry(nationality))
+  const flag = flagImageOf(nationSide ?? flagForNationality(nationality))
   const opacity = full ? 0.07 : 0.16
   if (nationSide) {
     return flag ? (
@@ -270,7 +323,13 @@ export function Hanger({ roles, label, surname, rating, outOfPosition, state, no
 }
 
 // ── PlayerTag ────────────────────────────────────────────────────────────────
-export function PlayerTag({ roles, name, position, nationality, rating, available, chosen, onPress, blocked }: {
+// P8-180: a player to pick is a card with his country behind him — the flag,
+// full bleed — and his name on an ink label across it, like a sticker in an
+// album: the position and the rating on the top corners, and under the name
+// his nation, his age that season and the other positions he plays. A legend
+// of the game wears a gold ICON tag. Picked: an orange frame and label. Not
+// pickable: the flag dims under the hazard stripe, and the rating says why.
+export function PlayerTag({ roles, name, position, nationality, rating, available, chosen, onPress, blocked, age, also, icon }: {
   roles: Roles
   name: string
   position: string
@@ -281,35 +340,78 @@ export function PlayerTag({ roles, name, position, nationality, rating, availabl
   onPress: () => void
   /** Why an unavailable player can't be picked, when it isn't "no open slot" (P8-30: YOURS). */
   blocked?: string
+  /** His age in the season he's drafted from. */
+  age?: number | null
+  /** His other positions, e.g. "RW, CF". */
+  also?: string
+  icon?: boolean
 }) {
+  const flag = flagImageOf(flagForNationality(nationality))
+  const tint = LINE_TINT[lineOf(position)]
+  const detail = [nationality.toUpperCase(), age ? `${age}` : null, alsoOf(also)].filter(Boolean).join(' · ')
   return (
     <Pressable
       onPress={onPress}
       disabled={!available}
       accessibilityRole="button"
       accessibilityState={{ disabled: !available, selected: chosen }}
-      accessibilityLabel={`${name}, ${position}, ${nationality}, rating ${rating}${available ? '' : blocked ? `, ${blocked.toLowerCase()}` : ', no open position'}`}
+      accessibilityLabel={`${name}, ${position}, ${nationality}${age ? `, aged ${age}` : ''}, rating ${rating}${available ? '' : blocked ? `, ${blocked.toLowerCase()}` : ', no open position'}`}
       style={({ pressed }) => [
         styles.player,
         {
-          borderColor: available ? roles.line : roles.rule,
-          backgroundColor: chosen ? prim.orange : roles.surface,
+          borderColor: chosen ? prim.orange : available ? roles.line : roles.rule,
+          backgroundColor: prim.nylonRaised,
           borderWidth: chosen ? border.plate : border.thin,
         },
-        pressed && available && { backgroundColor: roles.sunken },
+        pressed && available && { opacity: 0.85, transform: [{ scale: 0.98 }] },
       ]}
     >
+      {/* The flag is the card: full-bleed, a little oversized and tilted so it
+          reads as a flag waved behind him, not a picture pasted in. */}
+      {flag != null && (
+        <Image source={flag} resizeMode="cover" accessibilityIgnoresInvertColors
+          style={[styles.playerFlag, !available && { opacity: 0.3 }]} />
+      )}
+      {/* A shade rising from the foot, so the name reads on any flag (white
+          stripes included) without a flat black band cutting the card in two. */}
+      <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 1 1">
+        <Defs>
+          <LinearGradient id="tagShade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={prim.ink} stopOpacity={0.05} />
+            <Stop offset="0.45" stopColor={prim.ink} stopOpacity={0.25} />
+            <Stop offset="1" stopColor={prim.ink} stopOpacity={0.92} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="1" height="1" fill="url(#tagShade)" />
+      </Svg>
       {!available && <Stripe roles={roles} band={4} style={styles.playerStripe} />}
-      <View style={[styles.playerBody, !available && { opacity: 0.6 }]}>
-        <View style={styles.playerTop}>
-          <KitText t="tag" color={chosen ? prim.ink : roles.text}>{position}</KitText>
-          <KitText t="figure" color={chosen ? prim.ink : roles.text}>{available ? rating : blocked ?? 'NO SLOT'}</KitText>
+      <View style={styles.playerTop}>
+        <View style={[styles.playerChip, { backgroundColor: tint }]}><KitText t="tag" color={prim.ink}>{position}</KitText></View>
+        {icon ? <View style={[styles.playerChip, { backgroundColor: prim.gold }]}><KitText t="tag" color={prim.ink}>ICON</KitText></View> : null}
+        <View style={{ flex: 1 }} />
+        <View style={[styles.playerRating, { backgroundColor: prim.cotton, borderColor: prim.ink }]}>
+          <KitText t="figure" color={prim.ink}>{available ? rating : blocked ?? 'NO SLOT'}</KitText>
         </View>
-        <KitText t="body" color={chosen ? prim.ink : roles.text} numberOfLines={1}>{name}</KitText>
-        <KitText t="tag" color={chosen ? prim.ink : roles.textMuted} numberOfLines={1}>{nationality}</KitText>
       </View>
+      <View style={styles.playerLabel}>
+        <KitText t="body" color={prim.cotton} numberOfLines={1}>{name}</KitText>
+        <KitText t="tag" color={prim.cottonMuted} numberOfLines={1}>{detail}</KitText>
+      </View>
+      {/* The line's colour along the foot; yours in orange once he's picked. */}
+      <View style={[styles.playerFoot, { backgroundColor: chosen ? prim.orange : tint }]} />
     </Pressable>
   )
+}
+
+// The scrapers store other positions as a JSON list ("[\"RW\",\"CF\"]", or
+// "[]" for none), so the card printed "[]". Read it as a list; take a plain
+// "RW, CF" too.
+function alsoOf(also?: string): string | null {
+  if (!also) return null
+  let list: string[]
+  try { list = also.trim().startsWith('[') ? JSON.parse(also) : also.split(',') } catch { list = [] }
+  const clean = list.map(p => String(p).trim()).filter(Boolean)
+  return clean.length ? clean.join('/') : null
 }
 
 const styles = StyleSheet.create({
@@ -317,7 +419,15 @@ const styles = StyleSheet.create({
   strip: { flexDirection: 'row', alignItems: 'center' },
   spinCenter: { alignItems: 'center' },
   spinCard: { width: ITEM_W - 8, marginHorizontal: 4, height: 60, borderWidth: border.thin, flexDirection: 'row', overflow: 'hidden' },
-  spinCardBody: { flex: 1, paddingHorizontal: space[2], justifyContent: 'center', gap: 2 },
+  spinCardBody: { flex: 1, paddingHorizontal: space[2], justifyContent: 'center', alignItems: 'flex-start', gap: 2 },
+  // The crest, big and off the right edge: a background, not a badge.
+  spinCrest: { position: 'absolute', right: -18, top: -14, width: 88, height: 88 },
+  spinSecond: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 5 },
+  spinLabel: { paddingHorizontal: 5, paddingVertical: 1, maxWidth: '100%' },
+  // The flapper: a short orange tongue from the top of the marker that kicks
+  // over as each card passes.
+  flapper: { position: 'absolute', left: '50%', marginLeft: -6, top: 0, width: 12, height: 18, alignItems: 'center' },
+  flapperTip: { width: 12, height: 18, borderWidth: border.thin, borderTopWidth: 0 },
   spinEdge: { position: 'absolute', left: 0, right: 0, height: 4 },
   spinEdgeTop: { top: 0 },
   spinEdgeBottom: { bottom: 0 },
@@ -344,8 +454,13 @@ const styles = StyleSheet.create({
   hangerNote: { position: 'absolute', bottom: -14, fontSize: 9 },
   hangerTag: { position: 'absolute', top: -14, right: 2 },
 
-  player: { flex: 1, minHeight: 72, overflow: 'hidden' },
+  player: { flex: 1, minHeight: 108, overflow: 'hidden', justifyContent: 'space-between' },
+  playerFlag: { position: 'absolute', left: '-12%', right: '-12%', top: '-18%', bottom: '-18%', transform: [{ rotate: '-5deg' }] },
+  playerRating: { paddingHorizontal: 6, paddingVertical: 1, borderWidth: border.thin },
+  playerFoot: { height: 4 },
   playerStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
-  playerBody: { padding: space[2], paddingLeft: space[3], gap: 2 },
-  playerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  playerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 4, padding: space[1] },
+  playerChip: { paddingHorizontal: 5, paddingVertical: 1 },
+  // The name, on the shade at the foot of the card.
+  playerLabel: { paddingHorizontal: space[2], paddingTop: 4, paddingBottom: 3, gap: 1 },
 })

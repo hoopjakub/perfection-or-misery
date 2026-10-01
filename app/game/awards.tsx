@@ -1,3 +1,4 @@
+import { isClassicEurope } from '@/data/europe'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { verdictIn } from '@/lib/motion'
@@ -14,7 +15,7 @@ import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { ROLES, space, border } from '@/theme'
 import { KitScreen, KitText, Plate, SectionTag, Stripe } from '@/components/kit'
 import { ThumbBar } from '@/components/season/RunChrome'
-import { PlayerAwardCard, ClubAwardCard, FormationPitch, QualifyingAwards } from '@/components/season/AwardsParts'
+import { PlayerAwardCard, ClubAwardCard, FormationPitch, QualifyingAwards, TEAM_HOW } from '@/components/season/AwardsParts'
 import type { PunditPicks } from '@/engine/predictions'
 
 // C7 · Awards Night (docs/ui-overhaul/07c), on nylon — and only here, only once:
@@ -51,7 +52,7 @@ export default function AwardsNightScreen() {
     league: '/game/result', cl: '/game/cl-result', wc: '/game/wc-result', cucl: '/game/custom-ucl-result',
   }
   const resultRoute = VERDICT[to ?? ''] ?? VERDICT[
-    mode === 'champions_league' ? 'cl' : mode === 'world_cup' ? 'wc' : mode === 'champions_league_custom' ? 'cucl' : 'league'
+    isClassicEurope(mode) ? 'cl' : mode === 'world_cup' ? 'wc' : mode === 'champions_league_custom' ? 'cucl' : 'league'
   ]
   useSimBackGuard(true)
   const reduced = useReducedMotion()
@@ -209,6 +210,7 @@ function BeatView({ night, beat, onPlayer, picks }: { night: Night; beat: Beat; 
       return night.teamOfTheSeason ? (
         <View style={styles.beat}>
           <SectionTag roles={roles}>{`Team of the ${night.word ?? 'season'}`}</SectionTag>
+          <KitText t="body" color={roles.textMuted}>{TEAM_HOW}</KitText>
           <FormationPitch roles={roles} team={night.teamOfTheSeason} onPlayer={onPlayer} />
         </View>
       ) : null

@@ -576,7 +576,7 @@ export function teamOfTheRound(
     const cur = best.get(l.playerId)
     if (!cur || l.rating > cur.score) best.set(l.playerId, {
       id: l.playerId, name: l.name, position: l.position, score: l.rating, rating: l.rating,
-      clubName: l.clubName, isPlayerClub: l.isPlayerClub,
+      clubName: l.clubName, clubId: l.clubId, isPlayerClub: l.isPlayerClub,
     })
   }
   return pickTeam([...best.values()])

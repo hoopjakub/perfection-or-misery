@@ -1,0 +1,1697 @@
+{
+ "league": {
+  "id": "ligue_1",
+  "name": "Ligue 1",
+  "country": "France",
+  "games_per_season": 34,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "paris_saint_germain",
+   "league_id": "ligue_1",
+   "name": "Paris Saint-Germain",
+   "short_name": "SAI",
+   "primary_color": "#004276",
+   "secondary_color": "#EA0101",
+   "seasons": [
+    {
+     "id": "paris_saint_germain_2018",
+     "club_id": "paris_saint_germain",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2019",
+     "club_id": "paris_saint_germain",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2020",
+     "club_id": "paris_saint_germain",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2021",
+     "club_id": "paris_saint_germain",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2022",
+     "club_id": "paris_saint_germain",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2023",
+     "club_id": "paris_saint_germain",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 90,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2024",
+     "club_id": "paris_saint_germain",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_2025",
+     "club_id": "paris_saint_germain",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "as_monaco",
+   "league_id": "ligue_1",
+   "name": "AS Monaco",
+   "short_name": "MON",
+   "primary_color": "#DB0632",
+   "secondary_color": "#B39047",
+   "seasons": [
+    {
+     "id": "as_monaco_2018",
+     "club_id": "as_monaco",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2019",
+     "club_id": "as_monaco",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 83,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2020",
+     "club_id": "as_monaco",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 84,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2021",
+     "club_id": "as_monaco",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2022",
+     "club_id": "as_monaco",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2023",
+     "club_id": "as_monaco",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2024",
+     "club_id": "as_monaco",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 85,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "as_monaco_2025",
+     "club_id": "as_monaco",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rc_strasbourg_alsace",
+   "league_id": "ligue_1",
+   "name": "RC Strasbourg Alsace",
+   "short_name": "STR",
+   "primary_color": "#009FE2",
+   "secondary_color": "#DB2E33",
+   "seasons": [
+    {
+     "id": "rc_strasbourg_alsace_2018",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2019",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2020",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 79,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2021",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 81,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2022",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2023",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2024",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "rc_strasbourg_alsace_2025",
+     "club_id": "rc_strasbourg_alsace",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "olympique_marseille",
+   "league_id": "ligue_1",
+   "name": "Olympique Marseille",
+   "short_name": "OLY",
+   "primary_color": "#0D61AA",
+   "secondary_color": "#8FB6D4",
+   "seasons": [
+    {
+     "id": "olympique_marseille_2018",
+     "club_id": "olympique_marseille",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2019",
+     "club_id": "olympique_marseille",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2020",
+     "club_id": "olympique_marseille",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2021",
+     "club_id": "olympique_marseille",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2022",
+     "club_id": "olympique_marseille",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2023",
+     "club_id": "olympique_marseille",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2024",
+     "club_id": "olympique_marseille",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "olympique_marseille_2025",
+     "club_id": "olympique_marseille",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "olympique_lyon",
+   "league_id": "ligue_1",
+   "name": "Olympique Lyon",
+   "short_name": "OLY",
+   "primary_color": "#0F23AA",
+   "secondary_color": "#F30143",
+   "seasons": [
+    {
+     "id": "olympique_lyon_2018",
+     "club_id": "olympique_lyon",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 86,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2019",
+     "club_id": "olympique_lyon",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2020",
+     "club_id": "olympique_lyon",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 86,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2021",
+     "club_id": "olympique_lyon",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 85,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2022",
+     "club_id": "olympique_lyon",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 83,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2023",
+     "club_id": "olympique_lyon",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2024",
+     "club_id": "olympique_lyon",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "olympique_lyon_2025",
+     "club_id": "olympique_lyon",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "losc_lille",
+   "league_id": "ligue_1",
+   "name": "LOSC Lille",
+   "short_name": "LIL",
+   "primary_color": "#E41B13",
+   "secondary_color": "#201E5F",
+   "seasons": [
+    {
+     "id": "losc_lille_2018",
+     "club_id": "losc_lille",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 82,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2019",
+     "club_id": "losc_lille",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2020",
+     "club_id": "losc_lille",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 85,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2021",
+     "club_id": "losc_lille",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2022",
+     "club_id": "losc_lille",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2023",
+     "club_id": "losc_lille",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2024",
+     "club_id": "losc_lille",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "losc_lille_2025",
+     "club_id": "losc_lille",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "stade_rennais_fc",
+   "league_id": "ligue_1",
+   "name": "Stade Rennais FC",
+   "short_name": "REN",
+   "primary_color": "#E13327",
+   "secondary_color": "#FBBB17",
+   "seasons": [
+    {
+     "id": "stade_rennais_fc_2018",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2019",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2020",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 82,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2021",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2022",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2023",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2024",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "stade_rennais_fc_2025",
+     "club_id": "stade_rennais_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 7,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rc_lens",
+   "league_id": "ligue_1",
+   "name": "RC Lens",
+   "short_name": "LEN",
+   "primary_color": "#A71A1B",
+   "secondary_color": "#F4D20F",
+   "seasons": [
+    {
+     "id": "rc_lens_2020",
+     "club_id": "rc_lens",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "rc_lens_2021",
+     "club_id": "rc_lens",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "rc_lens_2022",
+     "club_id": "rc_lens",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 82,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "rc_lens_2023",
+     "club_id": "rc_lens",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "rc_lens_2024",
+     "club_id": "rc_lens",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "rc_lens_2025",
+     "club_id": "rc_lens",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 8,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ogc_nice",
+   "league_id": "ligue_1",
+   "name": "OGC Nice",
+   "short_name": "NIC",
+   "primary_color": "#282726",
+   "secondary_color": "#A68D5B",
+   "seasons": [
+    {
+     "id": "ogc_nice_2018",
+     "club_id": "ogc_nice",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 80,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2019",
+     "club_id": "ogc_nice",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2020",
+     "club_id": "ogc_nice",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 81,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2021",
+     "club_id": "ogc_nice",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 82,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2022",
+     "club_id": "ogc_nice",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 82,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2023",
+     "club_id": "ogc_nice",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2024",
+     "club_id": "ogc_nice",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 83,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "ogc_nice_2025",
+     "club_id": "ogc_nice",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 9,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_toulouse",
+   "league_id": "ligue_1",
+   "name": "FC Toulouse",
+   "short_name": "TOU",
+   "primary_color": "#38284F",
+   "secondary_color": "#6A5187",
+   "seasons": [
+    {
+     "id": "fc_toulouse_2018",
+     "club_id": "fc_toulouse",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "fc_toulouse_2019",
+     "club_id": "fc_toulouse",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 74,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "fc_toulouse_2022",
+     "club_id": "fc_toulouse",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "fc_toulouse_2023",
+     "club_id": "fc_toulouse",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 78,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "fc_toulouse_2024",
+     "club_id": "fc_toulouse",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 79,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "fc_toulouse_2025",
+     "club_id": "fc_toulouse",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "paris_fc",
+   "league_id": "ligue_1",
+   "name": "Paris FC",
+   "short_name": "PAR",
+   "primary_color": "#0E1330",
+   "secondary_color": "#1B91C8",
+   "seasons": [
+    {
+     "id": "paris_fc_2025",
+     "club_id": "paris_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_lorient",
+   "league_id": "ligue_1",
+   "name": "FC Lorient",
+   "short_name": "LOR",
+   "primary_color": "#F58113",
+   "secondary_color": "#231F20",
+   "seasons": [
+    {
+     "id": "fc_lorient_2020",
+     "club_id": "fc_lorient",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 76,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "fc_lorient_2021",
+     "club_id": "fc_lorient",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 75,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "fc_lorient_2022",
+     "club_id": "fc_lorient",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "fc_lorient_2023",
+     "club_id": "fc_lorient",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 76,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "fc_lorient_2025",
+     "club_id": "fc_lorient",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_nantes",
+   "league_id": "ligue_1",
+   "name": "FC Nantes",
+   "short_name": "NAN",
+   "primary_color": "#FCD405",
+   "secondary_color": "#FEEC8F",
+   "seasons": [
+    {
+     "id": "fc_nantes_2018",
+     "club_id": "fc_nantes",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2019",
+     "club_id": "fc_nantes",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2020",
+     "club_id": "fc_nantes",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2021",
+     "club_id": "fc_nantes",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2022",
+     "club_id": "fc_nantes",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2023",
+     "club_id": "fc_nantes",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2024",
+     "club_id": "fc_nantes",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "fc_nantes_2025",
+     "club_id": "fc_nantes",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 13,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "aj_auxerre",
+   "league_id": "ligue_1",
+   "name": "AJ Auxerre",
+   "short_name": "AUX",
+   "primary_color": "#004EA2",
+   "secondary_color": "#6896C8",
+   "seasons": [
+    {
+     "id": "aj_auxerre_2022",
+     "club_id": "aj_auxerre",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 74,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "aj_auxerre_2024",
+     "club_id": "aj_auxerre",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "aj_auxerre_2025",
+     "club_id": "aj_auxerre",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "stade_brestois_29",
+   "league_id": "ligue_1",
+   "name": "Stade Brestois 29",
+   "short_name": "BRE",
+   "primary_color": "#E91E25",
+   "secondary_color": "#231E20",
+   "seasons": [
+    {
+     "id": "stade_brestois_29_2019",
+     "club_id": "stade_brestois_29",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 74,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "stade_brestois_29_2020",
+     "club_id": "stade_brestois_29",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "stade_brestois_29_2021",
+     "club_id": "stade_brestois_29",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "stade_brestois_29_2022",
+     "club_id": "stade_brestois_29",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "stade_brestois_29_2023",
+     "club_id": "stade_brestois_29",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "stade_brestois_29_2024",
+     "club_id": "stade_brestois_29",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 79,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "stade_brestois_29_2025",
+     "club_id": "stade_brestois_29",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "angers_sco",
+   "league_id": "ligue_1",
+   "name": "Angers SCO",
+   "short_name": "ANG",
+   "primary_color": "#160E0B",
+   "secondary_color": "#B49977",
+   "seasons": [
+    {
+     "id": "angers_sco_2018",
+     "club_id": "angers_sco",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "angers_sco_2019",
+     "club_id": "angers_sco",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "angers_sco_2020",
+     "club_id": "angers_sco",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "angers_sco_2021",
+     "club_id": "angers_sco",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "angers_sco_2022",
+     "club_id": "angers_sco",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 75,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "angers_sco_2024",
+     "club_id": "angers_sco",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "angers_sco_2025",
+     "club_id": "angers_sco",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "le_havre_ac",
+   "league_id": "ligue_1",
+   "name": "Le Havre AC",
+   "short_name": "HAV",
+   "primary_color": "#1F315C",
+   "secondary_color": "#8BC1E8",
+   "seasons": [
+    {
+     "id": "le_havre_ac_2023",
+     "club_id": "le_havre_ac",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "le_havre_ac_2024",
+     "club_id": "le_havre_ac",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 75,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "le_havre_ac_2025",
+     "club_id": "le_havre_ac",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_metz",
+   "league_id": "ligue_1",
+   "name": "FC Metz",
+   "short_name": "MET",
+   "primary_color": "#731013",
+   "secondary_color": "#C09395",
+   "seasons": [
+    {
+     "id": "fc_metz_2019",
+     "club_id": "fc_metz",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 75,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "fc_metz_2020",
+     "club_id": "fc_metz",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "fc_metz_2021",
+     "club_id": "fc_metz",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "fc_metz_2023",
+     "club_id": "fc_metz",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 74,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "fc_metz_2025",
+     "club_id": "fc_metz",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "stade_reims",
+   "league_id": "ligue_1",
+   "name": "Stade Reims",
+   "short_name": "STA",
+   "primary_color": "#EB0000",
+   "secondary_color": "#F68C8C",
+   "seasons": [
+    {
+     "id": "stade_reims_2018",
+     "club_id": "stade_reims",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 78,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "stade_reims_2019",
+     "club_id": "stade_reims",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "stade_reims_2020",
+     "club_id": "stade_reims",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "stade_reims_2021",
+     "club_id": "stade_reims",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 78,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "stade_reims_2022",
+     "club_id": "stade_reims",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 79,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "stade_reims_2023",
+     "club_id": "stade_reims",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "stade_reims_2024",
+     "club_id": "stade_reims",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 79,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "as_saint_etienne",
+   "league_id": "ligue_1",
+   "name": "AS Saint-Étienne",
+   "short_name": "SAI",
+   "primary_color": "#1D995B",
+   "secondary_color": "#CDB789",
+   "seasons": [
+    {
+     "id": "as_saint_etienne_2018",
+     "club_id": "as_saint_etienne",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 80,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "as_saint_etienne_2019",
+     "club_id": "as_saint_etienne",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "as_saint_etienne_2020",
+     "club_id": "as_saint_etienne",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 77,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "as_saint_etienne_2021",
+     "club_id": "as_saint_etienne",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 77,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "as_saint_etienne_2024",
+     "club_id": "as_saint_etienne",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 75,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "montpellier_hsc",
+   "league_id": "ligue_1",
+   "name": "Montpellier HSC",
+   "short_name": "MON",
+   "primary_color": "#005BA6",
+   "secondary_color": "#F26F21",
+   "seasons": [
+    {
+     "id": "montpellier_hsc_2018",
+     "club_id": "montpellier_hsc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "montpellier_hsc_2019",
+     "club_id": "montpellier_hsc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 78,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "montpellier_hsc_2020",
+     "club_id": "montpellier_hsc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 79,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "montpellier_hsc_2021",
+     "club_id": "montpellier_hsc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "montpellier_hsc_2022",
+     "club_id": "montpellier_hsc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 80,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "montpellier_hsc_2023",
+     "club_id": "montpellier_hsc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "montpellier_hsc_2024",
+     "club_id": "montpellier_hsc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "clermont_foot_63",
+   "league_id": "ligue_1",
+   "name": "Clermont Foot 63",
+   "short_name": "CLE",
+   "primary_color": "#012D6A",
+   "secondary_color": "#C60B46",
+   "seasons": [
+    {
+     "id": "clermont_foot_63_2021",
+     "club_id": "clermont_foot_63",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 74,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "clermont_foot_63_2022",
+     "club_id": "clermont_foot_63",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 75,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "clermont_foot_63_2023",
+     "club_id": "clermont_foot_63",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "estac_troyes",
+   "league_id": "ligue_1",
+   "name": "ESTAC Troyes",
+   "short_name": "TRO",
+   "primary_color": "#036DB5",
+   "secondary_color": "#013773",
+   "seasons": [
+    {
+     "id": "estac_troyes_2021",
+     "club_id": "estac_troyes",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 76,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "estac_troyes_2022",
+     "club_id": "estac_troyes",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 76,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ac_ajaccio",
+   "league_id": "ligue_1",
+   "name": "AC Ajaccio",
+   "short_name": "AJA",
+   "primary_color": "#E2061C",
+   "secondary_color": "#D1D0CF",
+   "seasons": [
+    {
+     "id": "ac_ajaccio_2022",
+     "club_id": "ac_ajaccio",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 73,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_girondins_bordeaux",
+   "league_id": "ligue_1",
+   "name": "FC Girondins Bordeaux",
+   "short_name": "GIR",
+   "primary_color": "#131734",
+   "secondary_color": "#505369",
+   "seasons": [
+    {
+     "id": "fc_girondins_bordeaux_2018",
+     "club_id": "fc_girondins_bordeaux",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 80,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "fc_girondins_bordeaux_2019",
+     "club_id": "fc_girondins_bordeaux",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "fc_girondins_bordeaux_2020",
+     "club_id": "fc_girondins_bordeaux",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "fc_girondins_bordeaux_2021",
+     "club_id": "fc_girondins_bordeaux",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 78,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "dijon_fco",
+   "league_id": "ligue_1",
+   "name": "Dijon FCO",
+   "short_name": "DIJ",
+   "primary_color": "#D3082B",
+   "secondary_color": "#F5CBD2",
+   "seasons": [
+    {
+     "id": "dijon_fco_2018",
+     "club_id": "dijon_fco",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 76,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "dijon_fco_2019",
+     "club_id": "dijon_fco",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 75,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "dijon_fco_2020",
+     "club_id": "dijon_fco",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 74,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "nimes_olympique",
+   "league_id": "ligue_1",
+   "name": "Nîmes Olympique",
+   "short_name": "OLY",
+   "primary_color": "#E2111B",
+   "secondary_color": "#F29498",
+   "seasons": [
+    {
+     "id": "nimes_olympique_2018",
+     "club_id": "nimes_olympique",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 76,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "nimes_olympique_2019",
+     "club_id": "nimes_olympique",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 74,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "nimes_olympique_2020",
+     "club_id": "nimes_olympique",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 75,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "amiens_sc",
+   "league_id": "ligue_1",
+   "name": "Amiens SC",
+   "short_name": "AMI",
+   "primary_color": "#6F6F6F",
+   "secondary_color": "#D0D0D0",
+   "seasons": [
+    {
+     "id": "amiens_sc_2018",
+     "club_id": "amiens_sc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 77,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "amiens_sc_2019",
+     "club_id": "amiens_sc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 75,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ea_guingamp",
+   "league_id": "ligue_1",
+   "name": "EA Guingamp",
+   "short_name": "GUI",
+   "primary_color": "#E20E17",
+   "secondary_color": "#191414",
+   "seasons": [
+    {
+     "id": "ea_guingamp_2018",
+     "club_id": "ea_guingamp",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 74,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sm_caen",
+   "league_id": "ligue_1",
+   "name": "SM Caen",
+   "short_name": "CAE",
+   "primary_color": "#2A3353",
+   "secondary_color": "#CFB171",
+   "seasons": [
+    {
+     "id": "sm_caen_2018",
+     "club_id": "sm_caen",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 76,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

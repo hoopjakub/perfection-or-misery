@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay, Easing } from 'react-native-reanimated'
-import { type Roles, space, border, POT_COLOURS, withAlpha } from '@/theme'
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, Easing, cancelAnimation } from 'react-native-reanimated'
+import Svg, { Path, Ellipse, Rect } from 'react-native-svg'
+import { type Roles, space, border, POT_COLOURS, withAlpha, prim } from '@/theme'
 import { KitText, Tag, Plate, SectionTag, TeamMark, RoundFlag, VenueMark, Icon } from '@/components/kit'
 import { flagForCountry } from '@/data/geo-iso'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -73,6 +74,8 @@ export function LeaguePhaseDraw({ roles, teams, draw, countryOf, after }: {
     return out
   }, [draw, teams])
   const eight = you ? eights.get(you.clubId) ?? [] : []
+  // Four pots, or six in the Conference League (P8-172).
+  const potNums = useMemo(() => [...new Set(teams.map(t => t.pot))].sort((a, b) => a - b), [teams])
 
   const [shown, setShown] = useState(reduced ? eight.length : 0)
   const [paused, setPaused] = useState(false)
@@ -136,10 +139,13 @@ export function LeaguePhaseDraw({ roles, teams, draw, countryOf, after }: {
               <KitText t="superS" color={roles.text} style={{ flexShrink: 1 }}>{you.clubName.toUpperCase()}</KitText>
             </View>
           </View>
-          <Bowl roles={roles} ball={shown} active={running && !paused && !reduced} />
           <KitText t="figure" color={roles.textMuted}>{`${shown}/${eight.length}`}</KitText>
         </View>
-        <KitText t="body" color={roles.textMuted}>{`Two from each pot, one at home and one away. ${rule}`}</KitText>
+        {/* P8-176: the bowl, and the name it just gave up, broadcast-style. */}
+        <DrawStage roles={roles} shown={shown} total={eight.length} active={running && !paused} reduced={reduced}
+          next={eight[shown]} last={shown > 0 ? eight[shown - 1] : undefined}
+          lastName={shown > 0 ? nameAt(shown - 1, eight[shown - 1].opp.clubName) : ''} countryOf={countryOf} />
+        <KitText t="body" color={roles.textMuted}>{`${potNums.length === 6 ? 'One from each pot, three at home and three away.' : 'Two from each pot, one at home and one away.'} ${rule}`}</KitText>
 
         <View style={styles.colHead}>
           <View style={styles.potCol} />
@@ -149,7 +155,7 @@ export function LeaguePhaseDraw({ roles, teams, draw, countryOf, after }: {
           <View style={styles.venue} />
         </View>
         <View accessibilityLiveRegion="polite">
-          {[1, 2, 3, 4].map(pot => {
+          {potNums.map(pot => {
             const colour = POT_COLOURS[pot] ?? roles.text
             const rows = eight.map((s, i) => ({ s, i })).filter(x => x.s.opp.pot === pot)
             if (rows.length === 0) return null
@@ -213,37 +219,128 @@ function Flag({ roles, country }: { roles: Roles; country?: string }) {
   return f ? <RoundFlag roles={roles} emoji={f} code={country} size={16} /> : null
 }
 
-// ── The bowl ─────────────────────────────────────────────────────────────────
-// The Dugout's DrawBowl: a shallow bowl of discs that jostle, and a ball that
-// rises out of it before each name. Short on purpose: the draw's own gap paces
-// the reveal, this is only the beat before it. Still when the draw is.
-function Bowl({ roles, ball, active }: { roles: Roles; ball: number; active: boolean }) {
+// ── The stage: the bowl and the drawn name (P8-176) ──────────────────────────
+// The maintainer, 27 September: the first bowl (a 48 px half-bowl of dots in
+// the header) was "really bad". Now it has a stage of its own, as the
+// broadcast does: on the left a drawn glass bowl on its stem, its capsules
+// tumbling, each banded in the colour of the pot being drawn; before each
+// name one capsule rises out of the mouth and opens on the drawn club's
+// crest. On the right the broadcast line: which ball, which pot, and the name
+// as it spells itself out, with home or away. The tumble and the rise live on
+// the UI thread and stop when the draw does; reduced motion keeps it still.
+const BOWL_W = 88
+const BOWL_H = 78
+const CAPSULES = 9
+
+function DrawStage({ roles, shown, total, active, reduced, next, last, lastName, countryOf }: {
+  roles: Roles
+  shown: number
+  total: number
+  active: boolean
+  reduced: boolean
+  next?: Slot
+  last?: Slot
+  lastName: string
+  countryOf: (t: CLTeam) => string | undefined
+}) {
+  // The pot in the bowl: the next ball's, or the last one's once the draw is done.
+  const pot = (next ?? last)?.opp.pot ?? 1
+  const colour = POT_COLOURS[pot] ?? roles.text
+  const lastColour = last ? POT_COLOURS[last.opp.pot] ?? roles.text : roles.text
   return (
-    <View style={styles.bowl} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.bowlPot, { borderColor: roles.textMuted, backgroundColor: withAlpha(roles.textMuted, 10) }]}>
-        {[0, 1, 2, 3, 4, 5].map(i => <Disc key={i} i={i} active={active} colour={POT_COLOURS[(i % 4) + 1]} />)}
+    <View style={[styles.stage, { borderColor: roles.rule }]}>
+      <View style={styles.bowl} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Tumble colour={colour} line={roles.line} active={active && !reduced} />
+        <Svg width={BOWL_W} height={BOWL_H} style={StyleSheet.absoluteFill} pointerEvents="none">
+          {/* The glass: a round bowl, its rim, a highlight down one side, the stem and the foot. */}
+          <Path d="M8 24 Q8 64 44 64 Q80 64 80 24" fill={withAlpha(roles.text, 5)} stroke={roles.line} strokeWidth={1.5} />
+          <Ellipse cx={44} cy={24} rx={36} ry={6} fill="none" stroke={roles.line} strokeWidth={1.5} />
+          <Path d="M16 30 Q15 50 30 58" fill="none" stroke={roles.textMuted} strokeOpacity={0.5} strokeWidth={2} strokeLinecap="round" />
+          <Rect x={40} y={64} width={8} height={7} fill={roles.line} />
+          <Ellipse cx={44} cy={73} rx={17} ry={3.5} fill={roles.line} />
+        </Svg>
+        {active && !reduced && last ? <Rising key={shown} colour={lastColour} last={last} roles={roles} /> : null}
       </View>
-      {active && <Ball key={ball} colour={roles.text} />}
+      <View style={styles.stageText}>
+        <KitText t="tag" color={roles.textMuted}>
+          {shown < total ? `BALL ${shown + 1} OF ${total} · FROM POT ${pot}` : `ALL ${total} DRAWN`}
+        </KitText>
+        {last ? (
+          <View accessible accessibilityLabel={`Drawn: ${last.opp.clubName}, pot ${last.opp.pot}, ${last.home ? 'at home' : 'away'}`} style={{ gap: 4 }}>
+            <View style={styles.stageName}>
+              <TeamMark roles={roles} clubId={last.opp.clubId} name={last.opp.clubName} size={24} />
+              <KitText t="title" color={lastColour} numberOfLines={1} style={{ flexShrink: 1 }}>{lastName}</KitText>
+            </View>
+            <View style={styles.stageName}>
+              <Flag roles={roles} country={countryOf(last.opp)} />
+              <Tag roles={roles}>{`POT ${last.opp.pot}`}</Tag>
+              <VenueMark roles={roles} home={last.home} />
+              <KitText t="tag" color={roles.textMuted}>{last.home ? 'AT HOME' : 'AWAY'}</KitText>
+            </View>
+          </View>
+        ) : (
+          <KitText t="body" color={roles.textMuted}>The first ball is coming.</KitText>
+        )}
+      </View>
     </View>
   )
 }
 
-function Disc({ i, active, colour }: { i: number; active: boolean; colour: string }) {
-  const y = useSharedValue(0)
+// The capsules inside the bowl: a ring of them turning slowly, seen through
+// the bowl's lower half (the clip is the bowl's own curve), so they tumble.
+function Tumble({ colour, line, active }: { colour: string; line: string; active: boolean }) {
+  const turn = useSharedValue(0)
   useEffect(() => {
-    y.value = active
-      ? withDelay(i * 90, withRepeat(withSequence(withTiming(-3, { duration: 180 }), withTiming(0, { duration: 180 })), -1))
-      : withTiming(0, { duration: 120 })
+    if (active) turn.value = withRepeat(withTiming(360, { duration: 2400, easing: Easing.linear }), -1, false)
+    else cancelAnimation(turn)
   }, [active])
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }))
-  return <Animated.View style={[styles.disc, { left: 4 + (i % 3) * 14, bottom: 2 + Math.floor(i / 3) * 7, backgroundColor: colour }, style]} />
+  const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.value}deg` }] }))
+  const counter = useAnimatedStyle(() => ({ transform: [{ rotate: `${-turn.value * 1.7}deg` }] }))
+  return (
+    <View style={styles.tumbleClip}>
+      <Animated.View style={[styles.tumble, spin]}>
+        {Array.from({ length: CAPSULES }, (_, i) => {
+          const a = (i / CAPSULES) * Math.PI * 2
+          const r = i % 2 ? 22 : 13
+          return <Capsule key={i} colour={colour} line={line} x={32 + Math.cos(a) * r} y={32 + Math.sin(a) * r} />
+        })}
+        <Animated.View style={[styles.tumbleInner, counter]}>
+          <Capsule colour={colour} line={line} x={8} y={2} />
+          <Capsule colour={colour} line={line} x={2} y={12} />
+        </Animated.View>
+      </Animated.View>
+    </View>
+  )
 }
 
-function Ball({ colour }: { colour: string }) {
-  const t = useSharedValue(0)
-  useEffect(() => { t.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) }) }, [])
-  const style = useAnimatedStyle(() => ({ opacity: 1 - t.value * 0.6, transform: [{ translateY: -16 * t.value }] }))
-  return <Animated.View style={[styles.ball, { backgroundColor: colour }, style]} />
+function Capsule({ colour, line, x, y }: { colour: string; line: string; x: number; y: number }) {
+  return (
+    <View style={[styles.capsule, { left: x - 6, top: y - 6, borderColor: line, backgroundColor: prim.cotton }]}>
+      <View style={[styles.capsuleBand, { backgroundColor: colour }]} />
+    </View>
+  )
+}
+
+// One capsule out of the bowl: it rises from the mouth, opens (its top half
+// tips back), shows the drawn club's crest, and goes.
+function Rising({ colour, last, roles }: { colour: string; last: Slot; roles: Roles }) {
+  const up = useSharedValue(0), open = useSharedValue(0), gone = useSharedValue(0)
+  useEffect(() => {
+    up.value = withTiming(1, { duration: 360, easing: Easing.out(Easing.cubic) })
+    open.value = withDelay(320, withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) }))
+    gone.value = withDelay(900, withTiming(1, { duration: 200 }))
+  }, [])
+  const body = useAnimatedStyle(() => ({ opacity: 1 - gone.value, transform: [{ translateY: -30 * up.value }, { scale: 1 + 0.5 * up.value }] }))
+  const lid = useAnimatedStyle(() => ({ opacity: 1 - open.value, transform: [{ translateY: -6 * open.value }, { rotate: `${-50 * open.value}deg` }] }))
+  const mark = useAnimatedStyle(() => ({ opacity: open.value }))
+  return (
+    <Animated.View style={[styles.rising, body]} pointerEvents="none">
+      <View style={[styles.risingBall, { borderColor: roles.line, backgroundColor: prim.cotton }]}>
+        <Animated.View style={mark}><TeamMark roles={roles} clubId={last.opp.clubId} name={last.opp.clubName} size={16} /></Animated.View>
+      </View>
+      <Animated.View style={[styles.risingLid, { borderColor: roles.line, backgroundColor: colour }, lid]} />
+    </Animated.View>
+  )
 }
 
 // ── Everyone else's eight ────────────────────────────────────────────────────
@@ -256,7 +353,7 @@ function Others({ roles, teams, eights, countryOf }: {
   return (
     <View style={{ gap: space[1] }}>
       <SectionTag roles={roles}>Every club's eight</SectionTag>
-      {[1, 2, 3, 4].map(pot => (
+      {[...new Set(teams.map(t => t.pot))].sort((a, b) => a - b).map(pot => (
         <View key={pot} style={styles.otherPot}>
           <View style={[styles.spine, { backgroundColor: POT_COLOURS[pot] }]} />
           <View style={{ flex: 1 }}>
@@ -308,10 +405,19 @@ const styles = StyleSheet.create({
   dash: { width: 12, textAlign: 'center' },
   venue: { width: 28, alignItems: 'flex-end' },
   controls: { flexDirection: 'row', gap: space[2] },
-  bowl: { width: 48, height: 34 },
-  bowlPot: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 22, borderWidth: border.thin, borderTopWidth: 0, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' },
-  disc: { position: 'absolute', width: 9, height: 9, borderRadius: 5 },
-  ball: { position: 'absolute', left: 19, bottom: 14, width: 10, height: 10, borderRadius: 5 },
+  stage: { flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[2], borderTopWidth: border.hair, borderBottomWidth: border.hair },
+  stageText: { flex: 1, minWidth: 0, gap: 4 },
+  stageName: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
+  bowl: { width: BOWL_W, height: BOWL_H },
+  // The bowl's lower half, where the capsules show: its own curve as the clip.
+  tumbleClip: { position: 'absolute', left: 10, top: 24, width: 68, height: 39, borderBottomLeftRadius: 34, borderBottomRightRadius: 34, overflow: 'hidden' },
+  tumble: { position: 'absolute', left: 2, top: -22, width: 64, height: 64 },
+  tumbleInner: { position: 'absolute', left: 26, top: 26, width: 14, height: 14 },
+  capsule: { position: 'absolute', width: 12, height: 12, borderRadius: 6, borderWidth: border.thin, overflow: 'hidden', justifyContent: 'center' },
+  capsuleBand: { height: 4 },
+  rising: { position: 'absolute', left: 30, top: 8, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  risingBall: { width: 26, height: 26, borderRadius: 13, borderWidth: border.thin, alignItems: 'center', justifyContent: 'center' },
+  risingLid: { position: 'absolute', top: 0, left: 1, width: 26, height: 13, borderTopLeftRadius: 13, borderTopRightRadius: 13, borderWidth: border.thin, borderBottomWidth: 0 },
   otherPot: { flexDirection: 'row', gap: space[2], marginTop: space[2] },
   otherRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 44, borderBottomWidth: border.hair, paddingHorizontal: space[1] },
   theirs: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 36, paddingLeft: space[5] },

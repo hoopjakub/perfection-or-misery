@@ -1,0 +1,923 @@
+{
+ "league": {
+  "id": "wc_2026",
+  "name": "FIFA World Cup",
+  "country": "USA/Canada/Mexico",
+  "games_per_season": 3,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "usa_nt",
+   "league_id": "wc_2026",
+   "name": "United States",
+   "short_name": "USA",
+   "primary_color": "#FFFFFF",
+   "secondary_color": "#002868",
+   "seasons": [
+    {
+     "id": "usa_wc_2026",
+     "club_id": "usa_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "mexico_nt",
+   "league_id": "wc_2026",
+   "name": "Mexico",
+   "short_name": "MEX",
+   "primary_color": "#006847",
+   "secondary_color": "#CE1126",
+   "seasons": [
+    {
+     "id": "mexico_wc_2026",
+     "club_id": "mexico_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "canada_nt",
+   "league_id": "wc_2026",
+   "name": "Canada",
+   "short_name": "CAN",
+   "primary_color": "#FF0000",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "canada_wc_2026",
+     "club_id": "canada_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "algeria_nt",
+   "league_id": "wc_2026",
+   "name": "Algeria",
+   "short_name": "ALG",
+   "primary_color": "#006633",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "algeria_wc_2026",
+     "club_id": "algeria_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "argentina_nt",
+   "league_id": "wc_2026",
+   "name": "Argentina",
+   "short_name": "ARG",
+   "primary_color": "#43A1D5",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "argentina_wc_2026",
+     "club_id": "argentina_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "australia_nt",
+   "league_id": "wc_2026",
+   "name": "Australia",
+   "short_name": "AUS",
+   "primary_color": "#FFCC00",
+   "secondary_color": "#00843D",
+   "seasons": [
+    {
+     "id": "australia_wc_2026",
+     "club_id": "australia_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "austria_nt",
+   "league_id": "wc_2026",
+   "name": "Austria",
+   "short_name": "AUT",
+   "primary_color": "#ED2939",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "austria_wc_2026",
+     "club_id": "austria_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "belgium_nt",
+   "league_id": "wc_2026",
+   "name": "Belgium",
+   "short_name": "BEL",
+   "primary_color": "#ED2939",
+   "secondary_color": "#FDB913",
+   "seasons": [
+    {
+     "id": "belgium_wc_2026",
+     "club_id": "belgium_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bosnia_herzegovina_nt",
+   "league_id": "wc_2026",
+   "name": "Bosnia and Herzegovina",
+   "short_name": "BIH",
+   "primary_color": "#0055A4",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "bosnia_wc_2026",
+     "club_id": "bosnia_herzegovina_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "brazil_nt",
+   "league_id": "wc_2026",
+   "name": "Brazil",
+   "short_name": "BRA",
+   "primary_color": "#FFDF00",
+   "secondary_color": "#009B3A",
+   "seasons": [
+    {
+     "id": "brazil_wc_2026",
+     "club_id": "brazil_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "cabo_verde_nt",
+   "league_id": "wc_2026",
+   "name": "Cabo Verde",
+   "short_name": "CPV",
+   "primary_color": "#003399",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "cabo_verde_wc_2026",
+     "club_id": "cabo_verde_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "colombia_nt",
+   "league_id": "wc_2026",
+   "name": "Colombia",
+   "short_name": "COL",
+   "primary_color": "#FCD116",
+   "secondary_color": "#003893",
+   "seasons": [
+    {
+     "id": "colombia_wc_2026",
+     "club_id": "colombia_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "dr_congo_nt",
+   "league_id": "wc_2026",
+   "name": "DR Congo",
+   "short_name": "COD",
+   "primary_color": "#007A33",
+   "secondary_color": "#FCD116",
+   "seasons": [
+    {
+     "id": "congo_dr_wc_2026",
+     "club_id": "dr_congo_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "cote_divoire_nt",
+   "league_id": "wc_2026",
+   "name": "Côte d'Ivoire",
+   "short_name": "CIV",
+   "primary_color": "#FF8200",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "cote_divoire_wc_2026",
+     "club_id": "cote_divoire_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "croatia_nt",
+   "league_id": "wc_2026",
+   "name": "Croatia",
+   "short_name": "CRO",
+   "primary_color": "#ED1C24",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "croatia_wc_2026",
+     "club_id": "croatia_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "czechia_nt",
+   "league_id": "wc_2026",
+   "name": "Czechia",
+   "short_name": "CZE",
+   "primary_color": "#ED1C24",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "czechia_wc_2026",
+     "club_id": "czechia_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "curacao_nt",
+   "league_id": "wc_2026",
+   "name": "Curaçao",
+   "short_name": "CUW",
+   "primary_color": "#002D72",
+   "secondary_color": "#FFC72C",
+   "seasons": [
+    {
+     "id": "curacao_wc_2026",
+     "club_id": "curacao_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 72,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ecuador_nt",
+   "league_id": "wc_2026",
+   "name": "Ecuador",
+   "short_name": "ECU",
+   "primary_color": "#FFCC00",
+   "secondary_color": "#0033A0",
+   "seasons": [
+    {
+     "id": "ecuador_wc_2026",
+     "club_id": "ecuador_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "egypt_nt",
+   "league_id": "wc_2026",
+   "name": "Egypt",
+   "short_name": "EGY",
+   "primary_color": "#D32F2F",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "egypt_wc_2026",
+     "club_id": "egypt_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "england_nt",
+   "league_id": "wc_2026",
+   "name": "England",
+   "short_name": "ENG",
+   "primary_color": "#FFFFFF",
+   "secondary_color": "#D32F2F",
+   "seasons": [
+    {
+     "id": "england_wc_2026",
+     "club_id": "england_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "france_nt",
+   "league_id": "wc_2026",
+   "name": "France",
+   "short_name": "FRA",
+   "primary_color": "#002395",
+   "secondary_color": "#ED2939",
+   "seasons": [
+    {
+     "id": "france_wc_2026",
+     "club_id": "france_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "germany_nt",
+   "league_id": "wc_2026",
+   "name": "Germany",
+   "short_name": "GER",
+   "primary_color": "#000000",
+   "secondary_color": "#FFCC00",
+   "seasons": [
+    {
+     "id": "germany_wc_2026",
+     "club_id": "germany_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ghana_nt",
+   "league_id": "wc_2026",
+   "name": "Ghana",
+   "short_name": "GHA",
+   "primary_color": "#FFFFFF",
+   "secondary_color": "#006B3C",
+   "seasons": [
+    {
+     "id": "ghana_wc_2026",
+     "club_id": "ghana_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "haiti_nt",
+   "league_id": "wc_2026",
+   "name": "Haiti",
+   "short_name": "HAI",
+   "primary_color": "#D21034",
+   "secondary_color": "#00209F",
+   "seasons": [
+    {
+     "id": "haiti_wc_2026",
+     "club_id": "haiti_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 72,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "iran_nt",
+   "league_id": "wc_2026",
+   "name": "IR Iran",
+   "short_name": "IRN",
+   "primary_color": "#FFFFFF",
+   "secondary_color": "#239F40",
+   "seasons": [
+    {
+     "id": "iran_wc_2026",
+     "club_id": "iran_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "iraq_nt",
+   "league_id": "wc_2026",
+   "name": "Iraq",
+   "short_name": "IRQ",
+   "primary_color": "#007A33",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "iraq_wc_2026",
+     "club_id": "iraq_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 72,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "japan_nt",
+   "league_id": "wc_2026",
+   "name": "Japan",
+   "short_name": "JPN",
+   "primary_color": "#00529B",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "japan_wc_2026",
+     "club_id": "japan_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "jordan_nt",
+   "league_id": "wc_2026",
+   "name": "Jordan",
+   "short_name": "JOR",
+   "primary_color": "#CE1126",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "jordan_wc_2026",
+     "club_id": "jordan_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 71,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "korea_republic_nt",
+   "league_id": "wc_2026",
+   "name": "Korea Republic",
+   "short_name": "KOR",
+   "primary_color": "#FFFFFF",
+   "secondary_color": "#ED1C24",
+   "seasons": [
+    {
+     "id": "korea_republic_wc_2026",
+     "club_id": "korea_republic_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "morocco_nt",
+   "league_id": "wc_2026",
+   "name": "Morocco",
+   "short_name": "MAR",
+   "primary_color": "#C1272D",
+   "secondary_color": "#006233",
+   "seasons": [
+    {
+     "id": "morocco_wc_2026",
+     "club_id": "morocco_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "netherlands_nt",
+   "league_id": "wc_2026",
+   "name": "Netherlands",
+   "short_name": "NED",
+   "primary_color": "#FF4F00",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "netherlands_wc_2026",
+     "club_id": "netherlands_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "new_zealand_nt",
+   "league_id": "wc_2026",
+   "name": "New Zealand",
+   "short_name": "NZL",
+   "primary_color": "#000000",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "new_zealand_wc_2026",
+     "club_id": "new_zealand_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 74,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "norway_nt",
+   "league_id": "wc_2026",
+   "name": "Norway",
+   "short_name": "NOR",
+   "primary_color": "#EF2B2D",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "norway_wc_2026",
+     "club_id": "norway_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "panama_nt",
+   "league_id": "wc_2026",
+   "name": "Panama",
+   "short_name": "PAN",
+   "primary_color": "#D21034",
+   "secondary_color": "#072993",
+   "seasons": [
+    {
+     "id": "panama_wc_2026",
+     "club_id": "panama_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 74,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "paraguay_nt",
+   "league_id": "wc_2026",
+   "name": "Paraguay",
+   "short_name": "PAR",
+   "primary_color": "#D52B1E",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "paraguay_wc_2026",
+     "club_id": "paraguay_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 79,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "portugal_nt",
+   "league_id": "wc_2026",
+   "name": "Portugal",
+   "short_name": "POR",
+   "primary_color": "#FF0000",
+   "secondary_color": "#006600",
+   "seasons": [
+    {
+     "id": "portugal_wc_2026",
+     "club_id": "portugal_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "qatar_nt",
+   "league_id": "wc_2026",
+   "name": "Qatar",
+   "short_name": "QAT",
+   "primary_color": "#8D1B3D",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "qatar_wc_2026",
+     "club_id": "qatar_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 72,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "saudi_arabia_nt",
+   "league_id": "wc_2026",
+   "name": "Saudi Arabia",
+   "short_name": "KSA",
+   "primary_color": "#006C35",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "saudi_arabia_wc_2026",
+     "club_id": "saudi_arabia_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 74,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "scotland_nt",
+   "league_id": "wc_2026",
+   "name": "Scotland",
+   "short_name": "SCO",
+   "primary_color": "#0065BF",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "scotland_wc_2026",
+     "club_id": "scotland_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "senegal_nt",
+   "league_id": "wc_2026",
+   "name": "Senegal",
+   "short_name": "SEN",
+   "primary_color": "#00853F",
+   "secondary_color": "#FDB913",
+   "seasons": [
+    {
+     "id": "senegal_wc_2026",
+     "club_id": "senegal_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "south_africa_nt",
+   "league_id": "wc_2026",
+   "name": "South Africa",
+   "short_name": "RSA",
+   "primary_color": "#FFB81C",
+   "secondary_color": "#007749",
+   "seasons": [
+    {
+     "id": "south_africa_wc_2026",
+     "club_id": "south_africa_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "spain_nt",
+   "league_id": "wc_2026",
+   "name": "Spain",
+   "short_name": "ESP",
+   "primary_color": "#AA151B",
+   "secondary_color": "#F1BF00",
+   "seasons": [
+    {
+     "id": "spain_wc_2026",
+     "club_id": "spain_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sweden_nt",
+   "league_id": "wc_2026",
+   "name": "Sweden",
+   "short_name": "SWE",
+   "primary_color": "#006AA7",
+   "secondary_color": "#FECC00",
+   "seasons": [
+    {
+     "id": "sweden_wc_2026",
+     "club_id": "sweden_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "switzerland_nt",
+   "league_id": "wc_2026",
+   "name": "Switzerland",
+   "short_name": "SUI",
+   "primary_color": "#FF0000",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "switzerland_wc_2026",
+     "club_id": "switzerland_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "tunisia_nt",
+   "league_id": "wc_2026",
+   "name": "Tunisia",
+   "short_name": "TUN",
+   "primary_color": "#E30A17",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "tunisia_wc_2026",
+     "club_id": "tunisia_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 75,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "turkiye_nt",
+   "league_id": "wc_2026",
+   "name": "Turkiye",
+   "short_name": "TUR",
+   "primary_color": "#E30A17",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "turkiye_wc_2026",
+     "club_id": "turkiye_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "uruguay_nt",
+   "league_id": "wc_2026",
+   "name": "Uruguay",
+   "short_name": "URU",
+   "primary_color": "#58BCE2",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "uruguay_wc_2026",
+     "club_id": "uruguay_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "uzbekistan_nt",
+   "league_id": "wc_2026",
+   "name": "Uzbekistan",
+   "short_name": "UZB",
+   "primary_color": "#0099B5",
+   "secondary_color": "#FFFFFF",
+   "seasons": [
+    {
+     "id": "uzbekistan_wc_2026",
+     "club_id": "uzbekistan_nt",
+     "year_start": 2026,
+     "year_end": 2026,
+     "historical_ovr": 74,
+     "league_position": null,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

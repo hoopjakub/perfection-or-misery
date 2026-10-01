@@ -28,16 +28,17 @@ const roles = ROLES.cotton
 
 // P8-152: a season's board is the same runs read between its dates.
 type Board = 'all' | 'week' | 'season'
-type ModeFilter = 'any' | 'all_time' | 'league' | 'chaos' | 'cursed' | 'tournaments' | 'champions_league' | 'champions_league_custom' | 'world_cup'
+type ModeFilter = 'any' | 'all_time' | 'league' | 'chaos' | 'cursed' | 'tournaments' | 'champions_league' | 'champions_league_custom' | 'europa_league' | 'conference_league' | 'world_cup'
 type DiffFilter = 'any' | 'easy' | 'medium' | 'hard' | 'custom'
 type HardFilter = 'any' | '3' | '6' | '8' | '10'
 
 const MODE_OPTIONS: { id: ModeFilter; label: string }[] = [
   { id: 'any', label: 'All' }, { id: 'all_time', label: 'All Time' }, { id: 'league', label: 'League' },
   { id: 'chaos', label: 'Chaos' }, { id: 'cursed', label: 'Cursed' }, { id: 'tournaments', label: 'All tournaments' },
-  { id: 'champions_league', label: 'UCL Finals' }, { id: 'champions_league_custom', label: 'UCL Full path' }, { id: 'world_cup', label: 'World Cup' },
+  { id: 'champions_league', label: 'UCL Finals' }, { id: 'champions_league_custom', label: 'UCL Full path' },
+  { id: 'europa_league', label: 'Europa League' }, { id: 'conference_league', label: 'Conference League' }, { id: 'world_cup', label: 'World Cup' },
 ]
-const TOURNAMENTS = ['champions_league', 'champions_league_custom', 'world_cup']
+const TOURNAMENTS = ['champions_league', 'champions_league_custom', 'europa_league', 'conference_league', 'world_cup']
 const DIFF_OPTIONS: { id: DiffFilter; label: string }[] = [
   { id: 'any', label: 'Any' }, { id: 'easy', label: 'Easy' }, { id: 'medium', label: 'Medium' }, { id: 'hard', label: 'Hard' }, { id: 'custom', label: 'Custom' },
 ]
@@ -187,7 +188,7 @@ export default function LeaderboardScreen() {
                 {/* Your own runs wear an orange outline as well as the tag. */}
                 <View style={[{ flex: 1 }, yours && [styles.yours, { borderColor: prim.orange }]]}>
                   {/* P8-88/89: whose run, with their picture and team badge, a tap from their profile. */}
-                  <PlayerName roles={roles} name={entry.profiles.username ?? 'Player'} avatarPath={entry.profiles.avatar_path}
+                  <PlayerName roles={roles} name={entry.profiles.username ?? 'Player'} avatarPath={entry.profiles.avatar_path} tag={entry.profiles.club_tag}
                     badgeTeamId={entry.profiles.badge_team_id} badgeTeamName={entry.profiles.badge_team_name}
                     onPress={() => router.push({ pathname: '/u/[id]', params: { id: entry.user_id } })} />
                   <RunLabel

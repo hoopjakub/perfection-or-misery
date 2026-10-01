@@ -5,6 +5,9 @@ import { KitText, SectionTag } from '@/components/kit'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
 import { KnockoutTieRow, qualTieToKoRow } from '@/components/KnockoutRoundsView'
 import type { QualTie } from '@/engine/cl-qualifying'
+import { EUROPE } from '@/data/europe'
+
+const COMPS = ['ucl', 'uel', 'uecl'] as const
 
 const CL = MODE_THEMES.champions_league
 const roles = ROLES.nylon
@@ -30,18 +33,21 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
   // current round), so identity match is enough — no id scheme needed.
   justDecidedTie?: QualTie
 }) {
+  // P8-52: three ladders. Each competition's round is its own block, named
+  // when the list holds more than one of them.
+  const many = new Set(ties.map(t => t.comp ?? 'ucl')).size > 1
   return (
     <View style={{ gap: space[3] }}>
       {/* The newest round on top, as the knockouts are (P8-63): the round being
           played is the one you want, and it was at the bottom of a long list. */}
-      {[...QUAL_ROUND_ORDER].reverse().map(round => {
-        const inRound = ties.filter(t => t.round === round)
+      {[...QUAL_ROUND_ORDER].reverse().flatMap(round => COMPS.map(c => [round, c] as const)).map(([round, c]) => {
+        const inRound = ties.filter(t => t.round === round && (t.comp ?? 'ucl') === c)
         if (inRound.length === 0) return null
         const realTies = inRound.filter(t => t.teamB && t.legs).length
         const byes = inRound.length - realTies
         return (
-          <View key={round} style={styles.qualRoundBlock}>
-            <SectionTag roles={roles}>{QUAL_ROUND_LABEL[round]}</SectionTag>
+          <View key={`${c}-${round}`} style={styles.qualRoundBlock}>
+            <SectionTag roles={roles}>{many ? `${EUROPE[c].short} · ${QUAL_ROUND_LABEL[round]}` : QUAL_ROUND_LABEL[round]}</SectionTag>
             <KitText t="tag" color={roles.textMuted}>
               {[`${realTies} ${realTies === 1 ? 'TIE' : 'TIES'}`, byes > 0 ? `${byes} ${byes === 1 ? 'BYE' : 'BYES'}` : null, ROUND_NEXT[round]].filter(Boolean).join(' · ')}
             </KitText>

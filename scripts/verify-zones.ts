@@ -19,7 +19,7 @@ function check(cond: boolean, msg: string) {
 }
 
 const LEAGUES = ['premier_league', 'la_liga', 'serie_a', 'bundesliga', 'ligue_1']
-const db = new Database('assets/db/players_v5.db', { readonly: true })
+const db = new Database(process.env.POM_DB ?? 'assets/db/players_v5.db', { readonly: true })
 const rows = db.prepare(`
   SELECT c.league_id AS leagueId, cs.year_start AS yearStart, COUNT(*) AS teams
   FROM club_seasons cs JOIN clubs c ON c.id = cs.club_id

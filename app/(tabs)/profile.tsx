@@ -7,7 +7,8 @@ import { useNoticeStore } from '@/store/noticeStore'
 import { signOut, deleteAccount } from '@/lib/auth'
 import { openConfirm } from '@/lib/confirm'
 import { fetchUserStats, fetchMyPlace, type UserStats } from '@/db/queries/leaderboard'
-import { fetchPublicProfile, formatPlaytime, type PublicProfile } from '@/db/queries/profile'
+import { fetchPublicProfile, formatPlaytime, readLook, type PublicProfile } from '@/db/queries/profile'
+import { useCrestStore } from '@/store/crestStore'
 import { ordinal } from '@/lib/format'
 import { ROLES, space, border } from '@/theme'
 import { formatTier } from '@/data/tiers'
@@ -61,6 +62,9 @@ export default function YouScreen() {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [place, setPlace] = useState<number | null>(null)
   const [pub, setPub] = useState<PublicProfile | null>(null)
+  const pin = useCrestStore(st => st.pin)
+  // P8-181: your club's tag, in your pin's colour (the club's own colour is on its page).
+  const clubTag = profile?.club_tag ? { text: profile.club_tag, colour: pin?.hex ?? '#ff5a00' } : null
   const name = isGuest ? 'Guest' : profile?.username ?? '—'
   const [greeting, setGreeting] = useState(() => pickGreeting(isGuest ? null : profile?.username ?? null))
   const unread = useNoticeStore(st => st.unread)
@@ -113,12 +117,13 @@ export default function YouScreen() {
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>{greeting.toUpperCase()}</KitText>
 
       {/* Your card: your look as its backdrop, the ID tag with your picture over it. */}
-      {!isGuest && <LookBand roles={roles} colour={pub?.colour} effect={pub?.effect} height={40} />}
+      {!isGuest && <LookBand roles={roles} colour={pub?.colour} effect={pub?.effect} banner={readLook(pub).banner} height={56} />}
       <View style={!isGuest ? styles.cardUnder : undefined}>
         <IdTag roles={roles} name={name} state={isGuest ? 'GUEST' : 'REG'}
           detail={isGuest ? 'Runs are not kept' : `${runs} ${runs === 1 ? 'RUN' : 'RUNS'}`}
           mark={isGuest ? undefined : <Avatar roles={roles} path={profile?.avatar_path} name={name} size={48} />}
-          badge={badgeId && badgeName ? <TeamMark roles={roles} clubId={badgeId} name={badgeName} size={16} /> : undefined} />
+          badge={badgeId && badgeName ? <TeamMark roles={roles} clubId={badgeId} name={badgeName} size={16} /> : undefined}
+          pin={pin ?? undefined} tag={clubTag} />
       </View>
 
       {facts.length > 0 && (
@@ -152,6 +157,9 @@ export default function YouScreen() {
           <SectionTag roles={roles}>People</SectionTag>
           <ListRow roles={roles} icon="keep" label="Friends" sub="Requests, your friends, finding players"
             value={unread > 0 ? `${unread} NEW` : undefined} onPress={() => router.push('/friends')} />
+          {/* P8-181: the tag on your ID tag is your club's. */}
+          <ListRow roles={roles} icon="ranks" label="Clubs" sub={profile?.club_tag ? `Your club · ${profile.club_tag}` : 'Join a club, or start one'}
+            onPress={() => router.push('/clubs')} />
           <SectionTag roles={roles}>Your record</SectionTag>
           <ListRow roles={roles} icon="achievements" label="Achievements" onPress={() => router.push('/game/achievements')} />
           <ListRow roles={roles} icon="stats" label="Career" onPress={() => router.push('/game/career')} />

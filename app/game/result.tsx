@@ -27,10 +27,15 @@ import { colors, spacing, typography, radius, shadows, prim, font } from '@/them
 import { ROLES as KIT_ROLES } from '@/theme'
 const nylon = KIT_ROLES.nylon
 import { useModeTheme } from '@/hooks/useModeTheme'
+import { ModeLookProvider, lookFor } from '@/components/kit'
+import { ModeBanner } from '@/components/season/ModeBanner'
+import { ROLES as KIT_ROLES_ALL } from '@/theme'
+const KIT_ROLES_NYLON = KIT_ROLES_ALL.nylon
 import { useRunSave } from '@/hooks/useRunSave'
 import { takeRunStats, clubsForManagerAward, openAwardsView, type RunStats } from '@/lib/awardsNight'
 import { buildAwardsNight } from '@/engine/awards'
 import { Plate, KitScreen, KitText, SectionTag, Tag, ListRow, EmptyState, Columns } from '@/components/kit'
+import { cupReachOf, reachLabel, tieNote, type DomesticCup } from '@/engine/domestic-cup'
 import { SeasonStrip, PositionCompare, ResultRow, LeagueTable, ZoneLegend, leagueTableZones, type Mark, type TableRowVM } from '@/components/season/SeasonParts'
 import { zonesFor } from '@/data/qualification-bands'
 import { ResultFigures, ResultActions } from '@/components/season/ResultParts'
@@ -362,6 +367,7 @@ export default function ResultScreen() {
         awards: runStats?.awards,
         pundits: livePrediction ? Object.fromEntries(livePrediction.table.map(r => [r.clubId, r.predicted])) : null,
         punditPoints: livePrediction ? Object.fromEntries(livePrediction.table.map(r => [r.clubId, r.points])) : null,
+        punditsOnYou: punditCheck ? { predicted: punditCheck.predicted, field: punditCheck.field } : null,
       })
     }
     persistCareer()
@@ -391,6 +397,10 @@ export default function ResultScreen() {
   // (every club, every player, the press) lives on the run hub, one plate away.
   const history = (matchdayHistory ?? []) as any[]
   const youId = (table as any[])?.find((t: any) => t.isPlayer)?.clubId as string | undefined
+  // P8-173: the league's cup, live or from the save. Winning it and the league is the Double.
+  const cup: DomesticCup | null = (dbRunData ? dbRunData.highlights?.cup : simResult?.cup) ?? null
+  const cupReach = cup && youId ? cupReachOf(cup, youId) : null
+  const double = cupReach === 'winner' && finalPosition === 1
   const marks: Mark[] = history.map(snap => {
     const f = (snap.fixtures ?? []).find((x: any) => x.result && (x.home.isPlayer || x.away.isPlayer))
     if (!f) return 'D'
@@ -435,11 +445,14 @@ export default function ResultScreen() {
   ].filter(Boolean) as { key: string; label: string; opponent: string; score: string }[]
 
   return (
+    <ModeLookProvider look={lookFor(mode)}>
     <KitScreen ground="nylon" width="wide">
+      {/* P8-169: Chaos and Cursed carry their look to the verdict. */}
+      <ModeBanner roles={KIT_ROLES_NYLON} mode={mode} />
       <VerdictBlock
         tone={verdictOf(tier)}
         title={meta.title}
-        line={`${meta.desc} Finished ${finalPosition} of ${teamsInLeague}.`}
+        line={`${meta.desc} Finished ${finalPosition} of ${teamsInLeague}.${double ? ` And the ${cup!.name}: the Double.` : cupReach === 'winner' ? ` ${cup!.name} winners too.` : ''}`}
         meta={takeoverLine ?? undefined}
         score={runScore ?? undefined}
         multiplier={difficultyMultiplier}
@@ -522,6 +535,30 @@ export default function ResultScreen() {
         <ZoneLegend roles={nylon} zones={tableZones} />
       </View>
 
+      {cup && youId && (() => {
+        const yours = cup.rounds.flatMap(r => r.ties.filter(t => t.home.clubId === youId || t.away.clubId === youId).map(t => ({ r, t })))
+        const fin = cup.rounds.find(r => r.key === 'final')?.ties[0]
+        const row = (label: string, t: (typeof yours)[number]['t']) => (
+          <ResultRow key={`${label}-${t.home.clubId}`} roles={nylon} homeName={t.home.clubName} awayName={t.away.clubName}
+            homeClubId={t.home.clubId} awayClubId={t.away.clubId} homeGoals={t.homeGoals} awayGoals={t.awayGoals}
+            youSide={t.home.clubId === youId ? 'home' : t.away.clubId === youId ? 'away' : null}
+            round={[label, tieNote(t)].filter(Boolean).join(' · ').toUpperCase()} neutral={label === 'Final'} />
+        )
+        return (
+          <View style={styles.kitSection}>
+            <View style={styles.kitHeadRow}>
+              <SectionTag roles={nylon}>{cup.name}</SectionTag>
+              {double ? <Tag roles={nylon} variant="win">THE DOUBLE</Tag> : cupReach === 'winner' ? <Tag roles={nylon} variant="win">WINNERS</Tag> : null}
+            </View>
+            <KitText t="body" color={nylon.textMuted}>
+              {[cupReach ? `${reachLabel(cupReach, cup.name)}.` : null, cup.winner && cupReach !== 'winner' ? `${cup.winner.clubName} won it.` : null].filter(Boolean).join(' ')}
+            </KitText>
+            {yours.map(({ r, t }) => row(r.label, t))}
+            {fin && !yours.some(y => y.r.key === 'final') && row('Final', fin)}
+          </View>
+        )
+      })()}
+
       {highlights.length > 0 && (
         <View style={styles.kitSection}>
           <SectionTag roles={nylon}>Highlights</SectionTag>
@@ -556,6 +593,7 @@ export default function ResultScreen() {
       </Columns>
       <ResultActions fromHistory={!!params.runId} submitting={submitting} save={runSave} onAgain={handlePlayAgain} onHome={handleReturnToHome} />
     </KitScreen>
+    </ModeLookProvider>
   )
 }
 

@@ -1,6 +1,10 @@
-import React, { useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import type { CupCallRow, TournamentCalls, TieCall } from '@/engine/cup-calls'
+import type { PunditTournament } from '@/engine/cup-calls'
+import { punditPanel, punditRatings, type PredictionTeam } from '@/engine/predictions'
+import { PunditRail } from '@/components/season/PunditRail'
+import { GroupWall, LeagueTable, SegmentSwitch, CL_PHASE_ZONES, type MiniGroup, type TableRowVM } from '@/components/season/SeasonParts'
+import { BracketTree, type BracketColumn } from '@/components/BracketTree'
 import { View, Pressable, StyleSheet, Platform } from 'react-native'
 import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated'
 import { ROLES, space, border, prim, type Roles } from '@/theme'
@@ -256,136 +260,114 @@ const tableStyles = StyleSheet.create({
   more: { alignSelf: 'flex-start', borderWidth: border.thin, minHeight: 40, paddingHorizontal: space[3], justifyContent: 'center' },
 })
 
-// ── The cups: the pundits' round calls against how far everyone got ──────────
-// A 36- or 48-side field is too long to read whole, so the table opens on the
-// sides that matter — yours, the pundits' favourites, and their three worst
-// calls either way — with the rest one tap away.
-export function PunditsRoundTable({ rows }: { rows: CupCallRow[] }) {
-  const [all, setAll] = useState(false)
-  if (rows.length === 0) return null
-  const exact = rows.filter(r => r.diff === 0).length
-  const surprise = [...rows].sort((a, b) => b.diff - a.diff)[0]
-  const flop = [...rows].sort((a, b) => a.diff - b.diff)[0]
-  const favourites = [...rows].sort((a, b) => a.tipped.step - b.tipped.step).slice(0, 8)
-  const beats = [...rows].sort((a, b) => b.diff - a.diff).slice(0, 3)
-  const flops = [...rows].sort((a, b) => a.diff - b.diff).slice(0, 3)
-  const shortlist = new Set([...favourites, ...beats, ...flops, ...rows.filter(r => r.isPlayer)].map(r => r.clubId))
-  const shown = all ? rows : rows.filter(r => shortlist.has(r.clubId))
-  const call = (d: number) => d > 0 ? `${d} ROUND${d === 1 ? '' : 'S'} BETTER` : d < 0 ? `${-d} ROUND${d === -1 ? '' : 'S'} WORSE` : 'SPOT ON'
+// ── Their tournament, played out (P8-165) ────────────────────────────────────
+// Each pundit's whole cup, played out before a ball is kicked from a draw of
+// their own (src/engine/cup-calls.ts): their group tables with points, their
+// bracket, their champion. The same tournament on the pundits screen, before
+// the run, and on the result screens after it, where a switch puts theirs and
+// what really happened in the same place, drawn with the same tables and the
+// same bracket. (P8-24's long "checked" table and P8-56's list of real ties
+// are gone: the maintainer, 28 September, "not worth it".)
+export type ActualTournament = {
+  /** The World Cup's real groups, as the screen's group wall draws them. */
+  groups?: MiniGroup[]
+  /** The Champions League's real league phase. */
+  table?: TableRowVM[]
+  bracket: { columns: BracketColumn[]; third?: BracketColumn }
+}
+
+/** One pundit's tournament, drawn: their groups or league phase, then their bracket. */
+export function TheirTournament({ roles: r = roles, t, name, playerClubId, flagOf }: {
+  roles?: Roles
+  t: PunditTournament
+  name: string
+  playerClubId?: string | null
+  flagOf?: (clubId: string) => string | null
+}) {
+  const bracket = {
+    columns: t.rounds.map(round => ({
+      key: round.key, label: round.label,
+      ties: round.ties.map(x => ({
+        a: { clubId: x.a.clubId, name: x.a.clubName, goals: String(x.goalsA) },
+        b: { clubId: x.b.clubId, name: x.b.clubName, goals: String(x.goalsB) },
+        winner: x.winner,
+        // After the run: whether the side they sent through really got that far.
+        note: x.real == null ? undefined : x.real ? 'RIGHT: WENT THIS FAR' : 'WRONG: NOT FOR REAL',
+      })),
+    })),
+  }
   return (
-    <View style={tableStyles.wrap}>
-      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>THE PUNDITS, CHECKED</KitText>
-      <KitText t="body" color={roles.textMuted}>
-        {`They called ${exact} of ${rows.length} exactly. Biggest surprise: ${surprise.clubName}, tipped for the ${surprise.tipped.label.toLowerCase()}, reached the ${surprise.reached.label.toLowerCase()}. Biggest flop: ${flop.clubName}.`}
-      </KitText>
-      <View style={[tableStyles.row, tableStyles.head, { borderBottomColor: roles.line }]}>
-        <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>Side</KitText>
-        <KitText t="tag" color={roles.textMuted} style={tableStyles.round}>Tipped</KitText>
-        <KitText t="tag" color={roles.textMuted} style={tableStyles.round}>Reached</KitText>
-      </View>
-      {shown.map((r, i) => (
-        <View key={r.clubId} style={[tableStyles.row, tableStyles.tall, { borderBottomColor: roles.rule }, r.isPlayer && { backgroundColor: roles.yours }]}
-          accessible accessibilityLabel={`${r.clubName}, tipped ${r.tipped.label}, reached ${r.reached.label}`}>
-          <View style={{ flex: 1 }}>
-            <KitText t="body" color={roles.text} numberOfLines={1}>{r.clubName}</KitText>
-            <Call i={i} off={r.diff} label={call(r.diff)} />
-          </View>
-          <KitText t="body" color={roles.textMuted} style={tableStyles.round} numberOfLines={2}>{r.tipped.label}</KitText>
-          <KitText t="body" color={roles.text} style={tableStyles.round} numberOfLines={2}>{r.reached.label}</KitText>
-        </View>
-      ))}
-      <Pressable onPress={() => setAll(a => !a)} accessibilityRole="button"
-        style={({ pressed }) => [tableStyles.more, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
-        <KitText t="tag" color={roles.text}>{all ? 'Show the shortlist' : `Show all ${rows.length}`}</KitText>
-      </Pressable>
-    </View>
+    <>
+      {t.tables.length > 1 ? (
+        <GroupWall roles={r} groups={t.tables.map(g => ({
+          id: g.id, you: g.rows.some(x => x.isPlayer),
+          rows: g.rows.map(x => ({ clubId: x.clubId, clubName: x.clubName, flag: flagOf?.(x.clubId), points: x.points, isPlayer: x.isPlayer })),
+        }))} />
+      ) : t.tables[0] ? (
+        <LeagueTable roles={r} zones={CL_PHASE_ZONES}
+          rows={t.tables[0].rows.map(x => ({ clubId: x.clubId, clubName: x.clubName, isPlayer: x.isPlayer, played: x.played, gd: x.gd, points: x.points }))} />
+      ) : null}
+      <KitText t="tag" color={r.textMuted} style={tourStyles.round}>{`${name.toUpperCase()}'S BRACKET`}</KitText>
+      <BracketTree {...bracket} playerClubId={playerClubId} height={440} />
+    </>
   )
 }
 
-// ── The whole tournament, as the pundits saw it (P8-56) ──────────────────────
-// Every group in the order they rated it, with the points they'd have given,
-// beside where each side finished; every knockout tie with who they backed and
-// whether it went through; and their champion. Opens on your group and your
-// ties (a 48-side World Cup is 12 groups and 31 ties); the rest is one tap.
-const ROUND_LABEL: Record<string, string> = {
-  playoff: 'Knockout play-off', r32: 'Round of 32', r16: 'Round of 16', qf: 'Quarter-finals', sf: 'Semi-finals', final: 'Final',
-}
-
-export function PunditsTournament({ calls }: { calls: TournamentCalls }) {
-  const [all, setAll] = useState(false)
-  const yours = (t: TieCall) => !!(t.a.isPlayer || t.b.isPlayer)
-  const groups = all ? calls.groups : calls.groups.filter(g => g.rows.some(r => r.isPlayer))
-  const ties = all ? calls.ties : calls.ties.filter(t => yours(t) || t.round === 'final' || t.round === 'sf')
-  const rounds = [...new Set(ties.map(t => t.round))]
-  if (calls.ties.length === 0 && calls.groups.length === 0) return null
+/** The pundits' tournaments on a result screen: whose (the rail), and theirs against what happened. */
+export function PunditsPlayedOut({ field, seed, build, actual, playerClubId, flagOf }: {
+  field: PredictionTeam[]
+  seed: number
+  /** The competition's own tournament, scored against the run's result. */
+  build: (rating: Map<string, number>, seed: number) => PunditTournament
+  actual: ActualTournament
+  playerClubId?: string | null
+  /** A nation's flag, for the World Cup's groups. */
+  flagOf?: (clubId: string) => string | null
+}) {
+  // The field is rebuilt by the screen on every render; the tournaments only
+  // change with the sides and the seed, so those are the key.
+  const key = `${seed}:${field.map(f => f.clubId).join()}`
+  const panel = useMemo(() => punditPanel(field, seed), [key])
+  const versions = useMemo(() => [build(punditRatings(field, seed), seed), ...panel.map(p => build(p.ratings, p.picksSeed))], [key, panel])
+  const [who, setWho] = useState(0)          // 0: the panel together; i: the (i − 1)th pundit
+  const [view, setView] = useState<'theirs' | 'real'>('theirs')
+  const t = versions[who]
+  if (!t) return null
+  const name = who === 0 ? 'The panel' : panel[who - 1].name
+  const sc = t.score
+  const scoreLine = (x: PunditTournament) => x.score ? `${x.score.qualified}/${x.score.qualifiedOf} THROUGH · ${x.score.through}/${x.score.ties} TIES` : ''
   return (
     <View style={tableStyles.wrap}>
-      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>THEIR WHOLE TOURNAMENT</KitText>
+      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>THE PUNDITS' TOURNAMENT</KitText>
       <KitText t="body" color={roles.textMuted}>
-        {/* What this is (the maintainer, 24 Sept, wasn't sure): the draw came
-            after the pundits spoke, so this is their pre-season view applied to
-            the groups and ties as they were actually drawn. */}
-        {`The draw came after the pundits spoke. Here is their pre-season view applied to what was drawn: ${calls.groups.length ? 'each group in the order they rated it, and ' : ''}who they'd have backed in every tie. They called ${calls.right} of ${calls.ties.length} ties.${calls.champion ? ` Their champions: ${calls.champion.clubName}.` : ''}`}
+        {`Before a ball was kicked, each pundit drew the tournament their own way and played it out, backing the side they rated higher. ${who === 0 ? 'The panel together' : name} had ${t.champion.isPlayer ? 'you' : t.champion.clubName} as champions${sc?.champion ? ', and was right' : ''}.${sc ? ` ${sc.qualified} of the ${sc.qualifiedOf} they put through to the knockouts really got there${sc.places != null ? `, ${sc.places} league-phase places were exactly right` : ''}, and ${sc.through} of the ${sc.ties} sides they sent through a round really got that far.` : ''}`}
       </KitText>
-
-      {groups.map(g => (
-        <View key={g.id} style={tourStyles.group}>
-          <View style={[tableStyles.row, tableStyles.head, { borderBottomColor: roles.line }]}>
-            <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{`Group ${g.id} · their order`}</KitText>
-            <KitText t="tag" color={roles.textMuted} style={tableStyles.pred}>Pts</KitText>
-            <KitText t="tag" color={roles.textMuted} style={[tableStyles.diff, { textAlign: 'right' }]}>Finished</KitText>
-          </View>
-          {g.rows.map((r, i) => {
-            const off = r.predicted - r.actual
-            return (
-              <View key={r.clubId} style={[tableStyles.row, { borderBottomColor: roles.rule }, r.isPlayer && { backgroundColor: roles.yours }]}
-                accessible accessibilityLabel={`${r.clubName}: they had them ${r.predicted}, ${r.points} points; finished ${r.actual}`}>
-                <KitText t="figure" color={roles.textMuted} style={tableStyles.pos}>{String(r.predicted)}</KitText>
-                <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{r.clubName}</KitText>
-                <KitText t="figure" color={roles.textMuted} style={tableStyles.pred}>{String(r.points)}</KitText>
-                <View style={tableStyles.diff}><Call i={i} off={off} label={off === 0 ? 'SPOT ON' : `${r.actual}${r.actual === 1 ? 'ST' : r.actual === 2 ? 'ND' : r.actual === 3 ? 'RD' : 'TH'}`} /></View>
-              </View>
-            )
-          })}
-        </View>
-      ))}
-
-      {rounds.map(round => (
-        <View key={round} style={tourStyles.group}>
-          <SectionTagLike label={ROUND_LABEL[round] ?? round} />
-          {ties.filter(t => t.round === round).map((t, i) => {
-            const picked = t.pick === t.a.clubId ? t.a : t.b
-            return (
-              <View key={`${t.a.clubId}-${t.b.clubId}`} style={[tableStyles.row, tableStyles.tall, { borderBottomColor: roles.rule }, yours(t) && { backgroundColor: roles.yours }]}
-                accessible accessibilityLabel={`${t.a.clubName} v ${t.b.clubName}: they backed ${picked.clubName}, ${t.right ? 'right' : 'wrong'}`}>
-                <View style={{ flex: 1 }}>
-                  <KitText t="body" color={roles.text} numberOfLines={1}>{`${t.a.clubName} v ${t.b.clubName}`}</KitText>
-                  <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`They backed ${picked.clubName}`}</KitText>
-                </View>
-                <View style={tourStyles.mark}>
-                  {t.right ? <Sparkle i={i} /> : null}
-                  <KitText t="tag" color={t.right ? prim.gold : roles.lossText}>{t.right ? 'RIGHT' : 'WRONG'}</KitText>
-                </View>
-              </View>
-            )
-          })}
-        </View>
-      ))}
-
-      <Pressable onPress={() => setAll(a => !a)} accessibilityRole="button"
-        style={({ pressed }) => [tableStyles.more, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
-        <KitText t="tag" color={roles.text}>{all ? 'Just yours' : `Every ${calls.groups.length ? 'group and ' : ''}tie`}</KitText>
-      </Pressable>
+      <PunditRail roles={roles} selected={who} onSelect={setWho}
+        cards={[
+          { key: 'panel', top: `ALL ${panel.length}`, title: 'The panel', lines: [`CHAMPIONS: ${versions[0].champion.isPlayer ? 'YOU' : versions[0].champion.clubName.toUpperCase()}`, scoreLine(versions[0])],
+            accessibilityLabel: `The panel together: champions ${versions[0].champion.clubName}` },
+          ...panel.map((p, i) => ({
+            key: p.name, country: p.country, title: p.name,
+            lines: [`CHAMPIONS: ${versions[i + 1].champion.isPlayer ? 'YOU' : versions[i + 1].champion.clubName.toUpperCase()}`, scoreLine(versions[i + 1])],
+            accessibilityLabel: `${p.name}, ${p.country}: champions ${versions[i + 1].champion.clubName}. Open their tournament`,
+          })),
+        ]} />
+      <SegmentSwitch<'theirs' | 'real'> roles={roles} value={view} onChange={setView}
+        options={[{ id: 'theirs', label: who === 0 ? "The panel's" : `${panel[who - 1].name.split(' ')[0]}'s` }, { id: 'real', label: 'What happened' }]} />
+      {view === 'theirs' ? (
+        <TheirTournament t={t} name={name} playerClubId={playerClubId} flagOf={flagOf} />
+      ) : (
+        <>
+          {actual.groups ? <GroupWall roles={roles} groups={actual.groups} />
+            : actual.table ? <LeagueTable roles={roles} rows={actual.table} zones={CL_PHASE_ZONES} /> : null}
+          <KitText t="tag" color={roles.textMuted} style={tourStyles.round}>THE REAL BRACKET</KitText>
+          <BracketTree {...actual.bracket} playerClubId={playerClubId} height={440} />
+        </>
+      )}
     </View>
   )
-}
-
-function SectionTagLike({ label }: { label: string }) {
-  return <KitText t="tag" color={roles.textMuted} style={tourStyles.round}>{label.toUpperCase()}</KitText>
 }
 
 const tourStyles = StyleSheet.create({
-  group: { marginTop: space[3] },
-  round: { marginBottom: space[1] },
-  mark: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  round: { marginTop: space[3], marginBottom: space[1] },
 })

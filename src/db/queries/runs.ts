@@ -1,3 +1,5 @@
+import { fullPathTier } from '@/engine/europe-path'
+import { compOfMode, EUROPE } from '@/data/europe'
 import { useCrestStore } from '@/store/crestStore'
 import { supabase } from '@/lib/supabase'
 import { useGameStore } from '@/store/gameStore'
@@ -94,6 +96,8 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
 }
 
 export async function saveRun(params: {
+  /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
+  punditsOnYou?: { predicted: number; field: number } | null
   userId: string
   mode: GameMode
   formation: string
@@ -148,6 +152,9 @@ export async function saveRun(params: {
       press:      params.seasonResult.press ?? [],
       pundits:    params.pundits ?? null,
       punditPoints: params.punditPoints ?? null,
+      punditsOnYou: params.punditsOnYou ?? null,
+      // P8-173: the league's cup, every round of it (a few dozen ties).
+      cup:        params.seasonResult.cup ?? null,
     },
     stats:  params.stats,
     awards: params.awards,
@@ -161,6 +168,8 @@ export async function saveRun(params: {
 // World Cup — finish position (with the 3rd-place playoff the top 4 are exact).
 
 export async function saveWCRun(params: {
+  /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
+  punditsOnYou?: { predicted: number; field: number } | null
   userId: string
   formation: string
   teamOvr: number
@@ -200,16 +209,22 @@ export async function saveWCRun(params: {
     wc_result: result,
     stats:  params.stats,
     awards: params.awards,
+    // P8-150: the pundits' place for you, for the career's line against them.
+    ...(params.punditsOnYou ? { highlights: { punditsOnYou: params.punditsOnYou } } : {}),
   })
 }
 
 // Champions League — finish position + round-reached score ladder.
 
 export async function saveCLRun(params: {
+  /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
+  punditsOnYou?: { predicted: number; field: number } | null
   userId: string
   formation: string
   teamOvr: number
   result: CLSeasonResult
+  /** P8-172: which classic competition; the Champions League when not said. */
+  mode?: GameMode
   squad: DraftedPlayer[]
   difficulty: Difficulty | null
   custom?: CustomDifficulty | null
@@ -220,14 +235,15 @@ export async function saveCLRun(params: {
   const pt = result.playerTeam
   const finalPosition = CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 36
   const teamsInLeague = 36
+  const comp = compOfMode(params.mode) ?? EUROPE.ucl
 
   await insertRun({
     user_id: params.userId,
-    mode: 'champions_league',
+    mode: comp.mode,
     formation: params.formation,
     team_ovr: params.teamOvr,
-    league_id: 'ucl_2025',
-    league_name: 'UEFA Champions League',
+    league_id: `${comp.leaguePrefix}2025`,
+    league_name: comp.fullName,
     year_start: 2025,
     final_position: finalPosition,
     teams_in_league: teamsInLeague,
@@ -245,6 +261,7 @@ export async function saveCLRun(params: {
     cl_result: result,
     stats:  params.stats,
     awards: params.awards,
+    ...(params.punditsOnYou ? { highlights: { punditsOnYou: params.punditsOnYou } } : {}),
   })
 }
 
@@ -253,6 +270,8 @@ export async function saveCLRun(params: {
 // much earlier; still on the same ladder so runs compare sensibly.
 
 export async function saveCustomUclRun(params: {
+  /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
+  punditsOnYou?: { predicted: number; field: number } | null
   userId: string
   formation: string
   teamOvr: number
@@ -268,7 +287,9 @@ export async function saveCustomUclRun(params: {
 }) {
   const { result } = params
   const pt = result.playerTeam
-  const finalPosition = CUSTOM_CL_ROUND_TO_POSITION[result.playerFinalRound] ?? 90
+  // P8-52: a season that went on in the Europa or Conference League is tiered there.
+  const tier = fullPathTier(result)
+  const finalPosition = CUSTOM_CL_ROUND_TO_POSITION[tier] ?? 90
   const teamsInLeague = 36
 
   await insertRun({
@@ -281,7 +302,7 @@ export async function saveCustomUclRun(params: {
     year_start: 2025,
     final_position: finalPosition,
     teams_in_league: teamsInLeague,
-    tier: result.playerFinalRound,
+    tier,
     wins: pt.stats.won,
     draws: pt.stats.drawn,
     losses: pt.stats.lost,
@@ -297,6 +318,7 @@ export async function saveCustomUclRun(params: {
     cl_result: { ...result, _customUclQual: params.qual, _customUclTables: params.leagueTables },
     stats:  params.stats,
     awards: params.awards,
+    ...(params.punditsOnYou ? { highlights: { punditsOnYou: params.punditsOnYou } } : {}),
   })
 }
 

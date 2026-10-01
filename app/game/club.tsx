@@ -7,7 +7,7 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border, prim, ratingColor, ratingInk } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, Crest, RatingSquare } from '@/components/kit'
+import { KitScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, TeamMark, RatingSquare } from '@/components/kit'
 import { SegmentSwitch, SeasonStrip, PositionCompare, type Mark } from '@/components/season/SeasonParts'
 import { useRunData } from '@/lib/runData'
 import { openPlayer, openRunMatch, openStory } from '@/lib/runNav'
@@ -76,8 +76,9 @@ export default function ClubScreen() {
       {/* The club as a tag: code, name, finish and record. */}
       <View style={styles.head}>
         <View style={styles.headTop}>
-          {/* P8-12: the club's own mark, beside its code. */}
-          <Crest roles={roles} clubId={data.table.find(r => r.clubName === name)?.clubId} name={name} size={24} />
+          {/* P8-12: the club's own mark, beside its code. P8-171: through
+              TeamMark, so a nation's page at the World Cup wears its flag. */}
+          <TeamMark roles={roles} clubId={id} name={name} size={24} />
           <Tag roles={roles} variant="selected">{clubCode(name)}</Tag>
         </View>
         <KitText t="superL" color={roles.text}>{name.toUpperCase()}</KitText>

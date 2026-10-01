@@ -185,6 +185,8 @@ export type Panellist = Pundit & {
   /** Their whole preview (P8-56's follow-up): table, points, surprises and
    *  disappointments, built exactly like the consensus's. */
   prediction: Prediction
+  /** Their own view of every side (P8-165): what their whole tournament is played out from. */
+  ratings: Map<string, number>
   /** The seed their three player picks are drawn with (`predictPlayers`), so
    *  each pundit names their own Player of the Season, top scorer and best
    *  under-21 once the squads are loaded. */
@@ -210,6 +212,7 @@ export function punditPanel(teams: PredictionTeam[], seed: number, size = PANEL_
       youAt: prediction.player?.predicted ?? 0,
       champion: { clubId: top.clubId, clubName: top.clubName, isPlayer: top.isPlayer },
       prediction,
+      ratings: rating,
       picksSeed: deriveSeed(seed, 0x9a4e1 + 100 + i),
     }
   })
@@ -235,4 +238,12 @@ export function panelLineFor(panel: Panellist[], a: { clubId: string; clubName: 
   if (na === nb) return `The panel is split down the middle, ${na} each.`
   const [n, side] = na > nb ? [na, a] : [nb, b]
   return `${n} of ${panel.length} pundits back ${side.clubName}.`
+}
+
+/** P8-150: where the panel had you, and out of how many, for the career's line
+ *  against the pundits. The same consensus the verdict checks. */
+export function punditsOnYouFor(teams: { clubId: string; clubName: string; ovr: number; isPlayer: boolean }[] | null | undefined, seed: number | null | undefined): { predicted: number; field: number } | null {
+  if (!teams?.length || seed == null) return null
+  const you = predictTable(teams.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), seed).player
+  return you ? { predicted: you.predicted, field: teams.length } : null
 }

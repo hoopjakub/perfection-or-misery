@@ -5,7 +5,7 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet, ScrollView } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border, prim, ratingColor, formatRating } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, Chips, BackControl, EmptyState, InlineError, Icon, Plate, RatingSquare, EventMark, VenueMark } from '@/components/kit'
+import { KitScreen, KitText, Tag, SectionTag, Chips, BackControl, EmptyState, InlineError, Icon, Plate, RatingSquare, EventMark, VenueMark, TeamMark } from '@/components/kit'
 import { useRunData } from '@/lib/runData'
 import { openClub, openRunMatch } from '@/lib/runNav'
 import { buildAwardsNight } from '@/engine/awards'
@@ -132,7 +132,9 @@ export default function PlayerScreen() {
         <KitText t="superL" color={roles.text}>{p.name.toUpperCase()}</KitText>
         <View style={styles.headMeta}>
           <Tag roles={roles}>{p.position}</Tag>
-          <Pressable onPress={() => openClub(p.clubId, runId)} accessibilityRole="link" hitSlop={8}>
+          {/* P8-171: his club's crest (a nation's flag at the World Cup) beside its name. */}
+          <Pressable onPress={() => openClub(p.clubId, runId)} accessibilityRole="link" hitSlop={8} style={styles.clubLink}>
+            <TeamMark roles={roles} clubId={p.clubId} name={p.clubName} size={16} />
             <KitText t="tag" color={roles.text} style={styles.link}>{p.clubName}</KitText>
           </Pressable>
           <KitText t="tag" color={roles.textMuted}>{p.seasonLabel}</KitText>
@@ -288,6 +290,7 @@ function Trend({ values, onPoint, selected, compare }: { values: number[]; onPoi
 }
 
 const styles = StyleSheet.create({
+  clubLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   opp: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   opened: { borderBottomWidth: border.hair, borderLeftWidth: 3, paddingHorizontal: space[3], paddingVertical: space[3], gap: space[3] },
   openedFigures: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space[5], rowGap: space[2] },

@@ -79,6 +79,26 @@ export const TIER_LABEL: Record<string, string> = {
   not_qualified:         "Didn't Qualify",
 }
 
+// P8-52: the full path's other two competitions. A run that ends in the
+// Europa or Conference League is tiered on the same knockout names, prefixed
+// with where it was ("uel_qf_exit"), ranked under the Champions League's by
+// the same weights its score uses; going out in the Conference League's
+// qualifying (the only competition nobody drops out of into another) sits just
+// above not qualifying at all.
+export const EURO_TIER_COMPS = { uel: { name: 'Europa League', weight: 0.8 }, uecl: { name: 'Conference League', weight: 0.65 } } as const
+const EURO_KNOCKOUT_TIERS = ['winner', 'finalist', 'sf_exit', 'qf_exit', 'r16_exit', 'playoff_exit', 'league_exit'] as const
+for (const [p, c] of Object.entries(EURO_TIER_COMPS)) {
+  for (const k of EURO_KNOCKOUT_TIERS) {
+    TIER_RANK[`${p}_${k}`] = Math.round(TIER_RANK[k] * c.weight)
+    TIER_LABEL[`${p}_${k}`] = k === 'winner' ? `${c.name} winners` : `${c.name} ${TIER_LABEL[k].toLowerCase()}`
+  }
+}
+const UECL_QUAL: [string, string, number][] = [['q1_exit', 'Q1', 10.2], ['q2_exit', 'Q2', 10.4], ['q3_exit', 'Q3', 10.6], ['quali_playoff_exit', 'the play-off', 10.8]]
+for (const [k, round, rank] of UECL_QUAL) {
+  TIER_RANK[`uecl_${k}`] = rank
+  TIER_LABEL[`uecl_${k}`] = `Out in Conference League ${round}`
+}
+
 // The highest-ranked tier among a set of run tiers (null if none recognised).
 export function bestTierOf(tiers: (string | null | undefined)[]): string | null {
   let best: string | null = null
@@ -94,10 +114,11 @@ export function bestTierOf(tiers: (string | null | undefined)[]): string | null 
 // Which end of the ladder a tier sits at, for the verdict treatments: volt for
 // the good end, the hazard stripe for Misery, plain ink for everything between.
 // Cup exits before the knockouts count as Misery; a trophy counts as Perfection.
-const PERFECTION_TIERS = new Set(['perfection', 'almost_perfection', 'winner'])
+const PERFECTION_TIERS = new Set(['perfection', 'almost_perfection', 'winner', 'uel_winner', 'uecl_winner'])
 const MISERY_TIERS = new Set([
   'absolute_misery', 'groups', 'league_exit', 'not_qualified',
   'q1_exit', 'q2_exit', 'q3_exit', 'quali_playoff_exit',
+  'uel_league_exit', 'uecl_league_exit', 'uecl_q1_exit', 'uecl_q2_exit', 'uecl_q3_exit', 'uecl_quali_playoff_exit',
 ])
 export function verdictOf(tier: string | null | undefined): 'perfection' | 'misery' | 'middle' {
   if (tier && PERFECTION_TIERS.has(tier)) return 'perfection'
@@ -109,6 +130,7 @@ export function verdictOf(tier: string | null | undefined): 'perfection' | 'mise
 export const MODE_TAG: Record<string, string> = {
   all_time: 'All Time', league: 'League', era: 'Era', chaos: 'Chaos', cursed: 'Cursed',
   champions_league: 'UCL', champions_league_custom: 'UCL Full Path', world_cup: 'World Cup',
+  europa_league: 'UEL', conference_league: 'UECL',
 }
 
 export function formatTier(tier: string | null | undefined): string {

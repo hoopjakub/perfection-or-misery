@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { CareerStats, CareerPlayerLine, Competition, PlayerStatLine } from '@/types/stats'
+import type { CareerRun } from '@/lib/careerSummary'
 
 // `career_stats` isn't in the generated Supabase types yet — use an untyped client.
 const db = supabase as any
@@ -57,4 +58,25 @@ export async function mergeCareerFromRun(userId: string, params: {
     updated_at:    new Date().toISOString(),
   } as any, { onConflict: 'user_id' })
   if (error) console.warn('[career] upsert failed:', error)
+}
+
+// ── P8-150: the career read off every saved run ──────────────────────────────
+// Only the columns the summary needs (never the stats or the history: a whole
+// career of those would be megabytes), and the pundits' call on you out of the
+// highlights without the rest of them. Optional columns step down as ever.
+const CAREER_BASE = 'id, mode, tier, score, created_at, final_position, teams_in_league, league_name, year_start, wins, draws, losses, goals_for, goals_against, squad'
+const CAREER_COLS = [
+  `${CAREER_BASE}, difficulty, difficulty_meta, duration_seconds, pundits_on_you:highlights->punditsOnYou`,
+  `${CAREER_BASE}, difficulty, difficulty_meta, duration_seconds`,
+  `${CAREER_BASE}, difficulty, difficulty_meta`,
+  CAREER_BASE,
+]
+// ponytail: every run a player has; paginate (or summarise in the database) if careers grow into the thousands.
+export async function fetchCareerRuns(userId: string): Promise<CareerRun[]> {
+  for (const cols of CAREER_COLS) {
+    const { data, error } = await db.from('runs').select(cols).eq('user_id', userId).order('created_at', { ascending: true }).limit(2000)
+    if (!error) return (data ?? []) as CareerRun[]
+    if (error.code !== '42703' && !/column .* does not exist|failed to parse/i.test(error.message)) throw error
+  }
+  return []
 }

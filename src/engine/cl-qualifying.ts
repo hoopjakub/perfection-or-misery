@@ -25,6 +25,8 @@ export type QualTeam = SimTeam & {
 }
 
 export type QualTie = {
+  /** P8-52: which competition's ladder (the Champions League's when absent: older saves). */
+  comp?:    import('@/data/uefa-coefficients').EuroComp
   round:    UclRound
   path:     UclPath
   teamA:    QualTeam
@@ -45,10 +47,12 @@ export type QualifyingResult = {
   qualifiers:       QualTeam[]         // play-off winners (nominally 5 CH + 2 LP)
   leaguePhaseField: QualTeam[]         // direct entrants + qualifiers → hand to cl-sim
   /** The player's tie in each round they featured in (if a player team is present). */
-  playerPath:       { round: UclRound; path: UclPath; advanced: boolean; eliminated: boolean }[]
+  playerPath:       { round: UclRound; path: UclPath; advanced: boolean; eliminated: boolean; comp?: import('@/data/uefa-coefficients').EuroComp }[]
+  /** P8-52: the full path through three competitions (europe-path.ts). Absent on older saves. */
+  europe?: import('./europe-path').EuropeExtras
 }
 
-function toTeam(e: EntrantClub, isPlayer: boolean): QualTeam {
+export function toTeam(e: EntrantClub, isPlayer: boolean): QualTeam {
   return {
     clubId: e.clubId, clubName: e.clubName, ovr: e.ovr, isPlayer,
     form: 0, stats: { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
@@ -61,7 +65,7 @@ function toTeam(e: EntrantClub, isPlayer: boolean): QualTeam {
  * seeded vs unseeded, and gives the single strongest team a bye on an odd count.
  * Returns the ties (for display) and the advancing teams.
  */
-function playRound(round: UclRound, path: UclPath, field: QualTeam[]): { ties: QualTie[]; winners: QualTeam[] } {
+export function playRound(round: UclRound, path: UclPath, field: QualTeam[]): { ties: QualTie[]; winners: QualTeam[] } {
   const ties: QualTie[] = []
   const winners: QualTeam[] = []
   if (field.length === 0) return { ties, winners }

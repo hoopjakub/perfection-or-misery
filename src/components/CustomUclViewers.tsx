@@ -3,7 +3,8 @@ import { View, Pressable, StyleSheet } from 'react-native'
 import { openSheet } from '@/lib/sheet'
 import { appendKnockoutRounds } from '@/engine/match-context'
 import { ROLES, MODE_THEMES, space, border, type Roles } from '@/theme'
-import { berthForPosition, type UclPath, type UclRound } from '@/data/uefa-coefficients'
+import { europeBerthFor, type EuroComp, type UclPath, type UclRound } from '@/data/uefa-coefficients'
+import { EUROPE } from '@/data/europe'
 import { QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
 import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-formats'
 import { flagForCountry } from '@/data/geo-iso'
@@ -34,38 +35,47 @@ const BERTH_ZONE: Record<UclRound, TableZone> = {
   q1:           { code: 'Q1',  label: 'First qualifying round', tone: 'low' },
 }
 
+// P8-52: a finish can earn a Europa or Conference League place too. One code
+// each (the round is in the stakes list), under the Champions League's.
+const LOWER_ZONE: Record<Exclude<EuroComp, 'ucl'>, TableZone> = {
+  uel:  { code: 'UEL',  label: 'Europa League', tone: 'mid' },
+  uecl: { code: 'UECL', label: 'Conference League', tone: 'low' },
+}
+const zoneOf = (b: { comp: EuroComp; round: UclRound }) => (b.comp === 'ucl' ? BERTH_ZONE[b.round] : LOWER_ZONE[b.comp]) ?? null
+
 export function berthZones(rank: number, places: number): (TableZone | null)[] {
   return Array.from({ length: places }, (_, i) => {
-    const b = berthForPosition(rank, i + 1)
-    return b ? BERTH_ZONE[b.round] ?? null : null
+    const b = europeBerthFor(rank, i + 1)
+    return b ? zoneOf(b) : null
   })
 }
 
-export function berthLabel(round: UclRound, path: UclPath): string {
-  if (round === 'league_phase') return 'League phase, direct'
-  return `${QUAL_ROUND_LABEL[round]} · ${PATH_LABEL[path]}`
+export function berthLabel(round: UclRound, path: UclPath, comp: EuroComp = 'ucl'): string {
+  const name = comp === 'ucl' ? '' : `${EUROPE[comp].name}, `
+  if (round === 'league_phase') return `${name}league phase, direct`.replace(/^l/, 'L')
+  return `${name}${QUAL_ROUND_LABEL[round]} · ${PATH_LABEL[path]}`
 }
 
 /** What each finish earns in one association (the draw, and the viewers). */
 export function PositionStakes({ roles, rank }: { roles: Roles; rank: number }) {
-  const rows: { position: number; round: UclRound; path: UclPath }[] = []
-  for (let pos = 1; pos <= 6; pos++) {
-    const b = berthForPosition(rank, pos)
+  const rows: { position: number; comp: EuroComp; round: UclRound; path: UclPath }[] = []
+  for (let pos = 1; pos <= 7; pos++) {
+    const b = europeBerthFor(rank, pos)
     if (b) rows.push({ position: pos, ...b })
   }
   if (rows.length === 0) {
-    return <KitText t="body" color={roles.textMuted}>No Champions League places for this league. Its clubs only get in as title holders.</KitText>
+    return <KitText t="body" color={roles.textMuted}>No European places for this league. Its clubs only get in as title holders.</KitText>
   }
   return (
     <View>
       {rows.map(r => (
         <View key={r.position} style={[styles.stakesRow, { borderBottomColor: roles.rule }]}>
           <KitText t="figure" color={roles.text} style={styles.stakesPos}>{ordinal(r.position)}</KitText>
-          <Tag roles={roles} variant={r.round === 'league_phase' ? 'selected' : undefined}>{BERTH_ZONE[r.round].code}</Tag>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{berthLabel(r.round, r.path)}</KitText>
+          <Tag roles={roles} variant={r.comp === 'ucl' && r.round === 'league_phase' ? 'selected' : undefined}>{zoneOf(r)?.code ?? ''}</Tag>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{berthLabel(r.round, r.path, r.comp)}</KitText>
         </View>
       ))}
-      <KitText t="tag" color={roles.textMuted} style={styles.stakesNote}>ANY LOWER: NO EUROPE</KitText>
+      <KitText t="tag" color={roles.textMuted} style={styles.stakesNote}>ANY LOWER: NO EUROPE, UNLESS THE CUP · A CUP WINNER ALREADY IN PASSES HIS PLACE DOWN</KitText>
     </View>
   )
 }

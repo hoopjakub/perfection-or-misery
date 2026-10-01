@@ -28,6 +28,12 @@
 import type { CLTeam } from './cl-sim'
 
 export type DrawnFixture = { home: CLTeam; away: CLTeam }
+/** P8-172: the league phase's shape. The Champions and Europa Leagues: four
+ *  pots, two opponents from each (one home, one away). The Conference League:
+ *  six pots, one opponent from each, three at home and three away. */
+export type DrawFormat = { pots: number; perPot: 1 | 2 }
+export const FOUR_POTS: DrawFormat = { pots: 4, perPot: 2 }
+export const SIX_POTS: DrawFormat = { pots: 6, perPot: 1 }
 /** Which rule had to give, if any: none; the at-most-two cap (raised as far
  *  as the field forces); or the country rule altogether. */
 export type DrawRelaxed = 'none' | 'cap' | 'country'
@@ -61,7 +67,7 @@ const ATTEMPTS = 4
  * this can't be found however long you search, and searching it anyway is how
  * The Dugout's draw spent 160 seconds finding nothing.
  */
-export function minimumCap(pots: number[][], countries: (string | undefined)[]): number {
+export function minimumCap(pots: number[][], countries: (string | undefined)[], perPot = 2): number {
   const total = new Map<string, number>()
   for (const c of countries) if (c) total.set(c, (total.get(c) ?? 0) + 1)
   let cap = PER_COUNTRY
@@ -71,7 +77,7 @@ export function minimumCap(pots: number[][], countries: (string | undefined)[]):
     for (const [c, K] of total) {
       const others = p.length - (here.get(c) ?? 0)
       if (others <= 0) return Infinity
-      cap = Math.max(cap, Math.ceil((2 * K) / others))
+      cap = Math.max(cap, Math.ceil((perPot * K) / others))
     }
   }
   return cap
@@ -90,7 +96,9 @@ export function minimumCap(pots: number[][], countries: (string | undefined)[]):
  */
 export function balancePots(teams: CLTeam[], countryOf: (t: CLTeam) => string | undefined, pinned: Set<string> = new Set()): void {
   const countries = teams.map(countryOf)
-  const potsNow = () => [1, 2, 3, 4].map(p => teams.map((t, i) => (t.pot === p ? i : -1)).filter(i => i >= 0))
+  // Four pots, or six (P8-52's Conference League): as many as the field has.
+  const count = Math.max(4, ...teams.map(t => t.pot))
+  const potsNow = () => Array.from({ length: count }, (_, k) => teams.map((t, i) => (t.pot === k + 1 ? i : -1)).filter(i => i >= 0))
   // Bounded: each swap moves a club one pot; a field needs a handful at most.
   for (let guard = 0; guard < teams.length; guard++) {
     const pots = potsNow()
@@ -137,13 +145,14 @@ export function drawLeaguePhase(
   teams: CLTeam[],
   countryOf: (t: CLTeam) => string | undefined,
   rng: () => number = Math.random,
+  format: DrawFormat = FOUR_POTS,
 ): LeaguePhaseDraw | null {
   const n = teams.length
-  const pots = [1, 2, 3, 4].map(p => teams.map((t, i) => (t.pot === p ? i : -1)).filter(i => i >= 0))
+  const pots = Array.from({ length: format.pots }, (_, k) => teams.map((t, i) => (t.pot === k + 1 ? i : -1)).filter(i => i >= 0))
   const size = pots[0].length
   if (size < 3 || pots.some(p => p.length !== size)) return null
   const countries = teams.map(countryOf)
-  const cap = minimumCap(pots, countries)
+  const cap = minimumCap(pots, countries, format.perPot)
   const tries: [DrawRelaxed, boolean, number][] = [
     ['none', true, PER_COUNTRY], ...(cap > PER_COUNTRY && cap < Infinity ? [['cap', true, cap] as [DrawRelaxed, boolean, number]] : []),
     ['country', false, Infinity],
@@ -153,7 +162,8 @@ export function drawLeaguePhase(
   for (const [relaxed, sameCountryBanned, limit] of tries) {
     if (relaxed === 'none' && cap > PER_COUNTRY) continue
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-      const pairs = search(n, pots, teams.map(t => t.pot - 1), sameCountryBanned ? countries : teams.map(() => undefined), limit, rng)
+      const find = format.perPot === 1 ? searchOnePerPot : search
+      const pairs = find(n, pots, teams.map(t => t.pot - 1), sameCountryBanned ? countries : teams.map(() => undefined), limit, rng)
       if (pairs) return { fixtures: pairs.map(([h, a]) => ({ home: teams[h], away: teams[a] })), relaxed }
     }
   }
@@ -219,5 +229,84 @@ function search(
 
   const out: [number, number][] = []
   for (let i = 0; i < n; i++) for (let q = 0; q < P; q++) out.push([i, slot[at(i, q, 0)]])   // each match once, from its home side
+  return out
+}
+
+// ── One opponent from each pot (the Conference League, P8-172) ───────────────
+// The same search with one slot per pot: slot(i, q) is club i's opponent from
+// pot q, and filling it fills j's slot for i's pot. Who's at home is settled
+// afterwards: every club has six matches, an even number, so an Euler circuit
+// through the fixtures walks into and out of every club equally often, and
+// orienting each match the way the circuit walks it gives every club exactly
+// three at home and three away.
+function searchOnePerPot(
+  n: number, pots: number[][], potOf: number[], countries: (string | undefined)[], cap: number, rng: () => number,
+): [number, number][] | null {
+  const P = pots.length
+  const slot = new Int16Array(n * P).fill(-1)
+  const at = (i: number, q: number) => i * P + q
+  const met = Array.from({ length: n }, () => new Map<string, number>())
+  let steps = 0
+  const legal = (i: number, j: number): boolean => {
+    if (j === i || slot[at(j, potOf[i])] !== -1) return false
+    const ci = countries[i], cj = countries[j]
+    if (ci && cj) {
+      if (ci === cj) return false
+      if ((met[i].get(cj) ?? 0) >= cap || (met[j].get(ci) ?? 0) >= cap) return false
+    }
+    return true
+  }
+  const mostConstrained = (): { i: number; q: number; opts: number[] } | 'dead' | null => {
+    let best: { i: number; q: number; opts: number[] } | null = null
+    for (let i = 0; i < n; i++) for (let q = 0; q < P; q++) {
+      if (slot[at(i, q)] !== -1) continue
+      const opts = pots[q].filter(j => legal(i, j))
+      if (opts.length === 0) return 'dead'
+      if (!best || opts.length < best.opts.length) { best = { i, q, opts }; if (opts.length === 1) return best }
+    }
+    return best
+  }
+  const bump = (i: number, c: string | undefined, by: number) => { if (c) met[i].set(c, (met[i].get(c) ?? 0) + by) }
+  const fill = (): boolean => {
+    if (++steps > STEP_BUDGET) return false
+    const next = mostConstrained()
+    if (next === null) return true
+    if (next === 'dead') return false
+    const { i, q, opts } = next
+    for (let k = opts.length - 1; k > 0; k--) { const r = Math.floor(rng() * (k + 1)); [opts[k], opts[r]] = [opts[r], opts[k]] }
+    for (const j of opts) {
+      slot[at(i, q)] = j; slot[at(j, potOf[i])] = i
+      bump(i, countries[j], 1); bump(j, countries[i], 1)
+      if (fill()) return true
+      slot[at(i, q)] = -1; slot[at(j, potOf[i])] = -1
+      bump(i, countries[j], -1); bump(j, countries[i], -1)
+      if (steps > STEP_BUDGET) return false
+    }
+    return false
+  }
+  if (!fill()) return null
+
+  // The matches, each once; then home and away by an Euler circuit (Hierholzer).
+  const edges: [number, number][] = []
+  for (let i = 0; i < n; i++) for (let q = 0; q < P; q++) { const j = slot[at(i, q)]; if (i < j) edges.push([i, j]) }
+  const adj: number[][] = Array.from({ length: n }, () => [])
+  edges.forEach(([a, b], e) => { adj[a].push(e); adj[b].push(e) })
+  const used = new Uint8Array(edges.length)
+  const out: [number, number][] = []
+  const pos = new Int32Array(n)
+  for (let start = 0; start < n; start++) {
+    const stack = [start]
+    while (stack.length) {
+      const v = stack[stack.length - 1]
+      while (pos[v] < adj[v].length && used[adj[v][pos[v]]]) pos[v]++
+      if (pos[v] === adj[v].length) { stack.pop(); continue }
+      const e = adj[v][pos[v]]
+      used[e] = 1
+      const [a, b] = edges[e]
+      const w = a === v ? b : a
+      out.push([v, w])   // walked v → w: v is at home
+      stack.push(w)
+    }
+  }
   return out
 }

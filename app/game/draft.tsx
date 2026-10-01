@@ -52,6 +52,8 @@ const SPIN_MS = 800
 // its moment lasts before the player it chose goes in.
 const CURSE_CHANCE = 0.3
 const OMEN_MS = 1600
+// P8-169: the share of a Cursed name's letters showing at any moment.
+const CURSED_LETTERS = 0.35
 // A small stable tilt per player for Chaos's cards (never the same twice in a
 // row, never enough to hurt reading).
 const tiltOf = (id: string) => { let h = 7; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 7) - 3) * 0.6 }
@@ -107,8 +109,8 @@ export default function DraftScreen() {
   const [placing, setPlacing] = useState<PlayerRow | null>(null)                // chosen, several hangers fit
   // P8-98: what Chaos or the curse just did, said for a moment ("THE CURSE CHOSE …").
   const [omen, setOmen] = useState<{ line: string; tone: 'chaos' | 'cursed' } | null>(null)
-  // Cursed: the name each tag shows right now — the squad's names, shuffled
-  // again every second, so you can't be sure who you're picking.
+  // Cursed: the name each tag shows right now — its own player's name, mostly
+  // hidden, a different few letters showing each second (P8-169).
   const [scramble, setScramble] = useState<Map<string, string> | null>(null)
   const [holding, setHolding] = useState<Holding>(null)
   // P8-06: where the next pick goes while the eleven isn't finished. The bench
@@ -208,10 +210,12 @@ export default function DraftScreen() {
     setPhase('spinning')
   }
 
+  // P8-163: every item carries its mark, so the reel wears crests and flags
+  // (and their own colours) in every mode — a World Cup spin was a grey strip.
   function spinItem(c: ClubSeasonRow): SpinItem {
     return mode === 'world_cup'
-      ? { title: c.club_name, sub: undefined }
-      : { title: c.club_name, sub: seasonLabel(c.year_start), colour: c.primary_color }
+      ? { title: c.club_name, clubId: c.id, flag: flagForCountry(c.club_name) || null }
+      : { title: c.club_name, sub: seasonLabel(c.year_start), colour: c.primary_color, clubId: c.id }
   }
 
   async function onLanded() {
@@ -417,10 +421,13 @@ export default function DraftScreen() {
   )
   useEffect(() => {
     if (mode !== 'cursed' || phase !== 'picking' || squad.length < 2) { setScramble(null); return }
-    const shuffle = () => {
-      const names = squad.map(p => p.name).sort(() => Math.random() - 0.5)
-      setScramble(new Map(squad.map((p, i) => [p.id, names[i]])))
-    }
+    // P8-169: the names used to swap between tags, so you tapped "Kane" and
+    // got whoever's card it was — a cheat, not a curse. Each tag keeps its own
+    // player now; the curse is not being sure who: his name shows as question
+    // marks with about a third of its letters, a different third each second.
+    // Watch a tag long enough and you can piece him together.
+    const mask = (name: string) => name.split('').map(ch => (/[\s'.-]/.test(ch) || Math.random() < CURSED_LETTERS ? ch : '?')).join('')
+    const shuffle = () => setScramble(new Map(squad.map(p => [p.id, mask(p.name)])))
     shuffle()
     const t = setInterval(shuffle, 1000)
     return () => clearInterval(t)
@@ -623,9 +630,9 @@ export default function DraftScreen() {
               options={[
                 ...(ratingsHidden ? [] : [{ id: 'ovr' as const, label: 'OVR' }]),
                 { id: 'position' as const, label: 'POS' },
-                // Cursed's names swap every second, so an A–Z order sorted the
-                // real names under shown ones that aren't, and looked like no
-                // order at all. Position still sorts: that's never hidden.
+                // Cursed's names are hidden, so an A–Z order would sort by
+                // names you can't read, and give away what they start with.
+                // Position still sorts: that's never hidden.
                 ...(mode === 'cursed' ? [] : [{ id: 'name' as const, label: 'A–Z' }]),
               ]}
             />
@@ -640,6 +647,9 @@ export default function DraftScreen() {
                   position={p.primary_position}
                   nationality={p.nationality}
                   rating={ratingText(p.ovr)}
+                  age={p.birth_year ? p.year_start - p.birth_year : null}
+                  also={p.secondary_positions || undefined}
+                  icon={p.is_icon === 1}
                   available={!taken.has(footballerKey(p.name, p.birth_year, p.nationality)) && (toBench || fitsFor(p.primary_position).length > 0)}
                   blocked={taken.has(footballerKey(p.name, p.birth_year, p.nationality)) ? 'YOURS' : undefined}
                   chosen={placing?.id === p.id}

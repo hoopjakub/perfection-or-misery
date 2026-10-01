@@ -10,6 +10,7 @@
 // Persisted through `settingsStorage` (MMKV, read synchronously at start-up,
 // P8-148; AsyncStorage in a build without MMKV — see src/lib/mmkv).
 import { create } from 'zustand'
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { settingsStorage } from '@/lib/mmkv'
 
@@ -72,9 +73,14 @@ function adopt(raw: string | null) {
 // P8-148: on MMKV the saved settings are read here and now, before any screen
 // draws. The first launch on MMKV brings over what AsyncStorage held.
 const now = settingsStorage.readNow(KEY)
-if (now !== undefined) {
-  if (now) adopt(now)
-  else AsyncStorage.getItem(KEY).then(old => { if (old) { adopt(old); save(pick(useSettingsStore.getState())) } }).catch(() => {})
-} else {
-  settingsStorage.getItem(KEY).then(adopt).catch(e => console.warn('[settings] load failed:', e))
+// The web's static render runs in Node, with no storage at all: nothing to
+// read there, and the page loads the settings for real in the browser.
+const rendering = Platform.OS === 'web' && typeof window === 'undefined'
+if (!rendering) {
+  if (now !== undefined) {
+    if (now) adopt(now)
+    else AsyncStorage.getItem(KEY).then(old => { if (old) { adopt(old); save(pick(useSettingsStore.getState())) } }).catch(() => {})
+  } else {
+    settingsStorage.getItem(KEY).then(adopt).catch(e => console.warn('[settings] load failed:', e))
+  }
 }

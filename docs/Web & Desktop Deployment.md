@@ -112,6 +112,22 @@ SQLite database won't initialize — worth confirming this is actually working
 (check the browser console for a SharedArrayBuffer/COOP-COEP error) before
 assuming the rest of the app is broken if the DB layer fails on first deploy.
 
+## Analytics and Speed Insights (P8-179, 27 September 2026)
+
+The web build sends Vercel's Web Analytics and Speed Insights; the phone app
+sends nothing. How it's built, turning it on, the free plan's limits and
+reading the numbers: [`Web Analytics & Speed Insights.md`](Web%20Analytics%20%26%20Speed%20Insights.md).
+
+## Android App Links (P8-174)
+
+`public/.well-known/assetlinks.json` names the Android package and the
+SHA-256 fingerprint of the certificate EAS signs it with (`eas credentials`).
+The export copies it to the site and Vercel serves it as JSON. With the intent
+filter in `app.json`, a tapped `https://perfection-or-misery.vercel.app/r/<id>`
+opens the app straight away. Check it on a phone with the build installed:
+`adb shell pm get-app-links com.yolotime4564.perfectionormisery` should say
+`verified`.
+
 ## Just a website — nothing more
 
 Confirmed scope: your friend opens a URL in Chrome/Edge/Firefox on their PC,

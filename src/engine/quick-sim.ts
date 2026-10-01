@@ -27,9 +27,11 @@ import {
 import type { KnockoutResult } from './knockout-match'
 import { simulateKnockout } from './knockout-match'
 import type { MatchResult } from '@/types/simulation'
-import { buildCustomUclSeason } from '@/db/queries/custom-ucl'
+import { buildCustomUclSeason, getEuropeHolders } from '@/db/queries/custom-ucl'
 import { countryForClClub } from '@/data/geo-iso'
-import { simulateCustomUclQualifying, type QualifyingResult } from './cl-qualifying'
+import type { QualifyingResult } from './cl-qualifying'
+import { playEveryCup, europaAndConferenceEntrants, simulateEurope } from './europe-path'
+import { EUROPE } from '@/data/europe'
 import type { SimLeagueTable } from './cl-league-sim'
 
 // Mutates both teams' stats + form from a match result (shared by CL/WC quick-sim).
@@ -298,8 +300,20 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   const { access, tables } = await buildCustomUclSeason()
   if (access.leaguePhaseDirect.length === 0) throw new Error('No custom UCL data — run build-db after the scrape.')
 
-  const qual = simulateCustomUclQualifying(access)
-  const field = qual.leaguePhaseField
+  // P8-52: the whole summer, three competitions and their drops, then you
+  // take over a club in one of the three at random, so the tester reaches the
+  // Europa and Conference Leagues' league phases too.
+  const assocs = tables.map(t => ({ rank: t.rank, name: t.name, country: t.country, format: t.format, clubs: t.standings.map(r => ({ clubId: r.clubId, clubName: r.clubName, ovr: r.ovr })) }))
+  const held = await getEuropeHolders()
+  const cups = playEveryCup(assocs, null, Math.floor(Math.random() * 2 ** 31))
+  const euro = europaAndConferenceEntrants(access, assocs, cups, held.uecl)
+  const qual = simulateEurope(access, euro, cups,
+    (['ucl', 'uel', 'uecl'] as const).flatMap(c => (held[c] ? [{ comp: c, clubId: held[c]!.clubId, clubName: held[c]!.clubName }] : [])))
+  const compPick = pick<'ucl' | 'uel' | 'uecl'>(['ucl', 'uel', 'uecl'])
+  const comp = EUROPE[compPick]
+  const field = qual.europe!.fields[compPick]
+  qual.leaguePhaseField = field
+  qual.europe!.competition = compPick
 
   if (field.length < 8) throw new Error(`Only ${field.length} clubs in the league phase — add more leagues.`)
 
@@ -311,9 +325,9 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   }))
   // P8-114: the real draw, each club's country from the league it came from.
   const countryByClub = new Map(tables.flatMap(tb => tb.standings.map(r => [r.clubId, tb.country] as [string, string | undefined])))
-  const teams = buildCLTeams(clubs, t => countryByClub.get(t.clubId))
+  const teams = buildCLTeams(clubs, t => countryByClub.get(t.clubId), comp.pots)
 
-  const fixtures = drawCLLeaguePhase(teams, t => countryByClub.get(t.clubId)).fixtures
+  const fixtures = drawCLLeaguePhase(teams, t => countryByClub.get(t.clubId), { pots: comp.pots, perPot: comp.perPot }).fixtures
   const leagueMatchdays: CLLeagueMatch[] = []
   const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
   for (let md = 1; md <= maxMd; md++) {
@@ -326,7 +340,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   }
   const sorted = sortCompTeams(teams)
   const ko = simulateCLKnockoutsOnly(sorted)
-  const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays }
+  const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays, competition: compPick }
   const pools = await loadLeaguePools(teams, draftedPlayers, 2025)   // cucl season = 2025/26
   attributeCLResultScorers(clResult, pools.poolByClub, lineupCtxOf(pools))
   // Qualifying ties get stored scorers too (they count toward stats/awards).

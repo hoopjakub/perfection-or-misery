@@ -7,6 +7,8 @@
 // time anything computes it, and a saved run's data is cached by id for the
 // session. Pages call `useRunData(runId?)` and get it instantly after the
 // first time.
+import { runQualTies } from '@/engine/europe-path'
+import { isClassicEurope, isEuropeMode } from '@/data/europe'
 import { useEffect, useState } from 'react'
 import { adoptRunCrest } from '@/store/crestStore'
 import { useGameStore } from '@/store/gameStore'
@@ -62,13 +64,13 @@ function liveTable(st: ReturnType<typeof useGameStore.getState>): TableRow[] {
       .sort((a, b) => b.stats.points - a.stats.points || (b.stats.goalsFor - b.stats.goalsAgainst) - (a.stats.goalsFor - a.stats.goalsAgainst) || b.stats.goalsFor - a.stats.goalsFor)
       .map((t, i) => rowOf(t, i + 1, g.id)))
   }
-  if (st.mode?.startsWith('champions_league') && st.clResult) return st.clResult.leaguePhaseStandings.map((t, i) => rowOf(t, i + 1))
+  if (isEuropeMode(st.mode) && st.clResult) return st.clResult.leaguePhaseStandings.map((t, i) => rowOf(t, i + 1))
   return (st.simResult?.table ?? []).map((t, i) => rowOf(t, i + 1))
 }
 
 function livePositions(st: ReturnType<typeof useGameStore.getState>): Map<string, number[]> | null {
   const hist = st.simResult?.matchdayHistory
-  if (!hist?.length || st.mode?.startsWith('champions_league') || st.mode === 'world_cup') return null
+  if (!hist?.length || isEuropeMode(st.mode) || st.mode === 'world_cup') return null
   const out = new Map<string, number[]>()
   for (const snap of hist) snap.standings.forEach((t, i) => out.set(t.clubId, [...(out.get(t.clubId) ?? []), i + 1]))
   return out
@@ -83,8 +85,8 @@ export async function liveRunData(): Promise<RunData | null> {
   const drafted = [...st.draftedPlayers, ...st.benchPlayers]
   const { mode, clResult, wcResult, simResult, placedLeague, clYear, customUclQual, useSubstitutes } = st
   const res =
-    mode === 'champions_league_custom' && clResult ? await computeCLRunStats(clResult, drafted, clYear ?? 2025, customUclQual?.ties, useSubstitutes)
-    : mode === 'champions_league' && clResult ? await computeCLRunStats(clResult, drafted, clYear ?? undefined, undefined, useSubstitutes)
+    mode === 'champions_league_custom' && clResult ? await computeCLRunStats(clResult, drafted, clYear ?? 2025, runQualTies(customUclQual, clResult.playerTeam.clubId), useSubstitutes)
+    : isClassicEurope(mode) && clResult ? await computeCLRunStats(clResult, drafted, clYear ?? undefined, undefined, useSubstitutes)
     : mode === 'world_cup' && wcResult ? await computeWCRunStats(wcResult, drafted, undefined, useSubstitutes)
     : simResult && placedLeague ? await computeLeagueRunStats(simResult, drafted, placedLeague, useSubstitutes)
     : null
@@ -92,8 +94,8 @@ export async function liveRunData(): Promise<RunData | null> {
   const data: RunData = {
     key: 'live', mode,
     stats: res.stats, awards: res.awards, matchLog: res.matchLog, rounds: res.rounds, matches: res.matches,
-    yearStart: mode === 'world_cup' ? 2026 : mode?.startsWith('champions_league') ? (clYear ?? 2025) : (placedLeague?.yearStart ?? null),
-    leagueId: mode === 'world_cup' || mode?.startsWith('champions_league') ? null : (placedLeague?.leagueId ?? null),
+    yearStart: mode === 'world_cup' ? 2026 : isEuropeMode(mode) ? (clYear ?? 2025) : (placedLeague?.yearStart ?? null),
+    leagueId: mode === 'world_cup' || isEuropeMode(mode) ? null : (placedLeague?.leagueId ?? null),
     playerClubId: simResult?.playerTeam.clubId ?? clResult?.playerTeam.clubId ?? wcResult?.playerTeam.clubId ?? null,
     drafted, formation: st.formation,
     table: liveTable(st), positions: livePositions(st), press: st.simResult?.press ?? [],
@@ -123,7 +125,7 @@ export async function savedRunData(runId: string): Promise<RunData | null> {
   const last: any[] = hist[hist.length - 1]?.standings ?? []
   const wc = run.wc_result ?? null
   const cl = run.cl_result ?? null
-  const qualTies = cl?._customUclQual?.ties
+  const qualTies = cl?._customUclQual ? runQualTies(cl._customUclQual, cl.playerTeam?.clubId) : undefined
   const drafted = (run.squad ?? []) as DraftedPlayer[]
   const useSubs = drafted.some(p => p.isBench)
   const like: any = {
@@ -133,7 +135,7 @@ export async function savedRunData(runId: string): Promise<RunData | null> {
   let regen: Awaited<ReturnType<typeof computeLeagueRunStats>> = null
   try {
     regen = mode === 'world_cup' && wc ? await computeWCRunStats(wc, drafted, undefined, useSubs)
-      : mode?.startsWith('champions_league') && cl ? await computeCLRunStats(cl, drafted, run.year_start ?? 2025, qualTies, useSubs)
+      : isEuropeMode(mode) && cl ? await computeCLRunStats(cl, drafted, run.year_start ?? 2025, qualTies, useSubs)
       : like.simResult && run.year_start ? await computeLeagueRunStats(like.simResult, drafted, { yearStart: run.year_start, leagueId: run.league_id } as any, useSubs)
       : null
   } catch (e) {
@@ -158,7 +160,7 @@ export async function savedRunData(runId: string): Promise<RunData | null> {
     // or a league run saved before the press was kept.
     missing: [
       ...(regen ? [] : ['match-by-match detail', 'teams of the matchday']),
-      ...(mode && !mode.startsWith('champions_league') && mode !== 'world_cup' && !press.length ? ['the press'] : []),
+      ...(mode && !isEuropeMode(mode) && mode !== 'world_cup' && !press.length ? ['the press'] : []),
     ],
   }
   saved.set(runId, data)

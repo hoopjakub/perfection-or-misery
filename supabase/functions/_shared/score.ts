@@ -84,6 +84,28 @@ export const CUSTOM_CL_ROUND_TO_POSITION: Record<string, number> = {
 export const CUSTOM_CL_ROUND_SCORE: Record<string, number> = {
   not_qualified: 20, q1_exit: 50, q2_exit: 90, q3_exit: 130, quali_playoff_exit: 170, ...CL_ROUND_SCORE,
 }
+// P8-52: the full path now runs on into the Europa and Conference Leagues. A
+// season that ends there climbs that competition's ladder (the classic modes'
+// weights, 0.8 and 0.65), prefixed with where it was; going out in the
+// Conference League's qualifying, where nobody drops any further, scores under
+// its league phase and over not qualifying.
+const prefixed = (p: string, ladder: Record<string, number>, w: number) =>
+  Object.fromEntries(Object.entries(ladder).map(([k, v]) => [`${p}_${k}`, Math.round(v * w)]))
+Object.assign(CUSTOM_CL_ROUND_SCORE, prefixed('uel', CL_ROUND_SCORE, 0.8), prefixed('uecl', CL_ROUND_SCORE, 0.65), {
+  uecl_q1_exit: 40, uecl_q2_exit: 60, uecl_q3_exit: 85, uecl_quali_playoff_exit: 110,
+})
+Object.assign(CUSTOM_CL_ROUND_TO_POSITION,
+  Object.fromEntries(Object.entries(CL_ROUND_TO_POSITION).map(([k, v]) => [`uel_${k}`, v + 36])),
+  Object.fromEntries(Object.entries(CL_ROUND_TO_POSITION).map(([k, v]) => [`uecl_${k}`, v + 72])),
+  { uecl_q1_exit: 98, uecl_q2_exit: 96, uecl_q3_exit: 94, uecl_quali_playoff_exit: 92 },
+)
+
+// P8-172: the Europa and Conference Leagues climb the same ladder, weighed
+// down — the same round against a weaker field is worth less (docs/europe/02).
+const weighed = (ladder: Record<string, number>, w: number): Record<string, number> =>
+  Object.fromEntries(Object.entries(ladder).map(([k, v]) => [k, Math.round(v * w)]))
+export const UEL_ROUND_SCORE = weighed(CL_ROUND_SCORE, 0.8)
+export const UECL_ROUND_SCORE = weighed(CL_ROUND_SCORE, 0.65)
 
 const LEAGUE_MODES = new Set(['league', 'all_time', 'chaos', 'cursed', 'era'])
 const LEAGUE_TIERS = new Set([
@@ -99,6 +121,8 @@ export function scoreRun(row: RunRow): number {
     case 'world_cup':               return knockoutScore(WC_ROUND_SCORE[row.tier] ?? 100, row.team_ovr, row.losses, mult)
     case 'champions_league':        return knockoutScore(CL_ROUND_SCORE[row.tier] ?? 100, row.team_ovr, row.losses, mult)
     case 'champions_league_custom': return knockoutScore(CUSTOM_CL_ROUND_SCORE[row.tier] ?? 30, row.team_ovr, row.losses, mult)
+    case 'europa_league':           return knockoutScore(UEL_ROUND_SCORE[row.tier] ?? 80, row.team_ovr, row.losses, mult)
+    case 'conference_league':       return knockoutScore(UECL_ROUND_SCORE[row.tier] ?? 65, row.team_ovr, row.losses, mult)
     default: return leagueScore({
       mode: row.mode, finalPosition: row.final_position, teamsInLeague: row.teams_in_league,
       teamOvr: row.team_ovr, losses: row.losses, draws: row.draws, difficultyMultiplier: mult,
@@ -137,6 +161,8 @@ export function invalidRun(row: RunRow): string | null {
   const ladder = row.mode === 'world_cup' ? WC_ROUND_SCORE
     : row.mode === 'champions_league' ? CL_ROUND_SCORE
     : row.mode === 'champions_league_custom' ? CUSTOM_CL_ROUND_SCORE
+    : row.mode === 'europa_league' ? UEL_ROUND_SCORE
+    : row.mode === 'conference_league' ? UECL_ROUND_SCORE
     : null
   if (!ladder) return `unknown mode ${row.mode}`
   if (!(row.tier in ladder)) return `unknown round ${row.tier}`

@@ -10,13 +10,13 @@ export type Explainer = { title: string; text: string }
 
 export const EXPLAINERS: Record<string, Explainer> = {
   the_road: {
-    title: 'The road to the Champions League',
-    text: "This mode plays out the real route to the Champions League. You take over one club, play a full domestic season, and your final league position decides everything: a great finish can put you straight into the 36-team League Phase, a decent one throws you into the qualifying rounds, and a bad one means no European football at all. Domestic season → qualifiers → League Phase → knockouts → the final. Every step is earned.",
+    title: 'The road into Europe',
+    text: "This mode plays out the real route into Europe. You take over one club and play a full domestic season, and your finish (or the cup) decides everything: a great one puts you straight into the Champions League's 36-team League Phase, a decent one into its qualifying rounds, a lesser one into the Europa League or the Conference League, and a bad one means no European football at all. Lose in Champions League qualifying and you drop into the Europa or Conference League, as in reality. Domestic season → qualifiers → League Phase → knockouts → the final. Every step is earned.",
   },
 
   league_simulation: {
     title: 'Every league is real',
-    text: "All 53 UEFA countries' leagues get played out from scratch this run: every match, from the Premier League down to San Marino. Nothing is copied from real life's final tables: if Arsenal collapse or Malmö go unbeaten, that happened HERE. The Champions League field is then built from those results, exactly like the real access rules would.",
+    text: "All 53 UEFA countries' leagues get played out from scratch this run: every match, from the Premier League down to San Marino. Nothing is copied from real life's final tables: if Arsenal collapse or Malmö go unbeaten, that happened HERE. Every country's cup is played too. The Champions League, Europa League and Conference League fields are then built from those results, exactly as the real access lists would: one club, one competition, and a place passes down the table when its club is already in.",
   },
 
   entry_point: {
@@ -26,7 +26,7 @@ export const EXPLAINERS: Record<string, Explainer> = {
 
   qualifying_ladder: {
     title: 'The qualifying rounds',
-    text: "Dozens of champions and runners-up from smaller leagues fight over the last 7 League Phase places. It's a ladder of two-legged knockout rounds: First Qualifying Round → Second → Third → Play-off Round. Win your tie and you climb; lose once and your European season is over on the spot. The lower your league's ranking, the further down the ladder you start, and the more ties you must survive.",
+    text: "Dozens of champions and runners-up from smaller leagues fight over the last 7 League Phase places. It's a ladder of two-legged knockout rounds: First Qualifying Round → Second → Third → Play-off Round. Win your tie and you climb; lose and you drop into the competition below (Champions League to Europa or Conference League, Europa to Conference). Lose in the Conference League and your European season is over. The lower your league's ranking, the further down the ladder you start, and the more ties you must survive.",
   },
 
   champions_vs_league_path: {
@@ -46,12 +46,12 @@ export const EXPLAINERS: Record<string, Explainer> = {
 
   league_phase: {
     title: 'The League Phase',
-    text: "The old group stage is gone. Now all 36 clubs sit in ONE giant table, but each club only plays 8 of the other 35: two opponents from each of the four seeding pots, one at home, one away. You never play the same club twice, and never a club from your own country. Eight different nights, eight different opponents, one shared table.",
+    text: "The old group stage is gone. Now all 36 clubs sit in ONE giant table, but each club only plays 8 of the other 35: two opponents from each of the four seeding pots, one at home, one away. You never play the same club twice, and never a club from your own country. Eight different nights, eight different opponents, one shared table. The Conference League's is shorter: six pots of six, one opponent from each, three at home and three away.",
   },
 
   league_phase_zones: {
     title: 'Reading the table',
-    text: "Finish 1st–8th and you skip straight to the Round of 16, the reward for a big League Phase. Finish 9th–24th and you get a second chance: a two-legged Playoff for the remaining eight Round of 16 spots. Finish 25th or lower and you're out of Europe completely. There's no dropping down into the Europa League. The colour dots next to each position show which band you're in.",
+    text: "Finish 1st–8th and you skip straight to the Round of 16, the reward for a big League Phase. Finish 9th–24th and you get a second chance: a two-legged Playoff for the remaining eight Round of 16 spots. Finish 25th or lower and you're out of Europe completely. There's no dropping down into a smaller competition. The colour dots next to each position show which band you're in.",
   },
 
   pots: {
@@ -61,7 +61,7 @@ export const EXPLAINERS: Record<string, Explainer> = {
 
   holders: {
     title: 'The title holders',
-    text: "The reigning Champions League and Europa League winners are guaranteed a League Phase place, even if they flopped domestically. Right now that's Paris Saint-Germain (UCL) and Aston Villa (UEL). If you take over a holder, finishing mid-table at home doesn't end your season: champions get to defend their crown.",
+    text: "The reigning winners are guaranteed a place, even if they flopped domestically, and never defend in the same competition: Paris Saint-Germain (Champions League holders) and Aston Villa (Europa League holders) go into the Champions League's League Phase, Crystal Palace (Conference League holders) into the Europa League's. If you take over a holder, finishing mid-table at home doesn't end your season: champions get to defend their crown.",
   },
 
   knockout_playoff: {

@@ -1,0 +1,1751 @@
+{
+ "league": {
+  "id": "premier_league",
+  "name": "Premier League",
+  "country": "England",
+  "games_per_season": 38,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "manchester_city",
+   "league_id": "premier_league",
+   "name": "Manchester City",
+   "short_name": "MAN",
+   "primary_color": "#023366",
+   "secondary_color": "#84BEEC",
+   "seasons": [
+    {
+     "id": "manchester_city_2018",
+     "club_id": "manchester_city",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2019",
+     "club_id": "manchester_city",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2020",
+     "club_id": "manchester_city",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2021",
+     "club_id": "manchester_city",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2022",
+     "club_id": "manchester_city",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2023",
+     "club_id": "manchester_city",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 93,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2024",
+     "club_id": "manchester_city",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "manchester_city_2025",
+     "club_id": "manchester_city",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 92,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "arsenal_fc",
+   "league_id": "premier_league",
+   "name": "Arsenal FC",
+   "short_name": "ARS",
+   "primary_color": "#DA0107",
+   "secondary_color": "#9C824A",
+   "seasons": [
+    {
+     "id": "arsenal_fc_2018",
+     "club_id": "arsenal_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 89,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2019",
+     "club_id": "arsenal_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 88,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2020",
+     "club_id": "arsenal_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2021",
+     "club_id": "arsenal_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 88,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2022",
+     "club_id": "arsenal_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 90,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2023",
+     "club_id": "arsenal_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2024",
+     "club_id": "arsenal_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 91,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_2025",
+     "club_id": "arsenal_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 92,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "chelsea_fc",
+   "league_id": "premier_league",
+   "name": "Chelsea FC",
+   "short_name": "CHE",
+   "primary_color": "#001488",
+   "secondary_color": "#DBA111",
+   "seasons": [
+    {
+     "id": "chelsea_fc_2018",
+     "club_id": "chelsea_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 91,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2019",
+     "club_id": "chelsea_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 88,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2020",
+     "club_id": "chelsea_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 89,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2021",
+     "club_id": "chelsea_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 90,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2022",
+     "club_id": "chelsea_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 89,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2023",
+     "club_id": "chelsea_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 88,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2024",
+     "club_id": "chelsea_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 89,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "chelsea_fc_2025",
+     "club_id": "chelsea_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 90,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "liverpool_fc",
+   "league_id": "premier_league",
+   "name": "Liverpool FC",
+   "short_name": "LIV",
+   "primary_color": "#E51B24",
+   "secondary_color": "#F3989C",
+   "seasons": [
+    {
+     "id": "liverpool_fc_2018",
+     "club_id": "liverpool_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 92,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2019",
+     "club_id": "liverpool_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2020",
+     "club_id": "liverpool_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 90,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2021",
+     "club_id": "liverpool_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2022",
+     "club_id": "liverpool_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 90,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2023",
+     "club_id": "liverpool_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 91,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2024",
+     "club_id": "liverpool_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 92,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_2025",
+     "club_id": "liverpool_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 92,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "manchester_united",
+   "league_id": "premier_league",
+   "name": "Manchester United",
+   "short_name": "MAN",
+   "primary_color": "#D7040D",
+   "secondary_color": "#FEE400",
+   "seasons": [
+    {
+     "id": "manchester_united_2018",
+     "club_id": "manchester_united",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 89,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2019",
+     "club_id": "manchester_united",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 88,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2020",
+     "club_id": "manchester_united",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 89,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2021",
+     "club_id": "manchester_united",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 89,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2022",
+     "club_id": "manchester_united",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 90,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2023",
+     "club_id": "manchester_united",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 88,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2024",
+     "club_id": "manchester_united",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "manchester_united_2025",
+     "club_id": "manchester_united",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "tottenham_hotspur",
+   "league_id": "premier_league",
+   "name": "Tottenham Hotspur",
+   "short_name": "TOT",
+   "primary_color": "#000A3C",
+   "secondary_color": "#8C91A7",
+   "seasons": [
+    {
+     "id": "tottenham_hotspur_2018",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 91,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2019",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 90,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2020",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 88,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2021",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 88,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2022",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 88,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2023",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 89,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2024",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 89,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "tottenham_hotspur_2025",
+     "club_id": "tottenham_hotspur",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "newcastle_united",
+   "league_id": "premier_league",
+   "name": "Newcastle United",
+   "short_name": "NEW",
+   "primary_color": "#01B4EF",
+   "secondary_color": "#231F20",
+   "seasons": [
+    {
+     "id": "newcastle_united_2018",
+     "club_id": "newcastle_united",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 82,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2019",
+     "club_id": "newcastle_united",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2020",
+     "club_id": "newcastle_united",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2021",
+     "club_id": "newcastle_united",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2022",
+     "club_id": "newcastle_united",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 88,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2023",
+     "club_id": "newcastle_united",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 88,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2024",
+     "club_id": "newcastle_united",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 89,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "newcastle_united_2025",
+     "club_id": "newcastle_united",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 89,
+     "league_position": 7,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "nottingham_forest",
+   "league_id": "premier_league",
+   "name": "Nottingham Forest",
+   "short_name": "NOT",
+   "primary_color": "#F00000",
+   "secondary_color": "#F88C8C",
+   "seasons": [
+    {
+     "id": "nottingham_forest_2022",
+     "club_id": "nottingham_forest",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "nottingham_forest_2023",
+     "club_id": "nottingham_forest",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "nottingham_forest_2024",
+     "club_id": "nottingham_forest",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "nottingham_forest_2025",
+     "club_id": "nottingham_forest",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 8,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "brighton_hove_albion",
+   "league_id": "premier_league",
+   "name": "Brighton & Hove Albion",
+   "short_name": "BRI",
+   "primary_color": "#005DAA",
+   "secondary_color": "#508FC4",
+   "seasons": [
+    {
+     "id": "brighton_hove_albion_2018",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2019",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2020",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2021",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2022",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 87,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2023",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2024",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "brighton_hove_albion_2025",
+     "club_id": "brighton_hove_albion",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 9,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "afc_bournemouth",
+   "league_id": "premier_league",
+   "name": "AFC Bournemouth",
+   "short_name": "BOU",
+   "primary_color": "#CD141A",
+   "secondary_color": "#6E0B0E",
+   "seasons": [
+    {
+     "id": "afc_bournemouth_2018",
+     "club_id": "afc_bournemouth",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "afc_bournemouth_2019",
+     "club_id": "afc_bournemouth",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 83,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "afc_bournemouth_2022",
+     "club_id": "afc_bournemouth",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 83,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "afc_bournemouth_2023",
+     "club_id": "afc_bournemouth",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 84,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "afc_bournemouth_2024",
+     "club_id": "afc_bournemouth",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "afc_bournemouth_2025",
+     "club_id": "afc_bournemouth",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "crystal_palace",
+   "league_id": "premier_league",
+   "name": "Crystal Palace",
+   "short_name": "CRY",
+   "primary_color": "#1B458F",
+   "secondary_color": "#D2D0D1",
+   "seasons": [
+    {
+     "id": "crystal_palace_2018",
+     "club_id": "crystal_palace",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 84,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2019",
+     "club_id": "crystal_palace",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 83,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2020",
+     "club_id": "crystal_palace",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 82,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2021",
+     "club_id": "crystal_palace",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2022",
+     "club_id": "crystal_palace",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2023",
+     "club_id": "crystal_palace",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2024",
+     "club_id": "crystal_palace",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "crystal_palace_2025",
+     "club_id": "crystal_palace",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "aston_villa",
+   "league_id": "premier_league",
+   "name": "Aston Villa",
+   "short_name": "AST",
+   "primary_color": "#94BEE5",
+   "secondary_color": "#FEE505",
+   "seasons": [
+    {
+     "id": "aston_villa_2019",
+     "club_id": "aston_villa",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "aston_villa_2020",
+     "club_id": "aston_villa",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "aston_villa_2021",
+     "club_id": "aston_villa",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 87,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "aston_villa_2022",
+     "club_id": "aston_villa",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 87,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "aston_villa_2023",
+     "club_id": "aston_villa",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 90,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "aston_villa_2024",
+     "club_id": "aston_villa",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 89,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "aston_villa_2025",
+     "club_id": "aston_villa",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "brentford_fc",
+   "league_id": "premier_league",
+   "name": "Brentford FC",
+   "short_name": "BRE",
+   "primary_color": "#E30613",
+   "secondary_color": "#150F0D",
+   "seasons": [
+    {
+     "id": "brentford_fc_2021",
+     "club_id": "brentford_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "brentford_fc_2022",
+     "club_id": "brentford_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "brentford_fc_2023",
+     "club_id": "brentford_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 85,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "brentford_fc_2024",
+     "club_id": "brentford_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "brentford_fc_2025",
+     "club_id": "brentford_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 13,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "everton_fc",
+   "league_id": "premier_league",
+   "name": "Everton FC",
+   "short_name": "EVE",
+   "primary_color": "#284588",
+   "secondary_color": "#AAB6D0",
+   "seasons": [
+    {
+     "id": "everton_fc_2018",
+     "club_id": "everton_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 87,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2019",
+     "club_id": "everton_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 86,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2020",
+     "club_id": "everton_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2021",
+     "club_id": "everton_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2022",
+     "club_id": "everton_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2023",
+     "club_id": "everton_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2024",
+     "club_id": "everton_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "everton_fc_2025",
+     "club_id": "everton_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 14,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sunderland_afc",
+   "league_id": "premier_league",
+   "name": "Sunderland AFC",
+   "short_name": "SUN",
+   "primary_color": "#EA172B",
+   "secondary_color": "#A68A27",
+   "seasons": [
+    {
+     "id": "sunderland_afc_2025",
+     "club_id": "sunderland_afc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "west_ham_united",
+   "league_id": "premier_league",
+   "name": "West Ham United",
+   "short_name": "UNI",
+   "primary_color": "#7C2C3B",
+   "secondary_color": "#2DAFE5",
+   "seasons": [
+    {
+     "id": "west_ham_united_2018",
+     "club_id": "west_ham_united",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 85,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2019",
+     "club_id": "west_ham_united",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 84,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2020",
+     "club_id": "west_ham_united",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 85,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2021",
+     "club_id": "west_ham_united",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 85,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2022",
+     "club_id": "west_ham_united",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 87,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2023",
+     "club_id": "west_ham_united",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 88,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2024",
+     "club_id": "west_ham_united",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "west_ham_united_2025",
+     "club_id": "west_ham_united",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "leeds_united",
+   "league_id": "premier_league",
+   "name": "Leeds United",
+   "short_name": "UNI",
+   "primary_color": "#FEDF10",
+   "secondary_color": "#0256A4",
+   "seasons": [
+    {
+     "id": "leeds_united_2020",
+     "club_id": "leeds_united",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "leeds_united_2021",
+     "club_id": "leeds_united",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 84,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "leeds_united_2022",
+     "club_id": "leeds_united",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 84,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "leeds_united_2025",
+     "club_id": "leeds_united",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fulham_fc",
+   "league_id": "premier_league",
+   "name": "Fulham FC",
+   "short_name": "FUL",
+   "primary_color": "#CB0000",
+   "secondary_color": "#4F4F4F",
+   "seasons": [
+    {
+     "id": "fulham_fc_2018",
+     "club_id": "fulham_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 82,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "fulham_fc_2020",
+     "club_id": "fulham_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 83,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "fulham_fc_2022",
+     "club_id": "fulham_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "fulham_fc_2023",
+     "club_id": "fulham_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "fulham_fc_2024",
+     "club_id": "fulham_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "fulham_fc_2025",
+     "club_id": "fulham_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "wolverhampton_wanderers",
+   "league_id": "premier_league",
+   "name": "Wolverhampton Wanderers",
+   "short_name": "WOL",
+   "primary_color": "#FAA61A",
+   "secondary_color": "#8B8B8B",
+   "seasons": [
+    {
+     "id": "wolverhampton_wanderers_2018",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 85,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2019",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 85,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2020",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2021",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 86,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2022",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 85,
+     "league_position": 10,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2023",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 86,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2024",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "wolverhampton_wanderers_2025",
+     "club_id": "wolverhampton_wanderers",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 84,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "burnley_fc",
+   "league_id": "premier_league",
+   "name": "Burnley FC",
+   "short_name": "BUR",
+   "primary_color": "#5F0041",
+   "secondary_color": "#CFB4C6",
+   "seasons": [
+    {
+     "id": "burnley_fc_2018",
+     "club_id": "burnley_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 82,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "burnley_fc_2019",
+     "club_id": "burnley_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "burnley_fc_2020",
+     "club_id": "burnley_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 81,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "burnley_fc_2021",
+     "club_id": "burnley_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 80,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "burnley_fc_2023",
+     "club_id": "burnley_fc",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 81,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "burnley_fc_2025",
+     "club_id": "burnley_fc",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "southampton_fc",
+   "league_id": "premier_league",
+   "name": "Southampton FC",
+   "short_name": "SOU",
+   "primary_color": "#EC1A3B",
+   "secondary_color": "#211E1F",
+   "seasons": [
+    {
+     "id": "southampton_fc_2018",
+     "club_id": "southampton_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "southampton_fc_2019",
+     "club_id": "southampton_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "southampton_fc_2020",
+     "club_id": "southampton_fc",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 84,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "southampton_fc_2021",
+     "club_id": "southampton_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 83,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "southampton_fc_2022",
+     "club_id": "southampton_fc",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 83,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "southampton_fc_2024",
+     "club_id": "southampton_fc",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ipswich_town",
+   "league_id": "premier_league",
+   "name": "Ipswich Town",
+   "short_name": "IPS",
+   "primary_color": "#3A64A3",
+   "secondary_color": "#DE2C37",
+   "seasons": [
+    {
+     "id": "ipswich_town_2024",
+     "club_id": "ipswich_town",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "leicester_city",
+   "league_id": "premier_league",
+   "name": "Leicester City",
+   "short_name": "LEI",
+   "primary_color": "#09448E",
+   "secondary_color": "#E69611",
+   "seasons": [
+    {
+     "id": "leicester_city_2018",
+     "club_id": "leicester_city",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 85,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "leicester_city_2019",
+     "club_id": "leicester_city",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 87,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "leicester_city_2020",
+     "club_id": "leicester_city",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 87,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "leicester_city_2021",
+     "club_id": "leicester_city",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 87,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "leicester_city_2022",
+     "club_id": "leicester_city",
+     "year_start": 2022,
+     "year_end": 2023,
+     "historical_ovr": 86,
+     "league_position": 11,
+     "players": []
+    },
+    {
+     "id": "leicester_city_2024",
+     "club_id": "leicester_city",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sheffield_united",
+   "league_id": "premier_league",
+   "name": "Sheffield United",
+   "short_name": "SHE",
+   "primary_color": "#EE2328",
+   "secondary_color": "#211E1F",
+   "seasons": [
+    {
+     "id": "sheffield_united_2019",
+     "club_id": "sheffield_united",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 80,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "sheffield_united_2020",
+     "club_id": "sheffield_united",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 80,
+     "league_position": 18,
+     "players": []
+    },
+    {
+     "id": "sheffield_united_2023",
+     "club_id": "sheffield_united",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 79,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "luton_town",
+   "league_id": "premier_league",
+   "name": "Luton Town",
+   "short_name": "LUT",
+   "primary_color": "#043064",
+   "secondary_color": "#F48D1E",
+   "seasons": [
+    {
+     "id": "luton_town_2023",
+     "club_id": "luton_town",
+     "year_start": 2023,
+     "year_end": 2024,
+     "historical_ovr": 80,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "norwich_city",
+   "league_id": "premier_league",
+   "name": "Norwich City",
+   "short_name": "NOR",
+   "primary_color": "#038C40",
+   "secondary_color": "#FEF100",
+   "seasons": [
+    {
+     "id": "norwich_city_2019",
+     "club_id": "norwich_city",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 79,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "norwich_city_2021",
+     "club_id": "norwich_city",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "watford_fc",
+   "league_id": "premier_league",
+   "name": "Watford FC",
+   "short_name": "WAT",
+   "primary_color": "#ED2127",
+   "secondary_color": "#FAED23",
+   "seasons": [
+    {
+     "id": "watford_fc_2018",
+     "club_id": "watford_fc",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 83,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "watford_fc_2019",
+     "club_id": "watford_fc",
+     "year_start": 2019,
+     "year_end": 2020,
+     "historical_ovr": 82,
+     "league_position": 16,
+     "players": []
+    },
+    {
+     "id": "watford_fc_2021",
+     "club_id": "watford_fc",
+     "year_start": 2021,
+     "year_end": 2022,
+     "historical_ovr": 79,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "west_bromwich_albion",
+   "league_id": "premier_league",
+   "name": "West Bromwich Albion",
+   "short_name": "BRO",
+   "primary_color": "#091453",
+   "secondary_color": "#592D09",
+   "seasons": [
+    {
+     "id": "west_bromwich_albion_2020",
+     "club_id": "west_bromwich_albion",
+     "year_start": 2020,
+     "year_end": 2021,
+     "historical_ovr": 79,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "huddersfield_town",
+   "league_id": "premier_league",
+   "name": "Huddersfield Town",
+   "short_name": "HUD",
+   "primary_color": "#075492",
+   "secondary_color": "#E9EBED",
+   "seasons": [
+    {
+     "id": "huddersfield_town_2018",
+     "club_id": "huddersfield_town",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "cardiff_city",
+   "league_id": "premier_league",
+   "name": "Cardiff City",
+   "short_name": "CAR",
+   "primary_color": "#2D4BB0",
+   "secondary_color": "#EAEDF4",
+   "seasons": [
+    {
+     "id": "cardiff_city_2018",
+     "club_id": "cardiff_city",
+     "year_start": 2018,
+     "year_end": 2019,
+     "historical_ovr": 79,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

@@ -1,4 +1,5 @@
 import { useCrestStore } from '@/store/crestStore'
+import { choiceHex } from '@/theme'
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { Session, User } from '@supabase/supabase-js'
@@ -11,6 +12,8 @@ type Profile = {
   avatar_path?: string | null
   badge_team_id?: string | null
   badge_team_name?: string | null
+  // P8-181 (supabase/clubs.sql): your club's tag, kept on the profile by the club functions.
+  club_tag?: string | null
 }
 
 type UserStore = {
@@ -62,6 +65,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
         // P8-132: your crest, with the profile. Loaded lazily, so this store
         // doesn't pull the profile queries in at start-up.
         import('@/db/queries/profile').then(m => m.fetchCrest(user.id)).then(c => useCrestStore.getState().setMine(c)).catch(() => {})
+        // P8-168: and your pin, so every pin in the app wears your colour.
+        import('@/db/queries/profile').then(m => m.fetchPin(user.id)).then(p => useCrestStore.getState().setPin(p ? { hex: choiceHex(p.colour) } : null)).catch(() => {})
       }
     } catch (err) {
       console.error('[userStore] fetchProfile threw exception:', err)
@@ -73,6 +78,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null, isGuest: true })
     useCrestStore.getState().setMine(null)
+    useCrestStore.getState().setPin(null)
     useCrestStore.getState().setActive(null)
   },
 }))

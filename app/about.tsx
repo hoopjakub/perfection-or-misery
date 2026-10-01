@@ -127,8 +127,9 @@ export default function AboutScreen() {
         <SectionTag roles={roles}>Under the hood</SectionTag>
         <KitText t="bodyL" color={roles.text}>
           • React Native + Expo Router, state managed with Zustand{'\n'}
-          • Real club and player data across 50+ leagues, scraped and bundled into a local SQLite
-          database. The whole game runs offline; you only need a connection to save runs{'\n'}
+          • Real club and player data across 50+ leagues, built from Wikipedia and Wikidata and
+          bundled into a local SQLite database, with ratings the game works out for itself. The
+          whole game runs offline; you only need a connection to save runs{'\n'}
           • Every match is decided by a custom simulation engine from team OVR, form and controlled
           randomness, goal by goal{'\n'}
           • On top of the result engine sits a deterministic deep-stats generator: possession, xG,
@@ -148,6 +149,21 @@ export default function AboutScreen() {
       <View style={styles.section}>
         <SectionTag roles={roles}>Built with</SectionTag>
         <KitText t="bodyL" color={roles.text}>React Native, Expo, Zustand, SQLite, and Supabase.</KitText>
+      </View>
+
+      {/* P8.5-32: the attribution the data's licences ask for (Wikipedia's text is
+          CC BY-SA 4.0; Wikidata is CC0 and asks nothing, but it's credited too). */}
+      <View style={styles.section}>
+        <SectionTag roles={roles}>Data</SectionTag>
+        <KitText t="bodyL" color={roles.text}>
+          Contains data from{' '}
+          <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL('https://en.wikipedia.org/')}>Wikipedia ↗</Text>
+          {' '}(CC BY-SA 4.0) and{' '}
+          <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL('https://www.wikidata.org/')}>Wikidata ↗</Text>
+          {' '}(CC0): squads, appearances, goals, league tables, grounds and club colours. Player
+          ratings are the game's own, worked out from those facts; they aren't any official or
+          commercial rating.
+        </KitText>
       </View>
 
       <View style={styles.section}>

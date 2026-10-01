@@ -25,6 +25,8 @@ const MODE_META: { mode: string; title: string; hasDifficulty: boolean; trophy: 
   { mode: 'world_cup',               title: MODE_LABELS.world_cup,               hasDifficulty: true,  trophy: 'Lift the FIFA World Cup' },
   { mode: 'champions_league_custom', title: MODE_LABELS.champions_league_custom, hasDifficulty: true,  trophy: 'Win the full UCL journey' },
   { mode: 'champions_league',        title: MODE_LABELS.champions_league,        hasDifficulty: true,  trophy: 'Win the finals-only UCL' },
+  { mode: 'europa_league',           title: MODE_LABELS.europa_league,           hasDifficulty: true,  trophy: 'Lift the Europa League' },
+  { mode: 'conference_league',       title: MODE_LABELS.conference_league,       hasDifficulty: true,  trophy: 'Lift the Conference League' },
   { mode: 'all_time',                title: 'All Time',                  hasDifficulty: true,  trophy: 'Win the league' },
   { mode: 'league',                  title: 'League Mode',               hasDifficulty: true,  trophy: 'Win the league' },
   { mode: 'era',                     title: ERA_RETIRED_LABEL,           hasDifficulty: true,  trophy: 'Win the league' },

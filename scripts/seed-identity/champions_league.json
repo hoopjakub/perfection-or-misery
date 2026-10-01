@@ -1,0 +1,1199 @@
+{
+ "league": {
+  "id": "ucl_2025",
+  "name": "UEFA Champions League",
+  "country": "Europe",
+  "games_per_season": 8,
+  "tier": 1
+ },
+ "clubs": [
+  {
+   "id": "paris_saint_germain_ucl",
+   "league_id": "ucl_2025",
+   "name": "Paris Saint-Germain",
+   "short_name": "SAI",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "paris_saint_germain_ucl_2024",
+     "club_id": "paris_saint_germain_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    },
+    {
+     "id": "paris_saint_germain_ucl_2025",
+     "club_id": "paris_saint_germain_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 1,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "manchester_city_ucl",
+   "league_id": "ucl_2025",
+   "name": "Manchester City",
+   "short_name": "MAN",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "manchester_city_ucl_2024",
+     "club_id": "manchester_city_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    },
+    {
+     "id": "manchester_city_ucl_2025",
+     "club_id": "manchester_city_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 2,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "arsenal_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Arsenal FC",
+   "short_name": "ARS",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "arsenal_fc_ucl_2024",
+     "club_id": "arsenal_fc_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 91,
+     "league_position": 3,
+     "players": []
+    },
+    {
+     "id": "arsenal_fc_ucl_2025",
+     "club_id": "arsenal_fc_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 92,
+     "league_position": 3,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "real_madrid_ucl",
+   "league_id": "ucl_2025",
+   "name": "Real Madrid",
+   "short_name": "MAD",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "real_madrid_ucl_2024",
+     "club_id": "real_madrid_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 92,
+     "league_position": 4,
+     "players": []
+    },
+    {
+     "id": "real_madrid_ucl_2025",
+     "club_id": "real_madrid_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 4,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_barcelona_ucl",
+   "league_id": "ucl_2025",
+   "name": "FC Barcelona",
+   "short_name": "BAR",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "fc_barcelona_ucl_2024",
+     "club_id": "fc_barcelona_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 89,
+     "league_position": 5,
+     "players": []
+    },
+    {
+     "id": "fc_barcelona_ucl_2025",
+     "club_id": "fc_barcelona_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 5,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "chelsea_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Chelsea FC",
+   "short_name": "CHE",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "chelsea_fc_ucl_2025",
+     "club_id": "chelsea_fc_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 90,
+     "league_position": 6,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bayern_munich_ucl",
+   "league_id": "ucl_2025",
+   "name": "Bayern Munich",
+   "short_name": "BAY",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "bayern_munich_ucl_2024",
+     "club_id": "bayern_munich_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 90,
+     "league_position": 6,
+     "players": []
+    },
+    {
+     "id": "bayern_munich_ucl_2025",
+     "club_id": "bayern_munich_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 7,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "liverpool_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Liverpool FC",
+   "short_name": "LIV",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "liverpool_fc_ucl_2024",
+     "club_id": "liverpool_fc_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 92,
+     "league_position": 7,
+     "players": []
+    },
+    {
+     "id": "liverpool_fc_ucl_2025",
+     "club_id": "liverpool_fc_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 91,
+     "league_position": 8,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "tottenham_hotspur_ucl",
+   "league_id": "ucl_2025",
+   "name": "Tottenham Hotspur",
+   "short_name": "TOT",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "tottenham_hotspur_ucl_2025",
+     "club_id": "tottenham_hotspur_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 9,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "newcastle_united_ucl",
+   "league_id": "ucl_2025",
+   "name": "Newcastle United",
+   "short_name": "NEW",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "newcastle_united_ucl_2025",
+     "club_id": "newcastle_united_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 89,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "inter_milan_ucl",
+   "league_id": "ucl_2025",
+   "name": "Inter Milan",
+   "short_name": "INT",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "inter_milan_ucl_2024",
+     "club_id": "inter_milan_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 90,
+     "league_position": 8,
+     "players": []
+    },
+    {
+     "id": "inter_milan_ucl_2025",
+     "club_id": "inter_milan_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 88,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "atletico_de_madrid_ucl",
+   "league_id": "ucl_2025",
+   "name": "Atlético de Madrid",
+   "short_name": "ATL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "atletico_de_madrid_ucl_2024",
+     "club_id": "atletico_de_madrid_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 9,
+     "players": []
+    },
+    {
+     "id": "atletico_de_madrid_ucl_2025",
+     "club_id": "atletico_de_madrid_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 89,
+     "league_position": 12,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "juventus_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Juventus FC",
+   "short_name": "JUV",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "juventus_fc_ucl_2024",
+     "club_id": "juventus_fc_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 12,
+     "players": []
+    },
+    {
+     "id": "juventus_fc_ucl_2025",
+     "club_id": "juventus_fc_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 87,
+     "league_position": 13,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "borussia_dortmund_ucl",
+   "league_id": "ucl_2025",
+   "name": "Borussia Dortmund",
+   "short_name": "BOR",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "borussia_dortmund_ucl_2024",
+     "club_id": "borussia_dortmund_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 13,
+     "players": []
+    },
+    {
+     "id": "borussia_dortmund_ucl_2025",
+     "club_id": "borussia_dortmund_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 14,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sporting_cp_ucl",
+   "league_id": "ucl_2025",
+   "name": "Sporting CP",
+   "short_name": "SPO",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "sporting_cp_ucl_2024",
+     "club_id": "sporting_cp_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 85,
+     "league_position": 14,
+     "players": []
+    },
+    {
+     "id": "sporting_cp_ucl_2025",
+     "club_id": "sporting_cp_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 15,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bayer_04_leverkusen_ucl",
+   "league_id": "ucl_2025",
+   "name": "Bayer 04 Leverkusen",
+   "short_name": "LEV",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "bayer_04_leverkusen_ucl_2024",
+     "club_id": "bayer_04_leverkusen_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 15,
+     "players": []
+    },
+    {
+     "id": "bayer_04_leverkusen_ucl_2025",
+     "club_id": "bayer_04_leverkusen_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "atalanta_bc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Atalanta BC",
+   "short_name": "ATA",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "atalanta_bc_ucl_2024",
+     "club_id": "atalanta_bc_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 17,
+     "players": []
+    },
+    {
+     "id": "atalanta_bc_ucl_2025",
+     "club_id": "atalanta_bc_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 17,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ssc_napoli_ucl",
+   "league_id": "ucl_2025",
+   "name": "SSC Napoli",
+   "short_name": "NAP",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "ssc_napoli_ucl_2025",
+     "club_id": "ssc_napoli_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "as_monaco_ucl",
+   "league_id": "ucl_2025",
+   "name": "AS Monaco",
+   "short_name": "MON",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "as_monaco_ucl_2024",
+     "club_id": "as_monaco_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 19,
+     "players": []
+    },
+    {
+     "id": "as_monaco_ucl_2025",
+     "club_id": "as_monaco_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 19,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "eintracht_frankfurt_ucl",
+   "league_id": "ucl_2025",
+   "name": "Eintracht Frankfurt",
+   "short_name": "EIN",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "eintracht_frankfurt_ucl_2025",
+     "club_id": "eintracht_frankfurt_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 84,
+     "league_position": 20,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "olympique_marseille_ucl",
+   "league_id": "ucl_2025",
+   "name": "Olympique Marseille",
+   "short_name": "OLY",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "olympique_marseille_ucl_2025",
+     "club_id": "olympique_marseille_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 21,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sl_benfica_ucl",
+   "league_id": "ucl_2025",
+   "name": "SL Benfica",
+   "short_name": "BEN",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "sl_benfica_ucl_2024",
+     "club_id": "sl_benfica_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 85,
+     "league_position": 20,
+     "players": []
+    },
+    {
+     "id": "sl_benfica_ucl_2025",
+     "club_id": "sl_benfica_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 85,
+     "league_position": 22,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "galatasaray_ucl",
+   "league_id": "ucl_2025",
+   "name": "Galatasaray",
+   "short_name": "GAL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "galatasaray_ucl_2025",
+     "club_id": "galatasaray_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 86,
+     "league_position": 23,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "psv_eindhoven_ucl",
+   "league_id": "ucl_2025",
+   "name": "PSV Eindhoven",
+   "short_name": "EIN",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "psv_eindhoven_ucl_2024",
+     "club_id": "psv_eindhoven_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 85,
+     "league_position": 21,
+     "players": []
+    },
+    {
+     "id": "psv_eindhoven_ucl_2025",
+     "club_id": "psv_eindhoven_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 84,
+     "league_position": 24,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "villarreal_cf_ucl",
+   "league_id": "ucl_2025",
+   "name": "Villarreal CF",
+   "short_name": "VIL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "villarreal_cf_ucl_2025",
+     "club_id": "villarreal_cf_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 83,
+     "league_position": 25,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "club_brugge_kv_ucl",
+   "league_id": "ucl_2025",
+   "name": "Club Brugge KV",
+   "short_name": "BRU",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "club_brugge_kv_ucl_2024",
+     "club_id": "club_brugge_kv_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 24,
+     "players": []
+    },
+    {
+     "id": "club_brugge_kv_ucl_2025",
+     "club_id": "club_brugge_kv_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 26,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "athletic_bilbao_ucl",
+   "league_id": "ucl_2025",
+   "name": "Athletic Bilbao",
+   "short_name": "ATH",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "athletic_bilbao_ucl_2025",
+     "club_id": "athletic_bilbao_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 82,
+     "league_position": 27,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ajax_amsterdam_ucl",
+   "league_id": "ucl_2025",
+   "name": "Ajax Amsterdam",
+   "short_name": "AMS",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "ajax_amsterdam_ucl_2025",
+     "club_id": "ajax_amsterdam_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 28,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "olympiacos_piraeus_ucl",
+   "league_id": "ucl_2025",
+   "name": "Olympiacos Piraeus",
+   "short_name": "OLY",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "olympiacos_piraeus_ucl_2025",
+     "club_id": "olympiacos_piraeus_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 81,
+     "league_position": 29,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "union_saint_gilloise_ucl",
+   "league_id": "ucl_2025",
+   "name": "Union Saint-Gilloise",
+   "short_name": "SAI",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "union_saint_gilloise_ucl_2025",
+     "club_id": "union_saint_gilloise_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 80,
+     "league_position": 30,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sk_slavia_prague_ucl",
+   "league_id": "ucl_2025",
+   "name": "SK Slavia Prague",
+   "short_name": "SLA",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "sk_slavia_prague_ucl_2025",
+     "club_id": "sk_slavia_prague_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 78,
+     "league_position": 31,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fk_bod_glimt_ucl",
+   "league_id": "ucl_2025",
+   "name": "FK Bodø/Glimt",
+   "short_name": "BOD",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "fk_bod_glimt_ucl_2025",
+     "club_id": "fk_bod_glimt_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 77,
+     "league_position": 32,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "fc_copenhagen_ucl",
+   "league_id": "ucl_2025",
+   "name": "FC Copenhagen",
+   "short_name": "COP",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "fc_copenhagen_ucl_2025",
+     "club_id": "fc_copenhagen_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 76,
+     "league_position": 33,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "qarabag_fk_ucl",
+   "league_id": "ucl_2025",
+   "name": "Qarabağ FK",
+   "short_name": "QAR",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "qarabag_fk_ucl_2025",
+     "club_id": "qarabag_fk_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 34,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "pafos_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Pafos FC",
+   "short_name": "PAF",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "pafos_fc_ucl_2025",
+     "club_id": "pafos_fc_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 73,
+     "league_position": 35,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "kairat_almaty_ucl",
+   "league_id": "ucl_2025",
+   "name": "Kairat Almaty",
+   "short_name": "KAI",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "kairat_almaty_ucl_2025",
+     "club_id": "kairat_almaty_ucl",
+     "year_start": 2025,
+     "year_end": 2026,
+     "historical_ovr": 67,
+     "league_position": 36,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "aston_villa_ucl",
+   "league_id": "ucl_2025",
+   "name": "Aston Villa",
+   "short_name": "AST",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "aston_villa_ucl_2024",
+     "club_id": "aston_villa_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 88,
+     "league_position": 10,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "rb_leipzig_ucl",
+   "league_id": "ucl_2025",
+   "name": "RB Leipzig",
+   "short_name": "LEI",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "rb_leipzig_ucl_2024",
+     "club_id": "rb_leipzig_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 86,
+     "league_position": 11,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ac_milan_ucl",
+   "league_id": "ucl_2025",
+   "name": "AC Milan",
+   "short_name": "MIL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "ac_milan_ucl_2024",
+     "club_id": "ac_milan_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 87,
+     "league_position": 16,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "vfb_stuttgart_ucl",
+   "league_id": "ucl_2025",
+   "name": "VfB Stuttgart",
+   "short_name": "STU",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "vfb_stuttgart_ucl_2024",
+     "club_id": "vfb_stuttgart_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 85,
+     "league_position": 18,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "losc_lille_ucl",
+   "league_id": "ucl_2025",
+   "name": "LOSC Lille",
+   "short_name": "LIL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "losc_lille_ucl_2024",
+     "club_id": "losc_lille_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 22,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bologna_fc_1909_ucl",
+   "league_id": "ucl_2025",
+   "name": "Bologna FC 1909",
+   "short_name": "BOL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "bologna_fc_1909_ucl_2024",
+     "club_id": "bologna_fc_1909_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 84,
+     "league_position": 23,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "feyenoord_rotterdam_ucl",
+   "league_id": "ucl_2025",
+   "name": "Feyenoord Rotterdam",
+   "short_name": "FEY",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "feyenoord_rotterdam_ucl_2024",
+     "club_id": "feyenoord_rotterdam_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 83,
+     "league_position": 25,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "shakhtar_donetsk_ucl",
+   "league_id": "ucl_2025",
+   "name": "Shakhtar Donetsk",
+   "short_name": "SHA",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "shakhtar_donetsk_ucl_2024",
+     "club_id": "shakhtar_donetsk_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 26,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "red_bull_salzburg_ucl",
+   "league_id": "ucl_2025",
+   "name": "Red Bull Salzburg",
+   "short_name": "SAL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "red_bull_salzburg_ucl_2024",
+     "club_id": "red_bull_salzburg_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 27,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "celtic_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Celtic FC",
+   "short_name": "CEL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "celtic_fc_ucl_2024",
+     "club_id": "celtic_fc_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 82,
+     "league_position": 28,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "girona_fc_ucl",
+   "league_id": "ucl_2025",
+   "name": "Girona FC",
+   "short_name": "GIR",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "girona_fc_ucl_2024",
+     "club_id": "girona_fc_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 81,
+     "league_position": 29,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "red_star_belgrade_ucl",
+   "league_id": "ucl_2025",
+   "name": "Red Star Belgrade",
+   "short_name": "BEL",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "red_star_belgrade_ucl_2024",
+     "club_id": "red_star_belgrade_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 78,
+     "league_position": 30,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "stade_brestois_29_ucl",
+   "league_id": "ucl_2025",
+   "name": "Stade Brestois 29",
+   "short_name": "BRE",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "stade_brestois_29_ucl_2024",
+     "club_id": "stade_brestois_29_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 80,
+     "league_position": 31,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "ac_sparta_prague_ucl",
+   "league_id": "ucl_2025",
+   "name": "AC Sparta Prague",
+   "short_name": "SPA",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "ac_sparta_prague_ucl_2024",
+     "club_id": "ac_sparta_prague_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 32,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "gnk_dinamo_zagreb_ucl",
+   "league_id": "ucl_2025",
+   "name": "GNK Dinamo Zagreb",
+   "short_name": "DIN",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "gnk_dinamo_zagreb_ucl_2024",
+     "club_id": "gnk_dinamo_zagreb_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 75,
+     "league_position": 33,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "bsc_young_boys_ucl",
+   "league_id": "ucl_2025",
+   "name": "BSC Young Boys",
+   "short_name": "YOU",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "bsc_young_boys_ucl_2024",
+     "club_id": "bsc_young_boys_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 76,
+     "league_position": 34,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "sk_sturm_graz_ucl",
+   "league_id": "ucl_2025",
+   "name": "SK Sturm Graz",
+   "short_name": "STU",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "sk_sturm_graz_ucl_2024",
+     "club_id": "sk_sturm_graz_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 77,
+     "league_position": 35,
+     "players": []
+    }
+   ]
+  },
+  {
+   "id": "slovan_bratislava_ucl",
+   "league_id": "ucl_2025",
+   "name": "Slovan Bratislava",
+   "short_name": "BRA",
+   "primary_color": "#1E293B",
+   "secondary_color": "#94A3B8",
+   "seasons": [
+    {
+     "id": "slovan_bratislava_ucl_2024",
+     "club_id": "slovan_bratislava_ucl",
+     "year_start": 2024,
+     "year_end": 2025,
+     "historical_ovr": 74,
+     "league_position": 36,
+     "players": []
+    }
+   ]
+  }
+ ]
+}

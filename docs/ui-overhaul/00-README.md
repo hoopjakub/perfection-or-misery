@@ -34,6 +34,8 @@ Written 14 September 2026. Status of the set: **plan, direction locked**.
 | 09 | [Copy deck](09-COPY-DECK.md) | Every string rewritten, voice rules, factual flags | Plan |
 | 10 | [Adapt, optimize, accessibility](10-ADAPT-OPTIMIZE-A11Y.md) | Native audit, wide layouts, performance, TalkBack and WCAG | Plan |
 | 11 | [Roadmap](11-ROADMAP.md) | Seven phases, engine work, targets, keeping the docs alive | Plan |
+| 12 | [Overview](12-OVERVIEW.md) | Phase 7's walk, the re-scored targets | Snapshot |
+| 13 | [Carry-forward](13-CARRY-FORWARD.md) | What this set still asks of Phases 8.5, 9 and 10, what's stale, and what the maintainer's latest notes reopen | Findings, 29 Sept 2026 |
 
 Every screen in the `07` documents gets **five readability fixes** (useful even if the redesign is phased) and **five redesign moves**, a low-fidelity wireframe, its full list of states and the components it's built from.
 

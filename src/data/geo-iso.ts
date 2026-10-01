@@ -4,6 +4,7 @@
 // back to GB (826); the text label still names the real footballing nation.
 
 // World Cup national-team club ids (`*_nt`) → ISO numeric.
+import { EUROPE_CLUB_COUNTRY } from './europe-countries'
 export const NATION_ISO: Record<string, number> = {
   algeria_nt: 12, argentina_nt: 32, australia_nt: 36, austria_nt: 40, belgium_nt: 56,
   bosnia_herzegovina_nt: 70, brazil_nt: 76, canada_nt: 124, colombia_nt: 170, croatia_nt: 191,
@@ -65,7 +66,8 @@ export const CL_CLUB_COUNTRY: Record<string, string> = {
 
 export function countryForClClub(clubName?: string | null): string | undefined {
   if (!clubName) return undefined
-  return CL_CLUB_COUNTRY[clubName]
+  // P8-172: the Europa and Conference Leagues' clubs too (generated from their draws).
+  return CL_CLUB_COUNTRY[clubName] ?? EUROPE_CLUB_COUNTRY[clubName]
 }
 
 // Domestic league id → ISO numeric (currently only the Premier League ships).
@@ -150,4 +152,52 @@ export function flagForLeague(leagueId: string): string {
 
 export function isoForCountry(country: string): number | undefined {
   return COUNTRY_ISO[country]
+}
+
+// P8-163: a player's nationality, as the scrapers wrote it, is mostly the
+// demonym ("Dutch", "Japanese") and sometimes the country ("Belarus",
+// "Kosovo"). flagForCountry only knows countries, so every draft card came up
+// flagless. Every value in the bundled database is listed (read off
+// players_v5.db); the home nations go through the country table above.
+const NATIONALITY_A2: Record<string, string> = {
+  Spanish: 'ES', French: 'FR', German: 'DE', Italian: 'IT', Brazilian: 'BR', Dutch: 'NL',
+  Portuguese: 'PT', Serbian: 'RS', Croatian: 'HR', Swedish: 'SE', Norwegian: 'NO', Danish: 'DK',
+  Belgian: 'BE', Ukrainian: 'UA', Argentine: 'AR', Czech: 'CZ', Polish: 'PL', Nigerian: 'NG',
+  Austrian: 'AT', Swiss: 'CH', Irish: 'IE', Turkish: 'TR', Ghanaian: 'GH', Senegalese: 'SN',
+  Romanian: 'RO', Ivorian: 'CI', Belarus: 'BY', 'North Macedonia': 'MK', 'Bosnia-Herzegovina': 'BA', Israeli: 'IL',
+  Iceland: 'IS', Moroccan: 'MA', Montenegro: 'ME', Slovak: 'SK', Finnish: 'FI', Greek: 'GR',
+  Kosovo: 'XK', Albanian: 'AL', Kazakhstan: 'KZ', Georgian: 'GE', Hungarian: 'HU', Slovenian: 'SI',
+  Bulgaria: 'BG', Estonia: 'EE', Japanese: 'JP', American: 'US', 'Faroe Islands': 'FO', Colombian: 'CO',
+  Cameroonian: 'CM', Congolese: 'CD', Azerbaijan: 'AZ', Luxembourg: 'LU', Armenian: 'AM', Algerian: 'DZ',
+  Malta: 'MT', Latvia: 'LV', Uruguayan: 'UY', Malian: 'ML', Moldova: 'MD', Cyprus: 'CY',
+  Lithuania: 'LT', Gibraltar: 'GI', 'San Marino': 'SM', Russian: 'RU', Canadian: 'CA', Guinean: 'GN',
+  Mexican: 'MX', Australian: 'AU', Tunisian: 'TN', 'The Gambia': 'GM', 'South Korean': 'KR', Ecuadorian: 'EC',
+  'Cape Verdean': 'CV', 'Guinea-Bissau': 'GW', 'Burkina Faso': 'BF', Venezuelan: 'VE', Angolan: 'AO', Paraguayan: 'PY',
+  Egyptian: 'EG', 'South African': 'ZA', Suriname: 'SR', 'New Zealander': 'NZ', Chilean: 'CL', Iranian: 'IR',
+  Uzbek: 'UZ', Jamaican: 'JM', Togo: 'TG', Andorra: 'AD', Curacao: 'CW', Gabonese: 'GA',
+  Benin: 'BJ', Guadeloupe: 'GP', 'Saudi Arabian': 'SA', Qatari: 'QA', Peruvian: 'PE', Panamanian: 'PA',
+  Jordanian: 'JO', Iraqi: 'IQ', Haitian: 'HT', Curaçaoan: 'CW', 'Cura�aoan': 'CW', Comoros: 'KM',
+  'Cabo Verdian': 'CV', Bosnian: 'BA', Zambian: 'ZM', Mauritania: 'MR', Madagascar: 'MG', Haiti: 'HT',
+  'Costa Rican': 'CR', Indonesia: 'ID', Martinique: 'MQ', Iraq: 'IQ', 'Equatorial Guinea': 'GQ', Panama: 'PA',
+  Kenya: 'KE', 'Central African Republic': 'CF', Uganda: 'UG', Zimbabwe: 'ZW', 'Sierra Leone': 'SL', Niger: 'NE',
+  Liberia: 'LR', 'Dominican Republic': 'DO', Honduras: 'HN', Syria: 'SY', Mozambique: 'MZ', Rwanda: 'RW',
+  Palestine: 'PS', 'Trinidad and Tobago': 'TT', Tanzania: 'TZ', Libya: 'LY', Burundi: 'BI', 'French Guiana': 'GF',
+  Cuba: 'CU', Bolivian: 'BO', Somalia: 'SO', Saudi: 'SA', Philippines: 'PH', Lebanon: 'LB',
+  Kyrgyzstan: 'KG', Chad: 'TD', 'Saint-Martin': 'MF', Nicaragua: 'NI', 'St. Kitts & Nevis': 'KN', 'New Caledonia': 'NC',
+  Malawi: 'MW', Jordan: 'JO', Eritrea: 'ER', 'United Arab Emirates': 'AE', Tajikistan: 'TJ', 'Sao Tome and Principe': 'ST',
+  Pakistan: 'PK', India: 'IN', Guyana: 'GY', Grenada: 'GD', China: 'CN', Afghanistan: 'AF',
+  Vietnam: 'VN', Thailand: 'TH', 'Sri Lanka': 'LK', 'Southern Sudan': 'SS', 'Sint Maarten': 'SX', Mongolia: 'MN',
+  Mauritius: 'MU', Malaysia: 'MY', Macao: 'MO', Liechtenstein: 'LI', Laos: 'LA', 'Korea, North': 'KP',
+  Guatemala: 'GT', Ethiopia: 'ET', 'El Salvador': 'SV', Djibouti: 'DJ', Bermuda: 'BM', Barbados: 'BB',
+  Bangladesh: 'BD', Bahrain: 'BH', Aruba: 'AW', 'Antigua and Barbuda': 'AG',
+}
+const HOME_NATIONS: Record<string, string> = { English: 'England', Scottish: 'Scotland', Welsh: 'Wales', 'Northern Ireland': 'Northern Ireland' }
+
+/** A player's flag emoji from his nationality (demonym or country), or ''. */
+export function flagForNationality(nationality?: string | null): string {
+  if (!nationality) return ''
+  const home = HOME_NATIONS[nationality]
+  if (home) return COUNTRY_FLAG[home]
+  const a2 = NATIONALITY_A2[nationality]
+  return a2 ? flagFromA2(a2) : flagForCountry(nationality)
 }

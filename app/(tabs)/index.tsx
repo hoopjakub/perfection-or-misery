@@ -26,7 +26,7 @@ const roles = ROLES.cotton
 // Modes "AGAIN" can restart straight at the shape screen. A league run also
 // needs its league picked, and a custom difficulty's knobs aren't stored on
 // the run, so those two go through setup the normal way. ('era' is retired.)
-const AGAIN_MODES = new Set(['all_time', 'chaos', 'cursed', 'champions_league', 'champions_league_custom', 'world_cup'])
+const AGAIN_MODES = new Set(['all_time', 'chaos', 'cursed', 'champions_league', 'champions_league_custom', 'europa_league', 'conference_league', 'world_cup'])
 const PRESETS = new Set(['easy', 'medium', 'hard'])
 
 

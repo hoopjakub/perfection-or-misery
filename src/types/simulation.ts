@@ -72,6 +72,8 @@ export type SeasonResult = {
   absences?: import('@/engine/availability').Absence[]
   // The run's press (engine/press.ts), written once as each matchday landed.
   press?: import('@/engine/press').Story[]
+  // P8-173: the league's cup, played beside it.
+  cup?: import('@/engine/domestic-cup').DomesticCup | null
 }
 
 export type Tier =
