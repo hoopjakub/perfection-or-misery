@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { type Roles, space, border, prim, COLOURWAYS } from '@/theme'
@@ -15,8 +16,8 @@ const GR = ROLES[EVERYDAY]
 // purple on black, under scanlines. The rule line sits under each on the page
 // (on Chaos red neither ink nor cotton reads as small text: 4.3:1 and 4.1:1).
 const LINES: Record<'chaos' | 'cursed', string> = {
-  chaos: 'You picked the players. Chaos picked where they play.',
-  cursed: 'Some of this XI the curse chose for you.',
+  chaos: t('season.chaosLine'),
+  cursed: t('season.cursedLine'),
 }
 
 export function ModeBanner({ roles, mode }: { roles: Roles; mode: string | null | undefined }) {
@@ -24,11 +25,11 @@ export function ModeBanner({ roles, mode }: { roles: Roles; mode: string | null 
   if (look === 'plain') return null
   if (look === 'chaos') {
     return (
-      <View style={styles.wrap} accessible accessibilityRole="header" accessibilityLabel={`Chaos. ${LINES.chaos}`}>
+      <View style={styles.wrap} accessible accessibilityRole="header" accessibilityLabel={t('season.chaosA11y', { line: LINES.chaos })}>
         <View style={styles.chaos}>
           <Tape colours={COLOURWAYS.chaos} roles={roles} style={styles.tape} />
           <View style={[styles.block, { backgroundColor: CHAOS_RED, borderColor: prim.ink }]}>
-            <KitText t="superM" color={prim.ink}>CHAOS</KitText>
+            <KitText t="superM" color={prim.ink}>{t('season.chaosWord')}</KitText>
           </View>
           <Stripe roles={roles} band={6} style={styles.stripe} />
         </View>
@@ -37,10 +38,10 @@ export function ModeBanner({ roles, mode }: { roles: Roles; mode: string | null 
     )
   }
   return (
-    <View style={styles.wrap} accessible accessibilityRole="header" accessibilityLabel={`Cursed. ${LINES.cursed}`}>
+    <View style={styles.wrap} accessible accessibilityRole="header" accessibilityLabel={t('season.cursedA11y', { line: LINES.cursed })}>
       <View style={[styles.cursed, { borderColor: CURSED_PURPLE, backgroundColor: GR.sunken }]}>
         <Scanlines colour={CURSED_LIGHT} opacity={0.12} />
-        <GlitchText text="CURSED" t="superM" color={CURSED_LIGHT} seed={7} />
+        <GlitchText text={t('season.cursedWord')} t="superM" color={CURSED_LIGHT} seed={7} />
       </View>
       <KitText t="tag" color={roles.textMuted}>{LINES.cursed.toUpperCase()}</KitText>
     </View>

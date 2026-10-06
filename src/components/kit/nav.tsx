@@ -1,6 +1,7 @@
 // NavBar / NavRail: the five destinations. A bar under 1024px, a rail with
 // the wordmark from 1024px. Active = orange tape (above the item in the bar,
 // beside it in the rail) plus ink text — never colour alone.
+import { t } from '@/i18n'
 import React from 'react'
 import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
@@ -12,11 +13,11 @@ import { EVERYDAY } from '@/lib/appearance'
 export const RAIL_MIN_WIDTH = 1024
 
 const DEST: Record<string, { label: string; icon: IconName }> = {
-  index:       { label: 'Play',  icon: 'play' },
-  runs:        { label: 'Runs',  icon: 'runs' },
-  leaderboard: { label: 'Ranks', icon: 'ranks' },
-  clubs:       { label: 'Clubs', icon: 'clubs' },
-  profile:     { label: 'You',   icon: 'you' },
+  index:       { label: t('common.tabPlay'),  icon: 'play' },
+  runs:        { label: t('common.tabRuns'),  icon: 'runs' },
+  leaderboard: { label: t('common.tabRanks'), icon: 'ranks' },
+  clubs:       { label: t('common.tabClubs'), icon: 'clubs' },
+  profile:     { label: t('common.tabYou'),   icon: 'you' },
 }
 
 export function KitTabBar({ state, navigation, insets, descriptors }: BottomTabBarProps) {

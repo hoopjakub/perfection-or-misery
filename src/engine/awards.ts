@@ -16,10 +16,15 @@
  * Pure and deterministic: inputs in any order, the same night out.
  */
 
+import { t, dec } from '../i18n'
 import type { AwardCandidate, CompetitionStats, SeasonAwards } from '@/types/stats'
-import { forCompetition, seasonWord } from '../data/competition'
+import { seasonWord, isTournament } from '../data/competition'
 import type { Formation, PositionSlot } from '@/types/game'
 import { ALL_FORMATIONS, getSlotsForFormation } from './formations'
+import { predictTable, predictWorldCupRound, predictChampionsLeagueRound } from './predictions'
+import { formatTier } from '../data/tiers'
+import type { CLSeasonResult } from './cl-sim'
+import type { WCSeasonResult } from './world-cup-sim'
 
 // ── Lines ────────────────────────────────────────────────────────────────────
 export type Line = 'GK' | 'DEF' | 'MID' | 'FWD'
@@ -171,7 +176,8 @@ type AwardDef = {
   headline: (c: AwardCandidate) => string
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+// A count in the app's language (awards.n.*: 1 gól, 2 góly, 5 gólov).
+const plural = (n: number, key: string) => t(`awards.n.${key}` as 'awards.n.goal', { count: n })
 
 const FULL_BACKS = new Set(['RB', 'LB', 'RWB', 'LWB'])
 const WINGERS = new Set(['RW', 'LW', 'RM', 'LM'])
@@ -180,10 +186,10 @@ const PLAYER_AWARDS: AwardDef[] = [
   { key: 'boot', title: 'Golden boot', how: 'Most goals. Level on goals, the better overall season.',
     value: c => c.goals, tiebreak: c => c.score, headline: c => plural(c.goals, 'goal') },
   { key: 'playmaker', title: 'Playmaker of the season', how: 'Most assists. Level on assists, the most chances created.',
-    value: c => c.assists, tiebreak: c => c.chancesCreated ?? 0, headline: c => `${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')} created` },
+    value: c => c.assists, tiebreak: c => c.chancesCreated ?? 0, headline: c => `${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')}` },
   { key: 'glove', title: 'Golden glove', how: 'Most clean sheets by a keeper. Level on clean sheets, the most saves.',
     eligible: c => lineOf(c.position) === 'GK', value: c => c.cleanSheets, tiebreak: c => c.saves ?? 0,
-    headline: c => `${plural(c.cleanSheets, 'clean sheet')}, ${plural(c.saves ?? 0, 'save')}` },
+    headline: c => `${plural(c.cleanSheets, 'cleanSheet')}, ${plural(c.saves ?? 0, 'save')}` },
   // P8-36: every position can win something. The positional awards are split
   // so none is out of reach: a centre-back and a full-back share Defender of
   // the season and a full-back has his own; a CM counts in both midfield
@@ -192,10 +198,10 @@ const PLAYER_AWARDS: AwardDef[] = [
   { key: 'defender', title: 'Defender of the season',
     how: "The best defending — tackles, interceptions, clearances, blocks, duels, clean sheets, mistakes against — measured against his own position, so a full-back's great season counts as much as a centre-back's.",
     eligible: c => lineOf(c.position) === 'DEF', value: c => c.lineScores?.defender ?? c.score, tiebreak: c => c.score,
-    headline: c => `${c.tacklesWon ?? 0} tackles won, ${c.interceptions ?? 0} interceptions, ${plural(c.cleanSheets, 'clean sheet')}` },
+    headline: c => `${plural(c.tacklesWon ?? 0, 'tackle')}, ${plural(c.interceptions ?? 0, 'interception')}, ${plural(c.cleanSheets, 'cleanSheet')}` },
   { key: 'fullback', title: 'Full-back of the season', how: 'The best full-back or wing-back: his defending, plus what he gave going forward.',
     eligible: c => FULL_BACKS.has(c.position), value: c => c.lineScores?.fullback ?? c.score, tiebreak: c => c.score,
-    headline: c => `${c.tacklesWon ?? 0} tackles won, ${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')} created` },
+    headline: c => `${plural(c.tacklesWon ?? 0, 'tackle')}, ${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')}` },
   // The plain one too (the maintainer, 23 Sept: "we are missing a simple
   // midfielder of the season award"): every midfielder, on the season score.
   { key: 'midfielder', title: 'Midfielder of the season', how: 'The best season score among midfielders: holding, central, attacking and wide.',
@@ -203,7 +209,7 @@ const PLAYER_AWARDS: AwardDef[] = [
     headline: c => `${plural(c.goals, 'goal')}, ${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')} created` },
   { key: 'defensiveMid', title: 'Defensive midfielder of the season', how: 'Winning it back and keeping it: tackles, interceptions, duels and passing, plus goals and assists. Holding and central midfielders.',
     eligible: c => c.position === 'CDM' || c.position === 'CM', value: c => c.lineScores?.defensiveMid ?? c.score, tiebreak: c => c.score,
-    headline: c => `${c.tacklesWon ?? 0} tackles won, ${c.interceptions ?? 0} interceptions, ${plural(c.assists, 'assist')}` },
+    headline: c => `${plural(c.tacklesWon ?? 0, 'tackle')}, ${plural(c.interceptions ?? 0, 'interception')}, ${plural(c.assists, 'assist')}` },
   { key: 'attackingMid', title: 'Attacking midfielder of the season', how: 'The best season score among attacking and central midfielders.',
     eligible: c => c.position === 'CAM' || c.position === 'CM', value: c => c.score,
     headline: c => `${plural(c.goals, 'goal')}, ${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')} created` },
@@ -212,10 +218,10 @@ const PLAYER_AWARDS: AwardDef[] = [
     headline: c => `${plural(c.goals, 'goal')}, ${plural(c.assists, 'assist')}, ${plural(c.chancesCreated ?? 0, 'chance')} created` },
   { key: 'forward', title: 'Forward of the season', how: 'The best season score among strikers.',
     eligible: c => c.position === 'ST' || c.position === 'CF', value: c => c.score,
-    headline: c => `${plural(c.goals, 'goal')}, ${plural(c.assists, 'assist')}, ${c.shotsOnTarget ?? 0} on target` },
+    headline: c => `${plural(c.goals, 'goal')}, ${plural(c.assists, 'assist')}, ${plural(c.shotsOnTarget ?? 0, 'onTarget')}` },
   { key: 'motm', title: 'Man of the match, most often', how: 'Most man-of-the-match awards. Level, the higher average rating.',
     value: c => c.potm ?? 0, tiebreak: c => c.avgRating ?? 0,
-    headline: c => `${plural(c.potm ?? 0, 'award')}${c.avgRating ? `, ${c.avgRating.toFixed(2)} average` : ''}` },
+    headline: c => `${plural(c.potm ?? 0, 'award')}${c.avgRating ? `, ${t('awards.average', { n: dec(c.avgRating, 2) })}` : ''}` },
 ]
 
 function decide(def: AwardDef, candidates: AwardCandidate[]): PlayerAward | null {
@@ -230,7 +236,13 @@ function decide(def: AwardDef, candidates: AwardCandidate[]): PlayerAward | null
 }
 
 // ── Club awards ──────────────────────────────────────────────────────────────
-export type ClubRow = { clubId: string; clubName: string; finalPosition: number; predicted?: number }
+export type ClubRow = {
+  clubId: string; clubName: string; finalPosition: number; predicted?: number
+  /** F-19, a cup: the round reached and the round the pundits tipped, on one
+   *  ladder (0 = out at the first stage, CUP_STAGES = winners), named as the
+   *  app names the rounds. A cup has no table to place clubs on. */
+  stage?: { reached: number; tipped: number; reachedLabel: string; tippedLabel: string }
+}
 
 export type ClubAward = {
   key: 'attack' | 'defence' | 'manager'
@@ -264,14 +276,27 @@ export function placeWorth(position: number, clubs: number): number {
   return 10 * x * x
 }
 
+// F-19: a cup's rounds on the same curve as a league's places: out at the
+// first stage is 0, the winners 10, and a semi-final is worth much more than a
+// round of 32 (quadratic, as placeWorth). The title bonus is the trophy.
+export const CUP_STAGES = 6
+export function stageWorth(stage: number): number {
+  const x = Math.max(0, Math.min(1, stage / CUP_STAGES))
+  return 10 * x * x
+}
+
 export function managerScore(c: ClubRow, clubs: number, stars = 0): number {
+  if (c.stage) return stageWorth(c.stage.reached) - stageWorth(c.stage.tipped)
+    + stageWorth(c.stage.reached) * FINISH_WEIGHT
+    + (c.stage.reached === CUP_STAGES ? TITLE_BONUS : 0)
+    + stars * STAR_WEIGHT
   return placeWorth(c.finalPosition, clubs) - placeWorth(c.predicted!, clubs)
     + placeWorth(c.finalPosition, clubs) * FINISH_WEIGHT
     + (c.finalPosition === 1 ? TITLE_BONUS : 0)
     + stars * STAR_WEIGHT
 }
 
-function clubAwards(stats: CompetitionStats, clubs: ClubRow[], playerClubId?: string, stars = new Map<string, number>(), you?: string): ClubAward[] {
+function clubAwards(stats: CompetitionStats, clubs: ClubRow[], playerClubId?: string, stars = new Map<string, number>(), you?: string, period = 'season'): ClubAward[] {
   const out: ClubAward[] = []
   const teams = [...stats.teams]
   const name = (id: string) => teams.find(t => t.clubId === id)?.clubName ?? clubs.find(c => c.clubId === id)?.clubName ?? ''
@@ -280,23 +305,24 @@ function clubAwards(stats: CompetitionStats, clubs: ClubRow[], playerClubId?: st
     if (attack[0].goalsFor > 0) out.push({
       key: 'attack', title: 'Best attack', how: 'Most goals scored.',
       winner: { clubId: attack[0].clubId, clubName: attack[0].clubName, isPlayerClub: attack[0].clubId === playerClubId, headline: plural(attack[0].goalsFor, 'goal') },
-      runnersUp: attack.slice(1, 4).map(t => ({ clubName: t.clubName, headline: plural(t.goalsFor, 'goal') })),
+      runnersUp: attack.slice(1, 4).map(c => ({ clubName: c.clubName, headline: plural(c.goalsFor, 'goal') })),
     })
     const defence = [...teams].sort((a, b) => a.goalsAgainst - b.goalsAgainst || b.cleanSheets - a.cleanSheets || a.clubId.localeCompare(b.clubId))
     out.push({
       key: 'defence', title: 'Best defence', how: 'Fewest goals conceded. Level, the most clean sheets.',
-      winner: { clubId: defence[0].clubId, clubName: defence[0].clubName, isPlayerClub: defence[0].clubId === playerClubId, headline: `${plural(defence[0].goalsAgainst, 'goal')} conceded` },
-      runnersUp: defence.slice(1, 4).map(t => ({ clubName: t.clubName, headline: `${plural(t.goalsAgainst, 'goal')} conceded` })),
+      winner: { clubId: defence[0].clubId, clubName: defence[0].clubName, isPlayerClub: defence[0].clubId === playerClubId, headline: plural(defence[0].goalsAgainst, 'conceded') },
+      runnersUp: defence.slice(1, 4).map(c => ({ clubName: c.clubName, headline: plural(c.goalsAgainst, 'conceded') })),
     })
   }
-  const judged = clubs.filter(c => c.predicted != null)
+  const judged = clubs.filter(c => c.predicted != null || c.stage)
   if (judged.length) {
-    const n = Math.max(judged.length, ...judged.map(c => Math.max(c.finalPosition, c.predicted!)))
+    const n = Math.max(judged.length, ...judged.map(c => Math.max(c.finalPosition, c.predicted ?? 0)))
     const score = (c: ClubRow) => managerScore(c, n, stars.get(c.clubId) ?? 0)
     const ranked = [...judged].sort((a, b) => score(b) - score(a) || a.finalPosition - b.finalPosition || a.clubId.localeCompare(b.clubId))
     const line = (c: ClubRow) => {
       const s = stars.get(c.clubId) ?? 0
-      return `Tipped ${c.predicted}, finished ${c.finalPosition}${s ? ` · ${plural(s, 'player')} in the team of the season` : ''}`
+      const tip = c.stage ? t('awards.managerLineCup', { tipped: c.stage.tippedLabel, reached: c.stage.reachedLabel }) : t('awards.managerLine', { tipped: c.predicted, finished: c.finalPosition })
+      return tip + (s ? t('awards.inTeamOf', { players: plural(s, 'player'), p: period }) : '')
     }
     const top = ranked[0]
     out.push({
@@ -343,18 +369,19 @@ export type AwardsInput = {
 }
 
 export function buildAwardsNight(input: AwardsInput): AwardsNight {
+  const cup = isTournament(input.mode)
   const candidates = [...input.awards.playerOfTheSeason].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
 
   // P8-155: judged against his own position's field, not everyone's.
   const potsOrder = evenLines(candidates)
   const pots: PlayerAward | null = potsOrder.length
     ? { key: 'pots', title: 'Player of the season', how: 'The best season by the scoring model, judged against his own position: every number below, carried by how hard the club had it.',
-        winner: potsOrder[0], runnersUp: potsOrder.slice(1, 4), headline: c => `Season score ${c.score}` }
+        winner: potsOrder[0], runnersUp: potsOrder.slice(1, 4), headline: c => t(cup ? 'awards.scoreTournament' : 'awards.scoreSeason', { n: c.score }) }
     : null
   const u21s = [...input.awards.bestU21].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
   const u21: PlayerAward | null = u21s.length
     ? { key: 'u21', title: 'Best under-21', how: 'The best season score by a player aged 21 or under.',
-        winner: u21s[0], runnersUp: u21s.slice(1, 4), headline: c => `Season score ${c.score}${c.age != null ? `, aged ${c.age}` : ''}` }
+        winner: u21s[0], runnersUp: u21s.slice(1, 4), headline: c => t(cup ? 'awards.scoreTournament' : 'awards.scoreSeason', { n: c.score }) + (c.age != null ? t('awards.aged', { age: c.age }) : '') }
     : null
 
   // Defender of the season ranks on defending evened out by position (P8-36).
@@ -382,7 +409,7 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
     if (regular.length) players.push({
       key: 'totr', title: 'Team of the matchday regular', how: 'Picked in the team of the matchday most often.',
       winner: regular[0], runnersUp: regular.slice(1, 4),
-      headline: c => `Picked ${plural(count.get(c.playerId) ?? 0, 'time')} in ${teamsOfTheRound.length}`,
+      headline: c => t('awards.picked', { times: plural(count.get(c.playerId) ?? 0, 'time'), n: teamsOfTheRound.length }),
     })
   }
 
@@ -396,19 +423,26 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
   const glove = players.find(a => a.key === 'glove')
   const teamOfTheSeason = pickTeam(candidates.map(candidatePick), glove?.winner.playerId)
 
-  // Every title, explanation and headline in the competition's own word.
-  const w = (t: string) => forCompetition(t, input.mode)
-  const player = (a: PlayerAward | null): PlayerAward | null => a && { ...a, title: w(a.title), how: w(a.how), headline: c => w(a.headline(c)) }
+  // Every title and explanation in the app's language and the competition's
+  // own word (season or tournament): awards.k.<key> in src/i18n. P8.5-28: it
+  // was forCompetition() rewriting "season" in English, which Slovak can't
+  // do (sezóna and turnaj differ in gender and in every case).
+  const p = t(cup ? 'awards.periodTournament' : 'awards.periodSeason')
+  const named = <A extends { key: string; title: string; how: string }>(a: A): A =>
+    ({ ...a, title: t(`awards.k.${a.key}.title` as 'awards.k.boot.title', { p }),
+      // F-19: a cup's manager is judged on rounds, not places.
+      how: t(cup && a.key === 'manager' ? 'awards.k.manager.howCup' : `awards.k.${a.key}.how` as 'awards.k.boot.how', { p }) })
+  const player = (a: PlayerAward | null): PlayerAward | null => a && named(a)
   return {
     playerOfTheSeason: player(pots),
     bestU21: player(u21),
     players: players.map(a => player(a)!),
-    clubs: clubAwards(input.awards.teams ? { ...input.stats, teams: input.awards.teams } : input.stats, input.clubs ?? [], input.playerClubId, starsByClub(teamOfTheSeason, candidates), input.managerName)
-      .map(a => ({ ...a, title: w(a.title), how: w(a.how) })),
+    clubs: clubAwards(input.awards.teams ? { ...input.stats, teams: input.awards.teams } : input.stats, input.clubs ?? [], input.playerClubId, starsByClub(teamOfTheSeason, candidates), input.managerName, p)
+      .map(named),
     teamOfTheSeason,
     teamsOfTheRound,
     word: seasonWord(input.mode),
-    qualifying: qualifyingAwards(input.awards.qualifying),
+    qualifying: (q => q && { ...q, player: q.player && named(q.player) })(qualifyingAwards(input.awards.qualifying)),
   }
 }
 
@@ -419,9 +453,9 @@ function qualifyingAwards(cands?: AwardCandidate[]): AwardsNight['qualifying'] {
   const ranked = [...cands].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
   return {
     player: {
-      key: 'qualifying', title: 'Player of qualifying',
-      how: 'The best qualifying rounds by the scoring model, counted over qualifying alone, so a side that went out early can still have the best player in it.',
-      winner: ranked[0], runnersUp: ranked.slice(1, 4), headline: c => `Qualifying score ${c.score}`,
+      key: 'qualifying', title: t('awards.k.qualifying.title'),
+      how: t('awards.k.qualifying.how'),
+      winner: ranked[0], runnersUp: ranked.slice(1, 4), headline: c => t('awards.qualScore', { n: c.score }),
     },
     team: pickTeam(ranked.map(candidatePick)),
   }
@@ -504,4 +538,50 @@ function evenDefenders(candidates: AwardCandidate[]): AwardCandidate[] {
   return candidates.map(c => FULL_BACKS.has(c.position) && c.lineScores
     ? { ...c, lineScores: { ...c.lineScores, defender: score(c) * lift } }
     : c)
+}
+
+// F-19: the rounds, worst to best, on the award's ladder (CUP_STAGES = 6). The
+// keys are the pundits' own round calls (predictions.ts), so a club's tip and
+// what it reached are on the same ladder.
+const CL_LADDER = ['league_exit', 'playoff_exit', 'r16_exit', 'qf_exit', 'sf_exit', 'finalist', 'winner']
+const WC_LADDER = ['groups', 'r32', 'r16', 'qf', 'sf', 'final', 'winner']
+
+/**
+ * A cup's manager award (F-19): every club's round reached against the round
+ * the pundits tipped it for, from the seed stored on the run. The classic
+ * Champions, Europa and Conference League and the World Cup; not the full
+ * path, whose pundits only call its domestic league.
+ */
+export function cupClubsForManagerAward(
+  field: { clubId: string; clubName: string; ovr: number; isPlayer: boolean }[] | null | undefined,
+  predictionSeed: number | null | undefined,
+  // Spelled out: this file's own `Pick` (a picked player) shadows TypeScript's.
+  result: { wc: { knockoutRounds: WCSeasonResult['knockoutRounds'] } } | { cl: { playoffRound: CLSeasonResult['playoffRound']; r16: CLSeasonResult['r16']; qf: CLSeasonResult['qf']; sf: CLSeasonResult['sf']; final: CLSeasonResult['final'] } },
+): ClubRow[] {
+  if (!field?.length || predictionSeed == null) return []
+  const wc = 'wc' in result
+  const ladder = wc ? WC_LADDER : CL_LADDER
+  // How far each club got: the furthest round it appeared in (1 = the first
+  // knockout round, CUP_STAGES - 1 = the final), and the winners at the top.
+  const reached = new Map<string, number>()
+  const saw = (id: string, stage: number) => reached.set(id, Math.max(reached.get(id) ?? 0, stage))
+  const rounds: { teamA: { clubId: string }; teamB: { clubId: string }; winner: { clubId: string } }[][] = wc
+    ? result.wc.knockoutRounds.filter(r => r.round !== 'third').map(r => r.matches)
+    : [result.cl.playoffRound, result.cl.r16, result.cl.qf, result.cl.sf, result.cl.final ? [result.cl.final] : []]
+  // No knockouts played (the World Cup's old quick path stops when you go out in
+  // the groups): nothing to judge a cup manager on.
+  if (!rounds.some(r => r.length)) return []
+  // The World Cup has a round of 32 where the cups have a play-off: both are stage 1.
+  rounds.forEach((ties, i) => ties.forEach(x => { saw(x.teamA.clubId, i + 1); saw(x.teamB.clubId, i + 1) }))
+  const final = rounds[rounds.length - 1]?.[0]
+  if (final) saw(final.winner.clubId, CUP_STAGES)
+  const call = wc ? predictWorldCupRound : predictChampionsLeagueRound
+  return predictTable(field.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })), predictionSeed).table.map(r => {
+    const tipped = Math.max(0, ladder.indexOf(call(r.predicted).key))
+    const got = reached.get(r.clubId) ?? 0
+    return {
+      clubId: r.clubId, clubName: r.clubName, finalPosition: 0,
+      stage: { reached: got, tipped, reachedLabel: formatTier(ladder[got]), tippedLabel: formatTier(ladder[tipped]) },
+    }
+  })
 }

@@ -2,14 +2,24 @@
 // zone tapes, its legend, the season strip, your result as a scoreline, the
 // results list, the two-way switch, the press ticker and its stories. Every
 // piece stands on whatever `roles` it's given; the season itself is nylon.
+import { countryName } from '@/data/countries-sk'
+import { log } from '@/diag/log'
+import { timeToFrame } from '@/diag/perf'
+import { t } from '@/i18n'
+import { label as label_ } from '@/i18n/labels'
+import { ordinal } from '@/lib/format'
+import { getFlag } from '@/lib/flagMap'
+import { summariseScorers } from '@/engine/run-stats'
+import type { StageTie } from '@/engine/stages'
+import { tieDetail } from '@/lib/tieDetail'
 import React, { memo, useEffect, useRef, useState } from 'react'
 import { View, Pressable, ScrollView, StyleSheet } from 'react-native'
 import Animated, { LinearTransition, FadeIn } from 'react-native-reanimated'
 import { type Roles, space, border, density, SERIES } from '@/theme'
 import Svg, { Polyline, Line, Circle } from 'react-native-svg'
-import { KitText, Stripe, Tape, Icon, Tag, RoundFlag, VenueMark, TeamMark, Field, Twinkle, useModeLook, tiltOf, Scanlines } from '@/components/kit'
+import { KitText, SectionTag, Stripe, Icon, Tag, RoundFlag, VenueMark, TeamMark, Field, Twinkle, useModeLook, tiltOf, Scanlines } from '@/components/kit'
 import { ZONES, type ZoneKey } from '@/data/qualification-bands'
-import { storyText, type Story } from '@/engine/press'
+import { storyText, storyWhen, type Story } from '@/engine/press'
 
 // ── Zones ────────────────────────────────────────────────────────────────────
 // How a zone is drawn. Volt is the title and nothing else (P8-16: the champion
@@ -26,19 +36,19 @@ const LEAGUE_TONE: Record<ZoneKey, ZoneTone> = {
 
 // The Champions League league phase's three zones, by place.
 export const CL_PHASE_ZONES: TableZone[] = Array.from({ length: 36 }, (_, i) =>
-  i < 8 ? { code: 'R16', label: 'Round of 16', tone: 'top' }
-  : i < 24 ? { code: 'PO', label: 'Knockout play-off', tone: 'mid' }
-  : { code: 'OUT', label: 'Out', tone: 'out' })
+  i < 8 ? { code: t('season.codeR16'), label: t('season.zoneR16'), tone: 'top' }
+  : i < 24 ? { code: t('season.codePo'), label: t('season.zonePlayoff'), tone: 'mid' }
+  : { code: t('season.codeOut'), label: t('season.zoneOut'), tone: 'out' })
 
 // The World Cup's: two through from each group, third into the race for the
 // eight best thirds, fourth out; then that race's own table.
 const zone = (code: string, label: string, tone: ZoneTone): TableZone => ({ code, label, tone })
 export const WC_GROUP_ZONES: TableZone[] = [
-  zone('IN', 'Through', 'top'), zone('IN', 'Through', 'top'),
-  zone('3RD', 'Into the third-place race', 'mid'), zone('OUT', 'Out', 'out'),
+  zone(t('season.codeIn'), t('season.zoneThrough'), 'top'), zone(t('season.codeIn'), t('season.zoneThrough'), 'top'),
+  zone(t('season.code3rd'), t('season.zoneThirdRace'), 'mid'), zone(t('season.codeOut'), t('season.zoneOut'), 'out'),
 ]
 export const WC_THIRD_ZONES: TableZone[] = Array.from({ length: 12 }, (_, i) =>
-  i < 8 ? zone('IN', 'Through as a best third', 'top') : zone('OUT', 'Out', 'out'))
+  i < 8 ? zone(t('season.codeIn'), t('season.zoneBestThird'), 'top') : zone(t('season.codeOut'), t('season.zoneOut'), 'out'))
 
 export function leagueTableZones(zones: (ZoneKey | null)[]): (TableZone | null)[] {
   return zones.map(z => (z ? { code: ZONES[z].code, label: ZONES[z].label, tone: LEAGUE_TONE[z] } : null))
@@ -64,7 +74,7 @@ export function ZoneLegend({ roles, zones }: { roles: Roles; zones: (TableZone |
   for (const z of zones) if (z && !seen.has(z.code)) seen.set(z.code, z)
   if (seen.size === 0) return null
   return (
-    <View style={styles.legend} accessibilityLabel={`Zones: ${[...seen.values()].map(z => z.label).join(', ')}`}>
+    <View style={styles.legend} accessibilityLabel={t('season.zonesA11y', { list: [...seen.values()].map(z => z.label).join(', ') })}>
       {[...seen.values()].map(z => (
         <View key={z.code} style={styles.legendItem}>
           <View style={styles.legendEdge}><ZoneEdge roles={roles} tone={z.tone} /></View>
@@ -124,14 +134,14 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
         <View style={styles.edgeSlot} />
         <KitText t="tag" color={roles.textMuted} style={styles.code}> </KitText>
         <KitText t="tag" color={roles.textMuted} style={styles.pos}>#</KitText>
-        <KitText t="tag" color={roles.textMuted} style={styles.name}>Club</KitText>
+        <KitText t="tag" color={roles.textMuted} style={styles.name}>{t('season.colClub')}</KitText>
         {tracksMoves && <View style={styles.moveCell} />}
         {strength
           ? <KitText t="tag" color={roles.textMuted} style={styles.pts}>OVR</KitText>
           : <>
-              <KitText t="tag" color={roles.textMuted} style={styles.num}>P</KitText>
-              <KitText t="tag" color={roles.textMuted} style={styles.num}>GD</KitText>
-              <KitText t="tag" color={roles.textMuted} style={styles.pts}>Pts</KitText>
+              <KitText t="tag" color={roles.textMuted} style={styles.num}>{t('season.colP')}</KitText>
+              <KitText t="tag" color={roles.textMuted} style={styles.num}>{t('season.colGd')}</KitText>
+              <KitText t="tag" color={roles.textMuted} style={styles.pts}>{t('season.colPts')}</KitText>
             </>}
       </View>
       {rows.map((r, i) => {
@@ -155,7 +165,7 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
               r.isPlayer && { backgroundColor: roles.yours },
             ]}
             accessible
-            accessibilityLabel={`${i + 1}, ${r.clubName}${r.isPlayer ? ', you' : ''}, ${r.points} points, goal difference ${r.gd}${z ? `, ${z.label}` : ''}`}
+            accessibilityLabel={t('season.rowA11y', { place: i + 1, name: r.clubName, you: r.isPlayer ? t('season.you') : '', points: r.points, gd: r.gd }) + (z ? `, ${z.label}` : '')}
           >
             <View style={styles.edgeSlot}><ZoneEdge roles={roles} tone={z?.tone ?? null} /></View>
             <KitText t="tag" color={roles.textMuted} style={styles.code} numberOfLines={1}>{z?.code ?? ''}</KitText>
@@ -163,9 +173,9 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
             <View style={[styles.name, styles.nameRow]}>
               {/* P8-12: a club wears its crest, a nation its flag. */}
               {r.flag !== undefined
-                ? <RoundFlag emoji={r.flag} code={r.clubName.slice(0, 3)} size={16} roles={roles} />
+                ? <RoundFlag emoji={r.flag} code={r.clubName} size={16} roles={roles} />
                 : <TeamMark roles={roles} clubId={r.clubId} name={r.clubName} size={16} />}
-              <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.clubName}</KitText>
+              <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{countryName(r.clubName)}</KitText>
               {crowned && i === 0 ? <Twinkle /> : null}
               {r.note ? <KitText t="tag" color={roles.textMuted}>{r.note}</KitText> : null}
               {/* P8-23: no YOU tag — your row is marked by its background (the left
@@ -173,7 +183,7 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
             </View>
             {/* P8-22: places moved since the matchday before, a caret and a number. */}
             {tracksMoves && (
-              <View style={styles.moveCell} accessibilityLabel={r.move ? `${r.move > 0 ? 'up' : 'down'} ${Math.abs(r.move)}` : undefined}>
+              <View style={styles.moveCell} accessibilityLabel={r.move ? t(r.move > 0 ? 'season.up' : 'season.down', { n: Math.abs(r.move) }) : undefined}>
                 {r.move ? (
                   <>
                     <Icon name={r.move > 0 ? 'up' : 'down'} size={16} color={r.move > 0 ? (roles.perfectionText ?? roles.text) : roles.lossText} />
@@ -199,26 +209,22 @@ export const LeagueTable = memo(function LeagueTable({ roles, rows, zones, moveM
 })
 
 // ── Where you stand ──────────────────────────────────────────────────────────
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
-}
 
 export function StandingFigure({ roles, pos, delta, zone, points }: {
   roles: Roles; pos: number; delta: number | null; zone: TableZone | null; points: number
 }) {
   // null = we don't track movement on this screen; say nothing rather than "no change".
-  const move = delta == null ? null : delta > 0 ? `UP ${delta}` : delta < 0 ? `DOWN ${-delta}` : 'NO CHANGE'
+  const move = delta == null ? null : delta > 0 ? t('season.upTag', { n: delta }) : delta < 0 ? t('season.downTag', { n: -delta }) : t('season.noChange')
   // P8-22: going up is volt and going down is misery red, on the words AND the
   // place itself (only UP used to be coloured, and the number never was).
   // Volt can't be text on cotton, so there a climb stays in ink.
   const tone = delta == null || delta === 0 ? roles.text : delta > 0 ? (roles.perfectionText ?? roles.text) : roles.lossText
   return (
-    <View style={styles.standing} accessible accessibilityLabel={`You're ${ordinal(pos)}${move ? `, ${move.toLowerCase()}` : ''}, ${points} points${zone ? `, ${zone.label}` : ''}`}>
+    <View style={styles.standing} accessible accessibilityLabel={t('season.standingA11y', { place: ordinal(pos) }) + (move ? `, ${move.toLowerCase()}` : '') + t('season.pointsA11y', { points }) + (zone ? `, ${zone.label}` : '')}>
       <KitText t="superL" color={tone}>{ordinal(pos).toUpperCase()}</KitText>
       <View style={styles.standingSide}>
         {move ? <KitText t="tag" color={delta === 0 ? roles.textMuted : tone}>{move}</KitText> : null}
-        <KitText t="figure" color={roles.text}>{`${points} PTS`}</KitText>
+        <KitText t="figure" color={roles.text}>{t('season.pts', { points })}</KitText>
         {zone && <Tag roles={roles}>{zone.code}</Tag>}
       </View>
     </View>
@@ -229,6 +235,8 @@ export function StandingFigure({ roles, pos, delta, zone, points }: {
 // Your season as a row of W/D/L tags, one per matchday, scrubbable. Tapping a
 // played matchday looks back at it; the live end is always the last one.
 export type Mark = 'W' | 'D' | 'L'
+// How a mark is written in the app's language (V/R/P in Slovak); the type stays W/D/L.
+export const MARK_TEXT: Record<Mark, string> = { W: t('season.markW'), D: t('season.markD'), L: t('season.markL') }
 
 // One matchday cell, and the gap between two of them — the scroll maths (P8-15)
 // and the styles read the same numbers.
@@ -254,7 +262,7 @@ export function SeasonStrip({ roles, marks, total, viewing, onPick }: {
   }, [marks.length, viewing])
   return (
     <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}
-      accessibilityLabel={`Your season: ${marks.filter(m => m === 'W').length} won, ${marks.filter(m => m === 'D').length} drawn, ${marks.filter(m => m === 'L').length} lost`}>
+      accessibilityLabel={t('season.stripA11y', { w: marks.filter(m => m === 'W').length, d: marks.filter(m => m === 'D').length, l: marks.filter(m => m === 'L').length })}>
       {Array.from({ length: total }, (_, i) => {
         const m = marks[i]
         const md = i + 1
@@ -265,7 +273,7 @@ export function SeasonStrip({ roles, marks, total, viewing, onPick }: {
             backgroundColor: m === 'W' ? roles.perfection : m === 'L' ? roles.loss : 'transparent',
           }]}>
             {/* W volt, L misery red (P8-74), D grey outline; the letter says it without colour. */}
-            {m && <KitText t="tag" color={m === 'D' ? roles.draw : roles.onFill}>{m}</KitText>}
+            {m && <KitText t="tag" color={m === 'D' ? roles.draw : roles.onFill}>{MARK_TEXT[m]}</KitText>}
           </View>
         )
         return (
@@ -299,19 +307,20 @@ export function ScorelineCard({ roles, label, homeName, awayName, homeClubId, aw
 }) {
   const mine = youHome ? homeGoals - awayGoals : awayGoals - homeGoals
   const mark: Mark = mine > 0 ? 'W' : mine < 0 ? 'L' : 'D'
+  const shown = label_(label)
   const look = useModeLook()
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button"
-      accessibilityLabel={`${label}. ${homeName} ${homeGoals}, ${awayName} ${awayGoals}. ${mark === 'W' ? 'Won' : mark === 'L' ? 'Lost' : 'Drawn'}`}
-      accessibilityHint="Opens the match sheet"
+      accessibilityLabel={`${shown}. ${countryName(homeName)} ${homeGoals}, ${countryName(awayName)} ${awayGoals}. ${mark === 'W' ? t('season.won') : mark === 'L' ? t('season.lost') : t('season.drawn')}`}
+      accessibilityHint={t('season.opensSheet')}
       style={({ pressed }) => [styles.scoreCard, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface },
         look === 'chaos' && { transform: [{ rotate: `${tiltOf(label, 1.2)}deg` }] }]}>
       {look === 'cursed' && <Scanlines />}
       <View style={styles.scoreTop}>
         {/* P8-134: home or away as the house or the plane (P8-09), not the word. */}
         <VenueMark roles={roles} home={youHome} />
-        <KitText t="tag" color={roles.textMuted}>{label}</KitText>
-        <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag>
+        <KitText t="tag" color={roles.textMuted}>{shown}</KitText>
+        <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{MARK_TEXT[mark]}</Tag>
         <View style={{ flex: 1 }} />
         {onPress && <Icon name="chevron" size={20} color={roles.text} />}
       </View>
@@ -319,12 +328,12 @@ export function ScorelineCard({ roles, label, homeName, awayName, homeClubId, aw
         <View style={[styles.scoreSide, { alignItems: 'flex-end' }]}>
           {/* P8-20/23: this card is your result already; a YOU tag said it twice. */}
           <TeamMark roles={roles} clubId={homeClubId} name={homeName} size={24} />
-          <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{homeName}</KitText>
+          <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{countryName(homeName)}</KitText>
         </View>
         <KitText t="superL" color={roles.text} style={styles.scoreFig}>{`${homeGoals}–${awayGoals}`}</KitText>
         <View style={[styles.scoreSide, { alignItems: 'flex-start' }]}>
           <TeamMark roles={roles} clubId={awayClubId} name={awayName} size={24} />
-          <KitText t="title" color={roles.text} numberOfLines={2}>{awayName}</KitText>
+          <KitText t="title" color={roles.text} numberOfLines={2}>{countryName(awayName)}</KitText>
         </View>
       </View>
       {(homeScorers || awayScorers) ? (
@@ -359,20 +368,20 @@ export const ResultRow = memo(function ResultRow({ roles, homeName, awayName, ho
 }) {
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button"
-      accessibilityLabel={`${round ? `${round}, ` : ''}${homeName} ${homeGoals}, ${awayName} ${awayGoals}`}
+      accessibilityLabel={`${round ? `${label_(round)}, ` : ''}${countryName(homeName)} ${homeGoals}, ${countryName(awayName)} ${awayGoals}`}
       style={({ pressed }) => [styles.resultRow, { borderBottomColor: roles.rule }, youSide && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <View style={{ flex: 1 }}>
-        {round ? <KitText t="tag" color={roles.textMuted} style={styles.resultRound}>{round}</KitText> : null}
+        {round ? <KitText t="tag" color={roles.textMuted} style={styles.resultRound}>{label_(round)}</KitText> : null}
         <View style={styles.resultLine}>
           <View style={[styles.resultTeam, styles.resultHome]}>
-            <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultName}>{homeName}</KitText>
+            <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultName}>{countryName(homeName)}</KitText>
             {/* P8-79: a nation's flag, a club's crest — decided by the id. */}
             <TeamMark roles={roles} clubId={homeClubId} name={homeName} size={16} />
           </View>
           <KitText t="figure" color={roles.text} style={styles.resultFig}>{`${homeGoals}–${awayGoals}`}</KitText>
           <View style={styles.resultTeam}>
             <TeamMark roles={roles} clubId={awayClubId} name={awayName} size={16} />
-            <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultName}>{awayName}</KitText>
+            <KitText t="body" color={roles.text} numberOfLines={1} style={styles.resultName}>{countryName(awayName)}</KitText>
           </View>
         </View>
         {homeScorers || awayScorers ? (
@@ -401,7 +410,7 @@ export const ResultRow = memo(function ResultRow({ roles, homeName, awayName, ho
 // breathe. `onPoint` makes every point tappable (a 28px target round each).
 export type GraphSeries = { key: string; label: string; values: number[] }
 
-export function LineGraph({ roles, values, min, max, invert, fmt, topWord = 'MAX', bottomWord = 'MIN', legend, xLabel = 'MD', dot, onPoint, selected, compare = [] }: {
+export function LineGraph({ roles, values, min, max, invert, fmt, topWord = t('parts.graphMax'), bottomWord = t('parts.graphMin'), legend, xLabel = t('parts.graphMd'), dot, onPoint, selected, compare = [] }: {
   roles: Roles
   values: number[]
   min: number
@@ -434,10 +443,10 @@ export function LineGraph({ roles, values, min, max, invert, fmt, topWord = 'MAX
   // The four reference values, merged where they coincide.
   type Ref = { v: number; label: string; dashed: boolean }
   const refs: Ref[] = []
-  refs.push({ v: top, label: best === top ? `${fmt(top)} ${topWord} = BEST` : `${fmt(top)} ${topWord}`, dashed: false })
-  if (best !== top) refs.push({ v: best, label: `${fmt(best)} BEST`, dashed: true })
-  if (worst !== bottom && worst !== best) refs.push({ v: worst, label: `${fmt(worst)} WORST`, dashed: true })
-  refs.push({ v: bottom, label: worst === bottom ? `${fmt(bottom)} ${bottomWord} = WORST` : `${fmt(bottom)} ${bottomWord}`, dashed: false })
+  refs.push({ v: top, label: best === top ? t('season.bestEq', { v: fmt(top), word: topWord }) : `${fmt(top)} ${topWord}`, dashed: false })
+  if (best !== top) refs.push({ v: best, label: t('season.bestRef', { v: fmt(best) }), dashed: true })
+  if (worst !== bottom && worst !== best) refs.push({ v: worst, label: t('season.worstRef', { v: fmt(worst) }), dashed: true })
+  refs.push({ v: bottom, label: worst === bottom ? t('season.worst', { v: fmt(bottom), word: bottomWord }) : `${fmt(bottom)} ${bottomWord}`, dashed: false })
 
   // Label positions, top to bottom, pushed apart so none overlap, then pulled
   // back up from the bottom edge if the push ran them off the graph.
@@ -449,7 +458,7 @@ export function LineGraph({ roles, values, min, max, invert, fmt, topWord = 'MAX
   }
 
   return (
-    <View style={styles.graph} accessible={!onPoint} accessibilityLabel={`${legend}. From ${fmt(values[0])} to ${fmt(last)}; best ${fmt(best)}, worst ${fmt(worst)}.`}>
+    <View style={styles.graph} accessible={!onPoint} accessibilityLabel={t('season.graphA11y', { legend, from: fmt(values[0]), to: fmt(last), best: fmt(best), worst: fmt(worst) })}>
       <View style={styles.graphBody}>
         <View style={[styles.graphGutter, { height: h }]}>
           {placed.map(r => (
@@ -500,15 +509,12 @@ export function LineGraph({ roles, values, min, max, invert, fmt, topWord = 'MAX
           </KitText>
         </View>
       ))}
-      {onPoint ? <KitText t="tag" color={roles.textMuted} style={styles.graphLegendPad}>Tap a point to go to that match</KitText> : null}
+      {onPoint ? <KitText t="tag" color={roles.textMuted} style={styles.graphLegendPad}>{t('season.tapPoint')}</KitText> : null}
     </View>
   )
 }
 
-const ordinalOf = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
-}
+const ordinalOf = ordinal
 
 // A club's league position after each matchday; first place at the top. One
 // piece for the club page, the run hub and the result screen (P8-67).
@@ -517,8 +523,8 @@ export function PositionGraph({ roles, values, clubs, onPoint, selected, compare
 }) {
   return (
     <LineGraph roles={roles} values={values} min={1} max={clubs} invert fmt={v => ordinalOf(v).toUpperCase()}
-      topWord="TOP" bottomWord="LAST" onPoint={onPoint} selected={selected} compare={compare}
-      legend={`League position after each matchday · now ${ordinalOf(values[values.length - 1])} of ${clubs}`} />
+      topWord={t('season.top')} bottomWord={t('season.last')} onPoint={onPoint} selected={selected} compare={compare}
+      legend={t('season.positionLegend', { place: ordinalOf(values[values.length - 1]), count: clubs })} />
   )
 }
 
@@ -555,7 +561,7 @@ export function PositionCompare({ roles, clubId, positions, table, clubs, onPoin
 // four (one per SERIES colour). A chip that's on wears its line's colour.
 export const MAX_COMPARE = SERIES.length
 
-export function ComparePicker({ roles, options, selected, onChange, label = 'Compare with' }: {
+export function ComparePicker({ roles, options, selected, onChange, label = t('season.compareWith') }: {
   roles: Roles
   /** Everyone who can be compared; found by typing, never listed in full. */
   options: { id: string; label: string }[]
@@ -578,7 +584,7 @@ export function ComparePicker({ roles, options, selected, onChange, label = 'Com
         <View style={styles.compareRow}>
           {selected.map((id, k) => (
             <Pressable key={id} onPress={() => onChange(selected.filter(x => x !== id))} accessibilityRole="button"
-              accessibilityLabel={`Stop comparing with ${names.get(id) ?? id}`}
+              accessibilityLabel={t('season.stopComparing', { name: names.get(id) ?? id })}
               style={({ pressed }) => [styles.compareChip, { borderColor: SERIES[k] }, pressed && { backgroundColor: roles.sunken }]}>
               <View style={[styles.graphSwatch, { backgroundColor: SERIES[k] }]} />
               <KitText t="tag" color={roles.text} numberOfLines={1}>{names.get(id) ?? id}</KitText>
@@ -588,7 +594,7 @@ export function ComparePicker({ roles, options, selected, onChange, label = 'Com
         </View>
       )}
       {selected.length < MAX_COMPARE && (
-        <Field roles={roles} label={`${label} · up to ${MAX_COMPARE}`} value={query} onChangeText={setQuery} autoCorrect={false} autoCapitalize="none" />
+        <Field roles={roles} label={t('season.upTo', { label, max: MAX_COMPARE })} value={query} onChangeText={setQuery} autoCorrect={false} autoCapitalize="none" />
       )}
       {found.map(o => (
         <Pressable key={o.id} onPress={() => add(o.id)} accessibilityRole="button"
@@ -597,7 +603,7 @@ export function ComparePicker({ roles, options, selected, onChange, label = 'Com
           <Icon name="forward" size={16} color={roles.textMuted} />
         </Pressable>
       ))}
-      {q.length >= 2 && found.length === 0 ? <KitText t="tag" color={roles.textMuted}>NOBODY BY THAT NAME</KitText> : null}
+      {q.length >= 2 && found.length === 0 ? <KitText t="tag" color={roles.textMuted}>{t('season.nobody')}</KitText> : null}
     </View>
   )
 }
@@ -615,7 +621,10 @@ export function SegmentSwitch<T extends string>({ roles, options, value, onChang
       {options.map(o => {
         const on = o.id === value
         return (
-          <Pressable key={o.id} onPress={() => onChange(o.id)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+          // Phase 9: a tab switch is timed to the frame that shows it (ui:tab). The
+          // maintainer saw switching tabs mid-season lag on the phone (22 Sept);
+          // the reading says how much, and on which screen, before anything changes.
+          <Pressable key={o.id} onPress={() => { log.info('ui', `tab ${o.id}`); timeToFrame('ui:tab', () => onChange(o.id)) }} accessibilityRole="tab" accessibilityState={{ selected: on }}
             style={({ pressed }) => [styles.segmentBtn, pressed && !on && { backgroundColor: roles.sunken }]}>
             <KitText t="tag" color={on ? roles.text : roles.textMuted}>
               {o.count ? `${o.label} ${o.count}` : o.label}
@@ -631,6 +640,19 @@ export function SegmentSwitch<T extends string>({ roles, options, value, onChang
 // ── FixtureRow ───────────────────────────────────────────────────────────────
 // One of your fixtures before or as it's played: matchday, home or away, the
 // opponent, and the pot they came from.
+/** One of your fixtures, played or still to come (F-08). */
+export type YourFixture = {
+  matchday: number; home: boolean | null; you: string; opponent: string
+  pot?: number; flag?: string | null; when?: string; result?: { mine: number; theirs: number }
+}
+
+/** Your fixtures, the stage's "Fixtures" tab (F-08, C-12). The classic league
+ *  phase had a list and the World Cup another; the league season and the full
+ *  path had none. Every table or group stage now builds its rows and shows this. */
+export function YourFixtures({ roles, rows }: { roles: Roles; rows: YourFixture[] }) {
+  return <View>{rows.map(f => <FixtureRow key={f.matchday} roles={roles} {...f} />)}</View>
+}
+
 export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result, when, you }: {
   roles: Roles
   matchday: number
@@ -650,31 +672,31 @@ export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result,
   const mark: Mark | null = result ? (result.mine > result.theirs ? 'W' : result.mine < result.theirs ? 'L' : 'D') : null
   return (
     <View style={[styles.fixture, { borderBottomColor: roles.rule }]} accessible
-      accessibilityLabel={`Matchday ${matchday}, ${home == null ? 'against' : home ? 'home to' : 'away at'} ${opponent}${pot ? `, pot ${pot}` : ''}${result ? `, ${result.mine} ${result.theirs}` : ''}`}>
+      accessibilityLabel={t('season.fixtureA11y', { md: matchday, where: home == null ? t('season.against') : home ? t('season.homeTo') : t('season.awayAt'), name: opponent }) + (pot ? t('season.potA11y', { pot }) : '') + (result ? `, ${result.mine} ${result.theirs}` : '')}>
       <View style={styles.fixtureMd}>
-        <KitText t="tag" color={roles.textMuted}>{`MD ${matchday}`}</KitText>
+        <KitText t="tag" color={roles.textMuted}>{t('season.md', { md: matchday })}</KitText>
         {when ? <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{when}</KitText> : null}
       </View>
       {home != null && <VenueMark roles={roles} home={home} />}
-      {flag !== undefined && <RoundFlag emoji={flag} code={opponent.slice(0, 3)} size={16} roles={roles} />}
+      {flag !== undefined && <RoundFlag emoji={flag} code={opponent} size={16} roles={roles} />}
       {you && home != null ? (
         <>
           <KitText t="body" color={roles.text} numberOfLines={1} style={styles.fixtureLeft}>{home ? you : opponent}</KitText>
           <KitText t="figure" color={result ? roles.text : roles.textMuted} style={styles.fixtureScore}>
-            {result ? (home ? `${result.mine}–${result.theirs}` : `${result.theirs}–${result.mine}`) : 'v'}
+            {result ? (home ? `${result.mine}–${result.theirs}` : `${result.theirs}–${result.mine}`) : t('season.v')}
           </KitText>
           <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{home ? opponent : you}</KitText>
-          {pot ? <Tag roles={roles}>{`POT ${pot}`}</Tag> : null}
-          {mark ? <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag> : null}
+          {pot ? <Tag roles={roles}>{t('season.pot', { pot })}</Tag> : null}
+          {mark ? <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{MARK_TEXT[mark]}</Tag> : null}
         </>
       ) : (
         <>
           <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{opponent}</KitText>
-          {pot ? <Tag roles={roles}>{`POT ${pot}`}</Tag> : null}
+          {pot ? <Tag roles={roles}>{t('season.pot', { pot })}</Tag> : null}
           {result && mark ? (
             <>
               <KitText t="figure" color={roles.text}>{`${result.mine}–${result.theirs}`}</KitText>
-              <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{mark}</Tag>
+              <Tag roles={roles} variant={mark === 'W' ? 'win' : mark === 'D' ? 'draw' : 'loss'}>{MARK_TEXT[mark]}</Tag>
             </>
           ) : null}
         </>
@@ -698,17 +720,17 @@ export function GroupWall({ roles, groups, onOpen, cut = 2 }: {
     <View style={styles.wall}>
       {groups.map(g => (
         <Pressable key={g.id} disabled={!onOpen} onPress={() => onOpen?.(g.id)} accessibilityRole={onOpen ? 'button' : undefined}
-          accessibilityLabel={`Group ${g.id}: ${g.rows.map(r => `${r.clubName} ${r.points}`).join(', ')}`}
+          accessibilityLabel={t('season.groupA11y', { id: g.id, list: g.rows.map(r => `${countryName(r.clubName)} ${r.points}`).join(', ') })}
           style={({ pressed }) => [styles.mini, { borderColor: g.you ? roles.line : roles.rule, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
           <View style={styles.miniTop}>
-            <KitText t="tag" color={roles.text}>{`GROUP ${g.id}`}</KitText>
+            <KitText t="tag" color={roles.text}>{t('season.group', { id: g.id })}</KitText>
             <View style={{ flex: 1 }} />
             {onOpen ? <Icon name="chevron" size={16} color={roles.textMuted} /> : null}
           </View>
           {g.rows.map((r, i) => (
             <View key={r.clubId} style={[styles.miniRow, i === cut && { borderTopWidth: border.thin, borderTopColor: roles.rule }]}>
-              {r.flag !== undefined && <RoundFlag emoji={r.flag} code={r.clubName.slice(0, 3)} size={16} roles={roles} />}
-              <KitText t="body" color={r.isPlayer ? roles.text : roles.textMuted} numberOfLines={1} style={{ flex: 1 }}>{r.clubName}</KitText>
+              {r.flag !== undefined && <RoundFlag emoji={r.flag} code={r.clubName} size={16} roles={roles} />}
+              <KitText t="body" color={r.isPlayer ? roles.text : roles.textMuted} numberOfLines={1} style={{ flex: 1 }}>{countryName(r.clubName)}</KitText>
               <KitText t="figure" color={roles.text}>{String(r.points)}</KitText>
             </View>
           ))}
@@ -736,23 +758,10 @@ export function StampLabel({ roles, text, good, sub }: { roles: Roles; text: str
   )
 }
 
-// ── RoadTape ─────────────────────────────────────────────────────────────────
-// The full Champions League path as five stages (07c C4): done ones stamp
+// ── The full path's road ─────────────────────────────────────────────────────
+// Its five stages (07c C4), drawn by RunHeader's `road` strip: done ones stamp
 // DONE, the current one carries the tag, the rest wait in faint type.
-export const UCL_ROAD = ['Domestic', "Europe's seasons", 'Qualifying', 'League phase', 'Knockouts'] as const
-
-export function RoadTape({ roles, current }: { roles: Roles; current: number }) {
-  return (
-    <View style={styles.road} accessible accessibilityLabel={`Stage ${current + 1} of ${UCL_ROAD.length}: ${UCL_ROAD[current]}`}>
-      <Tape colours={['#2F4BFF']} roles={roles} style={styles.roadTape} />
-      <View style={styles.roadRow}>
-        {UCL_ROAD.map((name, i) => i === current
-          ? <Tag key={name} roles={roles} variant="selected">{name}</Tag>
-          : <KitText key={name} t="tag" color={i < current ? roles.text : roles.textFaint}>{i < current ? `${name} DONE` : name}</KitText>)}
-      </View>
-    </View>
-  )
-}
+export const UCL_ROAD = [t('season.roadDomestic'), t('season.roadSeasons'), t('season.roadQualifying'), t('season.roadLeague'), t('season.roadKnockouts')] as const
 
 // ── Ties ─────────────────────────────────────────────────────────────────────
 // One tie, two sizes: `TieCard` for yours (the scoreline as a super) and
@@ -779,16 +788,51 @@ export type TieVM = {
   onPress?: () => void
 }
 
+// The line under a tie is `tieDetail` (src/lib/tieDetail.ts): the rows, the
+// brackets and the live bracket all write it the same way.
+export { tieDetail }
+
+/** One tie's row, from the engine's one tie model (src/engine/stages.ts). */
+export function tieVM(tie: StageTie, opts: {
+  onPress?: () => void
+  /** Clubs that entered this round directly (the seeds skipping a round). */
+  direct?: Set<string>
+  /** Show who scored under the row (the live rounds do). */
+  withScorers?: boolean
+  /** The live beat after a tie resolves: its scorers and "You advance". */
+  justDecided?: { scorersLine?: string; outcomeLine: string }
+} = {}): TieVM {
+  const { a, b } = tie
+  return {
+    id: `${a.clubId}-${b?.clubId ?? 'bye'}`,
+    aName: a.clubName, bName: b?.clubName ?? '',
+    aClubId: a.clubId, bClubId: b?.clubId,
+    // A nation shows its round flag; a club has none and shows its crest.
+    aFlag: getFlag(a.clubId), bFlag: b ? getFlag(b.clubId) : null,
+    score: b && tie.aGoals !== undefined ? `${tie.aGoals}–${tie.bGoals}` : undefined,
+    detail: tieDetail(tie),
+    winnerIsA: tie.winnerIsA,
+    isPlayerTie: !!(a.isPlayer || b?.isPlayer),
+    bye: !b,
+    directA: !!opts.direct?.has(a.clubId), directB: !!(b && opts.direct?.has(b.clubId)),
+    scorers: opts.justDecided?.scorersLine ?? (opts.withScorers
+      ? tie.scorers.flatMap(sc => [summariseScorers(sc?.home), summariseScorers(sc?.away)]).filter(Boolean).join(' · ') || undefined
+      : undefined),
+    note: opts.justDecided?.outcomeLine,
+    onPress: opts.onPress,
+  }
+}
+
 function Flagged({ roles, name, flag, clubId, direct, muted, align }: {
   roles: Roles; name: string; flag?: string | null; clubId?: string; direct?: boolean; muted?: boolean; align: 'left' | 'right'
 }) {
   const body = (
     <>
       {flag
-        ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={16} roles={roles} />
+        ? <RoundFlag emoji={flag} code={name} size={16} roles={roles} />
         : <TeamMark roles={roles} clubId={clubId} name={name} size={16} />}
-      {direct && <Tag roles={roles}>SEED</Tag>}
-      <KitText t="body" color={muted ? roles.textMuted : roles.text} numberOfLines={1} style={{ flexShrink: 1, textAlign: align }}>{name}</KitText>
+      {direct && <Tag roles={roles}>{t('season.seed')}</Tag>}
+      <KitText t="body" color={muted ? roles.textMuted : roles.text} numberOfLines={1} style={{ flexShrink: 1, textAlign: align }}>{countryName(name)}</KitText>
     </>
   )
   return (
@@ -801,16 +845,16 @@ function Flagged({ roles, name, flag, clubId, direct, muted, align }: {
 export function TieRow({ roles, tie }: { roles: Roles; tie: TieVM }) {
   if (tie.bye) {
     return (
-      <View style={[styles.tieRow, { borderBottomColor: roles.rule }]} accessible accessibilityLabel={`${tie.aName} advance without playing`}>
+      <View style={[styles.tieRow, { borderBottomColor: roles.rule }]} accessible accessibilityLabel={t('season.byeA11y', { name: tie.aName })}>
         <Flagged roles={roles} name={tie.aName} flag={tie.aFlag} clubId={tie.aClubId} direct={tie.directA} align="left" />
-        <Tag roles={roles}>BYE</Tag>
-        <KitText t="body" color={roles.textMuted} numberOfLines={1}>advances unopposed</KitText>
+        <Tag roles={roles}>{t('season.bye')}</Tag>
+        <KitText t="body" color={roles.textMuted} numberOfLines={1}>{t('season.unopposed')}</KitText>
       </View>
     )
   }
   return (
     <Pressable onPress={tie.onPress} disabled={!tie.onPress} accessibilityRole="button"
-      accessibilityLabel={`${tie.aName} ${tie.score ?? ''} ${tie.bName}${tie.detail ? `, ${tie.detail}` : ''}`}
+      accessibilityLabel={`${countryName(tie.aName)} ${tie.score ?? ''} ${countryName(tie.bName)}${tie.detail ? `, ${label_(tie.detail)}` : ''}`}
       style={({ pressed }) => [styles.tieRow, { borderBottomColor: roles.rule }, tie.isPlayerTie && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <View style={{ flex: 1 }}>
         <View style={styles.tieLine}>
@@ -818,7 +862,7 @@ export function TieRow({ roles, tie }: { roles: Roles; tie: TieVM }) {
           <KitText t="figure" color={roles.text} style={styles.tieFig}>{tie.score ?? ''}</KitText>
           <Flagged roles={roles} name={tie.bName} flag={tie.bFlag} clubId={tie.bClubId} direct={tie.directB} muted={tie.winnerIsA} align="left" />
         </View>
-        {tie.detail ? <KitText t="tag" color={roles.textMuted} style={styles.tieCentre}>{tie.detail}</KitText> : null}
+        {tie.detail ? <KitText t="tag" color={roles.textMuted} style={styles.tieCentre}>{label_(tie.detail)}</KitText> : null}
         {tie.scorers ? <KitText t="body" color={roles.textMuted} style={styles.tieCentre} numberOfLines={2}>{tie.scorers}</KitText> : null}
         {tie.note ? <KitText t="tag" color={roles.text} style={styles.tieCentre}>{tie.note}</KitText> : null}
       </View>
@@ -832,7 +876,7 @@ export function TieCard({ roles, tie, label, tone }: {
 }) {
   return (
     <Pressable onPress={tie.onPress} disabled={!tie.onPress} accessibilityRole="button"
-      accessibilityLabel={`${label}. ${tie.aName} ${tie.score ?? ''} ${tie.bName}${tie.detail ? `, ${tie.detail}` : ''}`}
+      accessibilityLabel={`${label_(label)}. ${countryName(tie.aName)} ${tie.score ?? ''} ${countryName(tie.bName)}${tie.detail ? `, ${label_(tie.detail)}` : ''}`}
       style={({ pressed }) => [styles.tieCard, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
       {/* The round's name is the section heading right above the card (with
           its explainer); said here too it read twice (the maintainer, 26 Sept).
@@ -845,18 +889,18 @@ export function TieCard({ roles, tie, label, tone }: {
       <View style={styles.scoreRow}>
         <View style={[styles.scoreSide, { alignItems: 'flex-end' }]}>
           {/* Each side's crest, or a nation's flag: the card had only flags, so a club tie had no mark. */}
-          {tie.aFlag ? <RoundFlag emoji={tie.aFlag} code={tie.aName.slice(0, 3)} size={24} roles={roles} />
+          {tie.aFlag ? <RoundFlag emoji={tie.aFlag} code={tie.aName} size={24} roles={roles} />
             : <TeamMark roles={roles} clubId={tie.aClubId} name={tie.aName} size={24} />}
-          <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{tie.aName}</KitText>
+          <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{countryName(tie.aName)}</KitText>
         </View>
         <KitText t="superL" color={roles.text} style={styles.scoreFig}>{tie.score ?? ''}</KitText>
         <View style={[styles.scoreSide, { alignItems: 'flex-start' }]}>
-          {tie.bFlag ? <RoundFlag emoji={tie.bFlag} code={tie.bName.slice(0, 3)} size={24} roles={roles} />
+          {tie.bFlag ? <RoundFlag emoji={tie.bFlag} code={tie.bName} size={24} roles={roles} />
             : <TeamMark roles={roles} clubId={tie.bClubId} name={tie.bName} size={24} />}
-          <KitText t="title" color={roles.text} numberOfLines={2}>{tie.bName}</KitText>
+          <KitText t="title" color={roles.text} numberOfLines={2}>{countryName(tie.bName)}</KitText>
         </View>
       </View>
-      {tie.detail ? <KitText t="tag" color={roles.textMuted} style={styles.tieCentre}>{tie.detail}</KitText> : null}
+      {tie.detail ? <KitText t="tag" color={roles.textMuted} style={styles.tieCentre}>{label_(tie.detail)}</KitText> : null}
       {tie.scorers ? <KitText t="body" color={roles.textMuted} style={styles.tieCentre}>{tie.scorers}</KitText> : null}
     </Pressable>
   )
@@ -868,14 +912,28 @@ export function Ticker({ roles, story, onPress }: { roles: Roles; story: Story |
   if (!story) return null
   const { headline } = storyText(story)
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Latest story: ${headline}`} accessibilityHint="Opens the press"
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('season.latestStory', { headline })} accessibilityHint={t('season.opensPress')}
       style={({ pressed }) => [styles.ticker, { borderColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
       <Icon name="press" size={16} color={roles.textMuted} />
       <Animated.View key={story.id} entering={FadeIn.duration(200)} style={{ flex: 1 }}>
         <KitText t="body" color={roles.text} numberOfLines={1}>{`"${headline}"`}</KitText>
       </Animated.View>
-      <KitText t="tag" color={roles.textMuted}>{`MD ${story.matchday}`}</KitText>
+      <KitText t="tag" color={roles.textMuted}>{storyWhen(story, 'day')}</KitText>
     </Pressable>
+  )
+}
+
+/**
+ * A stage's press, newest first (F-01): the league season's tab, and every cup
+ * stage's. `empty` says why there's nothing yet. Each story opens its page.
+ */
+export function PressList({ roles, stories, empty, onOpen }: { roles: Roles; stories: Story[]; empty: string; onOpen: (id: string) => void }) {
+  if (stories.length === 0) return <KitText t="body" color={roles.textMuted} style={{ paddingVertical: space[3] }}>{empty}</KitText>
+  return (
+    <>
+      <SectionTag roles={roles}>{t('season.newestFirst')}</SectionTag>
+      {[...stories].reverse().map(s => <StoryItem key={s.id} roles={roles} story={s} onPress={() => onOpen(s.id)} />)}
+    </>
   )
 }
 
@@ -888,9 +946,9 @@ export const StoryItem = memo(function StoryItem({ roles, story, onPress }: { ro
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'link' : undefined}
       style={({ pressed }) => [styles.story, { borderBottomColor: roles.rule }, story.involvesPlayer && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}
-      accessibilityLabel={`Matchday ${story.matchday}. ${story.involvesPlayer ? 'About you. ' : ''}${headline}. ${standfirst}`}>
+      accessibilityLabel={t('season.storyA11y', { when: storyWhen(story), about: story.involvesPlayer ? t('season.aboutYou') : '', headline, standfirst })}>
       <View style={styles.storyTop}>
-        <KitText t="tag" color={roles.textMuted}>{`MD ${story.matchday}/${story.totalMatchdays}`}</KitText>
+        <KitText t="tag" color={roles.textMuted}>{storyWhen(story, 'short')}</KitText>
         {/* P8-145: the hot ones live: a streak, a masterclass, a champion. */}
         {HOT_STORIES.has(story.kind) ? <Twinkle i={story.matchday} /> : null}
       </View>
@@ -901,9 +959,9 @@ export const StoryItem = memo(function StoryItem({ roles, story, onPress }: { ro
       {story.match ? (
         <View style={styles.storyRow}>
           <TeamMark roles={roles} clubId={story.match.homeId} name={story.match.homeName} size={16} />
-          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{story.match.homeName}</KitText>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{countryName(story.match.homeName)}</KitText>
           <KitText t="figure" color={roles.text}>{`${story.match.homeGoals}–${story.match.awayGoals}`}</KitText>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{story.match.awayName}</KitText>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{countryName(story.match.awayName)}</KitText>
           <TeamMark roles={roles} clubId={story.match.awayId} name={story.match.awayName} size={16} />
         </View>
       ) : (
@@ -912,8 +970,8 @@ export const StoryItem = memo(function StoryItem({ roles, story, onPress }: { ro
         {story.rows.map(r => (
           <View key={r.clubId} style={styles.storyRow}>
             <KitText t="figure" color={roles.textMuted} style={styles.pos}>{String(r.pos)}</KitText>
-            <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{r.clubName}</KitText>
-            <KitText t="figure" color={roles.text}>{`${r.points} PTS`}</KitText>
+            <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{countryName(r.clubName)}</KitText>
+            <KitText t="figure" color={roles.text}>{t('parts.ptsCaps', { n: r.points })}</KitText>
           </View>
         ))}
       </View>
@@ -1005,9 +1063,6 @@ const styles = StyleSheet.create({
   stampBody: { flex: 1, padding: space[3], gap: 4 },
 
   tableBreak: { borderTopWidth: border.plate, paddingTop: space[2], paddingBottom: space[1] },
-  road: { gap: space[2], paddingHorizontal: space[4] },
-  roadTape: { marginHorizontal: -space[4] },
-  roadRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[2] },
 
   tieRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 48, paddingVertical: space[1], borderBottomWidth: border.hair },
   tieLine: { flexDirection: 'row', alignItems: 'center', gap: space[2] },

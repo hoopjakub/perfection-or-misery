@@ -79,12 +79,12 @@ async function main() {
   for (const [i, o] of CHAT) { const v = await chat(i); check(v === o, `chat "${i}" → "${v}", expected "${o}"`) }
 
   // ── Where it runs ──────────────────────────────────────────────────────────
-  const A = '00000000-0000-0000-0000-00000000000a', B = '00000000-0000-0000-0000-00000000000b', M = '00000000-0000-0000-0000-00000000000c'
+  const A = '00000000-0000-0000-0000-00000000000a', B = '00000000-0000-0000-0000-00000000000b'
   const fails = async (sql: string, params: unknown[] = []) => { try { await db.query(sql, params); return '' } catch (e) { return String((e as Error).message) } }
   check((await fails(`insert into profiles (id, username) values ('${A}', 'fuckface')`)).includes('BAD_WORD'), 'a username with a swear is refused')
   check((await fails(`insert into profiles (id, username) values ('${A}', 'IslamHater2121')`)) === '', 'an unsure username is let through')
   check(Number((await one(`select count(*) n from mod_flags where target_type = 'player' and target_id = '${A}' and source = 'auto'`)).n) === 1, '…and flagged for review')
-  await db.query(`insert into profiles (id, username) values ('${B}', 'Reporter'), ('${M}', 'Moderator')`)
+  await db.query(`insert into profiles (id, username) values ('${B}', 'Reporter')`)
   check((await fails(`insert into profile_looks (user_id, about) values ('${B}', 'I love kokot')`)).includes('BAD_WORD'), 'a profile about with a swear is refused')
   check((await fails(`insert into profile_details (user_id, favourite_player) values ('${B}', 'Jamie Vardy')`)) === '', 'a real footballer as a favourite passes')
   check((await fails(`update profile_details set favourite_player = 'B1tch' where user_id = '${B}'`)).includes('BAD_WORD'), 'a favourite player with a swear is refused')
@@ -105,9 +105,8 @@ async function main() {
   await db.query(`select report('player', '${A}', 'hate', 'again')`) // a second report by the same player is ignored
   check(Number((await one(`select reports from mod_flags where target_id = '${A}' and status = 'open'`)).reports) === 1, 'one report each, joined to the open flag')
   check((await fails(`select report('player', '${B}', 'name', null)`)).includes('NOT_ALLOWED'), "you can't report yourself")
-  check((await fails('select * from mod_inbox()')).includes('NOT_ALLOWED'), 'only a moderator reads the inbox')
-  await db.query(`update profiles set is_admin = true where id = '${M}'`)
-  await db.query(`select set_config('test.uid', '${M}', false)`)
+  // The inbox and its actions are the SQL editor's (and later the website's
+  // admin's); PGlite runs as the database owner, like the editor does.
   const inbox = (await db.query<{ id: number; target_id: string; details: string[] }>('select * from mod_inbox()')).rows
   check(inbox.length === 1 && inbox[0].target_id === A && inbox[0].details[0] === 'hate: look at the name', 'the inbox shows the entry with its report')
   await db.query('select mod_act($1, $2)', [inbox[0].id, 'ban'])

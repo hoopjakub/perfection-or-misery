@@ -5,7 +5,8 @@
 // ("Advancement Made!") and the name under it, and slides away again. Here: a
 // Kit plate on the everyday ground (so it follows dark and light), the trophy
 // in a gold block, the header, the achievement and one line on how it was
-// earned. Words live in TOAST_WORDS, for the Slovak pass (P8.5-28).
+// earned. Its header is common.achievementGet (src/i18n, P8.5-28).
+import { t } from '@/i18n'
 import React, { useEffect } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, withSequence, runOnJS, Easing } from 'react-native-reanimated'
@@ -17,7 +18,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useAchievementToasts, announceNewAchievements } from '@/lib/achievementToast'
 import { useUserStore } from '@/store/userStore'
 
-export const TOAST_WORDS = { header: 'Achievement get!' }
+const HEADER = t('common.achievementGet')
 
 const roles = ROLES[EVERYDAY]
 const IN_MS = 280, HOLD_MS = 3600, OUT_MS = 240
@@ -55,13 +56,13 @@ export function AchievementToast() {
   return (
     <Animated.View pointerEvents="box-none" style={[styles.layer, { top: insets.top + space[2] }, style]}>
       <Pressable onPress={() => shift()} accessibilityRole="alert" accessibilityLiveRegion="polite"
-        accessibilityLabel={`${TOAST_WORDS.header} ${item.title}. ${item.line}`}
+        accessibilityLabel={`${HEADER} ${item.title}. ${item.line}`}
         style={[styles.toast, { backgroundColor: roles.surface, borderColor: roles.line }]}>
         <View style={[styles.icon, { backgroundColor: prim.gold, borderColor: roles.line }]}>
           <Icon name="trophy" size={20} color={prim.ink} />
         </View>
         <View style={styles.words}>
-          <KitText t="tag" color={roles.textMuted}>{TOAST_WORDS.header.toUpperCase()}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{HEADER.toUpperCase()}</KitText>
           <KitText t="title" color={roles.text} numberOfLines={1}>{item.title}</KitText>
           <KitText t="tag" color={roles.textMuted} numberOfLines={2}>{item.line}</KitText>
         </View>

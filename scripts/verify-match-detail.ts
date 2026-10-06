@@ -19,6 +19,7 @@
 import { simulateMatch } from '../src/engine/match.ts'
 import { attributeMatchScorers } from '../src/engine/stats.ts'
 import { generateMatchDetail } from '../src/engine/match-detail.ts'
+import { checkMatchDetail, invariantChecks } from '../src/engine/invariants.ts'
 import { matchTeamOvr, ROTATION_MAX_DROP, ROTATION_MIN_PENALTY } from '../src/engine/lineup.ts'
 import { rotationFor } from '../src/engine/rotation.ts'
 import { INJURY_PER_SIDE_PER_MATCH, HALF_TIME_MINUTE } from '../src/engine/match-detail.ts'
@@ -35,8 +36,19 @@ import { mulberry32, randomSeed } from '../src/lib/rng.ts'
 import type { RosterPlayer, MatchScorers } from '../src/types/stats.ts'
 import type { SimTeam } from '../src/types/simulation.ts'
 
+// Phase 9 (docs/diagnostics/04-CHECKS.md §3.2): `--seed N` replays a run
+// exactly. simulateMatch and randomSeed both draw from Math.random, so it's
+// swapped for a seeded generator; without the flag the seed comes from the
+// clock and is printed, so any failure can be run again as it happened.
+const seedAt = process.argv.indexOf('--seed')
+const RUN_SEED = seedAt > 0 ? Number(process.argv[seedAt + 1]) : Date.now() % 2147483647
+Math.random = mulberry32(RUN_SEED)
+console.log(`seed ${RUN_SEED} (replay with --seed ${RUN_SEED})`)
+
 let failures = 0
+let checksRun = 0
 function check(cond: boolean, msg: string) {
+  checksRun++
   if (!cond) { failures++; console.error(`  ✗ ${msg}`) }
 }
 
@@ -71,13 +83,13 @@ function simTeam(clubId: string, ovr: number): SimTeam {
 }
 
 // ── Main loop ───────────────────────────────────────────────────────────────
-const N = 4000
+const N = 20000   // 20,000 (was 4,000, 3 Oct): C-1 judges rare matches (an outright brace in a defeat, ~1 in 85) and needs ~230 of them not to flake
 const poolRng = mulberry32(42)
 
 type Sample = {
   homeOvr: number; awayOvr: number; hg: number; ag: number; isUpset: boolean
   homeXg: number; awayXg: number; homePoss: number
-  ratings: { pos: string; rating: number; goals: number; assists: number; motm: boolean; minutes: number; side: 'w' | 'l' | 'd' }[]
+  ratings: { pos: string; rating: number; goals: number; assists: number; motm: boolean; minutes: number; side: 'w' | 'l' | 'd'; saves?: number; topScorer?: boolean }[]
 }
 let hatTricks = 0
 const samples: Sample[] = []
@@ -141,150 +153,20 @@ for (let i = 0; i < N; i++) {
     if (l1 && d) check(goalsOf(l1) === goalsOf(d), `match ${i}: legacy attribution diverges from stored scorers`)
   }
 
-  // 2) Invariants
+  // 2) Invariants: one copy, src/engine/invariants.ts, which the phone's
+  // self-test runs too (Diagnostics step 3).
+  for (const v of checkMatchDetail(d, { homeGoals: result.homeGoals, awayGoals: result.awayGoals, scorers, homePool, awayPool })) check(false, `match ${i}: ${v}`)
 
-  // Every lineup entry and timeline event must resolve to a real side (Big
-  // Fixes §5.1: a sub's team must never come out unresolved — that bug was
-  // downstream, in result-screen squad lookups dropping bench players, but
-  // this pins the invariant at the source layer too).
-  for (const p of d.players) check(typeof p.isHome === 'boolean', `match ${i}: player ${p.playerId} has no resolved team (isHome)`)
-  for (const e of d.events)  check(typeof e.isHome === 'boolean', `match ${i}: event ${e.type}@${e.minute} has no resolved team (isHome)`)
-
-  // §9: an own goal counts on the beneficiary's scoreline but is nobody on that
-  // side's goal, shot or save — every invariant below is anchored on ATTACKING
-  // goals (scoreline minus own goals gifted to you) instead of the raw score.
-  const homeAtk = result.homeGoals - scorers.home.filter(g => g.ownGoal).length
-  const awayAtk = result.awayGoals - scorers.away.filter(g => g.ownGoal).length
-
-  const sideLines = (isHome: boolean) => d.players.filter(p => p.isHome === isHome)
-  for (const [isHome, goals, atkGoals, opp, oppAtk] of [
-    [true,  result.homeGoals, homeAtk, d.away, awayAtk],
-    [false, result.awayGoals, awayAtk, d.home, homeAtk],
-  ] as const) {
-    const t = isHome ? d.home : d.away
-    const lines = sideLines(isHome)
-    const sum = (f: (l: typeof lines[number]) => number) => lines.reduce((s, l) => s + f(l), 0)
-
-    check(sum(l => l.goals) === atkGoals, `match ${i}: Σ player goals ${sum(l => l.goals)} != attacking goals ${atkGoals}`)
-    // The own goals THIS side put in must equal the own goals on the OPPONENT's scoreline.
-    const ogAgainstUs = (isHome ? scorers.away : scorers.home).filter(g => g.ownGoal).length
-    check(sum(l => l.ownGoals) === ogAgainstUs, `match ${i}: Σ own goals ${sum(l => l.ownGoals)} != ${ogAgainstUs} charged to this side`)
-    check(sum(l => l.goals) + ogAgainstUs === atkGoals + ogAgainstUs, `match ${i}: goal bookkeeping drifted`)
-    const attributedAssists = (isHome ? scorers.home : scorers.away).filter(g => g.assistId).length
-    check(sum(l => l.assists) === attributedAssists, `match ${i}: Σ assists mismatch`)
-    const attributedPenWon = (isHome ? scorers.home : scorers.away).filter(g => g.penWonId).length
-    check(sum(l => l.penaltiesWon) === attributedPenWon, `match ${i}: Σ penalties won mismatch`)
-    const attributedErrors = (isHome ? scorers.away : scorers.home).filter(g => g.errorById).length
-    check(sum(l => l.errorsLeadingToGoal) === attributedErrors, `match ${i}: Σ errors mismatch`)
-    check(sum(l => l.penaltyGoals) <= sum(l => l.goals), `match ${i}: penalty goals exceed goals`)
-    check(t.shotsOnTarget >= atkGoals, `match ${i}: team SOT < attacking goals`)
-    check(sum(l => l.shots) === t.shots, `match ${i}: Σ player shots != team shots`)
-    check(sum(l => l.shotsOnTarget) === t.shotsOnTarget, `match ${i}: Σ player SOT != team SOT`)
-    check(lines.every(l => l.shots >= l.shotsOnTarget && l.shotsOnTarget >= l.goals), `match ${i}: player shot ordering broken`)
-    check(t.shots === t.shotsOnTarget + t.shotsOffTarget + t.shotsBlocked, `match ${i}: shot split mismatch`)
-    check(t.shots === t.shotsInsideBox + t.shotsOutsideBox, `match ${i}: box split mismatch`)
-    check(t.keeperSaves === opp.shotsOnTarget - oppAtk, `match ${i}: saves mismatch`)
-    check(t.blocks === opp.shotsBlocked, `match ${i}: blocks != opp blocked shots`)
-    check(sum(l => l.passes) === t.passes, `match ${i}: Σ passes != team`)
-    check(lines.every(l => l.accuratePasses <= l.passes), `match ${i}: accurate > total passes`)
-    check(sum(l => l.foulsCommitted) === t.fouls, `match ${i}: Σ fouls != team`)
-    check(sum(l => l.foulsWon) === opp.fouls, `match ${i}: Σ fouls won != opp fouls`)
-    check(sum(l => l.tacklesWon) === t.tacklesWon, `match ${i}: Σ tackles != team`)
-    check(sum(l => l.touchesInOppBox) === t.touchesInOppBox, `match ${i}: Σ box touches != team`)
-    check(t.bigChances >= t.bigChancesMissed, `match ${i}: big chances < missed`)
-    check(t.xg > 0 || t.shots === 0, `match ${i}: zero xG with shots`)
-
-    const gk = lines.find(l => l.gk)
-    if (gk?.gk) {
-      check(gk.gk.saves === t.keeperSaves, `match ${i}: GK line saves != team saves`)
-      check(gk.gk.goalsConceded === (isHome ? result.awayGoals : result.homeGoals), `match ${i}: GK conceded mismatch`)
-    }
-
-    // Sub sanity: everyone who came on did so before doing anything; minutes coherent.
-    for (const l of lines) {
-      if (l.subOnMinute !== undefined) {
-        // §10.5 phase 3 made half-time a real beat, so 45' is now a legitimate
-        // "came on" minute — it means he was brought on at the interval. And
-        // §10.5 phase 4 exempts a forced change entirely: if a man goes down on
-        // 20 minutes his replacement comes on THEN, first half or not.
-        const forcedOn = d.events.some(e => e.type === 'sub' && e.forced && e.playerId === l.playerId && e.isHome === isHome)
-        check(forcedOn || l.subOnMinute >= HALF_TIME_MINUTE, `match ${i}: sub came on at ${l.subOnMinute}' — inside the first half`)
-        check(l.minutes > 0 && l.minutes <= d.duration - l.subOnMinute, `match ${i}: sub minutes incoherent (${l.minutes} on at ${l.subOnMinute})`)
-      }
-      if (l.subOffMinute !== undefined) check(l.minutes <= l.subOffMinute, `match ${i}: sub-off minutes incoherent`)
-      check(l.minutes > 0 || (l.goals === 0 && l.assists === 0 && l.shots === 0 && l.passes === 0
-        && l.ownGoals === 0 && l.penaltiesWon === 0 && l.errorsLeadingToGoal === 0), `match ${i}: unused sub has stats`)
-    }
-
-    // Everyone a goal names must have been on the pitch at that minute, on the
-    // right side. §9 crosses the halfway line: an own-goal scorer and an
-    // error-maker belong to the CONCEDING team, so they're checked against the
-    // opposite lineup — getting this backwards is the bug most likely to slip
-    // an OG onto the wrong team's stat sheet.
-    const oppLines = sideLines(!isHome)
-    const onPitchAt = (pool: typeof lines, id: string, minute: number, what: string) => {
-      const line = pool.find(l => l.playerId === id)
-      check(!!line && line.minutes > 0, `match ${i}: ${what} ${id} not on pitch`)
-      if (line?.subOnMinute !== undefined) check(line.subOnMinute <= minute, `match ${i}: ${what} involved at ${minute}' but came on at ${line.subOnMinute}'`)
-    }
-    for (const g of (isHome ? scorers.home : scorers.away)) {
-      if (g.ownGoal) {
-        onPitchAt(oppLines, g.scorerId, g.minute, 'own-goal scorer')
-        check(!lines.some(l => l.playerId === g.scorerId), `match ${i}: own-goal scorer sits on the BENEFITING side's lineup`)
-      } else {
-        onPitchAt(lines, g.scorerId, g.minute, 'scorer')
-        if (g.penWonId) {
-          check(g.penWonId !== g.scorerId, `match ${i}: penalty "won by" is the taker himself`)
-          onPitchAt(lines, g.penWonId, g.minute, 'penalty winner')
-        }
-      }
-      if (g.errorById) onPitchAt(oppLines, g.errorById, g.minute, 'error-maker')
-    }
-
-    // Red cards: each red event pairs with a line flagged redCard, sent off in
-    // the second half, whose match ended at (or before) the red minute.
-    const redEvents = d.events.filter(e => e.type === 'red' && e.isHome === isHome)
-    const redLines  = lines.filter(l => l.redCard)
-    check(redEvents.length === redLines.length, `match ${i}: red events (${redEvents.length}) != red lines (${redLines.length}) for one side`)
-    for (const ev of redEvents) {
-      check(ev.minute >= 46, `match ${i}: red card at ${ev.minute}' (before half-time)`)
-      const line = lines.find(l => l.playerId === ev.playerId)
-      check(!!line && line.redCard, `match ${i}: red event has no matching redCard line`)
-      if (line) check(line.minutes <= ev.minute, `match ${i}: sent-off player kept playing after the red (${line.minutes}' > ${ev.minute}')`)
-    }
-  }
-  check(d.home.possession + d.away.possession === 100, `match ${i}: possession != 100`)
-
-  // §10.5 — the selected elevens.
+  // Tallies for the aggregate checks below.
   for (const [shape, isHome] of [[d.homeShape, true], [d.awayShape, false]] as const) {
-    check(!!shape, `match ${i}: no lineup shape generated`)
     if (!shape) continue
-    check(shape.slots.length === 11, `match ${i}: XI has ${shape.slots.length} players`)
-    const ids = new Set(shape.slots.map(x => x.playerId))
-    check(ids.size === 11, `match ${i}: the same player fills two slots`)
-    const gkSlot = shape.slots.find(x => x.label === 'GK')
-    const lines = sideLines(isHome)
-    if (gkSlot) {
-      const gk = lines.find(l => l.playerId === gkSlot.playerId)
-      check(gk?.position === 'GK', `match ${i}: a non-keeper is in goal`)
-    }
-    for (const sl of shape.slots) {
-      const l = lines.find(x => x.playerId === sl.playerId)
-      check(!!l && l.minutes > 0 && l.subOnMinute === undefined,
-        `match ${i}: selected starter ${sl.playerId} did not start`)
-    }
     formationCounts.set(shape.formation, (formationCounts.get(shape.formation) ?? 0) + 1)
     for (const sl of shape.slots) {
-      const l = lines.find(x => x.playerId === sl.playerId)
+      const l = d.players.find(x => x.isHome === isHome && x.playerId === sl.playerId)
       if (l) startingPosCount.set(l.position, (startingPosCount.get(l.position) ?? 0) + 1)
     }
   }
   if (d.events.some(e => e.type === 'red')) redMatchCount++
-
-  // §8 momentum: shape, range, and the "a goal means momentum toward the
-  // scorer" relationship the spec puts at ~85%.
-  check(d.momentum.length === d.duration, `match ${i}: momentum length ${d.momentum.length} != duration ${d.duration}`)
-  check(d.momentum.every(v => Number.isInteger(v) && v >= -100 && v <= 100), `match ${i}: momentum value out of −100…100`)
   for (let m = 0; m < d.momentum.length; m++) {
     momentumAbsSum += Math.abs(d.momentum[m]); momentumSamples++
     if (Math.abs(d.momentum[m]) >= 95) momentumExtremes++
@@ -294,71 +176,23 @@ for (let i = 0; i < N; i++) {
     if (e.type !== 'goal') continue
     const v = d.momentum[Math.min(d.momentum.length, e.minute) - 1]
     goalsMomentumChecked++
-    // `isHome` is the side the goal counts for, so an own goal is expected to
-    // swing momentum to the team that BENEFITED — same reconciliation as §9.
+    // `isHome` is the side the goal counts for, so an own goal swings
+    // momentum to the team that BENEFITED (the same reconciliation as §9).
     if (v !== 0 && (v > 0) === e.isHome) goalsWithMomentum++
   }
-
-  // §10 pre-step: added time per half, and missed penalties.
-  const at = d.addedTime
-  addedFirstSum += at.firstHalf; addedSecondSum += at.secondHalf; addedMatches++
-  check(at.firstHalf >= 0 && at.secondHalf >= 0, `match ${i}: negative added time`)
-  check((at.firstET === undefined) === (d.duration <= 90), `match ${i}: extra-time added time doesn't match duration`)
-  // A stoppage-time event must fall inside the added time the board showed.
-  for (const e of d.events) {
-    if (!e.plus) continue
-    const allowed = e.minute === 45 ? at.firstHalf : e.minute === 90 ? at.secondHalf
-      : e.minute === 105 ? (at.firstET ?? 0) : e.minute === 120 ? (at.secondET ?? 0) : Infinity
-    check(e.plus <= allowed, `match ${i}: event at ${e.minute}+${e.plus} exceeds the ${allowed}' added to that half`)
-  }
-  for (const e of d.events) {
-    if (e.type !== 'penMissed') continue
-    missedPens++
-    if (e.saved) savedPens++
-    const takerLines = sideLines(e.isHome)
-    const taker = takerLines.find(l => l.playerId === e.playerId)
-    check(!!taker && taker.minutes > 0, `match ${i}: penalty taker not on pitch`)
-    check(!!taker && taker.penaltiesMissed > 0, `match ${i}: missed penalty not recorded on the taker's line`)
-    check(taker?.position !== 'GK', `match ${i}: goalkeeper took a penalty in open play`)
-    if (e.saved) {
-      const gk = sideLines(!e.isHome).find(l => l.playerId === e.keeperId)
-      check(!!gk?.gk && gk.gk.penaltiesSaved > 0, `match ${i}: saved penalty not credited to the keeper`)
-    }
-  }
-  // Σ per-player misses must equal the miss events on that side.
-  for (const isHome of [true, false]) {
-    const evs = d.events.filter(e => e.type === 'penMissed' && e.isHome === isHome).length
-    const sum = sideLines(isHome).reduce((s, l) => s + l.penaltiesMissed, 0)
-    check(sum === evs, `match ${i}: Σ penalties missed ${sum} != ${evs} miss events`)
-  }
-
-  // §9 event bookkeeping — each goal list is paired with the squad that conceded it.
+  addedFirstSum += d.addedTime.firstHalf; addedSecondSum += d.addedTime.secondHalf; addedMatches++
+  for (const e of d.events) if (e.type === 'penMissed') { missedPens++; if (e.saved) savedPens++ }
   for (const [evs, concedingPool] of [[scorers.home, awayPool], [scorers.away, homePool]] as const) {
     for (const g of evs) {
       totalGoals++
       if (g.ownGoal) {
         ownGoalCount++
         const scorer = concedingPool.find(x => x.playerId === g.scorerId)
-        check(!!scorer, `match ${i}: own-goal scorer is not in the conceding squad`)
         if (scorer && DEFENDER_POS.has(scorer.primaryPosition)) ownGoalByDefender++
-        check(!g.penalty && !g.assistId && !g.penWonId, `match ${i}: own goal carries penalty/assist data`)
       }
-      if (g.penalty) {
-        penaltyCount++
-        if (g.penWonId) penaltyWithWinner++
-        check(!g.assistId, `match ${i}: penalty also carries an assist`)
-      }
-      if (g.errorById) {
-        errorCount++
-        check(concedingPool.some(x => x.playerId === g.errorById), `match ${i}: error charged outside the conceding squad`)
-        check(!g.penalty, `match ${i}: penalty also carries an error`)
-      }
+      if (g.penalty) { penaltyCount++; if (g.penWonId) penaltyWithWinner++ }
+      if (g.errorById) errorCount++
     }
-  }
-
-  // P8-144: a hat-trick is a 10, unless he also scored an own goal or was sent off.
-  for (const p of d.players) {
-    if (p.minutes > 0 && p.goals >= 3 && !p.redCard && !p.ownGoals) check(p.rating === 10, `a hat-trick rated ${p.rating}`)
   }
   hatTricks += d.players.filter(p => p.goals >= 3).length
 
@@ -369,7 +203,9 @@ for (let i = 0; i < N; i++) {
     homeXg: d.home.xg, awayXg: d.away.xg, homePoss: d.home.possession,
     ratings: d.players.filter(p => p.minutes > 0).map(p => ({
       pos: p.position, rating: p.rating, goals: p.goals, assists: p.assists,
-      motm: !!p.motm, minutes: p.minutes,
+      motm: !!p.motm, minutes: p.minutes, saves: p.gk?.saves,
+      // The match's top scorer outright: nobody else on either side scored as many.
+      topScorer: p.goals > 0 && d.players.every(q => q === p || q.goals < p.goals),
       side: outcome === 'draw' ? 'd' as const : (p.isHome === (outcome === 'home') ? 'w' as const : 'l' as const),
     })),
   })
@@ -378,6 +214,46 @@ for (let i = 0; i < N; i++) {
 const genMs = Date.now() - t0
 console.log(`Hat-tricks: ${hatTricks}, every clean one rated 10`)
 console.log(`Done in ${genMs}ms (${(genMs / N).toFixed(2)}ms/match incl. full detail)\n`)
+
+// ── C-1 · Ratings tell the story (Wave G audit, docs/audit-2026-10/02 G-L1) ──
+// The invariants below check that ratings are sane; these check that they say
+// what happened. A brace in a defeat read as an ordinary game (median 7.7).
+//
+// What isn't checked, on purpose: "a brace in a defeat wins man of the match
+// N% of the time". Probed on 3 Oct, it mostly loses to a WINNER's brace (half
+// of all men of the match scored twice), and two goals in a win should outrank
+// two in a loss. The fair question is narrower: when the brace in a defeat is
+// the match's top scorer outright, is it recognised? The losing side's share of
+// man of the match is printed, not judged: there's no measured real-world
+// figure to hold it to yet. Targets are provisional (02 §2).
+{
+  const lines = samples.flatMap(s => s.ratings)
+  const med = (xs: number[]) => { const a = [...xs].sort((x, y) => x - y); return a.length ? a[Math.floor((a.length - 1) / 2)] : NaN }
+  const braceLost = lines.filter(l => l.goals === 2 && l.side === 'l')
+  const braceMed = med(braceLost.map(l => l.rating))
+  const outright = braceLost.filter(l => l.topScorer)
+  const outrightMotm = outright.filter(l => l.motm).length / Math.max(1, outright.length)
+  const motms = lines.filter(l => l.motm)
+  const losingMotm = motms.filter(l => l.side === 'l').length / Math.max(1, motms.length)
+  const goallessWin = med(lines.filter(l => l.goals === 0 && l.assists === 0 && l.side === 'w' && l.pos !== 'GK').map(l => l.rating))
+  const keepers = lines.filter(l => l.pos === 'GK' && l.saves !== undefined)
+  const keeperFew = med(keepers.filter(l => (l.saves ?? 0) <= 2).map(l => l.rating))
+  const keeperMany = med(keepers.filter(l => (l.saves ?? 0) >= 6).map(l => l.rating))
+  console.log(`C-1 · brace in a defeat: n=${braceLost.length}, median ${braceMed.toFixed(1)}; as the match's top scorer outright: n=${outright.length}, MOTM ${(outrightMotm * 100).toFixed(0)}%`)
+  console.log(`C-1 · (reported) the losing side's share of MOTM: ${(losingMotm * 100).toFixed(1)}%`)
+  console.log(`C-1 · goalless winner (outfield) median ${goallessWin.toFixed(1)}; keeper 0–2 saves ${keeperFew.toFixed(1)}, 6+ saves ${keeperMany.toFixed(1)}`)
+  check(braceLost.length >= 50 && outright.length >= 20, `C-1: too few braces in defeats to judge (${braceLost.length}, ${outright.length} outright)`)
+  // Guards, set from measurement (3 Oct, three runs of 20,000 matches): before
+  // G-L1 the median was 7.7–7.8 and the outright MOTM rate 30%; after, 8.0 and
+  // 41–48%. Each line fails on the old behaviour and sits clear of the new one's spread.
+  check(braceMed >= 7.9, `C-1: a brace in a defeat has median ${braceMed.toFixed(1)} (was 7.8 before G-L1, 8.0 after)`)
+  // Not a real-world rate: in these matches the brace is usually up against a
+  // winner's goal and assist, close to a toss-up in any match report.
+  check(outrightMotm >= 0.38, `C-1: a brace in a defeat, top scorer outright, is MOTM ${(outrightMotm * 100).toFixed(0)}% of the time (was 30% before G-L1, ~45% after)`)
+  // 6.4 was the goalless winner's median before G-L1 (2 Oct): the fix must not move the ordinary game.
+  check(Math.abs(goallessWin - 6.4) <= 0.1, `C-1: a goalless winner's median moved to ${goallessWin.toFixed(1)} (was 6.4)`)
+  check(keeperMany - keeperFew >= 0.4, `C-1: a keeper with 6+ saves rates only ${(keeperMany - keeperFew).toFixed(1)} above one with 0–2`)
+}
 
 // ── 3) Rating sanity ────────────────────────────────────────────────────────
 const allRatings = samples.flatMap(s => s.ratings)
@@ -941,5 +817,6 @@ check(shapes[0][1] / (N * 2) < 0.45, `${shapes[0][0]} is used ${(shapes[0][1] / 
   }
 }
 
+console.log(`${checksRun + invariantChecks.count} checks`)
 console.log(failures === 0 ? '\n✅ ALL CHECKS PASSED' : `\n❌ ${failures} FAILURES`)
 process.exit(failures === 0 ? 0 : 1)

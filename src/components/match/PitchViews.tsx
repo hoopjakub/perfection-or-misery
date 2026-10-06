@@ -1,6 +1,8 @@
 // The match drawn on a pitch (P4-H): shot map, average positions, heat map.
 // Pure drawing over src/engine/match-geometry.ts, on nylon, in Kit Drop's
 // grammar — square lines, cotton markings, volt for goals and heat.
+import { surname } from '@/lib/format'
+import { t, dec } from '@/i18n'
 import React, { useEffect, useState } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated'
@@ -47,7 +49,7 @@ function Markings({ half }: { half?: boolean }) {
 
 // ── Shot map ─────────────────────────────────────────────────────────────────
 const OUTCOME_LABEL: Record<Shot['outcome'], string> = {
-  goal: 'Goal', saved: 'Saved', off: 'Off target', blocked: 'Blocked', woodwork: 'Woodwork',
+  goal: t('parts.shotOutcome.goal'), saved: t('parts.shotOutcome.saved'), off: t('parts.shotOutcome.off'), blocked: t('parts.shotOutcome.blocked'), woodwork: t('parts.shotOutcome.woodwork'),
 }
 
 // P8-47: "too condensed and hard to see". Every shot now starts greyed out,
@@ -131,7 +133,7 @@ export function ShotMap({ shots }: { shots: TimedShot[] }) {
       </KitText>
       {shots.length > 0 && (
         <View style={styles.stepper}>
-          <Pressable onPress={() => step(-1)} disabled={at === 0} accessibilityRole="button" accessibilityLabel="Previous shot" hitSlop={6}
+          <Pressable onPress={() => step(-1)} disabled={at === 0} accessibilityRole="button" accessibilityLabel={t('parts.prevShot')} hitSlop={6}
             style={({ pressed }) => [styles.stepBtn, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }, at === 0 && { opacity: 0.4 }]}>
             <Icon name="back" size={20} color={roles.text} />
           </Pressable>
@@ -140,21 +142,21 @@ export function ShotMap({ shots }: { shots: TimedShot[] }) {
               <>
                 <KitText t="title" color={roles.text} numberOfLines={1}>{`${cur.minute}${cur.plus ? `+${cur.plus}` : ''}' · ${cur.name}`}</KitText>
                 <KitText t="tag" color={OUTCOME_COLOUR[cur.outcome] === prim.cotton ? roles.textMuted : OUTCOME_COLOUR[cur.outcome]}>
-                  {`${cur.penalty ? 'Penalty · ' : ''}${OUTCOME_LABEL[cur.outcome]} · ${cur.xg.toFixed(2)} xG · shot ${at! + 1} of ${shots.length}`}
+                  {(cur.penalty ? t('parts.penaltyPrefix') : '') + t('parts.shotLine', { outcome: OUTCOME_LABEL[cur.outcome], xg: dec(cur.xg, 2), n: at! + 1, m: shots.length })}
                 </KitText>
               </>
             ) : (
-              <KitText t="body" color={roles.textMuted}>Step through the shots, in the order they came.</KitText>
+              <KitText t="body" color={roles.textMuted}>{t('parts.stepShots')}</KitText>
             )}
           </View>
-          <Pressable onPress={() => step(1)} disabled={at === shots.length - 1} accessibilityRole="button" accessibilityLabel="Next shot" hitSlop={6}
+          <Pressable onPress={() => step(1)} disabled={at === shots.length - 1} accessibilityRole="button" accessibilityLabel={t('parts.nextShot')} hitSlop={6}
             style={({ pressed }) => [styles.stepBtn, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }, at === shots.length - 1 && { opacity: 0.4 }]}>
             <Icon name="chevron" size={20} color={roles.text} />
           </Pressable>
         </View>
       )}
       <View style={[styles.pitch, { aspectRatio: 68 / 54 }]}
-        accessible accessibilityLabel={`Shot map: ${shots.length} shots, ${goals} goals, ${xg.toFixed(2)} expected goals`}>
+        accessible accessibilityLabel={t('parts.shotMapA11y', { shots: shots.length, goals, xg: dec(xg, 2) })}>
         <Svg width="100%" height="100%" viewBox="-1 -2 70 56">
           <Markings half />
           {shots.map((s, i) => i === at ? null : <ShotDot key={i} s={s} lit={false} />)}
@@ -179,14 +181,13 @@ export function ShotMap({ shots }: { shots: TimedShot[] }) {
             <KitText t="tag" color={roles.textMuted}>{OUTCOME_LABEL[o]}</KitText>
           </View>
         ))}
-        <KitText t="tag" color={roles.textMuted}>Bigger dot, bigger chance</KitText>
+        <KitText t="tag" color={roles.textMuted}>{t('parts.biggerDot')}</KitText>
       </View>
     </View>
   )
 }
 
 // ── Average positions ────────────────────────────────────────────────────────
-const surname = (n: string) => n.split(' ').slice(-1)[0]
 
 export function AveragePositions({ spots, onPlayer, selected }: {
   spots: PlayerSpot[]
@@ -210,7 +211,7 @@ export function AveragePositions({ spots, onPlayer, selected }: {
           })}
         </Svg>
       </View>
-      <KitText t="tag" color={roles.textMuted}>Where each player played on average. Tap one for their heat map.</KitText>
+      <KitText t="tag" color={roles.textMuted}>{t('parts.avgHint')}</KitText>
     </View>
   )
 }
@@ -221,7 +222,7 @@ export function HeatMap({ grid, name }: { grid: number[][]; name: string }) {
   return (
     <View style={styles.wrap}>
       <KitText t="tag" color={roles.text}>{`${name} · heat map`}</KitText>
-      <View style={[styles.pitch, { aspectRatio: 68 / 105 }]} accessible accessibilityLabel={`Heat map for ${name}`}>
+      <View style={[styles.pitch, { aspectRatio: 68 / 105 }]} accessible accessibilityLabel={t('parts.heatA11y', { name })}>
         <Svg width="100%" height="100%" viewBox="-1 -2 70 109">
           {grid.map((row, r) => row.map((v, c) => v > 0.08 ? (
             <Rect key={`${r}-${c}`} x={c * cw} y={r * ch} width={cw} height={ch} fill={prim.volt} opacity={Math.min(0.85, v * 0.85)} />

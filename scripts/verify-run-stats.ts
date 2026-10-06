@@ -166,6 +166,15 @@ for (let s = 1; s <= 300; s++) {
   check(staged.filter(m => m.stage === 'qualifying').length === qual.length * 2, 'every qualifying leg is marked qualifying')
   check(staged.filter(m => !m.stage).length === clRunMatches(cl as never).length, 'a league-phase or knockout match is marked qualifying')
   check(!clRunMatches(cl as never).some(m => m.stage), 'the classic Champions League has no qualifying stage')
+  // F-20: the full path's domestic season counts, as its own stage, one round
+  // per matchday, ahead of qualifying, with every match's seed kept.
+  const domesticMatchdays = Array.from({ length: 38 * 10 }, (_, i) => ({ matchday: 1 + Math.floor(i / 10), home: { clubId: `dh${i % 10}`, clubName: 'DH' }, away: { clubId: `da${i % 10}`, clubName: 'DA' }, homeGoals: 2, awayGoals: 1, seed: 1000 + i }))
+  const full = clRunMatches({ ...cl, domesticMatchdays } as never, qual as never)
+  const dom = full.filter(m => m.stage === 'domestic')
+  check(dom.length === 380 && dom.every((m, i) => m.seed === 1000 + i), `the domestic season: ${dom.length} matches counted, want 380 with their seeds`)
+  check(full.slice(0, 380).every(m => m.stage === 'domestic'), 'the domestic season is not first')
+  check(roundsOf(full).size === 25 + 38, `the full path with its season: ${roundsOf(full).size} rounds, expected 63`)
+  check(full.filter(m => !m.stage).length === clRunMatches(cl as never).length, 'a domestic match landed in the European stage')
 
   // League: one round per matchday, every fixture in it.
   const history = Array.from({ length: 38 }, (_, md) => ({

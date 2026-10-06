@@ -33,6 +33,10 @@ import { deriveSeed } from '@/lib/rng'
 import type { SimTeam } from '@/types/simulation'
 import { nationalCupName, semisTwoLegged } from '@/data/national-cups'
 import { HUNT_ODDS } from '@/data/hunt-odds'
+import { EUROPE } from '@/data/europe'
+import { buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly, type CLTeam, type CLLeagueMatch, type CLSeasonResult, type OtherCompetition } from './cl-sim'
+import { simulateMatch } from './match'
+import { compareStandings, recordResult } from './standings'
 
 export type CupWinner = {
   rank: number; name: string; country?: string; clubId: string; clubName: string
@@ -325,4 +329,92 @@ export function runQualTies(q: QualifyingResult | null | undefined, playerClubId
 export function fullPathTier(r: { playerFinalRound: string; competition?: EuroComp }): string {
   return r.competition && r.competition !== 'ucl' && r.playerFinalRound !== 'not_qualified'
     ? `${r.competition}_${r.playerFinalRound}` : r.playerFinalRound
+}
+
+// ── A competition played out without you (P8.5-16) ───────────────────────────
+// The competition you missed, and the two you weren't in, so the result screen
+// can show all three. Moved here from the full path's screen (centralisation
+// step 4b): it's simulation, not drawing.
+
+/**
+ * One competition's league phase and knockouts, headless. Form isn't updated
+ * between its matches, as it never was here: the AI-only competitions keep
+ * the numbers they were measured with (measure-europe), and changing that is a
+ * balance decision, not a move.
+ */
+export function playCompetitionHeadless(field: QualTeam[], c: EuroComp, countryOf: (t: CLTeam) => string | undefined) {
+  const cc = EUROPE[c]
+  const potted = buildCLTeams(field.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: false, holder: t.associationRank === 0 })), countryOf, cc.pots)
+  const matchdays: CLLeagueMatch[] = []
+  for (const f of drawCLLeaguePhase(potted, countryOf, { pots: cc.pots, perPot: cc.perPot }).fixtures) {
+    const home = potted.find(t => t.clubId === f.home.clubId)!, away = potted.find(t => t.clubId === f.away.clubId)!
+    const r = simulateMatch(home, away)
+    recordResult(home, away, r, false)
+    // Recorded so the result screen can still show every match (scorers are
+    // attributed once, by the screen, as in a normal run).
+    matchdays.push({
+      matchday: f.matchday,
+      home: { clubId: home.clubId, clubName: home.clubName, isPlayer: false },
+      away: { clubId: away.clubId, clubName: away.clubName, isPlayer: false },
+      homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+    })
+  }
+  const sorted = [...potted].sort(compareStandings)
+  return { sorted, matchdays, ko: simulateCLKnockoutsOnly(sorted) }
+}
+
+/** The two competitions you weren't in, played out. */
+export function otherCompetitions(fields: Record<EuroComp, QualTeam[]>, yours: EuroComp, countryOf: (t: CLTeam) => string | undefined): OtherCompetition[] {
+  return (['ucl', 'uel', 'uecl'] as EuroComp[]).filter(c => c !== yours).map(c => {
+    const { sorted, ko } = playCompetitionHeadless(fields[c], c, countryOf)
+    return { comp: c, leaguePhaseStandings: sorted, playoffRound: ko.playoffRound, r16: ko.r16, qf: ko.qf, sf: ko.sf, final: ko.final, winner: ko.winner }
+  })
+}
+
+/**
+ * A run that ended before the league phase (out in qualifying, or never in):
+ * the competition still plays out in full, and your side's line is the tie
+ * that knocked you out.
+ */
+export function resultWithoutYou(o: {
+  field: QualTeam[]; comp: EuroComp; countryOf: (t: CLTeam) => string | undefined
+  ties: QualTie[]; playerClubId: string | null; clubName: string; ovr: number
+  finalRound: CLSeasonResult['playerFinalRound']
+  /** Where the season went on; absent when it never reached Europe. */
+  competition?: EuroComp
+}): CLSeasonResult {
+  const { sorted, matchdays, ko } = playCompetitionHeadless(o.field, o.comp, o.countryOf)
+  const exitTie = [...o.ties].reverse().find(t => t.teamA.clubId === o.playerClubId || t.teamB?.clubId === o.playerClubId)
+  const stats = { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }
+  let clubName = o.clubName
+  if (exitTie?.legs) {
+    const isA = exitTie.teamA.clubId === o.playerClubId
+    clubName = isA ? exitTie.teamA.clubName : exitTie.teamB!.clubName
+    stats.played = 2
+    stats.goalsFor = isA ? exitTie.legs.totalA : exitTie.legs.totalB
+    stats.goalsAgainst = isA ? exitTie.legs.totalB : exitTie.legs.totalA
+    stats.lost = 1
+  }
+  const playerTeam: CLTeam = { clubId: o.playerClubId ?? 'player', clubName, ovr: o.ovr, isPlayer: true, form: 0, stats, pot: 4 }
+  return { leaguePhaseStandings: sorted, ...ko, leagueMatchdays: matchdays, playerTeam, playerFinalRound: o.finalRound, playerPot: 4, competition: o.competition }
+}
+
+/**
+ * The summer after the domestic seasons, whole (P8-52): every association's
+ * cup, the Europa and Conference Leagues' places, then the three qualifying
+ * ladders with their drops, the holders seeded in. The full path and the
+ * quick-sim tester each wrote these three steps out (and the holders' list
+ * twice); measure-europe and verify-europe-path still do, deliberately, to
+ * test the steps apart.
+ */
+export function playEuropeanSeason(ucl: CLAccessList, assocs: AssociationEntry[], held: Record<EuroComp, AssociationClub | null>, o: {
+  seed: number
+  playerClubId?: string | null
+  /** Your association's cup, already played through your season. */
+  yourCup?: { rank: number; cup: DomesticCup } | null
+}): QualifyingResult {
+  const cups = playEveryCup(assocs, o.playerClubId ?? null, o.seed, o.yourCup ?? null)
+  const euro = europaAndConferenceEntrants(ucl, assocs, cups, held.uecl)
+  const holders = (['ucl', 'uel', 'uecl'] as EuroComp[]).flatMap(c => (held[c] ? [{ comp: c, clubId: held[c]!.clubId, clubName: held[c]!.clubName }] : []))
+  return simulateEurope(ucl, euro, cups, holders, o.playerClubId ?? undefined)
 }

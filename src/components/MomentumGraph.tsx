@@ -15,12 +15,13 @@
 // centreline the fill sits on already encodes the team, and markers sit in a
 // top row (home) or bottom row (away) to match.
 
+import { t } from '@/i18n'
 import React, { useId, useMemo, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 // P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
 import { ScaleText as Text } from '@/components/kit'
 import Svg, { Path, Rect, Circle, Line, G, Defs, ClipPath } from 'react-native-svg'
-import { colors, spacing, typography, radius, prim, font } from '@/theme'
+import { space, type, prim, font } from '@/theme'   // C-18: the kit's scales and colours
 import type { MatchEvent } from '@/types/match-stats'
 import { useTeamColourPair } from '@/lib/teamColours'
 
@@ -170,14 +171,14 @@ export function MomentumGraph({
               const cx = Math.max(6, Math.min(VIEW_W - 6, xOf(m.minute)))
               const cy = m.isHome ? MARKER_H / 2 : H - MARKER_H / 2
               if (m.kind === 'red') {
-                return <Rect key={i} x={cx - 3} y={cy - 5} width={6} height={10} rx={1.5} fill={colors.danger} />
+                return <Rect key={i} x={cx - 3} y={cy - 5} width={6} height={10} rx={1.5} fill={prim.misery} />
               }
               // Own goals get the same ball but ringed in red, so the gut-punch
               // is unmistakable next to a normal goal (§9).
               return (
                 <G key={i}>
                   <Circle cx={cx} cy={cy} r={4.4} fill={prim.cotton} />
-                  {m.kind === 'ownGoal' && <Circle cx={cx} cy={cy} r={5.8} stroke={colors.danger} strokeWidth={1.6} fill="none" />}
+                  {m.kind === 'ownGoal' && <Circle cx={cx} cy={cy} r={5.8} stroke={prim.misery} strokeWidth={1.6} fill="none" />}
                   <Circle cx={cx} cy={cy} r={1.5} fill={prim.nylon} />
                 </G>
               )
@@ -207,11 +208,11 @@ export function MomentumGraph({
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: accentHome }]} />
-            <Text style={styles.legendText} numberOfLines={1}>{homeName} <Text style={styles.legendHint}>above</Text></Text>
+            <Text style={styles.legendText} numberOfLines={1}>{homeName} <Text style={styles.legendHint}>{t('parts.above')}</Text></Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: accentAway }]} />
-            <Text style={styles.legendText} numberOfLines={1}>{awayName} <Text style={styles.legendHint}>below</Text></Text>
+            <Text style={styles.legendText} numberOfLines={1}>{awayName} <Text style={styles.legendHint}>{t('parts.below')}</Text></Text>
           </View>
         </View>
       )}
@@ -220,14 +221,14 @@ export function MomentumGraph({
 }
 
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.md, gap: spacing.xs },
-  title: { fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cotton, textAlign: 'center' },
+  wrap: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: space[4], gap: space[1] },
+  title: { fontSize: type.body.fontSize, fontFamily: font.bodyBlack, color: prim.cotton, textAlign: 'center' },
   plot: { width: '100%' },
   axis: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   axisLabel: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted },
   axisTicks: { flex: 1, flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center' },
   axisTick: { width: 2, height: 2, borderRadius: 1, backgroundColor: prim.cottonMuted, opacity: 0.6 },
-  legend: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginTop: 2 },
+  legend: { flexDirection: 'row', justifyContent: 'space-between', gap: space[2], marginTop: 2 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
   legendSwatch: { width: 8, height: 8, borderRadius: 2 },
   legendText: { fontSize: 9, color: prim.cottonMuted, flexShrink: 1 },

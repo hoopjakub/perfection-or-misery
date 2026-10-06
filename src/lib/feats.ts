@@ -6,6 +6,8 @@
 // open to change. Every feat needs the run won, except where it says.
 // Pure (no database), so scripts/verify-feats.ts can check each rule.
 
+import { t } from '@/i18n'
+
 type SquadPlayer = {
   name: string; nationality: string; clubName: string
   isBench?: boolean; birthYear?: number | null; yearStart?: number
@@ -67,84 +69,84 @@ export type Feat = {
 
 export const FEATS: Feat[] = [
   {
-    id: 'one-nation', title: 'One nation',
-    how: 'Win with an eleven all from one country.',
+    id: 'one-nation', title: t('career.feat.oneNation.title'),
+    how: t('career.feat.oneNation.how'),
     earned: r => { const xi = eleven(r); return isRunWon(r) && !!xi && new Set(xi.map(p => p.nationality)).size === 1 },
   },
   {
-    id: 'the-kids', title: 'The kids',
-    how: 'Win with an eleven all aged 21 or under.',
+    id: 'the-kids', title: t('career.feat.theKids.title'),
+    how: t('career.feat.theKids.how'),
     earned: r => { const xi = eleven(r); const a = xi && ages(xi); return isRunWon(r) && !!a && a.every(x => x <= 21) },
   },
   {
-    id: 'eleven-nations', title: 'Eleven nations',
-    how: 'Win with eleven different countries in the eleven.',
+    id: 'eleven-nations', title: t('career.feat.elevenNations.title'),
+    how: t('career.feat.elevenNations.how'),
     earned: r => { const xi = eleven(r); return isRunWon(r) && !!xi && new Set(xi.map(p => p.nationality)).size === 11 },
   },
   {
-    id: 'no-veterans', title: 'No veterans',
-    how: 'Win with nobody in the eleven over 28.',
+    id: 'no-veterans', title: t('career.feat.noVeterans.title'),
+    how: t('career.feat.noVeterans.how'),
     earned: r => { const xi = eleven(r); const a = xi && ages(xi); return isRunWon(r) && !!a && a.every(x => x <= 28) },
   },
   {
-    id: 'one-club', title: 'One club',
-    how: "Win with a whole eleven from one club's history, any seasons.",
+    id: 'one-club', title: t('career.feat.oneClub.title'),
+    how: t('career.feat.oneClub.how'),
     earned: r => { const xi = eleven(r); return isRunWon(r) && !!xi && new Set(xi.map(p => p.clubName)).size === 1 },
   },
   {
-    id: 'blind-perfect', title: 'Blind and perfect',
-    how: 'Perfection, or the trophy in a cup, with the ratings hidden the whole draft.',
+    id: 'blind-perfect', title: t('career.feat.blindPerfect.title'),
+    how: t('career.feat.blindPerfect.how'),
     earned: r => (r.tier === 'perfection' || (CUPS.has(r.mode) && isRunWon(r))) && ratingsWereHidden(r),
   },
   {
-    id: 'invincibles', title: 'Invincibles',
-    how: 'Win a league without losing a match.',
+    id: 'invincibles', title: t('career.feat.invincibles.title'),
+    how: t('career.feat.invincibles.how'),
     earned: r => !CUPS.has(r.mode) && r.final_position === 1 && r.losses === 0,
   },
   // P8.5-21: the European Full Path's routes (docs/europe/07 §5.3).
   {
-    id: 'cup-route', title: 'Cup route',
-    how: 'Win a European trophy on the European Full Path after getting into Europe as cup winners.',
+    id: 'cup-route', title: t('career.feat.cupRoute.title'),
+    how: t('career.feat.cupRoute.how'),
     earned: r => !!fullPathTrophy(r) && !!r.fullPath?.entry?.viaCup,
   },
   {
-    id: 'fallen-giant', title: 'Fallen giant',
-    how: 'Enter Champions League qualifying, drop out of it, and win the Europa or Conference League.',
+    id: 'fallen-giant', title: t('career.feat.fallenGiant.title'),
+    how: t('career.feat.fallenGiant.how'),
     earned: r => { const t = fullPathTrophy(r); const e = r.fullPath?.entry; return (t === 'uel' || t === 'uecl') && e?.comp === 'ucl' && e.round !== 'league_phase' },
   },
   {
-    id: 'straight-through', title: 'Straight through',
-    how: 'Win the Champions League on the European Full Path without playing a qualifying tie.',
+    id: 'straight-through', title: t('career.feat.straightThrough.title'),
+    how: t('career.feat.straightThrough.how'),
     earned: r => fullPathTrophy(r) === 'ucl' && r.fullPath?.entry?.round === 'league_phase' && r.fullPath?.qualTies === 0,
   },
   // Four: measured, the most a season can have you play (one a round, q1 to
   // the play-off, drops included; 954 seasons of verify-europe-path, 1 Oct).
   // The plan's "five or more" could never be earned.
   {
-    id: 'the-long-way', title: 'The long way',
-    how: 'Win a European trophy after playing all four qualifying rounds.',
+    id: 'the-long-way', title: t('career.feat.theLongWay.title'),
+    how: t('career.feat.theLongWay.how'),
     earned: r => !!fullPathTrophy(r) && (r.fullPath?.qualTies ?? 0) >= 4,
   },
   {
-    id: 'three-trophies', title: 'Three trophies',
-    how: 'Win the Champions, Europa and Conference League on the European Full Path, in any runs.',
+    id: 'three-trophies', title: t('career.feat.threeTrophies.title'),
+    how: t('career.feat.threeTrophies.how'),
     earned: () => false,
     collected: runs => new Set(runs.map(fullPathTrophy).filter(Boolean)).size === 3,
   },
   {
-    id: 'double-europe', title: 'The Double, Europe',
-    how: 'Win your league, its cup and a European trophy in one European Full Path run.',
+    id: 'double-europe', title: t('career.feat.doubleEurope.title'),
+    how: t('career.feat.doubleEurope.how'),
     earned: r => !!fullPathTrophy(r) && !!r.fullPath?.domesticChampion && !!r.fullPath?.cupWon,
   },
   // P8-173: the league's cup.
   {
-    id: 'cup-winners', title: 'Cup winners',
-    how: "Win the league's cup in a league run.",
+    id: 'cup-winners', title: t('career.feat.cupWinners.title'),
+    how: t('career.feat.cupWinners.how'),
     earned: r => !CUPS.has(r.mode) && !!r.highlights?.cup?.winner?.isPlayer,
   },
   {
-    id: 'the-double', title: 'The Double',
-    how: 'Win the league and its cup in the same run.',
+    id: 'the-double', title: t('career.feat.theDouble.title'),
+    how: t('career.feat.theDouble.how'),
     earned: r => !CUPS.has(r.mode) && r.final_position === 1 && !!r.highlights?.cup?.winner?.isPlayer,
   },
 ]

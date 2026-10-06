@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { timeAsync } from '@/diag/perf'
 import { bestTierOf } from '@/data/tiers'
 import { seasonsSoFar, seasonWindow, badgeTier, isFinished, type Season, type BadgeTier } from '@/data/seasons'
 
@@ -109,7 +110,7 @@ function byTarget<Q>(q: Q, target?: 'none' | 'ucl' | 'uel' | 'uecl'): Q {
   return q
 }
 
-export async function fetchLeaderboard(
+async function fetchLeaderboardNow(
   filter: LeaderboardFilter = {}
 ): Promise<LeaderboardEntry[]> {
   function buildQuery(cols: string) {
@@ -210,7 +211,7 @@ export type RunHistoryEntry = DifficultyFields & {
 const RUN_HISTORY_COLS = 'id, score, tier, mode, league_name, year_start, final_position, created_at, wins, draws, losses'
 const RUN_HISTORY_COLS_WITH_DIFFICULTY = `${RUN_HISTORY_COLS}, difficulty, difficulty_meta`
 
-export async function fetchRunHistory(userId: string, limit = 20): Promise<RunHistoryEntry[]> {
+async function fetchRunHistoryNow(userId: string, limit = 20): Promise<RunHistoryEntry[]> {
   for (const cols of [RUN_HISTORY_COLS_WITH_DIFFICULTY, RUN_HISTORY_COLS]) {
     const { data, error } = await supabase
       .from('runs').select(cols)
@@ -342,3 +343,9 @@ export async function fetchSeasonBadges(userId: string): Promise<SeasonBadge[]> 
     return p ? [{ season, place: p.place, score: p.score, tier: badgeTier(p.place), live: !isFinished(season, now) }] : []
   })
 }
+
+// Phase 9: timed for the Diagnostics screen (net:leaderboard, docs/diagnostics/03-BUDGETS.md).
+export const fetchLeaderboard = (...a: Parameters<typeof fetchLeaderboardNow>) => timeAsync('net:leaderboard', () => fetchLeaderboardNow(...a))
+
+// Phase 9: timed for the Diagnostics screen (net:runs, docs/diagnostics/03-BUDGETS.md).
+export const fetchRunHistory = (...a: Parameters<typeof fetchRunHistoryNow>) => timeAsync('net:runs', () => fetchRunHistoryNow(...a))

@@ -2,6 +2,7 @@
 // icons. Everything else in the kit is built from these. Rules live in
 // DESIGN.md; the short version: radius 0, orange means you, the stripe means
 // out, and nothing is colour-only.
+import { t } from '@/i18n'
 import React, { useId } from 'react'
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -9,7 +10,7 @@ import { Text, View, Image, StyleSheet, type TextProps, type StyleProp, type Vie
 import Svg, { Defs, Pattern, Rect, Circle, Path, ClipPath, G, Polygon } from 'react-native-svg'
 import { Ionicons } from '@expo/vector-icons'
 import { type, prim, font, ROLES, choiceHex, type Roles, type TypeToken, border, ratingColor, ratingInk, formatRating } from '@/theme'
-import { ratio } from '@/lib/contrast'
+import { ratio, inkOn } from '@/lib/contrast'
 import { crestFor, competitionCrestFor, shortCrestInitials } from '@/lib/brand'
 import { useCrestStore } from '@/store/crestStore'
 import { crestImageUrl, type CrestChoice } from '@/lib/yourCrest'
@@ -143,6 +144,7 @@ export function Crest({ roles, clubId, name, size = 24, competition }: {
   if (crest.kind === 'image') {
     return <Image source={crest.source} resizeMode="contain" style={{ width: size, height: size }} accessibilityIgnoresInvertColors />
   }
+  if (crest.kind === 'mark') return <WorldCupMark roles={roles} size={size} name={name} />
   const { device } = crest
   // Below 24px three letters don't fit the badge (P8-119): two, form words dropped.
   const initials = size < 24 ? shortCrestInitials(name) : crest.initials
@@ -169,6 +171,25 @@ export function Crest({ roles, clubId, name, size = 24, competition }: {
           {initials}
         </Text>
       </View>
+    </View>
+  )
+}
+
+// ── The World Cup's mark (A-11) ─────────────────────────────────────────────
+// Ours, drawn in the kit: the square badge, a globe (outline, one meridian, the
+// equator and two parallels) standing on a plinth, like the trophy's base. In
+// the ground's line colour, like the drawn crests: the World Cup's tricolour is
+// its tape's job, never the mark's.
+function WorldCupMark({ roles, size, name }: { roles: Roles; size: number; name: string }) {
+  const sw = Math.max(1, size / 16)
+  return (
+    <View style={{ width: size, height: size, borderWidth: border.thin, borderColor: roles.line, backgroundColor: roles.bg }} accessible accessibilityLabel={name}>
+      <Svg width="100%" height="100%" viewBox="0 0 24 24">
+        <Circle cx={12} cy={10} r={6.2} fill="none" stroke={roles.line} strokeWidth={sw * 1.4} />
+        <Path d="M12 3.8 C8.6 6.4 8.6 13.6 12 16.2 C15.4 13.6 15.4 6.4 12 3.8 Z" fill="none" stroke={roles.line} strokeWidth={sw} />
+        <Path d="M5.8 10 H18.2 M7 6.8 H17 M7 13.2 H17" stroke={roles.line} strokeWidth={sw} />
+        <Path d="M9 17.4 H15 L16 20 H8 Z" fill={roles.line} />
+      </Svg>
     </View>
   )
 }
@@ -235,7 +256,7 @@ const SHAPE_PATH: Record<string, string> = {
 // The five-point star and the ball's panel (P8-175's devices), as points.
 const STAR_POINTS = '50.0,18.0 57.3,37.9 78.5,38.7 61.9,51.9 67.6,72.3 50.0,60.5 32.4,72.3 38.1,51.9 21.5,38.7 42.7,37.9'
 const BALL_PANEL = '50.0,40.0 59.5,46.9 55.9,58.1 44.1,58.1 40.5,46.9'
-export function YourCrest({ choice, size = 24, name = 'Your crest' }: { choice: CrestChoice; size?: number; name?: string }) {
+export function YourCrest({ choice, size = 24, name = t('common.yourCrest') }: { choice: CrestChoice; size?: number; name?: string }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, '')
   const uri = choice.imagePath ? crestImageUrl(choice.imagePath) : null
   if (uri) {
@@ -247,7 +268,7 @@ export function YourCrest({ choice, size = 24, name = 'Your crest' }: { choice: 
   const outline = SHAPE_PATH[d.shape] ?? SHAPE_PATH.square
   const trim = d.trim ?? 'ink'
   // The letters in whichever of ink or cotton reads on the first colour.
-  const ink = ratio(prim.ink, bg) >= ratio(prim.cotton, bg) ? prim.ink : prim.cotton
+  const ink = inkOn(bg, prim.ink, prim.cotton)
   const letters = size < 24 ? d.initials.slice(0, 2) : d.initials
   return (
     <View style={{ width: size, height: size }} accessible accessibilityLabel={name}>
@@ -405,7 +426,7 @@ export function ZipTag({ size = 20, style, colour: given }: { size?: number; sty
   const h = size * 1.6
   // P8-168: a pin of your own colour. The hole takes whichever of ink and
   // cotton stands out on it, so a black or pitch-green pin still has one.
-  const hole = ratio(colour, prim.ink) >= ratio(colour, prim.cotton) ? prim.ink : prim.cotton
+  const hole = inkOn(colour, prim.ink, prim.cotton)
   return (
     <View style={style} pointerEvents="none" importantForAccessibility="no-hide-descendants">
       <Svg width={size} height={h} viewBox="0 0 20 32">
@@ -483,7 +504,7 @@ export function RatingSquare({ value, size = 'md', decimals = 1, style }: {
 }) {
   return (
     <View style={[size === 'sm' ? ratingStyles.sm : ratingStyles.md, { backgroundColor: ratingColor(value) }, style]}
-      accessibilityLabel={`rating ${formatRating(value, decimals)}`}>
+      accessibilityLabel={t('parts.ratingA11y', { r: formatRating(value, decimals) })}>
       <KitText t={size === 'sm' ? 'tag' : 'figure'} color={ratingInk(value)}>{formatRating(value, decimals)}</KitText>
     </View>
   )

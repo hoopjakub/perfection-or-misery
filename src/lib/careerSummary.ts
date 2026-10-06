@@ -5,6 +5,7 @@
 // pundits' call on you — so it's never out of step with what you played, and
 // it needs no table of its own. Pure: runs in, a summary out (checked by
 // scripts/verify-career.ts).
+import { t, num, dec } from '@/i18n'
 import { TIER_RANK, verdictOf } from '@/data/tiers'
 import { isRunWon } from './feats'
 
@@ -79,18 +80,18 @@ export function summarise(runs: CareerRun[]): CareerSummary {
   const push = (key: string, label: string, pick: CareerRun | undefined, value: (r: CareerRun) => string) => { if (pick) records.push({ key, label, value: value(pick), run: pick }) }
   const max = (xs: CareerRun[], f: (r: CareerRun) => number) => xs.reduce<CareerRun | undefined>((b, r) => (!b || f(r) > f(b) ? r : b), undefined)
   const leagues = all.filter(r => LEAGUE_MODES.has(r.mode) && r.final_position != null)
-  push('score', 'Best score', best ?? undefined, r => r.score.toLocaleString('en-US'))
-  push('finish', 'Best league finish', max(leagues, r => -(r.final_position ?? 99) + (r.teams_in_league ?? 0) / 1000), r => `${r.final_position} of ${r.teams_in_league}`)
-  push('wins', 'Most wins in a league run', max(leagues, r => r.wins), r => `${r.wins} wins`)
+  push('score', t('career.recScore'), best ?? undefined, r => num(r.score))
+  push('finish', t('career.recFinish'), max(leagues, r => -(r.final_position ?? 99) + (r.teams_in_league ?? 0) / 1000), r => t('career.recFinishValue', { pos: r.final_position, of: r.teams_in_league }))
+  push('wins', t('career.recWins'), max(leagues, r => r.wins), r => t('career.recWinsValue', { count: r.wins }))
   const full = leagues.filter(r => r.wins + r.draws + r.losses >= 20)
-  push('losses', 'Fewest defeats in a full season', max(full, r => -r.losses), r => (r.losses === 0 ? 'Unbeaten' : `${r.losses} defeat${r.losses === 1 ? '' : 's'}`))
-  push('goals', 'Most goals in a run', max(all.filter(r => (r.goals_for ?? 0) > 0), r => r.goals_for ?? 0), r => `${r.goals_for} goals`)
+  push('losses', t('career.recLosses'), max(full, r => -r.losses), r => (r.losses === 0 ? t('career.unbeaten') : t('career.recLossesValue', { count: r.losses })))
+  push('goals', t('career.recGoals'), max(all.filter(r => (r.goals_for ?? 0) > 0), r => r.goals_for ?? 0), r => t('career.recGoalsValue', { count: r.goals_for ?? 0 }))
   const hardWins = all.filter(r => isRunWon(r) && r.difficulty_meta?.hardness != null)
-  push('hardest', 'Hardest run won', max(hardWins, r => r.difficulty_meta!.hardness!), r => `${r.difficulty_meta!.hardness!.toFixed(1)} of 11`)
+  push('hardest', t('career.recHardest'), max(hardWins, r => r.difficulty_meta!.hardness!), r => t('career.recHardestValue', { n: dec(r.difficulty_meta!.hardness!, 1) }))
   const called = all.filter(r => r.pundits_on_you)
   const beat = (r: CareerRun) => r.pundits_on_you!.predicted - (r.final_position ?? r.pundits_on_you!.predicted)
   const bestBeat = max(called, beat)
-  if (bestBeat && beat(bestBeat) > 0) push('pundits', 'Proved the pundits most wrong', bestBeat, r => `${beat(r)} place${beat(r) === 1 ? '' : 's'} better than tipped`)
+  if (bestBeat && beat(bestBeat) > 0) push('pundits', t('career.recPundits'), bestBeat, r => t('career.recPunditsValue', { count: beat(r) }))
 
   // ── Each mode's history ──
   const modes: ModeLine[] = [...new Set(all.map(r => r.mode))].map(mode => {

@@ -1,15 +1,12 @@
+import { t } from '@/i18n'
 import React from 'react'
 import { Pressable, View, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
 // P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
 import { ScaleText as Text } from '@/components/kit'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
-import { colors, spacing, typography, radius, MODE_THEMES } from '@/theme'
-import { screwLevelInfo } from '@/engine/difficulty'
-import type { DifficultyFields } from '@/db/queries/leaderboard'
+import { ROLES, space, font, type } from '@/theme'
 import type { RunSaveStatus } from '@/hooks/useRunSave'
-import { ROLES } from '@/theme'
-import { EVERYDAY } from '@/lib/appearance'
+import { EVERYDAY, FLOODLIT } from '@/lib/appearance'
 
 // The page's ground (1 Oct: result screens follow light and dark too).
 const GR = ROLES[EVERYDAY]
@@ -26,7 +23,7 @@ export function PressCard({
   style, hoverStyle, pressedStyle, disabled, children, ...rest
 }: PressableProps & {
   style?: StyleProp<ViewStyle>
-  hoverStyle?: StyleProp<ViewStyle>     // web-only lift (defaults to subtle bg brighten)
+  hoverStyle?: StyleProp<ViewStyle>     // web-only lift (defaults to the floodlit ground's surface)
   pressedStyle?: StyleProp<ViewStyle>   // extra style while pressed
 }) {
   return (
@@ -48,139 +45,29 @@ export function PressCard({
   )
 }
 
-// A touch brighter than bgCard (#111827) — reads as a lift, not a shadow.
-const defaultHover: ViewStyle = { backgroundColor: '#18213A', borderColor: '#374151' }
-
-// ── BackButton ───────────────────────────────────────────────────────────────
-// The standard header back control — was hand-copied as a bare "←" glyph
-// Pressable (no press feedback) across every single screen. One component now.
-export function BackButton({ onPress, color = GR.text }: { onPress?: () => void; color?: string }) {
-  return (
-    <PressCard style={backStyles.back} onPress={onPress ?? (() => router.back())}>
-      <Ionicons name="chevron-back" size={22} color={color} />
-    </PressCard>
-  )
-}
-
-const backStyles = StyleSheet.create({
-  back: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center',
-  },
-})
+// Its one caller left is the match sheet, on the floodlit ground: the hover is
+// that ground's raised surface (C-18: it was the old palette's #18213A).
+const defaultHover: ViewStyle = { backgroundColor: ROLES[FLOODLIT].surface, borderColor: ROLES[FLOODLIT].rule }
 const defaultPressed: ViewStyle = { opacity: 0.85, transform: [{ scale: 0.985 }] }
 
-// ── DifficultyBadge ──────────────────────────────────────────────────────────
-// Every screen that lists a saved run (My Runs, Leaderboard, Achievements) needs
-// to show "how hard was this run" — but that means something different per
-// difficulty: easy/medium/hard is one word; Chaos/Cursed are their own fixed
-// identity (own colour + icon, borrowed from MODE_THEMES so it matches every
-// other chaos/cursed touchpoint in the app); custom is the richest case and
-// needs to show its actual knobs (rerolls, ratings on/off, the named level) not
-// just a number, or "Custom" tells you nothing about what you actually survived.
-// One component so all three screens render this identically.
-const DIFF_COLOR: Record<string, string> = { easy: colors.success, medium: colors.warning, hard: colors.danger }
-const DIFF_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  easy: 'happy-outline', medium: 'walk-outline', hard: 'flame-outline',
-}
-
-export function DifficultyBadge({ run, compact }: { run: DifficultyFields; compact?: boolean }) {
-  const { difficulty, difficulty_meta: meta } = run
-  if (!difficulty) return null
-
-  // Chaos/Cursed: fixed identity, not a chosen level — pull straight from the
-  // same MODE_THEMES palette their result screens, headers and hero banners use.
-  if (difficulty === 'chaos' || difficulty === 'cursed') {
-    const theme = MODE_THEMES[difficulty]
-    const icon: keyof typeof Ionicons.glyphMap = difficulty === 'chaos' ? 'skull' : 'flame'
-    return (
-      <View style={[diffStyles.pill, { backgroundColor: theme.accent + '22', borderColor: theme.accent }]}>
-        <Ionicons name={icon} size={11} color={theme.accent} />
-        <Text style={[diffStyles.pillText, { color: theme.accent }]}>{difficulty === 'chaos' ? 'Chaos' : 'Cursed'}</Text>
-      </View>
-    )
-  }
-
-  if (difficulty === 'custom') {
-    const info = meta ? screwLevelInfo(meta.screwLevel) : null
-    return (
-      <View>
-        <View style={[diffStyles.pill, { backgroundColor: colors.gold + '22', borderColor: colors.gold }]}>
-          <Ionicons name="construct" size={11} color={colors.gold} />
-          <Text style={[diffStyles.pillText, { color: colors.gold }]}>
-            {info ? info.name : 'Custom'}{meta ? ` · ${meta.hardness.toFixed(1)}/11` : ''}
-          </Text>
-        </View>
-        {/* the actual knobs — what made it that hard — only worth the extra
-            line when the badge isn't crammed into a compact list row */}
-        {!compact && meta && (
-          <Text style={diffStyles.caption}>
-            {meta.rerolls} reroll{meta.rerolls === 1 ? '' : 's'} · Ratings {meta.ratingsShown ? 'on' : 'hidden'}
-            {/* CL (full) only — see Big Fixes §4. Weighted picks eases the
-                draft (see hardnessOf), so it belongs alongside the other
-                knobs that explain "why this hardness number". */}
-            {meta.weightedPicks !== undefined ? ` · Weighted picks ${meta.weightedPicks ? 'on' : 'off'}` : ''}
-          </Text>
-        )}
-      </View>
-    )
-  }
-
-  // easy / medium / hard
-  const color = DIFF_COLOR[difficulty] ?? GR.textMuted
-  return (
-    <View>
-      <View style={[diffStyles.pill, { backgroundColor: color + '22', borderColor: color }]}>
-        <Ionicons name={DIFF_ICON[difficulty] ?? 'speedometer-outline'} size={11} color={color} />
-        <Text style={[diffStyles.pillText, { color }]}>{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</Text>
-      </View>
-      {/* CL (full) only — see Big Fixes §4 — easy/medium/hard have no other
-          knobs to caption, so this is the only line that ever shows here. */}
-      {!compact && meta?.weightedPicks !== undefined && (
-        <Text style={diffStyles.caption}>Weighted picks {meta.weightedPicks ? 'on' : 'off'}</Text>
-      )}
-    </View>
-  )
-}
-
-// ── LoadFailed ───────────────────────────────────────────────────────────────
-// A list whose fetch failed used to fall through to its empty state ("No runs
-// yet"), which told the player something false. This is the honest version.
-export function LoadFailed({ onRetry }: { onRetry: () => void }) {
-  return (
-    <View style={loadStyles.wrap}>
-      <Ionicons name="cloud-offline-outline" size={40} color={GR.textMuted} />
-      <Text style={loadStyles.text}>Couldn't load this.</Text>
-      <PressCard style={loadStyles.retry} onPress={onRetry} accessibilityRole="button">
-        <Text style={loadStyles.retryText}>Retry</Text>
-      </PressCard>
-    </View>
-  )
-}
-
-const loadStyles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  text: { fontSize: typography.md, color: GR.textMuted },
-  retry: {
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full,
-    borderWidth: 1, borderColor: GR.rule, backgroundColor: GR.surface,
-  },
-  retryText: { fontSize: typography.sm, fontWeight: typography.bold, color: GR.text },
-})
+// (C-18, 4 Oct 2026: BackButton, DifficultyBadge and LoadFailed are gone. Nothing
+// called them since their screens moved onto the kit's BackControl, run labels
+// and StripedNotice.)
 
 // ── SaveStatusLine ───────────────────────────────────────────────────────────
 // The one visible trace of useRunSave on every result screen. Saving used to be
 // invisible, so a failed save looked exactly like a saved one — and guests were
 // never told their run wouldn't be kept. Renders nothing for history views and
-// tester runs, where there's nothing to say.
+// tester runs, where there's nothing to say. On the kit's roles (C-18): a
+// failure is misery red as text on this ground; everything else is quiet.
 const SAVE_LINE: Record<Exclude<RunSaveStatus, 'off'>, { icon: keyof typeof Ionicons.glyphMap; text: string; color: string }> = {
-  guest:   { icon: 'person-outline',        text: "Playing as a guest — this run won't be kept. Create an account to save your runs.", color: GR.textMuted },
-  waiting: { icon: 'time-outline',          text: 'Preparing to save…',               color: GR.textMuted },
-  saving:  { icon: 'cloud-upload-outline',  text: 'Saving your run…',                 color: GR.textMuted },
-  saved:   { icon: 'checkmark-circle',      text: 'Saved to your runs',               color: colors.success },
+  guest:   { icon: 'person-outline',        text: t('parts.saveGuest'), color: GR.textMuted },
+  waiting: { icon: 'time-outline',          text: t('parts.saveWaiting'), color: GR.textMuted },
+  saving:  { icon: 'cloud-upload-outline',  text: t('parts.saveSaving'), color: GR.textMuted },
+  saved:   { icon: 'checkmark-circle',      text: t('parts.saveSaved'), color: GR.text },
   // P8.5-24: no connection, so it waits on the phone (src/lib/runQueue.ts).
-  queued:  { icon: 'phone-portrait-outline', text: "Saved on this phone. It'll go up when you're online.", color: GR.textMuted },
-  failed:  { icon: 'alert-circle',          text: "Couldn't save this run.",          color: colors.warning },
+  queued:  { icon: 'phone-portrait-outline', text: t('parts.saveQueued'), color: GR.textMuted },
+  failed:  { icon: 'alert-circle',          text: t('parts.saveFailed'), color: GR.lossText },
 }
 
 export function SaveStatusLine({ status, onRetry }: { status: RunSaveStatus; onRetry: () => void }) {
@@ -191,8 +78,8 @@ export function SaveStatusLine({ status, onRetry }: { status: RunSaveStatus; onR
       <Ionicons name={line.icon} size={15} color={line.color} />
       <Text style={[saveStyles.text, { color: line.color }]}>{line.text}</Text>
       {status === 'failed' && (
-        <PressCard style={saveStyles.retry} onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry saving this run">
-          <Text style={saveStyles.retryText}>Retry</Text>
+        <PressCard style={saveStyles.retry} onPress={onRetry} accessibilityRole="button" accessibilityLabel={t('parts.retrySave')}>
+          <Text style={saveStyles.retryText}>{t('parts.retry')}</Text>
         </PressCard>
       )}
     </View>
@@ -202,21 +89,10 @@ export function SaveStatusLine({ status, onRetry }: { status: RunSaveStatus; onR
 const saveStyles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
-    gap: spacing.xs, marginBottom: spacing.sm, paddingHorizontal: spacing.sm,
+    gap: space[1], marginBottom: space[2], paddingHorizontal: space[2],
   },
-  text: { fontSize: typography.xs, fontWeight: typography.medium, textAlign: 'center', flexShrink: 1 },
-  retry: {
-    paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.full,
-    borderWidth: 1, borderColor: colors.warning,
-  },
-  retryText: { fontSize: typography.xs, fontWeight: typography.bold, color: colors.warning },
-})
-
-const diffStyles = StyleSheet.create({
-  pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 3,
-  },
-  pillText: { fontSize: 10, fontWeight: typography.bold },
-  caption: { fontSize: 9, color: GR.textMuted, marginTop: 2 },
+  text: { fontSize: type.tag.fontSize, fontFamily: font.bodyMedium, textAlign: 'center', flexShrink: 1 },
+  // Square, as every Kit Drop control (radius is 0).
+  retry: { paddingHorizontal: space[2], paddingVertical: space[1], borderWidth: 1, borderColor: GR.lossText },
+  retryText: { fontSize: type.tag.fontSize, fontFamily: font.bodyBold, color: GR.lossText },
 })

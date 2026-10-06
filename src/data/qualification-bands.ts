@@ -21,12 +21,12 @@ export type ZoneKey = 'champ' | 'ucl' | 'uel' | 'uecl' | 'playoff' | 'down'
 export type Zone = { key: ZoneKey; code: string; label: string }
 
 export const ZONES: Record<ZoneKey, Zone> = {
-  champ:   { key: 'champ',   code: 'C',     label: 'Champions' },   // P8-16: CHAMP was too long for the column
-  ucl:     { key: 'ucl',     code: 'UCL',   label: 'Champions League' },
-  uel:     { key: 'uel',     code: 'UEL',   label: 'Europa League' },
-  uecl:    { key: 'uecl',    code: 'UECL',  label: 'Conference League' },
-  playoff: { key: 'playoff', code: 'PO',    label: 'Relegation play-off' },
-  down:    { key: 'down',    code: 'DOWN',  label: 'Relegated' },
+  champ:   { key: 'champ',   code: t('season.codeChamp'),  label: t('season.zoneChamp') },   // P8-16: CHAMP was too long for the column
+  ucl:     { key: 'ucl',     code: t('season.codeUcl'),    label: t('season.zoneUcl') },
+  uel:     { key: 'uel',     code: t('season.codeUel'),    label: t('season.zoneUel') },
+  uecl:    { key: 'uecl',    code: t('season.codeUecl'),   label: t('season.zoneUecl') },
+  playoff: { key: 'playoff', code: t('season.codeRelPo'),  label: t('season.zoneRelPlayoff') },
+  down:    { key: 'down',    code: t('season.codeDown'),   label: t('season.zoneRelegated') },
 }
 
 /** Counts, top to bottom. `uecl` is 0 before the Conference League (2021/22). */
@@ -85,3 +85,4 @@ export function zoneAt(leagueId: string, yearStart: number, teams: number, posit
 export function legendFor(zones: (ZoneKey | null)[]): Zone[] {
   return [...new Set(zones.filter((z): z is ZoneKey => z != null))].map(k => ZONES[k])
 }
+import { t } from '../i18n'

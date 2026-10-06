@@ -1,4 +1,7 @@
 import { fullPathTier } from '@/engine/europe-path'
+import { noteSchemaRetry } from '@/diag/log'
+import { timeAsync } from '@/diag/perf'
+import { log } from '@/diag/log'
 import { compOfMode, EUROPE } from '@/data/europe'
 import { useCrestStore } from '@/store/crestStore'
 import { supabase } from '@/lib/supabase'
@@ -100,7 +103,7 @@ function offlineError(e: unknown): boolean {
 // Sends one row: to submit-run when the server scores, else straight into the
 // table (dropping a column the table doesn't have yet, and taking a duplicate
 // client_id as already saved). Returns the run's id. Throws on failure.
-async function sendPayload(payload: Record<string, unknown>): Promise<{ id?: string }> {
+async function sendPayloadNow(payload: Record<string, unknown>): Promise<{ id?: string }> {
   if (SERVER_SCORING) {
     const { data, error } = await supabase.functions.invoke('submit-run', { body: payload })
     if (error) throw error
@@ -118,7 +121,8 @@ async function sendPayload(payload: Record<string, unknown>): Promise<{ id?: str
       ? error.message?.match(/Could not find the '([^']+)' column/)?.[1]
       : undefined
     if (missing && missing in body) {
-      console.warn(`[saveRun] '${missing}' column missing in DB — dropping it and retrying`)
+      log.warn('save', `saveRun: '${missing}' column missing in DB — dropping it and retrying`)
+      noteSchemaRetry()   // the database is behind the app
       delete body[missing]
       continue
     }
@@ -166,7 +170,7 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   // were made, the moment the save starts (the server runs the same formula).
   useGameStore.setState({ savedRunRow: row as RunRow })
   const invalid = invalidRun(row as RunRow)
-  if (invalid) console.warn(`[saveRun] this run would be refused by the server: ${invalid}`)
+  if (invalid) log.warn('save', `saveRun: this run would be refused by the server: ${invalid}`)
   currentClientId = clientId
   const queue = async () => { await queueRun({ clientId, playedAt, payload }); throw new RunQueuedError() }
   // Offline already: straight onto the phone, no attempt that's bound to fail.
@@ -179,9 +183,19 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   }
 }
 
+/** Wave F (3 Oct 2026): what a run keeps for the result's story and the
+ *  hub's Pundits tab. The passed-on players (I-2) for every mode; the pundits'
+ *  seed for the cups, whose field the saved result already carries. */
+export type RunExtra = { gotAway?: import('@/lib/resultStory').GotAway[]; punditSeed?: number | null }
+const extraHighlights = (e?: RunExtra) => ({
+  ...(e?.gotAway?.length ? { gotAway: e.gotAway } : {}),
+  ...(e?.punditSeed != null ? { punditSeed: e.punditSeed } : {}),
+})
+
 export async function saveRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
+  extra?: RunExtra
   userId: string
   mode: GameMode
   formation: string
@@ -239,6 +253,7 @@ export async function saveRun(params: {
       punditsOnYou: params.punditsOnYou ?? null,
       // P8-173: the league's cup, every round of it (a few dozen ties).
       cup:        params.seasonResult.cup ?? null,
+      ...extraHighlights(params.extra),
     },
     stats:  params.stats,
     awards: params.awards,
@@ -254,6 +269,7 @@ export async function saveRun(params: {
 export async function saveWCRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
+  extra?: RunExtra
   userId: string
   formation: string
   teamOvr: number
@@ -294,7 +310,7 @@ export async function saveWCRun(params: {
     stats:  params.stats,
     awards: params.awards,
     // P8-150: the pundits' place for you, for the career's line against them.
-    ...(params.punditsOnYou ? { highlights: { punditsOnYou: params.punditsOnYou } } : {}),
+    highlights: { ...(params.punditsOnYou ? { punditsOnYou: params.punditsOnYou } : {}), ...extraHighlights(params.extra) },
   })
 }
 
@@ -303,6 +319,7 @@ export async function saveWCRun(params: {
 export async function saveCLRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
+  extra?: RunExtra
   userId: string
   formation: string
   teamOvr: number
@@ -345,7 +362,7 @@ export async function saveCLRun(params: {
     cl_result: result,
     stats:  params.stats,
     awards: params.awards,
-    ...(params.punditsOnYou ? { highlights: { punditsOnYou: params.punditsOnYou } } : {}),
+    highlights: { ...(params.punditsOnYou ? { punditsOnYou: params.punditsOnYou } : {}), ...extraHighlights(params.extra) },
   })
 }
 
@@ -356,6 +373,7 @@ export async function saveCLRun(params: {
 export async function saveCustomUclRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
+  extra?: RunExtra
   userId: string
   formation: string
   teamOvr: number
@@ -406,10 +424,11 @@ export async function saveCustomUclRun(params: {
     cl_result: { ...result, _customUclQual: withoutCupBrackets(params.qual), _customUclTables: params.leagueTables },
     stats:  params.stats,
     awards: params.awards,
-    ...(params.punditsOnYou || params.domestic ? { highlights: {
+    highlights: {
       ...(params.punditsOnYou ? { punditsOnYou: params.punditsOnYou } : {}),
       ...(params.domestic ? { fullPath: { domesticChampion: params.domestic.champion, cupWon: params.domestic.cupWon } } : {}),
-    } } : {}),
+      ...extraHighlights(params.extra),
+    },
   })
 }
 
@@ -442,3 +461,6 @@ function withoutCupBrackets<T>(qual: T): T {
   if (!q?.europe?.cups) return qual
   return { ...q, europe: { ...q.europe, cups: q.europe.cups.map(({ cup: _cup, ...rest }) => rest) } } as T
 }
+
+// Phase 9: timed for the Diagnostics screen (save:run, docs/diagnostics/03-BUDGETS.md).
+const sendPayload = (...a: Parameters<typeof sendPayloadNow>) => timeAsync('save:run', () => sendPayloadNow(...a))

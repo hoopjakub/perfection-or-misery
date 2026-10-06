@@ -4,13 +4,19 @@
     {
       "name": "expo-web",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web"],
+      "runtimeArgs": [
+        "/c",
+        "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web"
+      ],
       "port": 8081
     },
     {
       "name": "expo-web-debug",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web --port 8092"],
+      "runtimeArgs": [
+        "/c",
+        "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web --port 8092"
+      ],
       "port": 8092
     }
   ]

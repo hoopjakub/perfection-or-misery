@@ -1,3 +1,6 @@
+import { t, dec } from '@/i18n'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
 import React, { useEffect, useState } from 'react'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet } from 'react-native'
@@ -17,6 +20,7 @@ import { EVERYDAY } from '@/lib/appearance'
 const roles = ROLES[EVERYDAY]
 
 export default function AchievementsScreen() {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
   const [loading, setLoading] = useState(true)
   const [ach, setAch] = useState<Record<string, ModeAch>>({})
@@ -29,7 +33,7 @@ export default function AchievementsScreen() {
     async function load() {
       if (!user || isGuest) { setLoading(false); return }
       try {
-        const runs = await fetchAchievementRuns(user.id)
+        const runs = await once(fetchAchievementRuns(user.id))
         if (!active) return
         const computed = computeAchievements(runs)
         setAch(computed)
@@ -42,7 +46,7 @@ export default function AchievementsScreen() {
         setHardestWon(hardest)
         setFeats(featCounts(runs))
       } catch (e) {
-        console.warn('[achievements] load failed:', e)
+        log.warn('net', 'achievements: load failed', e)
       } finally {
         if (active) setLoading(false)
       }
@@ -54,18 +58,18 @@ export default function AchievementsScreen() {
   const cleared = MODE_META.filter(m => ach[m.mode]?.conquered).length
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="Achievements" path="/game/achievements" />
-      <BackControl roles={roles} title="ACHIEVEMENTS" />
+      <PageMeta title={t('ach.pageTitle')} path="/game/achievements" />
+      <BackControl roles={roles} title={t('ach.heading')} />
       {isGuest ? (
-        <EmptyState roles={roles} icon="lock" title="Sign in to keep trophies" body="Guest runs aren't saved, so they can't count here." />
+        <EmptyState roles={roles} icon="lock" title={t('ach.signIn')} body={t('ach.guestBody')} />
       ) : loading ? (
-        <KitText t="bodyL" color={roles.textMuted}>Counting the trophies.</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('ach.counting')}</KitText>
       ) : (
         <>
           <View style={styles.bigRow}>
-            <Big label="Trophies" value={String(totalWins)} />
-            <Big label="Hardest won /11" value={hardestWon != null ? hardestWon.toFixed(1) : '—'} />
-            <Big label="Modes cleared" value={`${cleared}/${MODE_META.length}`} />
+            <Big label={t('ach.trophies')} value={String(totalWins)} />
+            <Big label={t('ach.hardestWon')} value={hardestWon != null ? dec(hardestWon, 1) : '—'} />
+            <Big label={t('ach.modesCleared')} value={`${cleared}/${MODE_META.length}`} />
           </View>
           {MODE_META.map(meta => {
             const a = ach[meta.mode] ?? emptyAch()
@@ -78,20 +82,20 @@ export default function AchievementsScreen() {
                       <KitText t="bodyL" color={roles.text} style={styles.modeTitle}>{meta.title}</KitText>
                       <KitText t="tag" color={roles.textMuted}>{meta.trophy}</KitText>
                     </View>
-                    {a.conquered && <Tag roles={roles} variant="win">WON</Tag>}
+                    {a.conquered && <Tag roles={roles} variant="win">{t('ach.wonTag')}</Tag>}
                   </View>
                   {meta.byTrophy ? TROPHIES.flatMap(c => [false, true].map(aimed => (
                     <View key={`${c}${aimed}`} style={styles.trophyLine}>
-                      <KitText t="tag" color={roles.textMuted}>{`${EUROPE[c].name.toUpperCase()}${aimed ? ', AIMED' : ''}`}</KitText>
+                      <KitText t="tag" color={roles.textMuted}>{EUROPE[c].name.toUpperCase() + (aimed ? t('ach.aimedCaps') : '')}</KitText>
                       <DifficultyTags a={ach[trophyKey(c, aimed)] ?? emptyAch()} />
                     </View>
                   ))) : meta.hasDifficulty ? <DifficultyTags a={a} /> : (
                     <View style={styles.tags}>
-                      <Tag roles={roles} variant={a.conquered ? 'win' : 'data'}>{a.conquered ? 'CONQUERED' : 'NOT YET'}</Tag>
+                      <Tag roles={roles} variant={a.conquered ? 'win' : 'data'}>{a.conquered ? t('ach.conqueredCaps') : t('ach.notYet')}</Tag>
                     </View>
                   )}
                   {a.legacyWins > 0 && (
-                    <KitText t="tag" color={roles.textMuted}>{`+${a.legacyWins} older win${a.legacyWins > 1 ? 's' : ''} from before difficulty was tracked`}</KitText>
+                    <KitText t="tag" color={roles.textMuted}>{t('ach.legacy', { count: a.legacyWins })}</KitText>
                   )}
                 </View>
               </View>
@@ -99,22 +103,22 @@ export default function AchievementsScreen() {
           })}
           {/* P8-126: feats, about a way of playing rather than a mode. Checked
               from every saved run, past ones included. */}
-          <SectionTag roles={roles} style={styles.featsHead}>{`Feats · ${FEATS.filter(f => (feats.get(f.id) ?? 0) > 0).length}/${FEATS.length}`}</SectionTag>
+          <SectionTag roles={roles} style={styles.featsHead}>{t('ach.feats', { n: FEATS.filter(f => (feats.get(f.id) ?? 0) > 0).length, m: FEATS.length })}</SectionTag>
           {FEATS.map(f => {
             const n = feats.get(f.id) ?? 0
             return (
               <View key={f.id} style={[styles.feat, { borderBottomColor: roles.rule }]} accessible
-                accessibilityLabel={`${f.title}. ${f.how} ${n > 0 ? `Earned ${n} time${n === 1 ? '' : 's'}` : 'Not yet'}`}>
+                accessibilityLabel={[f.title + '.', f.how, n > 0 ? t('ach.earned', { count: n }) : t('ach.notYetA11y')].join(' ')}>
                 <View style={{ flex: 1 }}>
                   <KitText t="bodyL" color={roles.text} style={styles.modeTitle}>{f.title}</KitText>
                   <KitText t="body" color={roles.textMuted}>{f.how}</KitText>
                 </View>
-                <Tag roles={roles} variant={n > 0 ? 'win' : 'data'}>{n > 1 ? `WON ×${n}` : n === 1 ? 'WON' : 'NOT YET'}</Tag>
+                <Tag roles={roles} variant={n > 0 ? 'win' : 'data'}>{n > 1 ? t('ach.wonTimes', { n }) : n === 1 ? t('ach.wonTag') : t('ach.notYet')}</Tag>
               </View>
             )
           })}
           <KitText t="body" color={roles.textMuted} style={styles.foot}>
-            Win a mode on a difficulty and its tag stays. Custom shows the hardest custom run you've won, on a 0–11 scale.
+            {t('ach.foot')}
           </KitText>
         </>
       )}
@@ -125,11 +129,11 @@ export default function AchievementsScreen() {
 function DifficultyTags({ a }: { a: ModeAch }) {
   return (
     <View style={styles.tags}>
-      <Tag roles={roles} variant={a.wonEasy ? 'win' : 'data'}>EASY</Tag>
-      <Tag roles={roles} variant={a.wonMedium ? 'win' : 'data'}>MEDIUM</Tag>
-      <Tag roles={roles} variant={a.wonHard ? 'win' : 'data'}>HARD</Tag>
+      <Tag roles={roles} variant={a.wonEasy ? 'win' : 'data'}>{t('ach.easyCaps')}</Tag>
+      <Tag roles={roles} variant={a.wonMedium ? 'win' : 'data'}>{t('ach.mediumCaps')}</Tag>
+      <Tag roles={roles} variant={a.wonHard ? 'win' : 'data'}>{t('ach.hardCaps')}</Tag>
       <Tag roles={roles} variant={a.customBestHardness != null ? 'win' : 'data'}>
-        {a.customBestHardness != null ? `CUSTOM ${a.customBestHardness.toFixed(1)}/11` : 'CUSTOM'}
+        {a.customBestHardness != null ? t('ach.customValue', { n: dec(a.customBestHardness, 1) }) : t('ach.customCaps')}
       </Tag>
     </View>
   )

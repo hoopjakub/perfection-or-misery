@@ -13,6 +13,7 @@
  * odd — so a partial data set yields a smaller-but-valid field, and adding the
  * long-tail leagues fills it out to a full 36 with zero code change.
  */
+import { shuffle } from '../lib/rng'
 import type { SimTeam } from '@/types/simulation'
 import { simulateTwoLegs, type TwoLegResult } from './knockout-match'
 import { roundPathKey, type CLAccessList, type EntrantClub } from './cl-access'
@@ -82,7 +83,7 @@ export function playRound(round: UclRound, path: UclPath, field: QualTeam[]): { 
 
   const half = sorted.length / 2
   const seeded = sorted.slice(0, half)
-  const unseeded = shuffle(sorted.slice(half))
+  const unseeded = shuffle(Math.random, sorted.slice(half))
 
   for (let i = 0; i < half; i++) {
     const a = seeded[i], b = unseeded[i]
@@ -140,6 +141,3 @@ export function simulateCustomUclQualifying(access: CLAccessList, playerClubId?:
   return { ties: allTies, qualifiers, leaguePhaseField, playerPath }
 }
 
-function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5)
-}

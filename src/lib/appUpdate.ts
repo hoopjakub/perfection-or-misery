@@ -22,6 +22,7 @@
 // JavaScript-only changes don't come this way: they arrive over the air
 // (EAS Update, app.json `updates`), with no install at all.
 import { Platform } from 'react-native'
+import { log } from '@/diag/log'
 import { create } from 'zustand'
 
 export const LATEST_URL = 'https://perfection-or-misery.vercel.app/latest.json'
@@ -67,7 +68,7 @@ export async function checkForAppUpdate(): Promise<void> {
     if (!isLatest(latest) || latest.build <= mine) return
     set({ kind: 'available', latest, required: latest.minBuild != null && mine < latest.minBuild })
   } catch (e) {
-    console.log('[update] check skipped:', String(e))
+    log.info('app', 'update: check skipped', String(e))
   }
 }
 
@@ -109,7 +110,7 @@ export async function installAppUpdate(latest: LatestBuild, required = false): P
     // cancels it can tap Update again.
     set({ kind: 'available', latest, required })
   } catch (e) {
-    console.warn('[update] install failed:', e)
+    log.warn('app', 'update: install failed', e)
     set({ kind: 'failed', latest, why: String((e as Error)?.message ?? e) })
   }
 }

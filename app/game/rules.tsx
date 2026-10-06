@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React from 'react'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet } from 'react-native'
@@ -18,7 +19,7 @@ export default function RulesScreen() {
   const rest = RULES_ORDER.filter(k => k !== topic && EXPLAINERS[k])
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="How it works" description="The rules of every competition in Perfection or Misery, in plain words." path="/game/rules" />
+      <PageMeta title={t('rules.pageTitle')} description={t('rules.pageDesc')} path="/game/rules" />
       <BackControl roles={roles} />
       {lead ? (
         <View style={styles.lead}>
@@ -26,9 +27,9 @@ export default function RulesScreen() {
           <KitText t="bodyL" color={roles.text}>{lead.text}</KitText>
         </View>
       ) : (
-        <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.lead}>HOW IT WORKS</KitText>
+        <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.lead}>{t('rules.heading')}</KitText>
       )}
-      {lead && <KitText t="tag" color={roles.textMuted} style={styles.more}>The rest of the rulebook</KitText>}
+      {lead && <KitText t="tag" color={roles.textMuted} style={styles.more}>{t('rules.rest')}</KitText>}
       {rest.map(k => (
         <View key={k} style={[styles.block, { borderTopColor: roles.rule }]}>
           <KitText t="bodyL" color={roles.text} style={styles.title}>{EXPLAINERS[k].title}</KitText>

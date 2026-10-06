@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { View, FlatList, TextInput, KeyboardAvoidingView, Platform, Pressable, StyleSheet } from 'react-native'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
+import { t, LOCALE } from '@/i18n'
+import { View, FlatList, TextInput, Platform, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
-import { KitScreen, KitText, BackControl, StripedNotice, Loader, Icon } from '@/components/kit'
+import { KitScreen, KitText, BackControl, StripedNotice, Icon, KeyboardSafe, GhostRows } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { Avatar } from '@/components/profile/ProfileParts'
 import { ClubTag } from '@/components/ClubParts'
@@ -33,10 +36,11 @@ const roles = ROLES[EVERYDAY]
 // nothing more. A club-voice line under it went after the playtest ("double
 // punishment, which is not needed"); those lines belong to names, which are
 // refused (P8.5-44), not to chat, which is only swapped.
-const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })
+const day = (iso: string) => new Date(iso).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }).toUpperCase()
 
 export default function ClubChatScreen() {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { id } = useLocalSearchParams<{ id: string }>()
   const me = useUserStore(s => (s.isGuest ? null : s.user?.id ?? null))
   const [club, setClub] = useState<Club | null>(null)
@@ -49,7 +53,7 @@ export default function ClubChatScreen() {
 
   const load = useCallback(async () => {
     try {
-      const d = await fetchClub(id)
+      const d = await once(fetchClub(id))
       if (!d) { setState('failed'); return }
       setClub(d.club)
       setMembers(new Map(d.members.map(m => [m.user_id, m])))
@@ -57,7 +61,7 @@ export default function ClubChatScreen() {
       setMessages(await fetchMessages(id))
       setState('ready')
     } catch (e) {
-      console.warn('[chat] load failed:', e)
+      log.warn('net', 'chat: load failed', e)
       setState(e instanceof ClubsUnavailable ? 'unavailable' : 'failed')
     }
   }, [id, me])
@@ -84,22 +88,22 @@ export default function ClubChatScreen() {
   const isOwner = !!me && club?.owner_id === me
   return (
     <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
-      <PageMeta title={club ? `${club.name} · chat` : 'Club chat'} path={`/club/chat`} />
+      <PageMeta title={club ? t('clubs.chatPageTitle', { club: club.name }) : t('clubs.clubChat')} path={`/club/chat`} />
       <OfflineNotice />
       <BackControl roles={roles} />
       {club && (
         <View style={[styles.head, { borderBottomColor: roles.line }]}>
           <ClubTag tag={club.tag} colour={club.colour} />
           <KitText t="title" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{club.name}</KitText>
-          <KitText t="tag" color={roles.textMuted}>{`${members.size} IN`}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('clubs.inCount', { count: members.size })}</KitText>
         </View>
       )}
-      {state === 'loading' && <Loader color={roles.text} />}
-      {state === 'unavailable' && <StripedNotice roles={roles}>Clubs need the database set up first: run supabase/clubs.sql.</StripedNotice>}
-      {state === 'failed' && <StripedNotice roles={roles} failed>The chat couldn't be loaded.</StripedNotice>}
-      {state === 'outside' && <StripedNotice roles={roles}>The chat is for the club's members. Join the club to read it.</StripedNotice>}
+      {state === 'loading' && <GhostRows roles={roles} />}
+      {state === 'unavailable' && <StripedNotice roles={roles}>{t('clubs.setUpShort')}</StripedNotice>}
+      {state === 'failed' && <StripedNotice roles={roles} failed>{t('clubs.chatFailed')}</StripedNotice>}
+      {state === 'outside' && <StripedNotice roles={roles}>{t('clubs.outside')}</StripedNotice>}
       {state === 'ready' && (
-        <KeyboardAvoidingView style={styles.fill} behavior="padding">
+        <KeyboardSafe>
           <FlatList
             ref={list}
             style={styles.fill}
@@ -109,7 +113,7 @@ export default function ClubChatScreen() {
             data={messages}
             keyExtractor={m => String(m.id)}
             contentContainerStyle={styles.list}
-            ListEmptyComponent={<KitText t="body" color={roles.textMuted}>Nothing said yet. Say the first thing.</KitText>}
+            ListEmptyComponent={<KitText t="body" color={roles.textMuted}>{t('clubs.empty')}</KitText>}
             renderItem={({ item, index }) => {
               const mine = item.user_id === me
               const who = members.get(item.user_id)
@@ -121,16 +125,16 @@ export default function ClubChatScreen() {
                   {newDay && <KitText t="tag" color={roles.textMuted} style={styles.day}>{day(item.created_at)}</KitText>}
                   <Pressable
                     onLongPress={mine || isOwner ? () => openConfirm({
-                      question: 'Delete this message?', consequence: 'It goes for everyone in the club.',
-                      confirmLabel: 'Delete', stayLabel: 'Keep', onConfirm: () => deleteMessage(item.id).catch(e => setError(clubErrorText(e))),
+                      question: t('clubs.deleteMessage'), consequence: t('clubs.deleteMessageConsequence'),
+                      confirmLabel: t('clubs.delete'), stayLabel: t('clubs.keep'), onConfirm: () => deleteMessage(item.id).catch(e => setError(clubErrorText(e))),
                     }) : undefined}
-                    accessibilityLabel={`${mine ? 'You' : who?.username ?? 'A member'} at ${hhmm(item.created_at)}: ${item.body}`}
+                    accessibilityLabel={t('clubs.messageA11y', { who: mine ? t('clubs.you') : who?.username ?? t('clubs.aMember'), time: hhmm(item.created_at), body: item.body })}
                     style={[styles.msgRow, mine && styles.msgRowMine]}>
                     {!mine && !sameRun ? <Avatar roles={roles} path={who?.avatar_path} name={who?.username ?? '?'} size={24} /> : !mine ? <View style={{ width: 24 }} /> : null}
                     <View style={styles.bubbleWrap}>
                       <View style={[styles.bubbleOffset, { backgroundColor: roles.offset }]} />
                       <View style={[styles.bubble, { borderColor: roles.line, backgroundColor: mine ? prim.orange : roles.surface }]}>
-                        {!mine && !sameRun ? <KitText t="tag" color={roles.text}>{(who?.username ?? 'A member').toUpperCase()}</KitText> : null}
+                        {!mine && !sameRun ? <KitText t="tag" color={roles.text}>{(who?.username ?? t('clubs.aMember')).toUpperCase()}</KitText> : null}
                         <KitText t="body" color={mine ? prim.ink : roles.text}>{item.body}</KitText>                        <KitText t="tag" color={mine ? prim.ink : roles.textMuted} style={styles.time}>{hhmm(item.created_at)}</KitText>
                       </View>
                     </View>
@@ -141,15 +145,15 @@ export default function ClubChatScreen() {
           />
           {error ? <StripedNotice roles={roles} failed>{error}</StripedNotice> : null}
           <View style={[styles.bar, { borderTopColor: roles.line }]}>
-            <TextInput value={draft} onChangeText={setDraft} placeholder="Say something to the club" placeholderTextColor={roles.textFaint}
-              maxLength={CLUB_LIMITS.message} multiline accessibilityLabel="Your message"
+            <TextInput value={draft} onChangeText={setDraft} placeholder={t('clubs.say')} placeholderTextColor={roles.textFaint}
+              maxLength={CLUB_LIMITS.message} multiline accessibilityLabel={t('clubs.yourMessage')}
               style={[styles.input, { color: roles.text, borderColor: roles.line, fontFamily: font.body }]} />
-            <Pressable onPress={send} disabled={!draft.trim()} accessibilityRole="button" accessibilityLabel="Send"
+            <Pressable onPress={send} disabled={!draft.trim()} accessibilityRole="button" accessibilityLabel={t('clubs.send')}
               style={({ pressed }) => [styles.send, { backgroundColor: draft.trim() ? prim.orange : roles.sunken, borderColor: roles.line }, pressed && { opacity: 0.7 }]}>
               <Icon name="forward" size={20} color={draft.trim() ? prim.ink : roles.textMuted} />
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafe>
       )}
     </KitScreen>
   )

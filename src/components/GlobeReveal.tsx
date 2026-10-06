@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useUiFrameSampler } from '@/diag/frames'
 import { View, StyleSheet } from 'react-native'
 import Svg, { Circle, Path, Defs, Pattern, Image as SvgImage, ClipPath, RadialGradient, Stop, G } from 'react-native-svg'
 import Animated, { useSharedValue, useAnimatedProps, withTiming, withSequence, withDelay, Easing, cancelAnimation, runOnJS, interpolateColor } from 'react-native-reanimated'
@@ -261,6 +262,7 @@ export function GlobeReveal({ targetId, targetName, flag, accent, size = 220, sp
   const targetRings = useMemo(() => (target ? ringsOf(target, 1) : []), [target])
   const [end, setEnd] = useState<{ lon: number; lat: number; R: number } | null>(null)
   const [locked, setLocked] = useState(false)
+  useUiFrameSampler('frame:globe', !locked)   // Phase 9: the spin and the zoom, on the UI thread
   const lockedRef = useRef(false)
   const lon = useSharedValue(0)
   const lat = useSharedValue(-15)
@@ -425,6 +427,7 @@ export const SpinningGlobe = React.memo(function SpinningGlobe({ targetId = DETA
 }) {
   const reduced = useReducedMotion()
   const focused = useIsFocused()
+  useUiFrameSampler('frame:globe', focused && !paused)   // Phase 9: only while it turns
   const R = size * 0.43
   const C = size / 2
   const target = useMemo(() => FEATURES.find(f => Number(f.id) === targetId) ?? null, [targetId])

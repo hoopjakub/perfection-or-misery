@@ -10,9 +10,11 @@
 // Persisted through `settingsStorage` (MMKV, read synchronously at start-up,
 // P8-148; AsyncStorage in a build without MMKV — see src/lib/mmkv).
 import { create } from 'zustand'
+import { log } from '@/diag/log'
 import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { settingsStorage } from '@/lib/mmkv'
+import type { Speed } from '@/data/speed'
 
 const KEY = 'pom.settings.v1'
 
@@ -32,12 +34,22 @@ type Settings = {
    *  it always was. Copied onto a run when it starts, so changing it mid-run
    *  does nothing. */
   europeanTarget: EuropeanTarget
+  /** P8.5-28: the app's language. 'system' follows the phone. Read once at
+   *  start-up (src/i18n), like the appearance; a change reloads the app. */
+  language: LanguageChoice
+  /** How fast a season plays (centralisation F-05, decision D7). One setting
+   *  for every stage, kept between runs: each screen used to keep its own,
+   *  and the Champions League and the World Cup were locked to slow. */
+  speed: Speed
 }
 
 export type AppearanceChoice = 'system' | 'light' | 'dark'
 const APPEARANCES: AppearanceChoice[] = ['system', 'light', 'dark']
+export type LanguageChoice = 'system' | 'en' | 'sk'
+const LANGUAGES: LanguageChoice[] = ['system', 'en', 'sk']
 export type EuropeanTarget = 'any' | 'ucl' | 'uel' | 'uecl'
 const TARGETS: EuropeanTarget[] = ['any', 'ucl', 'uel', 'uecl']
+const SPEEDS: Speed[] = ['slow', 'normal', 'fast']
 
 /** The last run you finished: the one thing "LAST TIME" and Home's "Again"
  *  both mean. They used to read two different places — the tags read the
@@ -55,15 +67,17 @@ type SettingsStore = Settings & {
   setReduceMotion: (on: boolean) => void
   setAppearance: (a: AppearanceChoice) => void
   setEuropeanTarget: (t: EuropeanTarget) => void
+  setLanguage: (l: LanguageChoice) => void
+  setSpeed: (s: Speed) => void
 }
 
-const DEFAULTS: Settings = { skipWarning: true, noBenchWarning: true, reduceMotion: false, appearance: 'system', europeanTarget: 'any' }
+const DEFAULTS: Settings = { skipWarning: true, noBenchWarning: true, reduceMotion: false, appearance: 'system', europeanTarget: 'any', language: 'system', speed: 'normal' }
 const KEYS = Object.keys(DEFAULTS) as (keyof Settings)[]
 type Saved = Settings & { lastRun: LastRun | null }
 const pick = (s: Saved): Saved => ({ ...Object.fromEntries(KEYS.map(k => [k, s[k]])) as Settings, lastRun: s.lastRun })
 
 function save(s: Saved) {
-  settingsStorage.setItem(KEY, JSON.stringify(s)).catch(e => console.warn('[settings] save failed:', e))
+  settingsStorage.setItem(KEY, JSON.stringify(s)).catch(e => log.warn('app', 'settings: save failed', e))
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -75,6 +89,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setReduceMotion: (on) => { set({ reduceMotion: on }); save(pick(get())) },
   setAppearance: (a) => { set({ appearance: a }); save(pick(get())) },
   setEuropeanTarget: (t) => { set({ europeanTarget: t }); save(pick(get())) },
+  setLanguage: (l) => { set({ language: l }); save(pick(get())) },
+  setSpeed: (sp) => { set({ speed: sp }); save(pick(get())) },
 }))
 
 // Read once at start-up. A missing or damaged entry leaves the defaults.
@@ -84,9 +100,11 @@ function adopt(raw: string | null) {
     const s = JSON.parse(raw) as Partial<Saved>
     for (const k of KEYS) if (typeof s[k] === 'boolean' && typeof DEFAULTS[k] === 'boolean') useSettingsStore.setState({ [k]: s[k] } as Partial<Settings>)
     if (APPEARANCES.includes(s.appearance as AppearanceChoice)) useSettingsStore.setState({ appearance: s.appearance })
+    if (LANGUAGES.includes(s.language as LanguageChoice)) useSettingsStore.setState({ language: s.language })
     if (TARGETS.includes(s.europeanTarget as EuropeanTarget)) useSettingsStore.setState({ europeanTarget: s.europeanTarget })
+    if (SPEEDS.includes(s.speed as Speed)) useSettingsStore.setState({ speed: s.speed })
     if (s.lastRun && typeof s.lastRun.mode === 'string') useSettingsStore.setState({ lastRun: s.lastRun })
-  } catch (e) { console.warn('[settings] damaged entry, defaults kept:', e) }
+  } catch (e) { log.warn('app', 'settings: damaged entry, defaults kept', e) }
 }
 
 // P8-148: on MMKV the saved settings are read here and now, before any screen
@@ -100,6 +118,6 @@ if (!rendering) {
     if (now) adopt(now)
     else AsyncStorage.getItem(KEY).then(old => { if (old) { adopt(old); save(pick(useSettingsStore.getState())) } }).catch(() => {})
   } else {
-    settingsStorage.getItem(KEY).then(adopt).catch(e => console.warn('[settings] load failed:', e))
+    settingsStorage.getItem(KEY).then(adopt).catch(e => log.warn('app', 'settings: load failed', e))
   }
 }

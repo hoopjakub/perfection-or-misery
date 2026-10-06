@@ -9,6 +9,7 @@
 // the draft reroll allowance and hidden ratings (engine/draft.ts), the run score
 // multiplier (db/queries scoring), and the achievements hardness rating.
 
+import { t } from '../i18n'
 import type { GameMode } from '@/types/game'
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'custom'
@@ -22,16 +23,10 @@ export type CustomDifficulty = {
 // The 10-level "screw-you-er". easy/medium/hard live at 2/4/6 so the familiar
 // names still mean something; the taglines rib the player a bit.
 export const SCREW_LEVELS: { level: number; name: string; tagline: string }[] = [
-  { level: 1,  name: 'Baby Mode',       tagline: 'Trophies made of foam. Losing takes real effort.' },
-  { level: 2,  name: 'Easy',            tagline: 'Training wheels bolted on. Minimal shame.' },
-  { level: 3,  name: 'Casual',          tagline: "You're 'not really trying.' Sure you aren't." },
-  { level: 4,  name: 'Medium',          tagline: "The honest gamer's choice. Allegedly." },
-  { level: 5,  name: 'Sweaty',          tagline: 'Your hands have started to get involved.' },
-  { level: 6,  name: 'Hard',            tagline: 'Okay — now you actually mean it.' },
-  { level: 7,  name: 'Brutal',          tagline: 'This one leaves a mark.' },
-  { level: 8,  name: 'Nightmare',       tagline: 'Sleep is for people on easier settings.' },
-  { level: 9,  name: 'Masochist',       tagline: 'Genuinely, what did the AI ever do to you?' },
-  { level: 10, name: 'Absolute Misery', tagline: 'The world hates you specifically. Godspeed.' },
+  // P8.5-28: names and taglines are difficulty.levels / difficulty.taglines in src/i18n.
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => ({
+    level, name: t(`difficulty.levels.l${level}` as 'difficulty.levels.l1'), tagline: t(`difficulty.taglines.l${level}` as 'difficulty.taglines.l1'),
+  })),
 ]
 
 export function screwLevelInfo(level: number) {
@@ -168,15 +163,15 @@ export function ratingsHiddenFor(difficulty: Difficulty | null, custom: CustomDi
 // Short label for the run summary / achievements / run-history cards. Chaos and
 // Cursed get their own mode-flavoured label (not "Custom · Brutal" — the mode
 // name already says which one) since the level is fixed, not a player choice.
-const FIXED_MODE_LABEL: Partial<Record<GameMode, string>> = { chaos: 'Chaos', cursed: 'Cursed' }
+const FIXED_MODE_LABEL: Partial<Record<GameMode, string>> = { chaos: t('difficulty.chaos'), cursed: t('difficulty.cursed') }
 
 export function difficultyLabel(difficulty: Difficulty | null, custom: CustomDifficulty | null | undefined, mode?: GameMode | null): string {
   const fixed = mode ? FIXED_MODE_LABEL[mode] : undefined
   if (fixed) return fixed
   if (!difficulty) return '—'
-  if (difficulty !== 'custom') return difficulty.charAt(0).toUpperCase() + difficulty.slice(1)
+  if (difficulty !== 'custom') return t(`difficulty.${difficulty}` as 'difficulty.easy')
   const info = screwLevelInfo(custom?.screwLevel ?? DEFAULT_CUSTOM.screwLevel)
-  return `Custom · ${info.name}`
+  return t('difficulty.customNamed', { name: info.name })
 }
 
 // ── small local helpers ──────────────────────────────────────────────────────

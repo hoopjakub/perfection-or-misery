@@ -1,6 +1,6 @@
 # 04 · Languages: Slovak, natively
 
-> Part of the [release set](00-README.md). Status: **decided** (the maintainer's answers in §4, 29 September 2026); nothing built.
+> Part of the [release set](00-README.md). Status: **decided** (the maintainer's answers in §4, 29 September 2026); **being built** (Wave E, from 1 October 2026: `src/i18n/`, `scripts/verify-i18n.ts`; the football words wait on [08](08-SLOVAK-TERMS.md)). One change from §2.1: no react-i18next, and no expo-localization (a native module, while no native builds are made): the language is read once at start-up and `Intl` reads the phone's.
 
 The maintainer: "Add the Slovak language to the app, to the game itself, natively. Propose ways we can do it and let me answer them." And (website Q23): English and Slovak natively, every Slovak line through the humanizer and checked by him; other languages when players ask.
 

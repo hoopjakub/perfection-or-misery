@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { runStarted } from '@/diag/log'
 import { useSettingsStore, type EuropeanTarget } from './settingsStore'
 import type { DraftedPlayer, LeagueSeason, Formation, GameMode } from '@/types/game'
 import type { SeasonResult } from '@/types/simulation'
@@ -53,6 +54,10 @@ type GameStore = {
   // The pundits' three names (Player of the Season, top scorer, best under-21),
   // read back on Awards Night. Live runs only; not saved with the run.
   punditPicks:    import('@/engine/predictions').PunditPicks | null
+  // I-2 (Wave F): from each club you picked from in the draft, the best
+  // player you didn't take, for the result's "one that got away". Saved with
+  // the run in its highlights; cleared with the run.
+  gotAway:        import('@/lib/resultStory').GotAway[]
   // Phase 5 — the run's stats, computed once (on Awards Night or the first
   // page that needs them) and read by every run page after. Cleared with the run.
   runData:        import('@/lib/runData').RunData | null
@@ -135,6 +140,7 @@ const initialState = {
   quickSim:        false,
   predictionSeed:  null,
   punditPicks:     null,
+  gotAway:         [],
   runData:         null,
   savedRunId:      null,
   savedRunRow:     null,
@@ -150,7 +156,9 @@ export function nextBenchIndex(bench: DraftedPlayer[]): number {
 
 export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
-  startRun:       (mode, formation) => set(s => ({
+  startRun:       (mode, formation) => set(s => {
+    runStarted(mode, `${s.difficulty} · ${formation}`)   // Phase 9: RUN STARTED in the log
+    return {
     ...initialState,
     mode,
     formation,
@@ -163,7 +171,7 @@ export const useGameStore = create<GameStore>((set) => ({
     selectedLeague: s.selectedLeague, // Preserve selected league
     accentColor: s.accentColor, // Preserve accent color
     useSubstitutes: s.useSubstitutes, // Preserve the substitutes toggle
-  })),
+  }}),
   addPlayer:      (player) => set(s => ({ draftedPlayers: [...s.draftedPlayers, player] })),
   addBenchPlayer: (player) => set(s => ({ benchPlayers: [...s.benchPlayers, player] })),
   setUseSubstitutes: (useSubstitutes) => set({ useSubstitutes }),
@@ -218,6 +226,7 @@ export const useGameStore = create<GameStore>((set) => ({
     quickSim:        false,
     predictionSeed:  null,
   punditPicks:     null,
+  gotAway:         [],
   runData:         null,
   savedRunId:      null,
   savedRunRow:     null,

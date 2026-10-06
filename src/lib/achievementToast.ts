@@ -10,6 +10,7 @@
 // earned so far is recorded without a sound: a long-time player would
 // otherwise get every trophy they ever won, one after another.
 import { create } from 'zustand'
+import { log } from '@/diag/log'
 import { settingsStorage } from '@/lib/mmkv'
 import { fetchAchievementRuns } from '@/db/queries/leaderboard'
 import { earnedList } from '@/lib/achievements'
@@ -35,6 +36,6 @@ export async function announceNewAchievements(userId: string): Promise<void> {
     await settingsStorage.setItem(keyFor(userId), JSON.stringify([...new Set([...seen, ...earned.map(e => e.key)])]))
     if (fresh.length) useAchievementToasts.setState(s => ({ queue: [...s.queue, ...fresh] }))
   } catch (e) {
-    console.warn('[achievements] announcing failed:', e)
+    log.warn('ui', 'achievements: announcing failed', e)
   }
 }

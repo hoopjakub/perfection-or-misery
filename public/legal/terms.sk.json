@@ -1,0 +1,43 @@
+{
+  "updated": "2026-10-01",
+  "contact": "perfectionormisery@gmail.com",
+  "title": "Podmienky",
+  "intro": "Perfection or Misery je bezplatná futbalová hra, ktorú robí jeden človek. Hraním prijímaš týchto pár pravidiel.",
+  "sections": [
+    {
+      "heading": "Hra",
+      "body": [
+        "Každý výsledok je simulovaný. Body, úrovne a poradie sú len pre zábavu: nič sa za ne nevyhráva a nemajú žiadnu hodnotu.",
+        "Hru dostávaš takú, aká je. Keď služba nebeží, hry sa môžu stratiť. Funkcie sa môžu zmeniť alebo zmiznúť."
+      ]
+    },
+    {
+      "heading": "Tvoj účet",
+      "body": [
+        "Vyber si meno, ktoré nie je urážlivé a nevydáva sa za niekoho iného. Účet, ktorý to poruší, môže prísť o meno alebo byť odstránený.",
+        "Zabudnuté heslo sa nedá obnoviť, tak si ho ulož niekam do bezpečia.",
+        "Neskúšaj posielať výsledky, ktoré hra nevytvorila, ani sa dostať k údajom iných hráčov. Účty, ktoré to robia, môžu byť z rebríčka odstránené."
+      ]
+    },
+    {
+      "heading": "Kluby a chat",
+      "body": [
+        "Pre názov, značku a popis klubu platí to isté ako pre meno: nič urážlivé a nikto sa nevydáva za iného.",
+        "V chate sa správaj slušne. Majiteľ klubu môže odobrať členov a mazať správy a kluby alebo hráči, ktorí obťažujú iných, môžu byť odstránení.",
+        "Hráča alebo klub môže ktokoľvek nahlásiť z jeho stránky. Nahlásenia číta moderátor, ktorý môže zmeniť meno, zrušiť klub alebo zablokovať účet. Nahlasovať niekoho len preto, aby sa mu uškodilo, je samo osebe proti týmto pravidlám."
+      ]
+    },
+    {
+      "heading": "Skutočné mená",
+      "body": [
+        "Mená hráčov, klubov, líg a súťaží sa používajú iba na označenie skutočnej futbalovej histórie. Perfection or Misery nie je spojená so žiadnym hráčom, klubom, ligou ani riadiacim orgánom, nikto z nich ju nepodporuje a nemá s ňou nič spoločné."
+      ]
+    },
+    {
+      "heading": "Odchod",
+      "body": [
+        "Účet môžeš kedykoľvek vymazať v časti Ty → Vymazať účet. Čo sa tým odstráni, nájdeš v časti Súkromie."
+      ]
+    }
+  ]
+}

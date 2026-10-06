@@ -14,11 +14,17 @@
 //    happen (even before a quarter of the season), and nobody else's do
 // Run: npx tsx scripts/verify-press.ts
 
-import { writePress, storyText, type Story, type PressSnapshot } from '../src/engine/press'
+import { writePress, storyText, storyBody, type Story, type PressSnapshot } from '../src/engine/press'
 import { zonesFor } from '../src/data/qualification-bands'
 import { simulateMatch, setMatchTilt } from '../src/engine/match'
 import { generateFixtures } from '../src/engine/fixtures'
 import type { SimTeam } from '../src/types/simulation'
+import { cupPress, clPressStages, wcPressStages, type CupStage } from '../src/engine/cup-press'
+import { buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly, type CLLeagueMatch, type CLSeasonResult } from '../src/engine/cl-sim'
+import { buildWCTeams, assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly, type WCGroupMatch } from '../src/engine/world-cup-sim'
+import { recordResult, sortStandings } from '../src/engine/standings'
+import { mulberry32 } from '../src/lib/rng'
+import type { Absence } from '../src/engine/availability'
 
 let failures = 0
 function check(cond: boolean, msg: string) {
@@ -158,6 +164,9 @@ for (let s = 1; s <= SEASONS; s++) {
           `season ${s} ${st.id}: frozen row ${row.clubName} doesn't match the table`)
       }
       const words = storyText(st)
+      // SAMPLE=1 prints the first story of each kind (with POM_LANGUAGE=sk, in Slovak).
+      if (process.env.SAMPLE && !kinds.has(st.kind)) console.log(`[${st.kind}] ${words.headline} — ${words.standfirst}
+     ${storyBody(st).join(' ')}`)
       const text = words.headline + ' ' + words.standfirst
       check(words.headline.length > 0 && words.standfirst.length > 0, `${st.id}: empty words`)
       check(!/undefined|NaN|!/.test(text), `${st.id}: bad words "${text}"`)
@@ -188,6 +197,150 @@ for (const k of ['thrashing', 'giantKilling', 'europeRace', 'injury', 'suspensio
 
 console.log(`${SEASONS} seasons · stories per season mean ${mean.toFixed(1)} (min ${min}, max ${max})`)
 console.log([...kinds.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · '))
+// ── Phase two step 7 (F-01, F-02): the cups' press ───────────────────────────
+// Seeded classic Champions League, World Cup and full path runs, played the way
+// the screens play them. Done-when (12-PHASE-TWO-FINAL §1, 07 step 7): every
+// round writes at least one story, no story names a club that isn't in its
+// stage, and stories are written once. Plus: the live press (any prefix of the
+// rounds) is exactly the start of the finished one, what a story says is what
+// happened, your injuries land in the round they happened, and it reads.
+const cupKinds = new Map<string, number>()
+let cupRuns = 0, cupStories = 0
+const absenceAt = (day: number, id: string, reason: 'injury' | 'suspension', you = true): Absence => ({
+  playerId: id, playerName: `Player ${id}`, clubId: you ? 'c0' : 'c1', clubName: 'X', position: 'ST', reason,
+  fromMatchday: day + 1, toMatchday: day + 2, incurredOn: day, minute: 30, isPlayerClub: you,
+})
+
+function checkCup(name: string, stages: CupStage[], absences: Absence[], expect: { yourClubId: string; injuryIn: string[] }) {
+  cupRuns++
+  const all = cupPress(stages, absences)
+  cupStories += all.length
+  check(JSON.stringify(all) === JSON.stringify(cupPress(stages, absences)), `${name}: not deterministic`)
+  // Written once.
+  { const seen = new Set<string>(); const dup = all.find(x => seen.has(x.id) || !seen.add(x.id)); check(!dup, `${name}: story id ${dup?.id} repeats`) }
+  // Every round at least one story; nobody outside the stage.
+  for (const st of stages) {
+    const mine = all.filter(x => x.id.startsWith(`${st.key}~`))
+    const clubs = new Set(st.kind === 'knockout' ? st.ties.flatMap(t => [t.teamA.clubId, t.teamB.clubId]) : st.kind === 'groups' ? st.groups.flatMap(g => g.clubs.map(c => c.clubId)) : st.clubs.map(c => c.clubId))
+    if (st.kind === 'knockout') check(mine.length > 0, `${name}: ${st.stage} wrote nothing`)
+    else for (const md of new Set(st.matches.map(m => m.matchday))) check(mine.some(x => x.matchday === md), `${name}: ${st.stage} matchday ${md} wrote nothing`)
+    for (const x of mine) {
+      for (const r of x.rows) check(clubs.has(r.clubId), `${name}: ${x.id} names ${r.clubId}, not in ${st.stage}`)
+      if (x.match) check(clubs.has(x.match.homeId) && clubs.has(x.match.awayId), `${name}: the match in ${x.id} isn't in ${st.stage}`)
+      check(x.stage === st.stage, `${name}: ${x.id} carries the wrong stage`)
+    }
+    // What a story says is what happened.
+    if (st.kind === 'knockout') {
+      for (const x of mine) {
+        if (x.kind === 'yourTie') {
+          const tie = st.ties.find(t => t.teamA.clubId === expect.yourClubId || t.teamB.clubId === expect.yourClubId)!
+          check(!!x.n.won === (tie.winner.clubId === expect.yourClubId), `${name}: ${x.id} gets your tie's result wrong`)
+        }
+        if (x.kind === 'cupWinners') check(x.rows[0].clubId === st.ties[st.ties.length - 1].winner.clubId, `${name}: the winners story crowns the wrong side`)
+        if (x.kind === 'koUpset') check(x.n.gap >= 4, `${name}: ${x.id} isn't an upset (gap ${x.n.gap})`)
+        if (x.kind === 'shootout') check(!!x.n.pens, `${name}: ${x.id} has no shootout`)
+      }
+      if (st.final) check(mine.some(x => x.kind === 'cupWinners'), `${name}: the final crowned nobody`)
+    }
+    if (st.kind === 'groups') {
+      const gd = mine.find(x => x.kind === 'groupDecided')
+      const r32 = stages.find(z => z.kind === 'knockout' && z.key === 'r32')
+      if (gd && r32 && r32.kind === 'knockout') {
+        const through = r32.ties.some(t => t.teamA.clubId === expect.yourClubId || t.teamB.clubId === expect.yourClubId)
+        if (gd.n.fate <= 1) check(through, `${name}: through in the top two but not in the round of 32`)
+        if (gd.n.fate === 3) check(!through, `${name}: out in fourth but in the round of 32`)
+        const bt = mine.find(x => x.kind === 'bestThird')
+        if (gd.n.fate === 2) check(!!bt && !!bt.n.through === through, `${name}: the best-thirds story disagrees with the draw`)
+      }
+    }
+  }
+  for (const key of expect.injuryIn) check(all.some(x => x.kind === 'injury' && x.id.startsWith(`${key}~`)), `${name}: your injury in ${key} never made the press`)
+  check(!all.some(x => x.names[0] === 'Player other'), `${name}: another club's injury made your press`)
+  // The live press: any prefix of the rounds is exactly the start of the finished press.
+  const cut = (k: number): CupStage[] => {
+    const out: CupStage[] = []
+    let left = k
+    for (const st of stages) {
+      if (left <= 0) break
+      if (st.kind === 'knockout') { out.push(st); left--; continue }
+      const mds = [...new Set(st.matches.map(m => m.matchday))].sort((a, b) => a - b)
+      const take = Math.min(left, mds.length)
+      out.push({ ...st, matches: st.matches.filter(m => m.matchday <= mds[take - 1]) } as CupStage)
+      left -= take
+    }
+    return out
+  }
+  const totalRounds = stages.reduce((n, st) => n + (st.kind === 'knockout' ? 1 : new Set(st.matches.map(m => m.matchday)).size), 0)
+  for (const k of [1, 3, Math.floor(totalRounds / 2), totalRounds - 1]) {
+    if (k < 1) continue
+    const prefix = cupPress(cut(k), absences)
+    check(JSON.stringify(prefix) === JSON.stringify(all.slice(0, prefix.length)), `${name}: the live press after ${k} rounds isn't the start of the finished one`)
+  }
+  for (const x of all) {
+    const words = storyText(x), body = storyBody(x).join(' ')
+    const text = `${words.headline} ${words.standfirst} ${body}`
+    check(words.headline.length > 0 && words.standfirst.length > 0, `${name}: ${x.id} has empty words`)
+    check(!/undefined|NaN|\{\{|!/.test(text), `${name}: ${x.id} reads "${text}"`)
+    if (process.env.SAMPLE && !cupKinds.has(x.kind)) console.log(`[${x.kind}] ${words.headline} — ${words.standfirst}\n     ${body}`)
+    cupKinds.set(x.kind, (cupKinds.get(x.kind) ?? 0) + 1)
+  }
+}
+
+const realRandom = Math.random
+const side = (t: { clubId: string; clubName: string; isPlayer: boolean }) => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer })
+for (let run = 0; run < 300; run++) {
+  Math.random = mulberry32(7000 + run)
+  // Classic: a 36-club league phase drawn and played, then the knockouts.
+  const field = Array.from({ length: 36 }, (_, i) => ({ clubId: `c${i}`, clubName: `Club ${i}`, ovr: 72 + ((i * 7 + run) % 17), isPlayer: i === 0 }))
+  const teams = buildCLTeams(field)
+  const lp = drawCLLeaguePhase(teams)
+  const leagueMatchdays: CLLeagueMatch[] = []
+  for (let md = 1; md <= 8; md++) for (const f of lp.fixtures.filter(x => x.matchday === md)) {
+    const r = simulateMatch(f.home, f.away)
+    recordResult(f.home, f.away, r)
+    leagueMatchdays.push({ matchday: md, home: side(f.home), away: side(f.away), homeGoals: r.homeGoals, awayGoals: r.awayGoals })
+  }
+  const sorted = sortStandings(teams)
+  const ko = simulateCLKnockoutsOnly(sorted)
+  const cl = { ...ko, leaguePhaseStandings: sorted, leagueMatchdays } as CLSeasonResult
+  const injuries = [absenceAt(3, 'a', 'injury'), absenceAt(9, 'b', 'injury'), absenceAt(5, 'other', 'injury', false)]
+  const inPlayoff = ko.playoffRound.some(t => t.teamA.isPlayer || t.teamB.isPlayer)
+  checkCup(`CL run ${run}`, clPressStages(cl), injuries, { yourClubId: 'c0', injuryIn: inPlayoff ? ['lp', 'playoff'] : ['lp'] })
+
+  // The full path: the same, after a domestic season of its own.
+  const league: SimTeam[] = Array.from({ length: 18 }, (_, i) => ({ clubId: i === 0 ? 'c0' : `d${i}`, clubName: i === 0 ? 'Club 0' : `Dom ${i}`, ovr: 70 + ((i * 5 + run) % 15), isPlayer: i === 0, form: 0, stats: { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 } }))
+  const domesticMatchdays: CLLeagueMatch[] = generateFixtures(league).map(f => {
+    const r = simulateMatch(f.home, f.away)
+    return { matchday: f.matchday, home: side(f.home), away: side(f.away), homeGoals: r.homeGoals, awayGoals: r.awayGoals }
+  })
+  checkCup(`full path ${run}`, clPressStages({ ...cl, domesticMatchdays }), injuries, { yourClubId: 'c0', injuryIn: inPlayoff ? ['lp', 'playoff'] : ['lp'] })
+  // A split league: the press stops at the regular season (its points are
+  // halved at the split) and its last regular matchday crowns nobody.
+  const splitStages = clPressStages({ ...cl, domesticMatchdays, domesticRegular: 20 })
+  checkCup(`full path, split ${run}`, splitStages, injuries, { yourClubId: 'c0', injuryIn: inPlayoff ? ['lp', 'playoff'] : ['lp'] })
+  const splitPress = cupPress(splitStages, injuries).filter(x => x.id.startsWith('dom~'))
+  check(splitPress.every(x => x.matchday <= 20), `full path, split ${run}: a domestic story after the split`)
+  check(!splitPress.some(x => x.kind === 'champions' || x.kind === 'survived'), `full path, split ${run}: the regular season crowned a champion`)
+  check(cupPress(clPressStages({ ...cl, domesticMatchdays }), injuries).some(x => x.id.startsWith('dom~') && x.kind === 'champions'), `full path ${run}: an unsplit season crowned nobody`)
+
+  // The World Cup: twelve groups of four played, then the knockouts.
+  const nations = buildWCTeams(Array.from({ length: 48 }, (_, i) => ({ clubId: i === 0 ? 'c0' : `n${i}`, clubName: `Nation ${i}`, ovr: 70 + ((i * 11 + run) % 19), isPlayer: i === 0 })))
+  const groups = assignGroups(nations)
+  const groupMatchdays: WCGroupMatch[] = []
+  for (const f of generateWCGroupFixtures(groups)) {
+    const r = simulateMatch(f.home, f.away)
+    recordResult(f.home, f.away, r)
+    groupMatchdays.push({ groupId: f.home.groupId, matchday: f.matchday, home: side(f.home), away: side(f.away), homeGoals: r.homeGoals, awayGoals: r.awayGoals })
+  }
+  const groupsCopy = groups.map(g => ({ ...g, teams: [...g.teams] }))
+  const wko = simulateWCKnockoutsOnly(groups, nations)
+  const wcInj = [absenceAt(2, 'w', 'suspension'), absenceAt(1, 'v', 'injury')]
+  checkCup(`WC run ${run}`, wcPressStages({ groups: groupsCopy, groupMatchdays, knockoutRounds: wko.knockoutRounds }), wcInj, { yourClubId: 'c0', injuryIn: ['grp'] })
+}
+Math.random = realRandom
+for (const k of ['yourMatch', 'phaseDecided', 'groupDecided', 'bestThird', 'yourTie', 'koUpset', 'shootout', 'koRound', 'cupWinners', 'injury', 'suspension', 'thrashing']) check((cupKinds.get(k) ?? 0) > 0, `the cups' ${k} story never fired`)
+console.log(`${cupRuns} cup runs · ${(cupStories / cupRuns).toFixed(1)} stories a run`)
+console.log([...cupKinds.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · '))
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 else console.log(`${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,4 +1,5 @@
 import React from 'react'
+import { t } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { ROLES, space, border, prim } from '@/theme'
 import { KitText, Plate } from '@/components/kit'
@@ -16,15 +17,16 @@ export function UpdateStrip() {
   if (st.kind === 'none') return null
   const latest = st.latest
   const required = st.kind === 'available' && st.required
-  const line = st.kind === 'downloading' ? `Downloading ${latest.version}… ${Math.round(st.progress * 100)}%`
-    : st.kind === 'failed' ? `The update didn't go through: ${st.why}`
-    : required ? `This version is too old to keep saving runs. ${latest.version} is out.`
-    : `A new version is out: ${latest.version}.${latest.notes ? ` ${latest.notes}` : ''}`
+  // The release notes come from latest.json, in English (one line per release).
+  const line = st.kind === 'downloading' ? t('common.updateDownloading', { version: latest.version, percent: Math.round(st.progress * 100) })
+    : st.kind === 'failed' ? t('common.updateFailed', { why: st.why })
+    : required ? t('common.updateRequired', { version: latest.version })
+    : t('common.updateAvailable', { version: latest.version }) + (latest.notes ? ` ${latest.notes}` : '')
   return (
     <View style={[styles.strip, { backgroundColor: roles.surface, borderColor: required ? prim.misery : roles.line }]} accessibilityLiveRegion="polite">
       <KitText t="body" color={roles.text} style={{ flex: 1 }}>{line}</KitText>
       {st.kind !== 'downloading' && (
-        <Plate label={st.kind === 'failed' ? 'Try again' : 'Update'} icon="forward" variant={required ? 'primary' : 'secondary'} roles={roles}
+        <Plate label={st.kind === 'failed' ? t('common.tryAgain') : t('common.update')} icon="forward" variant={required ? 'primary' : 'secondary'} roles={roles}
           onPress={() => installAppUpdate(latest, required)} />
       )}
     </View>

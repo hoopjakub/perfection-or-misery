@@ -1,29 +1,33 @@
+import { t } from '@/i18n'
+// Ties are named `t` in this file's callbacks; `tr` is t() where that shadows it.
+const tr = t
+import { label } from '@/i18n/labels'
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
-import { MODE_THEMES, ROLES, prim, space } from '@/theme'
+import { space } from '@/theme'
 import { KitText, SectionTag } from '@/components/kit'
 import { QUAL_ROUND_ORDER, QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
-import { KnockoutTieRow, qualTieToKoRow } from '@/components/KnockoutRoundsView'
+import { tieVM, TieRow } from '@/components/season/SeasonParts'
+import { qualTie } from '@/engine/stages'
 import type { QualTie } from '@/engine/cl-qualifying'
 import { EUROPE } from '@/data/europe'
 import { useScreenRoles } from '@/lib/appearance'
 
 const COMPS = ['ucl', 'uel', 'uecl'] as const
 
-const CL = MODE_THEMES.champions_league
 // P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 // What winning a round gets you, under each round's heading, so the ladder
 // reads like a story. One short line (P8-113: "too much text"); it was a
 // sentence per round plus "losers are out of the UEFA Champions League".
 const ROUND_NEXT: Record<string, string> = {
-  q1: 'WINNERS TO Q2', q2: 'WINNERS TO Q3', q3: 'WINNERS TO THE PLAY-OFF', playoff: 'WINNERS TO THE LEAGUE PHASE',
+  q1: t('parts.roundNext.q1'), q2: t('parts.roundNext.q2'), q3: t('parts.roundNext.q3'), playoff: t('parts.roundNext.playoff'),
 }
 
 // Shared renderer for the custom Champions League qualifying ladder — used by
 // the live qualifying-reveal screen and the result page, so both look and read
 // identically. Groups ties by round, then by path (Champions/League) — that
 // grouping is qualifying-specific, but every row itself is the SAME
-// `KnockoutTieRow` the knockout rounds and final use (Big Fixes §1).
+// `TieRow` every knockout round and final use (Big Fixes §1), built by `tieVM`.
 export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
   ties: QualTie[]
   onTiePress?: (t: QualTie) => void
@@ -48,9 +52,9 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
         const byes = inRound.length - realTies
         return (
           <View key={`${c}-${round}`} style={styles.qualRoundBlock}>
-            <SectionTag roles={roles}>{many ? `${EUROPE[c].short} · ${QUAL_ROUND_LABEL[round]}` : QUAL_ROUND_LABEL[round]}</SectionTag>
+            <SectionTag roles={roles}>{many ? `${EUROPE[c].short} · ${label(QUAL_ROUND_LABEL[round])}` : label(QUAL_ROUND_LABEL[round])}</SectionTag>
             <KitText t="tag" color={roles.textMuted}>
-              {[`${realTies} ${realTies === 1 ? 'TIE' : 'TIES'}`, byes > 0 ? `${byes} ${byes === 1 ? 'BYE' : 'BYES'}` : null, ROUND_NEXT[round]].filter(Boolean).join(' · ')}
+              {[t('parts.ties', { count: realTies }), byes > 0 ? t('parts.byes', { count: byes }) : null, ROUND_NEXT[round]].filter(Boolean).join(' · ')}
             </KitText>
             {(['champions', 'league'] as const).map(path => {
               const inPath = inRound.filter(t => t.path === path)
@@ -61,18 +65,17 @@ export function QualifyingLadder({ ties, onTiePress, justDecidedTie }: {
               const sorted = [...inPath].sort((a, b) => Number(isPlayerTie(b)) - Number(isPlayerTie(a)))
               return (
                 <View key={path} style={styles.qualPathBlock}>
-                  <KitText t="tag" color={roles.text}>{PATH_LABEL[path].toUpperCase()}</KitText>
+                  <KitText t="tag" color={roles.text}>{label(PATH_LABEL[path]).toUpperCase()}</KitText>
                   {sorted.map((t, i) => {
                     const decided = justDecidedTie === t
                     const winnerIsPlayer = (t.teamA.isPlayer && t.winnerId === t.teamA.clubId) || (!!t.teamB?.isPlayer && t.winnerId === t.teamB.clubId)
                     return (
-                      <KnockoutTieRow
-                        key={i}
-                        accent={CL.accent}
-                        tie={qualTieToKoRow(t, onTiePress ? () => onTiePress(t) : undefined, decided ? {
-                          outcomeLine: winnerIsPlayer ? 'YOU ADVANCE' : "YOU'RE ELIMINATED",
-                          outcomeColor: winnerIsPlayer ? prim.volt : prim.misery,   // knocked out: misery red (P8-74)
-                        } : undefined)}
+                      <TieRow
+                        key={i} roles={roles}
+                        tie={tieVM(qualTie(t), {
+                          onPress: onTiePress ? () => onTiePress(t) : undefined,
+                          justDecided: decided ? { outcomeLine: winnerIsPlayer ? tr('parts.youAdvance') : tr('parts.youOut') } : undefined,
+                        })}
                       />
                     )
                   })}

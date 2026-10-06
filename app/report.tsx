@@ -1,15 +1,17 @@
 import React, { useState } from 'react'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { KitScreen, KitText, BackControl, Plate, Field, Chips, StripedNotice } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
-import { report, REPORT_REASONS, isBanned, BANNED_TEXT, type ReportReason } from '@/lib/moderation'
+import { report, REPORT_REASONS, isBanned, bannedText, type ReportReason } from '@/lib/moderation'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
 
 // P8.5-44 · Report a player or a club, from its page. It goes to the
-// moderator's inbox (app/moderation.tsx) with the reason; one report per
+// moderator's inbox (the website's, docs/website/02 §5a) with the reason; one report per
 // player per thing, so reporting twice doesn't count twice.
 const roles = ROLES[EVERYDAY]
 
@@ -25,33 +27,33 @@ export default function ReportScreen() {
     setState('sending'); setError(null)
     try { await report(type, id, reason, details); setState('sent') }
     catch (e) {
-      console.warn('[report] failed:', e)
+      log.warn('net', 'report: failed', e)
       setState('idle')
-      setError(isBanned(e) ? BANNED_TEXT : "The report didn't go through. Try again.")
+      setError(isBanned(e) ? bannedText() : t('moderation.reportFailed'))
     }
   }
 
-  const what = type === 'club' ? 'club' : 'player'
+  const club = type === 'club'
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="Report" path="/report" />
-      <BackControl roles={roles} title="REPORT" />
+      <PageMeta title={t('moderation.reportPageTitle')} path="/report" />
+      <BackControl roles={roles} title={t('moderation.reportTitle')} />
       <View style={styles.body}>
-        <KitText t="bodyL" color={roles.text}>{name ? `Report ${name}` : `Report this ${what}`}</KitText>
+        <KitText t="bodyL" color={roles.text}>{name ? t('moderation.reportNamed', { name }) : club ? t('moderation.reportClub') : t('moderation.reportPlayer')}</KitText>
         {state === 'sent' ? (
           <>
-            <KitText color={roles.textMuted}>Thanks. It's with the moderator, who looks at every report.</KitText>
-            <Plate roles={roles} label="Done" onPress={() => router.back()} />
+            <KitText color={roles.textMuted}>{t('moderation.reportThanks')}</KitText>
+            <Plate roles={roles} label={t('moderation.done')} onPress={() => router.back()} />
           </>
         ) : isGuest ? (
-          <StripedNotice roles={roles}>{`Make an account to report a ${what}. It keeps reports honest.`}</StripedNotice>
+          <StripedNotice roles={roles}>{club ? t('moderation.reportGuestClub') : t('moderation.reportGuestPlayer')}</StripedNotice>
         ) : (
           <>
-            <KitText color={roles.textMuted}>The moderator sees who reported it and why, never shown to the {what}.</KitText>
-            <Chips roles={roles} label="What's wrong" options={REPORT_REASONS} value={reason} onChange={setReason} />
-            <Field roles={roles} label="Anything to add (optional)" value={details} onChangeText={setDetails} maxLength={300} multiline />
+            <KitText color={roles.textMuted}>{club ? t('moderation.reportPrivateClub') : t('moderation.reportPrivatePlayer')}</KitText>
+            <Chips roles={roles} label={t('moderation.whatsWrong')} options={REPORT_REASONS} value={reason} onChange={setReason} />
+            <Field roles={roles} label={t('moderation.anythingToAdd')} value={details} onChangeText={setDetails} maxLength={300} multiline />
             {error ? <KitText color={roles.lossText}>{error}</KitText> : null}
-            <Plate roles={roles} label="Send the report" onPress={send} loading={state === 'sending'} />
+            <Plate roles={roles} label={t('moderation.send')} onPress={send} loading={state === 'sending'} />
           </>
         )}
       </View>

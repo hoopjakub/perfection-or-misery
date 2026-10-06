@@ -1,4 +1,7 @@
-import React, { useCallback, useState } from 'react'
+import { t, num } from '@/i18n'
+import { measure } from '@/diag/perf'
+import { log } from '@/diag/log'
+import React, { useCallback, useEffect, useState } from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { PageMeta, GAME_JSON_LD } from '@/components/PageMeta'
 import { UpdateStrip } from '@/components/UpdateStrip'
@@ -33,6 +36,8 @@ const PRESETS = new Set(['easy', 'medium', 'hard'])
 
 
 export default function HomeScreen() {
+  // Phase 9: boot:interactive ends at Home's first frame (once: the mark is used up).
+  useEffect(() => { const id = requestAnimationFrame(() => measure('boot:interactive', 'boot')); return () => cancelAnimationFrame(id) }, [])
   const { isGuest, user, guestFinishedRun } = useUserStore()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [recentRuns, setRecentRuns] = useState<RunHistoryEntry[]>([])
@@ -58,7 +63,7 @@ export default function HomeScreen() {
           setRecentRuns(runs)
           setFailed(false)
         } catch (error) {
-          console.warn('[home] load failed:', error)
+          log.warn('net', 'home: load failed', error)
           if (active) setFailed(true)
         } finally {
           if (active) setLoading(false)
@@ -116,27 +121,27 @@ export default function HomeScreen() {
       {keptDraft && (
         <>
           <View style={styles.keptHead}>
-            <KitText t="tag" color={roles.textMuted} numberOfLines={1} style={styles.keptTag}>{`YOUR ${(MODE_TAG[kept.mode] ?? kept.mode).toUpperCase()} RUN · ${kept.draftedPlayers.length} PICKED`}</KitText>
-            <Plate label="Let it go" variant="quiet" roles={roles} onPress={letGo} />
+            <KitText t="tag" color={roles.textMuted} numberOfLines={1} style={styles.keptTag}>{t('home.keptRun', { mode: (MODE_TAG[kept.mode] ?? kept.mode).toUpperCase(), count: kept.draftedPlayers.length })}</KitText>
+            <Plate label={t('home.letGo')} variant="quiet" roles={roles} onPress={letGo} />
           </View>
-          <Plate label="Continue your run" icon="play" roles={roles} onPress={continueRun} />
+          <Plate label={t('home.continueRun')} icon="play" roles={roles} onPress={continueRun} />
         </>
       )}
       {kept?.stage === 'season' && (
-        <StripedNotice roles={roles} actionLabel="Understood" onAction={letGo}>
-          Your last run was stopped during its season, so it's gone. A season can't be picked up halfway: starting it again would play every result again.
+        <StripedNotice roles={roles} actionLabel={t('home.understood')} onAction={letGo}>
+          {t('home.seasonLost')}
         </StripedNotice>
       )}
       <View style={styles.actions}>
         <Plate
-          label="Start a run" icon="forward" roles={roles} variant={keptDraft ? 'secondary' : 'primary'}
+          label={t('home.startRun')} icon="forward" roles={roles} variant={keptDraft ? 'secondary' : 'primary'}
           onPress={() => router.push('/game/mode-select')}
           style={styles.start}
         />
         {canAgain && last && (
           <Plate
-            label="Again" icon="again" variant="secondary" roles={roles} onPress={again}
-            accessibilityHint={`Start another ${MODE_TAG[last.mode] ?? last.mode} run`}
+            label={t('home.again')} icon="again" variant="secondary" roles={roles} onPress={again}
+            accessibilityHint={t('home.againHint', { mode: MODE_TAG[last.mode] ?? last.mode })}
           />
         )}
       </View>
@@ -145,18 +150,18 @@ export default function HomeScreen() {
   const record = (
     <>
         {!isGuest && stats?.bestTier ? (
-          <View style={styles.bestRow} accessible accessibilityLabel={`Best: ${formatTier(stats.bestTier)}, ${stats.bestScore ?? 0} points, ${stats.totalRuns} runs`}>
-            <Tag roles={roles} variant="selected">BEST</Tag>
+          <View style={styles.bestRow} accessible accessibilityLabel={t('home.bestA11y', { tier: formatTier(stats.bestTier), score: num(stats.bestScore ?? 0), runs: stats.totalRuns })}>
+            <Tag roles={roles} variant="selected">{t('home.best')}</Tag>
             <KitText t="tag" color={roles.text}>{formatTier(stats.bestTier).toUpperCase()}</KitText>
-            <KitText t="figure" color={roles.text}>{(stats.bestScore ?? 0).toLocaleString('en-US')}</KitText>
-            <KitText t="tag" color={roles.textMuted} style={styles.runsCount}>{stats.totalRuns} RUNS</KitText>
+            <KitText t="figure" color={roles.text}>{num(stats.bestScore ?? 0)}</KitText>
+            <KitText t="tag" color={roles.textMuted} style={styles.runsCount}>{t('home.runsCount', { count: stats.totalRuns })}</KitText>
           </View>
         ) : null}
         {!isGuest && (loading || failed || recentRuns.length > 0) && (
           <>
-            <SectionTag roles={roles}>Last runs</SectionTag>
+            <SectionTag roles={roles}>{t('home.lastRuns')}</SectionTag>
             {failed && recentRuns.length === 0 ? (
-              <InlineError roles={roles} message="Couldn't load your runs." onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+              <InlineError roles={roles} message={t('home.loadFailed')} onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
             ) : loading && recentRuns.length === 0 ? (
               <View style={styles.labels}>
                 <RunLabelSkeleton roles={roles} />
@@ -171,7 +176,7 @@ export default function HomeScreen() {
                     colourway={colourwayFor(run.mode)}
                     title={formatTier(run.tier)}
                     meta={runMeta(run)}
-                    score={run.score.toLocaleString('en-US')}
+                    score={num(run.score)}
                     verdict={verdictOf(run.tier)}
                     onPress={() => router.push({ pathname: runRoute(run.mode), params: { runId: run.id } })}
                   />
@@ -196,16 +201,16 @@ export default function HomeScreen() {
           <View style={styles.wideLeft}>
             <Wordmark roles={roles} />
             <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
-              Draft an XI from real seasons. Find out which one you get.
+              {t('home.pitch')}
             </KitText>
             <View style={styles.wideActions}>{actions}</View>
             {isGuest && guestFinishedRun && (
               <View style={styles.guestLine}>
-                <KitText t="body" color={roles.textMuted}>Runs aren't kept as a guest.</KitText>
-                <Plate label="Keep my runs" variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
+                <KitText t="body" color={roles.textMuted}>{t('home.guestNotKept')}</KitText>
+                <Plate label={t('home.keepMyRuns')} variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
               </View>
             )}
-            <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
+            <Plate label={t('home.howItWorks')} variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
             {/* P8-73: the version, as a door to what's new. */}
             <VersionButton roles={roles} style={styles.version} />
           </View>
@@ -222,16 +227,16 @@ export default function HomeScreen() {
         <UpdateStrip />
         <Wordmark roles={roles} />
         <KitText t="bodyL" color={roles.textMuted} style={styles.pitch}>
-          Draft an XI from real seasons. Find out which one you get.
+          {t('home.pitch')}
         </KitText>
         {record}
         {isGuest && guestFinishedRun && (
           <View style={styles.guestLine}>
-            <KitText t="body" color={roles.textMuted}>Runs aren't kept as a guest.</KitText>
-            <Plate label="Keep my runs" variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
+            <KitText t="body" color={roles.textMuted}>{t('home.guestNotKept')}</KitText>
+            <Plate label={t('home.keepMyRuns')} variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
           </View>
         )}
-        <Plate label="New here? How it works" variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
+        <Plate label={t('home.howItWorks')} variant="quiet" roles={roles} onPress={() => router.push('/guide')} style={styles.guideLink} />
         {/* P8-73: the version, as a door to what's new. */}
         <VersionButton roles={roles} style={styles.version} />
       </ScrollView>

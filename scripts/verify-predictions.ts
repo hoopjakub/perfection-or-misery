@@ -9,7 +9,7 @@
 //    matter (they must not simply reproduce the strength order)
 // Run: npx tsx scripts/verify-predictions.ts
 
-import { predictTable, predictWorldCupRound, predictChampionsLeagueRound, predictPlayers, punditPanel, PANEL_SIZE, type PredictionTeam, type PickablePlayer } from '../src/engine/predictions'
+import { predictTable, predictWorldCupRound, predictChampionsLeagueRound, predictPlayers, punditPanel, punditField, PANEL_SIZE, type PredictionTeam, type PickablePlayer } from '../src/engine/predictions'
 import { simulateMatch, setMatchTilt } from '../src/engine/match'
 import { generateFixtures } from '../src/engine/fixtures'
 import type { SimTeam } from '../src/types/simulation'
@@ -185,6 +185,20 @@ check(split / panels > 0.5, "the panel mostly agrees to the place — it isn't a
   check(punditsSummary([{ ...base, finalPosition: 1, predicted: 1, points: 9, predictedPoints: 9 }])[0] === 'They got 1 of 1 places exactly right and 1 points total; 1 mega spot on, both.', 'the summary counts the mega ones')
   const noPoints = punditsSummary(rows.map(r => ({ ...r, points: undefined, predictedPoints: undefined })))
   check(!noPoints.some(l => l.includes('points')), 'a saved run without points still reads (no "on undefined points")')
+}
+
+// ── L-13 · One field for the panel ──────────────────────────────────────────
+// The pundits screen and the live screens' panel line build the field with
+// punditField; each mode's match count has to be the one its table plays.
+{
+  const rich = Array.from({ length: 36 }, (_, i) => ({ clubId: `f${i}`, clubName: `F${i}`, ovr: 70 + i % 20, isPlayer: i === 0, form: 1, pot: 2 }))
+  const want: [string, number | undefined][] = [['champions_league', 8], ['europa_league', 8], ['conference_league', 6], ['world_cup', 3], ['league', undefined], ['chaos', undefined]]
+  for (const [mode, md] of want) {
+    const f = punditField(mode, { clTeams: rich, wcTeams: rich, placedLeague: { teams: rich } })
+    check(!!f && f.matchesPerClub === md, `L-13: ${mode} gives ${f?.matchesPerClub} matches per club, want ${md}`)
+    check(!!f && f.teams.length === 36 && f.teams.every(t => Object.keys(t).length <= 4 || mode === 'league' || mode === 'chaos'), `L-13: ${mode}'s field carries more than the pundits read`)
+  }
+  check(punditField('world_cup', { clTeams: rich }) === null, 'L-13: a World Cup with no nations gave a field')
 }
 
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 import { UCL_LEAGUES } from './lib/ucl-leagues'
+import { clubStrength } from '../src/engine/rating'
 
 // League format comes from the LIVE registry (not the baked seed), so a format
 // tweak just needs a rebuild — no re-scrape. Keyed by cucl seedId.
@@ -199,6 +200,24 @@ for (const file of files) {
   }
 }
 
+// One strength scale (Wave G audit G-L3, 3 Oct 2026). Every club-season's
+// strength is rated here, from the players the database actually holds for it,
+// with the function that rates your XI (clubStrength in src/engine/rating.ts).
+// The seeds' stored historical_ovr was the best 14 stretched ×1.55 around 81,
+// a different scale from calcTeamOvr, and it's ignored now. Rating after the
+// inserts, not per seed file, because a club-season can appear in more than one
+// file and INSERT OR IGNORE keeps the first. scripts/verify-strength.ts holds
+// every row to within 1 of its own best XI.
+{
+  const rows = db.prepare(`SELECT ps.club_season_id AS cs, ps.ovr, p.primary_position AS pos
+    FROM player_seasons ps JOIN players p ON p.id = ps.player_id`).all() as { cs: string; ovr: number; pos: string }[]
+  const byCs = new Map<string, { ovr: number; primaryPosition: string }[]>()
+  for (const r of rows) (byCs.get(r.cs) ?? byCs.set(r.cs, []).get(r.cs)!).push({ ovr: r.ovr, primaryPosition: r.pos })
+  const rate = db.prepare('UPDATE club_seasons SET historical_ovr = ? WHERE id = ?')
+  db.transaction(() => { for (const [cs, ps] of byCs) rate.run(clubStrength(ps), cs) })()
+  console.log(`rated ${byCs.size} club-seasons on the XI scale`)
+}
+
 // Auto-bump the app's DB_VERSION (single source of truth = src/db/setup.ts) so
 // every build triggers a re-copy on device without us editing it by hand.
 const setupPath = path.join(__dirname, '../src/db/setup.ts')
@@ -230,6 +249,22 @@ const COLOUR_FIX = `
     AND EXISTS (SELECT 1 FROM clubs c2 WHERE c2.name = clubs.name AND upper(c2.primary_color) != '#1E293B')`
 const fixed = db.prepare(COLOUR_FIX).run().changes
 console.log(`✓ ${fixed} placeholder club colours replaced with the club's real ones`)
+
+// A-09: the clubs with no row anywhere to borrow from, coloured by hand from
+// their clubs' own descriptions (Wikipedia, 4 Oct 2026: Kolos Kovalivka's
+// "club colors are white and black"), shirt first, as Juventus and PAOK are.
+const HAND_COLOURS: [name: string, primary: string, secondary: string][] = [
+  ['Kolos Kovalivka', '#FFFFFF', '#000000'],
+]
+for (const [name, primary, secondary] of HAND_COLOURS)
+  db.prepare(`UPDATE clubs SET primary_color = ?, secondary_color = ? WHERE name = ? AND upper(primary_color) = '#1E293B'`).run(primary, secondary, name)
+// And none left: a placeholder reads as black on every screen that draws a club.
+const slate = db.prepare(`SELECT id FROM clubs WHERE upper(primary_color) = '#1E293B'`).all() as { id: string }[]
+if (slate.length) {
+  console.error(`✗ ${slate.length} clubs still have the placeholder colour: ${slate.map(c => c.id).join(', ')}. Add them to HAND_COLOURS.`)
+  db.close()
+  process.exit(1)
+}
 
 // A club-season with no players is an empty team on the draft wheel. It's what
 // the first open build shipped (player-season ids repeated across seed files,

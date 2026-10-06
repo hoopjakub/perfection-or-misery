@@ -1,11 +1,13 @@
+import { compareStandings } from '@/engine/standings'
+import { t } from '@/i18n'
 import React from 'react'
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 // P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
 import { ScaleText as Text } from '@/components/kit'
 import { openSheet } from '@/lib/sheet'
 import { TeamLabel } from './TeamLabel'
 import { summariseScorers } from '@/engine/run-stats'
-import { spacing, typography, MODE_THEMES, ROLES, prim, font } from '@/theme'
+import { space, type, MODE_THEMES, ROLES, font } from '@/theme'   // C-18: the kit's scales
 import { LeagueTable, ZoneLegend, WC_GROUP_ZONES } from '@/components/season/SeasonParts'
 import { getFlag } from '@/lib/flagMap'
 import type { WCTeam, WCGroupMatch } from '@/engine/world-cup-sim'
@@ -20,11 +22,7 @@ const WC = MODE_THEMES.world_cup
 // Shared World Cup group view (standings table + matchdays with scorers), used
 // identically on the result screen and during the live group-stage review.
 function sortGroupTeams(a: WCTeam, b: WCTeam): number {
-  if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-  const gdA = a.stats.goalsFor - a.stats.goalsAgainst
-  const gdB = b.stats.goalsFor - b.stats.goalsAgainst
-  if (gdB !== gdA) return gdB - gdA
-  return b.stats.goalsFor - a.stats.goalsFor
+  return compareStandings(a, b)
 }
 
 export function WCGroupMatchdays({ matches, onOpenMatch }: {
@@ -35,7 +33,7 @@ export function WCGroupMatchdays({ matches, onOpenMatch }: {
   const matchdays = Array.from(new Set(matches.map(m => m.matchday))).sort((a, b) => a - b)
   return (
     <View style={styles.mdSection}>
-      {onOpenMatch && <Text style={styles.mdHint}>Tap a match for full stats & ratings</Text>}
+      {onOpenMatch && <Text style={styles.mdHint}>{t('parts.tapMatch')}</Text>}
       {matchdays.map(md => (
         <View key={md} style={styles.mdBlock}>
           <Text style={styles.mdLabel}>Matchday {md}</Text>
@@ -76,7 +74,7 @@ export function WCGroupMatchdays({ matches, onOpenMatch }: {
 export function openWCGroup(group: { id: string; teams: WCTeam[] }, matches: WCGroupMatch[], onOpenMatch?: (m: WCGroupMatch) => void) {
   openSheet({
     title: `Group ${group.id}`,
-    sub: 'Top two go through, the best eight thirds join them',
+    sub: t('parts.topTwo'),
     render: () => <WCGroupView group={group} matches={matches} onOpenMatch={onOpenMatch} />,
   })
 }
@@ -103,16 +101,16 @@ function WCGroupView({ group, matches, onOpenMatch }: {
 }
 
 const styles = StyleSheet.create({
-  mdSection: { gap: spacing.sm, marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: GR.rule, paddingTop: spacing.sm },
+  mdSection: { gap: space[2], marginTop: space[2], borderTopWidth: 1, borderTopColor: GR.rule, paddingTop: space[2] },
   mdBlock: { gap: 4 },
-  mdLabel: { fontSize: typography.xs, fontFamily: font.bodyBold, color: GR.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  mdLabel: { fontSize: type.tag.fontSize, fontFamily: font.bodyBold, color: GR.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
   mdHint: { fontSize: 9, color: GR.textMuted, },
-  mdRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
+  mdRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 2 },
   mdTeam:       { flex: 1 },
   mdTeamRight:  { justifyContent: 'flex-end' },
   mdTeamText:   { fontSize: 11, color: GR.textMuted },
   mdTeamPlayer: { color: WC.accent, fontFamily: font.bodyBold },
-  mdScorers:    { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.xs, marginBottom: 4 },
+  mdScorers:    { flexDirection: 'row', justifyContent: 'space-between', gap: space[2], paddingHorizontal: space[1], marginBottom: 4 },
   mdScorerHalf: { flex: 1, fontSize: 9, color: GR.textMuted },
   mdScore: { fontSize: 12, fontFamily: font.bodyBlack, color: GR.text, minWidth: 42, textAlign: 'center' },
 })

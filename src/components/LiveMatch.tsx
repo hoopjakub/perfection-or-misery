@@ -1,3 +1,6 @@
+import { t } from '@/i18n'
+import { log } from '@/diag/log'
+import { label } from '@/i18n/labels'
 import React, { useEffect, useRef, useState } from 'react'
 import { setLiveProgress } from '@/lib/liveBracket'
 import { useIsFocused } from '@react-navigation/native'
@@ -7,7 +10,9 @@ import Animated, { FadeInLeft, FadeInRight } from 'react-native-reanimated'
 import { ROLES, space, border } from '@/theme'
 import { KitText, Tag, Icon, Stripe, TeamMark } from '@/components/kit'
 import { summariseScorers } from '@/engine/run-stats'
-import type { MatchScorers } from '@/types/stats'
+import type { MatchScorers, RosterPlayer } from '@/types/stats'
+import type { Formation } from '@/types/game'
+import { generateMatchDetail } from '@/engine/match-detail'
 import type { PenKick } from '@/engine/knockout-match'
 import { FLOODLIT } from '@/lib/appearance'
 
@@ -36,6 +41,39 @@ export type LivePeriod = {
 }
 
 export type LivePens = { a: number; b: number; kicksA?: PenKick[]; kicksB?: PenKick[] }
+
+/**
+ * Your match as one live period (F-09: your match plays out live on every
+ * stage). Its red cards come off the same sheet the match opens with: the same
+ * seed, rotation, availability, bench and your shape. The World Cup's copy
+ * regenerated without them, so a red card shown live could name a different
+ * player from the one on the sheet. Regenerating a sheet isn't free, so call
+ * it once per match (useMemo on the match).
+ */
+export function yourMatchPeriod(
+  m: {
+    homeClubId: string; awayClubId: string; homeGoals: number; awayGoals: number
+    scorers?: MatchScorers; seed?: number; homeRotation?: number; awayRotation?: number
+    absent?: string[]; standIns?: RosterPlayer[]
+  },
+  label: string,
+  pools: Map<string, RosterPlayer[]>,
+  ctx: { playerClubId?: string; benchSize?: number; playerFormation?: Formation },
+): LivePeriod {
+  const detail = m.seed === undefined ? null : generateMatchDetail({
+    seed: m.seed,
+    homePool: pools.get(m.homeClubId) ?? [], awayPool: pools.get(m.awayClubId) ?? [],
+    homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers: m.scorers,
+    playerClubId: ctx.playerClubId, benchSize: ctx.benchSize, playerFormation: ctx.playerFormation,
+    homeRotation: m.homeRotation, awayRotation: m.awayRotation,
+    unavailableIds: m.absent?.length ? new Set(m.absent) : undefined, standIns: m.standIns,
+  })
+  return {
+    label, homeId: m.homeClubId, awayId: m.awayClubId, fromMin: 0, toMin: 90, scorers: m.scorers,
+    redCards: (detail?.events ?? []).filter(e => e.type === 'red')
+      .map(e => ({ minute: e.minute, plus: e.plus, isHome: e.isHome, player: e.playerName })),
+  }
+}
 
 // isHome drives ALL on-screen left/right placement (score row, live feed, prior
 // legs) — home is always displayed on the left, away always on the right,
@@ -72,7 +110,7 @@ const lastName = (n: string) => n.split(' ').slice(-1)[0]
 // still too quick on a PC (27 Sept), and the speed setting never reached the
 // clock at all; 60 ms is about 5.4 s a match plus the beats on goals, near a
 // phone's old pace, and a screen with a speed setting passes its own
-// (LIVE_MS_PER_MIN). The dev log line at full time gives the real duration.
+// (LIVE_MS_PER_MIN). The log line at full time gives the real duration, broken down.
 export const MS_PER_MIN = 60
 /** The live clock for each speed setting (P8-137): the setting means the same on every device. */
 export const LIVE_MS_PER_MIN = { slow: 90, normal: 60, fast: 35 } as const
@@ -127,6 +165,18 @@ export function LiveMatch({
   // still holds (matches the freeze everywhere else in this component).
   const pausedRef = useRef(paused)
   useEffect(() => { pausedRef.current = paused }, [paused])
+  // Phase 9 (the maintainer, 1 Oct): "24.1 s against 14.9 s, the same 60 ms a
+  // minute: find where the extra nine seconds go before calling it slow." The
+  // full-time line now says where every second went: the clock, the beats on
+  // goals and reds, the gaps between periods, the shootout, and the time it
+  // stood still (paused, scrolled out of view, another screen on top).
+  const pausedMs = useRef(0)
+  const pausedSince = useRef<number | null>(null)
+  const beats = useRef(0)
+  useEffect(() => {
+    if (paused) pausedSince.current = Date.now()
+    else if (pausedSince.current !== null) { pausedMs.current += Date.now() - pausedSince.current; pausedSince.current = null }
+  }, [paused])
 
   const totalKicks = (pens?.kicksA?.length ?? 0) + (pens?.kicksB?.length ?? 0)
 
@@ -190,6 +240,7 @@ export function LiveMatch({
       return () => clearTimeout(t)
     }
     const wait = beat.current ? msPerMin + BIG_MOMENT_MS : msPerMin
+    if (beat.current) beats.current++
     beat.current = false
     const due = dueAt.current + wait
     const t = setTimeout(() => {
@@ -226,7 +277,19 @@ export function LiveMatch({
   function finish(delay: number) {
     if (doneRef.current) return
     doneRef.current = true
-    if (__DEV__) console.log(`[live] ${teamA.clubName} v ${teamB.clubName}: ${((Date.now() - startedAt.current) / 1000).toFixed(1)} s, ${msPerMin} ms a minute`)
+    // Phase 9: in every build, broken down (see pausedMs above).
+    const total = Date.now() - startedAt.current
+    const minutes = periods.reduce((n, q) => n + (q.toMin - q.fromMin), 0)
+    const parts = {
+      clock: minutes * msPerMin,
+      beats: beats.current * BIG_MOMENT_MS,
+      gaps: periods.length * 500,
+      pens: showPens ? totalKicks * 560 : 0,
+      stood: pausedMs.current + (pausedSince.current !== null ? Date.now() - pausedSince.current : 0),
+    }
+    const other = total - Object.values(parts).reduce((a, b) => a + b, 0)
+    const sec = (ms: number) => (ms / 1000).toFixed(1)
+    log.info('sim', `live ${teamA.clubName} v ${teamB.clubName}: ${sec(total)} s = clock ${sec(parts.clock)} (${minutes} min × ${msPerMin} ms) + ${beats.current} beats ${sec(parts.beats)} + between periods ${sec(parts.gaps)}${parts.pens ? ` + shootout ${sec(parts.pens)}` : ''} + stood still ${sec(parts.stood)} + other ${sec(other)}`)
     const fire = () => {
       if (pausedRef.current) { setTimeout(fire, 200); return }   // still frozen — keep waiting
       onDone?.()
@@ -280,22 +343,22 @@ export function LiveMatch({
     <View style={[styles.card, { borderColor: roles.line, backgroundColor: roles.surface }]}>
       <View style={styles.topRow}>
         <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }} numberOfLines={1}>
-          {`${p.label} · ${Math.min(clock, p.toMin)}'`}
+          {`${label(p.label)} · ${Math.min(clock, p.toMin)}'`}
         </KitText>
         <Pressable
           onPress={() => setPaused(v => !v)}
           accessibilityRole="button"
-          accessibilityLabel={paused ? 'Resume the match' : 'Pause the match'}
+          accessibilityLabel={paused ? t('parts.resumeMatch') : t('parts.pauseMatch')}
           style={({ pressed }) => [styles.pause, { borderColor: roles.line }, (pressed || paused) && { backgroundColor: roles.sunken }]}
         >
           <Icon name={paused ? 'play' : 'pause'} size={20} color={roles.text} />
           <KitText t="tag" color={roles.text}>{paused ? 'Resume' : 'Pause'}</KitText>
         </Pressable>
       </View>
-      {paused && <KitText t="body" color={roles.textMuted}>Time stopped. Take your time, then resume.</KitText>}
+      {paused && <KitText t="body" color={roles.textMuted}>{t('parts.timeStopped')}</KitText>}
 
       <View style={styles.scoreRow} accessible accessibilityLiveRegion="polite"
-        accessibilityLabel={`${homeName} ${legHome}, ${awayName} ${legAway}, ${Math.min(clock, p.toMin)} minutes`}>
+        accessibilityLabel={t('parts.liveA11y', { home: homeName, h: legHome, away: awayName, a: legAway, min: Math.min(clock, p.toMin) })}>
         <Side name={homeName} clubId={p.homeId} align="right" />
         <KitText t="superL" color={roles.text} style={styles.bigScore}>{`${legHome}–${legAway}`}</KitText>
         <Side name={awayName} clubId={p.awayId} align="left" />
@@ -303,14 +366,14 @@ export function LiveMatch({
 
       {aggregate && (
         <KitText t="title" color={roles.text} style={styles.center}>
-          {`AGG ${teamA.clubName} ${aggA}–${aggB} ${teamB.clubName}`}
+          {t('parts.aggLine', { a: teamA.clubName, x: aggA, y: aggB, b: teamB.clubName })}
         </KitText>
       )}
 
       {priorLegs.map((L, i) => (
         <View key={i} style={styles.priorLegBlock}>
           <KitText t="tag" color={roles.textMuted} style={styles.center} numberOfLines={1}>
-            {`${L.label}: ${L.homeName} ${L.homeG}–${L.awayG} ${L.awayName}`}
+            {`${label(L.label)}: ${L.homeName} ${L.homeG}–${L.awayG} ${L.awayName}`}
           </KitText>
           {!!(L.homeScorers || L.awayScorers) && (
             <View style={styles.priorLegScorerRow}>
@@ -329,9 +392,9 @@ export function LiveMatch({
               {/* P8-46: the mark, not a word — a red card is a red card
                   (P8-111), a goal a ball, an own goal a ball in misery red. */}
               <EventMark kind={f.kind === 'RED' ? 'red' : f.kind === 'OG' ? 'ownGoal' : 'goal'} size={16} />
-              {f.kind === 'PEN' && <KitText t="tag" color={roles.textMuted}>PEN</KitText>}
+              {f.kind === 'PEN' && <KitText t="tag" color={roles.textMuted}>{t('parts.pen')}</KitText>}
               <KitText t="body" color={roles.text} numberOfLines={1}>{f.text}</KitText>
-              {f.isBench && <Tag roles={roles}>SUB</Tag>}
+              {f.isBench && <Tag roles={roles}>{t('parts.sub')}</Tag>}
             </Animated.View>
           ))}
         </View>
@@ -339,7 +402,7 @@ export function LiveMatch({
 
       {showPens && pens?.kicksA && pens?.kicksB && (
         <View style={styles.pens}>
-          <KitText t="title" color={roles.text} style={styles.center}>{`PENALTIES ${penScoredA}–${penScoredB}`}</KitText>
+          <KitText t="title" color={roles.text} style={styles.center}>{t('parts.penaltiesScore', { a: penScoredA, b: penScoredB })}</KitText>
           <PenRow name={teamA.clubName} kicks={shownA} />
           <PenRow name={teamB.clubName} kicks={shownB} />
           {/* Who just stepped up, and how it went — the shootout as it's taken. */}

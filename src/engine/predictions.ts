@@ -16,9 +16,12 @@
 // can say "They said Messi. It was Fekir." They're kept on the run beside the
 // table's seed and checked against the measured awards at the end.
 
+import { t } from '@/i18n'
 import { mulberry32, rngNoise, deriveSeed, type Rng } from '@/lib/rng'
 import { PUNDITS, type Pundit } from '@/data/pundits'
-import { matchOdds, HOME_ADVANTAGE } from './match'
+import { matchOdds, HOME_ADVANTAGE, stretched } from './match'
+import { compOfMode, isClassicEurope } from '@/data/europe'
+import { WC_GROUP_MATCHDAYS } from './knockout-availability'
 
 export const PREDICTION_NOISE = 3
 // P8-57: how far one panellist strays from the panel's shared view. At 2 they
@@ -29,6 +32,23 @@ export const PANELLIST_NOISE = 4
 export const PANEL_SIZE = 12
 
 export type PredictionTeam = { clubId: string; clubName: string; ovr: number; isPlayer: boolean }
+
+/**
+ * The field the pundits call for a run, and how many matches each club plays
+ * (centralisation L-13). The pundits screen builds the panel from it, and the
+ * Champions League and World Cup screens rebuild the same panel from the stored
+ * seed for the line above a live tie. Each of the three mapped the teams by
+ * hand; the line is only right while all three agree, so there is one.
+ * A league plays a double round robin, which is the default (undefined).
+ */
+export function punditField(mode: string | null | undefined, run: {
+  clTeams?: PredictionTeam[] | null; wcTeams?: PredictionTeam[] | null; placedLeague?: { teams: PredictionTeam[] } | null
+}): { teams: PredictionTeam[]; matchesPerClub?: number } | null {
+  const pick = (ts: PredictionTeam[]) => ts.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer }))
+  if (isClassicEurope(mode)) return run.clTeams ? { teams: pick(run.clTeams), matchesPerClub: compOfMode(mode)!.matchdays } : null
+  if (mode === 'world_cup') return run.wcTeams ? { teams: pick(run.wcTeams), matchesPerClub: WC_GROUP_MATCHDAYS } : null
+  return run.placedLeague ? { teams: run.placedLeague.teams } : null
+}
 
 export type PredictedRow = PredictionTeam & {
   predicted: number      // 1-based place the pundits give
@@ -48,8 +68,9 @@ export function expectedPoints(rating: number, opponents: number[], matchesPerCl
   if (opponents.length === 0 || matchesPerClub <= 0) return 0
   let perMatch = 0
   for (const o of opponents) {
-    const h = matchOdds(rating + HOME_ADVANTAGE, o)
-    const a = matchOdds(o + HOME_ADVANTAGE, rating)
+    // The same effective ratings simulateMatch uses (G-L3's stretch included).
+    const h = matchOdds(stretched(rating) + HOME_ADVANTAGE, stretched(o))
+    const a = matchOdds(stretched(o) + HOME_ADVANTAGE, stretched(rating))
     perMatch += (3 * h.home + h.draw) + (3 * a.away + a.draw)
   }
   return Math.round((perMatch / (opponents.length * 2)) * matchesPerClub)
@@ -235,9 +256,9 @@ export function panelBacking(panel: Panellist[], aId: string, bId: string): { a:
 export function panelLineFor(panel: Panellist[], a: { clubId: string; clubName: string }, b: { clubId: string; clubName: string }): string | null {
   if (!panel.length) return null
   const { a: na, b: nb } = panelBacking(panel, a.clubId, b.clubId)
-  if (na === nb) return `The panel is split down the middle, ${na} each.`
+  if (na === nb) return t('pundits.panelSplit', { n: na })
   const [n, side] = na > nb ? [na, a] : [nb, b]
-  return `${n} of ${panel.length} pundits back ${side.clubName}.`
+  return t('pundits.panelBack', { n, m: panel.length, club: side.clubName })
 }
 
 /** P8-150: where the panel had you, and out of how many, for the career's line

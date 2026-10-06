@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import { t } from '@/i18n'
 import { File as FsFile } from 'expo-file-system'
 import * as ImagePicker from 'expo-image-picker'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
@@ -62,9 +63,9 @@ export type Banner = { kind: BannerKind; from: string; to: string; path?: string
 export type ProfileTheme = { primary: string; accent: string }
 export type AvatarFrame = 'none' | 'ring' | 'double' | 'tape' | 'rivets' | 'stitch' | 'gold' | 'stars'
 export const AVATAR_FRAMES: { id: AvatarFrame; label: string }[] = [
-  { id: 'none', label: 'None' }, { id: 'ring', label: 'Ring' }, { id: 'double', label: 'Double' },
-  { id: 'tape', label: 'Tape' }, { id: 'rivets', label: 'Rivets' }, { id: 'stitch', label: 'Stitched' },
-  { id: 'gold', label: 'Gold' }, { id: 'stars', label: 'Stars' },
+  { id: 'none', label: t('profile.frameNone') }, { id: 'ring', label: t('profile.frameRing') }, { id: 'double', label: t('profile.frameDouble') },
+  { id: 'tape', label: t('profile.frameTape') }, { id: 'rivets', label: t('profile.frameRivets') }, { id: 'stitch', label: t('profile.frameStitch') },
+  { id: 'gold', label: t('profile.frameGold') }, { id: 'stars', label: t('profile.frameStars') },
 ]
 /** The same limits supabase/profile-plus.sql checks. */
 export const LOOK_LIMITS = { status: 60, pronouns: 24, about: 190 }

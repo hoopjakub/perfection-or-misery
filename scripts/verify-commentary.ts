@@ -8,6 +8,7 @@
 //    inside the match, in order, the same every time, and never change the sheet
 // Run: npx tsx scripts/verify-commentary.ts
 
+import { t } from '../src/i18n'
 import { lineForEvent, quietLine, commentaryUpTo, chanceLines, clockFromFrames, timedShots } from '../src/engine/commentary'
 import { buildDeepMatchTimeline } from '../src/engine/deep-match'
 import { generateMatchDetail } from '../src/engine/match-detail'
@@ -82,7 +83,7 @@ for (let s = 1; s <= 2000; s++) {
   // call tells one of the offsides, so it isn't said twice.
   const boards = [detail.addedTime.firstHalf, detail.addedTime.secondHalf].filter(n => n > 0).length
   const varCall = feed.find(x => x.kind === 'var')
-  const varOff = varCall?.var?.reason.includes('offside') ? 1 : 0
+  const varOff = varCall?.var?.reason === t('com.varTag.offside') ? 1 : 0
   const expected = shots + detail.home.corners + detail.away.corners + detail.home.offsides + detail.away.offsides
     + detail.home.fouls + detail.away.fouls + boards - varOff
   check(feed.length === expected, `match ${s}: ${feed.length} feed lines for ${expected} things to say`)

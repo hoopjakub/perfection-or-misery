@@ -13,7 +13,13 @@
 //    rewards beating the prediction, and a title win counts extra
 // Run: npx tsx scripts/verify-awards.ts
 
-import { buildAwardsNight, pickTeam, lineOf, BENCH_SIZE, managerScore, placeWorth, type Pick, type ClubRow } from '../src/engine/awards'
+import { buildAwardsNight, pickTeam, lineOf, BENCH_SIZE, managerScore, placeWorth, cupClubsForManagerAward, CUP_STAGES, type Pick, type ClubRow } from '../src/engine/awards'
+import { buildCLTeams, simulateCLKnockoutsOnly } from '../src/engine/cl-sim'
+import { buildWCTeams, simulateWorldCup } from '../src/engine/world-cup-sim'
+import { predictTable, predictWorldCupRound, predictChampionsLeagueRound } from '../src/engine/predictions'
+import { sortStandings } from '../src/engine/standings'
+import { mulberry32 } from '../src/lib/rng'
+import { formatTier as formatTierLabel } from '../src/data/tiers'
 import { ALL_FORMATIONS, getSlotsForFormation } from '../src/engine/formations'
 import { applyImportance, importanceFactor, matchWeight } from '../src/engine/importance'
 import type { AwardCandidate, SeasonAwards, CompetitionStats, TeamGoalRecord } from '../src/types/stats'
@@ -271,6 +277,49 @@ check(formationsSeen.size >= 2, `the team of the season was always a ${[...forma
 
 console.log(`${SEASONS} seasons · team-of-the-season shapes: ${[...formationsSeen.entries()].sort((a, b) => b[1] - a[1]).map(([f, n]) => `${f} ${n}`).join(', ')}`)
 console.log(`manager of the season went to a favourite who won it ${managerWasFavourite} times`)
+// ── F-19: a cup's manager award, rounds against the pundits' round calls ─────
+{
+  const real = Math.random
+  let runs = 0, judged = 0, winnersBeatTip = 0
+  for (let run = 0; run < 200; run++) {
+    Math.random = mulberry32(900 + run)
+    const wc = run % 2 === 1
+    const field = Array.from({ length: wc ? 48 : 36 }, (_, i) => ({ clubId: `k${i}`, clubName: `Side ${i}`, ovr: 70 + ((i * 13 + run) % 20), isPlayer: i === 0 }))
+    const seed = 4242 + run
+    const rows: ClubRow[] = wc
+      ? cupClubsForManagerAward(field, seed, { wc: simulateWorldCup(buildWCTeams(field)) })
+      : (() => {
+          const teams = sortStandings(buildCLTeams(field).map((t, i) => ({ ...t, stats: { ...t.stats, points: 40 - i, goalsFor: 0, goalsAgainst: 0 } })))
+          return cupClubsForManagerAward(field, seed, { cl: simulateCLKnockoutsOnly(teams) })
+        })()
+    if (rows.length === 0) continue   // no bracket (the old World Cup path when your side is out early): no award
+    runs++
+    check(rows.length === field.length, `cup ${run}: ${rows.length} rows for ${field.length} sides`)
+    const tips = new Map(predictTable(field, seed).table.map(r => [r.clubId, r.predicted]))
+    const call = wc ? predictWorldCupRound : predictChampionsLeagueRound
+    const counts = new Array(CUP_STAGES + 1).fill(0)
+    for (const r of rows) {
+      const st = r.stage!
+      check(!!st && st.reached >= 0 && st.reached <= CUP_STAGES && st.tipped >= 0 && st.tipped <= CUP_STAGES, `cup ${run}: ${r.clubId} off the ladder`)
+      check(st.tippedLabel.length > 0 && st.reachedLabel.length > 0 && !/undefined/.test(st.tippedLabel + st.reachedLabel), `cup ${run}: ${r.clubId} has no round names`)
+      // The tip is the pundits' own round call for that club's place.
+      check(st.tippedLabel === formatTierLabel(call(tips.get(r.clubId)!).key), `cup ${run}: ${r.clubId}'s tip isn't the pundits' call`)
+      counts[st.reached]++
+      judged++
+    }
+    // One winner, one runner-up, two semi-final losers, four quarter-final losers.
+    check(counts[CUP_STAGES] === 1 && counts[CUP_STAGES - 1] === 1 && counts[CUP_STAGES - 2] === 2 && counts[CUP_STAGES - 3] === 4,
+      `cup ${run}: the ladder's top doesn't match a bracket (${counts.join(',')})`)
+    // The score: going further always scores more, from the same tip.
+    const base: ClubRow = { clubId: 'x', clubName: 'X', finalPosition: 0, stage: { reached: 2, tipped: 2, reachedLabel: 'a', tippedLabel: 'b' } }
+    for (let k = 0; k < CUP_STAGES; k++) check(managerScore({ ...base, stage: { ...base.stage!, reached: k + 1 } }, 0) > managerScore({ ...base, stage: { ...base.stage!, reached: k } }, 0), `going a round further (${k}→${k + 1}) didn't score more`)
+    const top = [...rows].sort((a, b) => managerScore(b, 0) - managerScore(a, 0))[0]
+    check(top.stage!.reached >= top.stage!.tipped, `cup ${run}: the award went to a side that fell short of its tip`)
+    if (top.stage!.reached > top.stage!.tipped) winnersBeatTip++
+  }
+  Math.random = real
+  console.log(`cup manager award: ${runs} runs, ${judged} sides judged, the winner beat its tip in ${winnersBeatTip}`)
+}
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 else console.log(`${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

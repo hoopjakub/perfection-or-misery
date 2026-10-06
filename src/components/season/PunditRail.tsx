@@ -1,3 +1,4 @@
+import { countryName } from '@/data/countries-sk'
 import React from 'react'
 import { View, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { type Roles, space, border } from '@/theme'
@@ -37,8 +38,8 @@ export function PunditRail({ roles, cards, selected, onSelect }: {
             style={({ pressed }) => [styles.card, { borderColor: roles.line, backgroundColor: on ? roles.yours : roles.surface, borderWidth: on ? 3 : border.thin }, pressed && { opacity: 0.8 }]}>
             {c.country ? (
               <View style={styles.top}>
-                {flagForCountry(c.country) ? <RoundFlag emoji={flagForCountry(c.country)} code={c.country.slice(0, 3)} size={20} roles={roles} /> : null}
-                <KitText t="tag" color={roles.textMuted} numberOfLines={1} style={{ flex: 1 }}>{c.country}</KitText>
+                {flagForCountry(c.country) ? <RoundFlag emoji={flagForCountry(c.country)} code={c.country} size={20} roles={roles} /> : null}
+                <KitText t="tag" color={roles.textMuted} numberOfLines={1} style={{ flex: 1 }}>{countryName(c.country)}</KitText>
               </View>
             ) : c.top ? <KitText t="tag" color={roles.textMuted}>{c.top}</KitText> : null}
             <KitText t="title" color={roles.text} numberOfLines={1}>{c.title}</KitText>

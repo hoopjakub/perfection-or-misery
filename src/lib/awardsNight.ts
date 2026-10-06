@@ -1,37 +1,26 @@
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { RoundLines } from '@/engine/run-stats'
-import type { ClubRow } from '@/engine/awards'
+import { cupClubsForManagerAward, type ClubRow } from '@/engine/awards'
+import { isClassicEurope } from '@/data/europe'
 import type { SimTeam } from '@/types/simulation'
 import type { LeagueTeam } from '@/types/game'
 import { predictTable } from '@/engine/predictions'
+import type { CLSeasonResult } from '@/engine/cl-sim'
+import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import { router } from 'expo-router'
 import { openPlayer } from '@/lib/runNav'
 
-// Awards Night sits between the final whistle and the verdict, so it is the
-// screen that pays for computing the run's stats. The verdict then reads them
-// from here instead of regenerating every match sheet a second time. Module
-// scope, the same pattern as src/lib/confirm.ts and src/lib/deepMatch.ts,
-// because a route's params can't carry objects.
-
+// A run's stats and awards. Computed once and kept on the store by
+// liveRunData() (src/lib/runData.ts); Awards Night and the verdict both read
+// that cache. L-07 (Wave F): there used to be a second, read-once hand-off
+// here (stashRunStats/takeRunStats) that the verdict fell back from to a
+// recompute, so a second visit regenerated every match sheet.
 export type RunStats = { stats: CompetitionStats; awards: SeasonAwards; rounds?: RoundLines }
-
-let stashed: RunStats | null = null
-
-export function stashRunStats(value: RunStats | null) {
-  stashed = value
-}
-
-/** Read once: a second visit to the verdict recomputes rather than reusing stale numbers. */
-export function takeRunStats(): RunStats | null {
-  const v = stashed
-  stashed = null
-  return v
-}
 
 /**
  * The manager award needs what each club was expected to do. In a league that
- * is the pundits' table, rebuilt from the seed stored on the run; the cups
- * predict rounds rather than places, so they have no manager award.
+ * is the pundits' table, rebuilt from the seed stored on the run. A cup has
+ * its own: `cupClubsForManagerAward` (F-19).
  */
 export function clubsForManagerAward(
   teams: LeagueTeam[] | undefined, table: SimTeam[] | undefined, predictionSeed: number | null | undefined,
@@ -39,6 +28,24 @@ export function clubsForManagerAward(
   if (!teams || !table || predictionSeed == null) return []
   const predicted = new Map(predictTable(teams, predictionSeed).table.map(r => [r.clubId, r.predicted]))
   return table.map((t, i) => ({ clubId: t.clubId, clubName: t.clubName, finalPosition: i + 1, predicted: predicted.get(t.clubId) }))
+}
+
+/**
+ * The manager award's clubs for the run in the store, whatever its mode: the
+ * league's table against the pundits', a cup's rounds against theirs (F-19),
+ * none for the full path. A saved run keeps neither field nor seed for a cup,
+ * so this is the live run's.
+ */
+export function managerClubsFor(st: {
+  mode: string | null; predictionSeed: number | null
+  placedLeague?: { teams: LeagueTeam[] } | null; simResult?: { table: SimTeam[] } | null
+  clTeams?: { clubId: string; clubName: string; ovr: number; isPlayer: boolean }[] | null; clResult?: CLSeasonResult | null
+  wcTeams?: { clubId: string; clubName: string; ovr: number; isPlayer: boolean }[] | null; wcResult?: WCSeasonResult | null
+}): ClubRow[] {
+  if (st.mode === 'world_cup') return st.wcResult ? cupClubsForManagerAward(st.wcTeams, st.predictionSeed, { wc: st.wcResult }) : []
+  if (st.mode === 'champions_league_custom') return []
+  if (isClassicEurope(st.mode)) return st.clResult ? cupClubsForManagerAward(st.clTeams, st.predictionSeed, { cl: st.clResult }) : []
+  return clubsForManagerAward(st.placedLeague?.teams, st.simResult?.table, st.predictionSeed)
 }
 
 /**

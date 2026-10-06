@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import { router } from 'expo-router'
@@ -12,9 +13,9 @@ const roles = ROLES[EVERYDAY]
 export default function NotFoundScreen() {
   return (
     <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.screen}>
-      <KitText t="superXl" color={roles.text} accessibilityRole="header">WRONG PITCH</KitText>
-      <KitText t="bodyL" color={roles.textMuted}>There's nothing at this address.</KitText>
-      <Plate label="Back to Play" icon="forward" roles={roles} onPress={() => router.replace('/(tabs)')} style={styles.plate} />
+      <KitText t="superXl" color={roles.text} accessibilityRole="header">{t('screens.wrongPitch')}</KitText>
+      <KitText t="bodyL" color={roles.textMuted}>{t('screens.nothingHere')}</KitText>
+      <Plate label={t('screens.backToPlay')} icon="forward" roles={roles} onPress={() => router.replace('/(tabs)')} style={styles.plate} />
     </KitScreen>
   )
 }

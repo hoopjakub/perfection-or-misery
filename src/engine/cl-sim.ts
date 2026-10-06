@@ -1,3 +1,5 @@
+import { shuffle } from '../lib/rng'
+import { time } from '@/diag/perf'
 import type { SimTeam } from '@/types/simulation'
 import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
@@ -90,6 +92,14 @@ export type CLSeasonResult = {
   // it travels with the result.
   absences?:            import('@/engine/availability').Absence[]
   leagueMatchdays?:     CLLeagueMatch[]   // populated by the simulation component
+  /** The full path's domestic season, your league's every match (F-20). Kept
+   *  on the result, which is saved whole, so the season counts in the run's
+   *  stats like every other stage. Runs before 3 Oct 2026 don't have it. */
+  domesticMatchdays?:   CLLeagueMatch[]
+  /** The regular season's matchdays, when a split league added a second stage
+   *  after them (its points are halved at the split, so a table rebuilt from
+   *  the results only holds up to here). Absent: the whole list is regular. */
+  domesticRegular?:     number
   /** P8.5-16: the full path's other two competitions, played out headless so
    *  the result screen can show how they finished. Absent on older saves. */
   others?:              OtherCompetition[]
@@ -192,14 +202,6 @@ function crossPotFixtures(potA: CLTeam[], potB: CLTeam[]): CLFixture[] {
   return out
 }
 
-function shuffled<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
 
 // Packing an 8-regular graph's 144 edges into 8 conflict-free rounds is a
 // proper edge-colouring problem. Global backtracking over all 144 edges at
@@ -244,7 +246,7 @@ function findRoundMatching(pool: CLFixture[], teamIds: string[], stepBudget: num
     if (++steps > stepBudget) return false
     const team = pickTeam()
     if (team === null) return usedTeam.size === teamIds.length
-    const options = shuffled(optionsFor(team))
+    const options = shuffle(Math.random, optionsFor(team))
     if (options.length === 0) return false
     for (const fx of options) {
       const other = otherSide(fx, team)
@@ -352,7 +354,7 @@ export function generateCLLeagueFixtures(
 // the league phase or an early knockout round — so the results screen can show
 // the whole thing playing out. Once the player loses, they simply stop showing
 // up in the winners arrays, so later rounds continue with the other teams.
-export function simulateCLKnockoutsOnly(
+function simulateCLKnockoutsOnlyNow(
   sortedLeagueStandings: CLTeam[],
   // §10.5 phase 4 — optional availability hook. Given one, every tie is priced
   // with its absences and handed back the moment it's decided so the caller can
@@ -373,7 +375,7 @@ export function simulateCLKnockoutsOnly(
   const playoffPool = sortedLeagueStandings.slice(8, 24)
 
   // Playoff round (positions 9-24, 8 two-leg ties → 8 winners)
-  const shuffledPlayoff = shuffle([...playoffPool])
+  const shuffledPlayoff = shuffle(Math.random, playoffPool)
   const playoffRound: CLKnockoutMatch[] = []
   const playoffWinners: CLTeam[] = []
   for (let i = 0; i < shuffledPlayoff.length; i += 2) {
@@ -387,7 +389,7 @@ export function simulateCLKnockoutsOnly(
   // two top-8 sides can NEVER meet here — only from the quarter-finals onward.
   // Playoff winners keep their column order (playoff tie i feeds R16 tie i); the
   // direct qualifiers are drawn at random against them.
-  const directDraw = shuffle([...r16Direct])
+  const directDraw = shuffle(Math.random, r16Direct)
   const r16: CLKnockoutMatch[] = []
   const r16Winners: CLTeam[] = []
   for (let i = 0; i < playoffWinners.length; i++) {
@@ -508,6 +510,5 @@ function withHookOvr(t: CLTeam, hook?: KnockoutSimHook<CLKnockoutMatch>, round =
   return { ...t, ovr: hook.ovrFor(t.clubId, t.ovr, round) }
 }
 
-function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5)
-}
+// Phase 9: timed for the Diagnostics screen (sim:knockouts, docs/diagnostics/03-BUDGETS.md).
+export const simulateCLKnockoutsOnly = (...a: Parameters<typeof simulateCLKnockoutsOnlyNow>) => time('sim:knockouts', () => simulateCLKnockoutsOnlyNow(...a))

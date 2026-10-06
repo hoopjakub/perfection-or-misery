@@ -1,10 +1,12 @@
 // P8-172: the three European competitions, as the game plays them. One place
 // says what makes each one itself — its name, where its field lives in the
-// bundled database, the shape of its league phase, and how its scores weigh
-// against the Champions League's — so the screens that play the Champions
+// bundled database and the shape of its league phase; how its scores weigh
+// against the Champions League's is `COMP_WEIGHT` in the shared score
+// (supabase/functions/_shared/score.ts), which the server reads too — so the screens that play the Champions
 // League play all three by asking here (docs/europe/02).
 //
 // Imports nothing but a type: the verify scripts and the shared score use it.
+import { t } from '@/i18n'
 import type { GameMode } from '@/types/game'
 
 export type EuropeComp = 'ucl' | 'uel' | 'uecl'
@@ -29,11 +31,11 @@ export type EuropeCompetition = {
 }
 
 export const EUROPE: Record<EuropeComp, EuropeCompetition> = {
-  ucl:  { id: 'ucl',  mode: 'champions_league',  name: 'Champions League',  fullName: 'UEFA Champions League',  short: 'UCL',  finalLabel: 'UCL Final',
+  ucl:  { id: 'ucl',  mode: 'champions_league',  name: t('comp.uclShort'),  fullName: t('comp.ucl'),  short: t('tiers.tagUcl'),  finalLabel: 'UCL Final',
           leaguePrefix: 'ucl_',  pots: 4, perPot: 2, matchdays: 8, realPots: false },
-  uel:  { id: 'uel',  mode: 'europa_league',     name: 'Europa League',     fullName: 'UEFA Europa League',     short: 'UEL',  finalLabel: 'Europa League Final',
+  uel:  { id: 'uel',  mode: 'europa_league',     name: t('comp.uelShort'),     fullName: t('comp.uel'),     short: t('tiers.tagUel'),  finalLabel: 'Europa League Final',
           leaguePrefix: 'uel_',  pots: 4, perPot: 2, matchdays: 8, realPots: true },
-  uecl: { id: 'uecl', mode: 'conference_league', name: 'Conference League', fullName: 'UEFA Conference League', short: 'UECL', finalLabel: 'Conference League Final',
+  uecl: { id: 'uecl', mode: 'conference_league', name: t('comp.ueclShort'), fullName: t('comp.uecl'), short: t('tiers.tagUecl'), finalLabel: 'Conference League Final',
           leaguePrefix: 'uecl_', pots: 6, perPot: 1, matchdays: 6, realPots: true },
 }
 

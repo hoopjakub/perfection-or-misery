@@ -1,6 +1,9 @@
+import { t, num, LOCALE } from '@/i18n'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
 import React, { useCallback, useMemo, useState } from 'react'
 import { PageMeta } from '@/components/PageMeta'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, FlatList, Platform } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { fetchRunHistory, fetchScoreLadder, placeOn, SCORE_LADDER, type RunHistoryEntry } from '@/db/queries/leaderboard'
@@ -21,19 +24,20 @@ const roles = ROLES[EVERYDAY]
 
 type SortKey = 'date' | 'score' | 'difficulty' | 'wins' | 'losses' | 'tier'
 const SORTS: { id: SortKey; label: string }[] = [
-  { id: 'date', label: 'Latest' }, { id: 'score', label: 'Score' }, { id: 'tier', label: 'Tier' },
-  { id: 'difficulty', label: 'Hardest' }, { id: 'wins', label: 'Wins' }, { id: 'losses', label: 'Fewest losses' },
+  { id: 'date', label: t('ranks.latest') }, { id: 'score', label: t('ranks.score') }, { id: 'tier', label: t('ranks.tier') },
+  { id: 'difficulty', label: t('ranks.hardest') }, { id: 'wins', label: t('ranks.wins') }, { id: 'losses', label: t('ranks.fewestLosses') },
 ]
 
 // Tier sort uses the same cross-mode prestige ranking as Home's "Best Tier"
 // (src/data/tiers.ts). The old local list had no World Cup tiers, so they
 // sorted above Perfection.
 const tierRank = (tier: string) => TIER_RANK[tier] ?? -1
-const date = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()
+const date = (s: string) => new Date(s).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()
 
-const placeLabel = (place: number | null, board: string) => (place ? `${ordinal(place).toUpperCase()} ${board}` : `OUTSIDE THE TOP ${SCORE_LADDER} ${board}`)
+const placeLabel = (place: number | null, board: string) => (place ? t('ranks.placeOn', { place: ordinal(place).toUpperCase(), board }) : t('ranks.outsideTop', { n: SCORE_LADDER, board }))
 
 export default function RunsScreen() {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
   const [runs, setRuns] = useState<RunHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,14 +59,14 @@ export default function RunsScreen() {
       ;(async () => {
         if (!user || isGuest) { setLoading(false); return }
         try {
-          const data = await fetchRunHistory(user.id, 100)
+          const data = await once(fetchRunHistory(user.id, 100))
           if (active) { setRuns(data); setFailed(false) }
           const since = weekStart().toISOString()
           Promise.all([fetchScoreLadder(), fetchScoreLadder(since)])
             .then(([all, week]) => { if (active) setLadders({ all, week, since }) })
-            .catch(e => console.warn('[runs] places failed:', e))
+            .catch(e => log.warn('net', 'runs: places failed', e))
         } catch (error) {
-          console.warn('[runs] load failed:', error)
+          log.warn('net', 'runs: load failed', error)
           if (active) setFailed(true)
         } finally {
           if (active) setLoading(false)
@@ -89,59 +93,82 @@ export default function RunsScreen() {
     }
   }, [runs, sortBy, seasonN])
 
-  return (
-    <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
-      <PageMeta title="Your runs" description="Every run you've played, as its label: the verdict, the score, where and how hard." path="/runs" />
-      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>YOUR RUNS</KitText>
+  // Phase 9 (N-14): up to 100 runs, so the list is a FlatList: only the labels
+  // near the screen are mounted. The title and the filters are its header, so
+  // they scroll away with it as before.
+  const header = (
+    <>
+      <PageMeta title={t('ranks.yourRunsTitle')} description={t('ranks.yourRunsDesc')} path="/runs" />
+      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{t('ranks.yourRuns')}</KitText>
       {!isGuest && !loading && runs.length > 0 && (
-        <KitText t="tag" color={roles.textMuted}>{`${runs.length} run${runs.length === 1 ? '' : 's'} played`}</KitText>
+        <KitText t="tag" color={roles.textMuted}>{t('ranks.played', { count: runs.length })}</KitText>
       )}
+    </>
+  )
 
-      {isGuest ? (
-        <EmptyState roles={roles} icon="lock" title="Sign in to keep your runs" body="Guest runs aren't saved. Sign in from Profile and every run lands here." />
-      ) : loading ? (
-        <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
-      ) : failed && runs.length === 0 ? (
-        <InlineError roles={roles} message="Your runs couldn't be loaded." onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
-      ) : runs.length === 0 ? (
-        <EmptyState roles={roles} title="No runs yet" body="Start suffering." />
-      ) : (
-        <>
-          <Chips roles={roles} label="Sort" options={SORTS} value={sortBy} onChange={setSortBy} style={styles.sort} />
-          <Chips<string> roles={roles} label="Season" value={seasonN} onChange={setSeasonN}
-            options={[{ id: 'all', label: 'All' }, ...seasonsSoFar().map(x => ({ id: String(x.n), label: `Season ${x.n}` }))]} />
+  if (isGuest || loading || (failed && runs.length === 0) || runs.length === 0) {
+    return (
+      <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
+        {header}
+        {isGuest ? (
+          <EmptyState roles={roles} icon="lock" title={t('ranks.signInKeep')} body={t('ranks.guestNotSaved')} />
+        ) : loading ? (
+          <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
+        ) : failed && runs.length === 0 ? (
+          <InlineError roles={roles} message={t('ranks.runsFailed')} onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+        ) : runs.length === 0 ? (
+          <EmptyState roles={roles} title={t('ranks.noRuns')} body={t('ranks.startSuffering')} />
+        ) : null}
+      </KitScreen>
+    )
+  }
+
+  return (
+    <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'} scroll={false}>
+      <FlatList
+        key={wide ? 'grid' : 'list'}
+        data={sorted}
+        keyExtractor={run => run.id}
+        numColumns={wide ? 2 : 1}
+        columnWrapperStyle={wide ? styles.gridRow : undefined}
+        contentContainerStyle={styles.listBody}
+        showsVerticalScrollIndicator={Platform.OS === 'web'}
+        initialNumToRender={12}
+        ListHeaderComponent={<>{header}
+          <Chips roles={roles} label={t('ranks.sort')} options={SORTS} value={sortBy} onChange={setSortBy} style={styles.sort} />
+          <Chips<string> roles={roles} label={t('ranks.season')} value={seasonN} onChange={setSeasonN}
+            options={[{ id: 'all', label: t('ranks.all') }, ...seasonsSoFar().map(x => ({ id: String(x.n), label: t('ranks.seasonN', { n: x.n }) }))]} />
           {seasonN !== 'all' && (
             <KitText t="tag" color={roles.textMuted}>
-              {`${SEASONS[Number(seasonN)].name.toUpperCase()} · ${seasonDates(SEASONS[Number(seasonN)]).toUpperCase()} · ${sorted.length} RUN${sorted.length === 1 ? '' : 'S'}`}
+              {`${SEASONS[Number(seasonN)].name.toUpperCase()} · ${seasonDates(SEASONS[Number(seasonN)]).toUpperCase()} · ${t('ranks.runs', { count: sorted.length })}`}
             </KitText>
           )}
-          <View style={[styles.list, wide && styles.grid]}>
-            {sorted.map(run => (
-              <View key={run.id} style={wide ? styles.cell : undefined}>
-              <RunLabel
-                roles={roles}
-                colourway={colourwayFor(run.mode)}
-                title={formatTier(run.tier)}
-                meta={[
-                  date(run.created_at), runMeta(run), `W${run.wins} D${run.draws} L${run.losses}`,
-                  ...(ladders ? [placeLabel(placeOn(ladders.all, run.score), 'ALL TIME'),
-                    ...(run.created_at >= ladders.since ? [placeLabel(placeOn(ladders.week, run.score), 'THIS WEEK')] : [])] : []),
-                ].join(' · ')}
-                score={run.score.toLocaleString('en-US')}
-                verdict={verdictOf(run.tier)}
-                onPress={() => router.push({ pathname: runRoute(run.mode), params: { runId: run.id } })}
-              />
-              </View>
-            ))}
+        </>}
+        renderItem={({ item: run }) => (
+          <View style={wide ? styles.cell : undefined}>
+            <RunLabel
+              roles={roles}
+              colourway={colourwayFor(run.mode)}
+              title={formatTier(run.tier)}
+              meta={[
+                date(run.created_at), runMeta(run), t('ranks.wdl', { w: run.wins, d: run.draws, l: run.losses }),
+                ...(ladders ? [placeLabel(placeOn(ladders.all, run.score), t('ranks.boardAll')),
+                  ...(run.created_at >= ladders.since ? [placeLabel(placeOn(ladders.week, run.score), t('ranks.boardWeek'))] : [])] : []),
+              ].join(' · ')}
+              score={num(run.score)}
+              verdict={verdictOf(run.tier)}
+              onPress={() => router.push({ pathname: runRoute(run.mode), params: { runId: run.id } })}
+            />
           </View>
-        </>
-      )}
+        )}
+      />
     </KitScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space[5] },
+  gridRow: { columnGap: space[5] },
+  listBody: { gap: space[4], paddingBottom: space[7] },
   cell: { width: '48%' },
   // A tab, not a pushed page: no back control (P8-97), and the same top as Ranks.
   title: { marginTop: space[5] },

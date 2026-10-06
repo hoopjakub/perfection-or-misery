@@ -1,5 +1,6 @@
 // The draft's own pieces (docs/ui-overhaul/08 §3.1): the rack spin, the pitch
 // hangers, player tags and the landed club card. Kit Drop, cotton ground.
+import { t } from '@/i18n'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import React, { useEffect, useRef, useState } from 'react'
 import { View, Pressable, StyleSheet, Image, type LayoutChangeEvent } from 'react-native'
@@ -13,10 +14,10 @@ import { spring } from '@/lib/motion'
 import { KitText, Stripe, Tape, ZipTag, RoundFlag, Plate, Crest } from '@/components/kit'
 import { getFlag } from '@/lib/flagMap'
 import { flagImageOf, flagLargeOf } from '@/lib/flags'
-import { flagForNationality } from '@/data/geo-iso'
+import { flagForNationality, nationalityCountry } from '@/data/geo-iso'
+import { countryName } from '@/data/countries-sk'
 import { crestFor, markColoursOf } from '@/lib/brand'
 import { ratio } from '@/lib/contrast'
-import { EVERYDAY } from '@/lib/appearance'
 
 // ── SwingTag ─────────────────────────────────────────────────────────────────
 // The zip tag, attached with the app's one overshoot. Remounting it (a new
@@ -115,7 +116,7 @@ export function RackSpin({ roles, items, durationMs, onLanded }: {
       onPress={skip}
       onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
       accessibilityRole="button"
-      accessibilityLabel="Spinning. Tap to land it now."
+      accessibilityLabel={t('draft.spinningA11y')}
       style={[styles.spinFrame, { borderColor: roles.line, backgroundColor: roles.sunken }]}
     >
       {reduced ? (
@@ -193,9 +194,11 @@ export function ClubCard({ roles, name, sub, colour, flag, fact, onReroll, rerol
   const flash = useSharedValue(reduced || !colour ? 0 : 1)
   useEffect(() => { if (!reduced) flash.value = withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) }) }, [])
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }))
-  // The card reads in cotton on the club's near-black tint, whatever the ground.
-  // The selected chip is the page's opposite ground (P8.5-25: whichever that is).
-  const on = ROLES[EVERYDAY === 'cotton' ? 'nylon' : 'cotton']
+  // The card reads in cotton on the club's near-black tint, whatever the ground,
+  // so its text always takes nylon's roles. It took the page's opposite ground
+  // (P8.5-25), which in dark mode meant ink on near-black: the club's name all
+  // but vanished the moment it landed (found filming the trailer, 3 Oct 2026).
+  const on = ROLES.nylon
   return (
     <View style={[styles.club, { borderColor: roles.line, backgroundColor: towardInk(colour ?? prim.nylon, 0.82) }]}>
       {flag ? <View style={styles.clubFlag}><RoundFlag roles={on} emoji={flag} code={name} size={24} /></View>
@@ -214,13 +217,13 @@ export function ClubCard({ roles, name, sub, colour, flag, fact, onReroll, rerol
       <View style={styles.clubActions}>
         {fact ? (
           <Pressable onPress={() => setFlipped(f => !f)} hitSlop={8} accessibilityRole="button"
-            accessibilityLabel={flipped ? 'Show the club' : 'Read a fact about this club'} style={styles.flip}>
-            <KitText t="tag" color={on.text}>{flipped ? 'BACK' : 'FLIP'}</KitText>
+            accessibilityLabel={flipped ? t('draft.showClub') : t('draft.readFact')} style={styles.flip}>
+            <KitText t="tag" color={on.text}>{flipped ? t('draft.back') : t('draft.flip')}</KitText>
           </Pressable>
         ) : null}
         {onReroll && rerollsLeft > 0 ? (
-          <Plate label="Reroll" variant="secondary" roles={on} onPress={onReroll}
-            accessibilityHint={`${rerollsLeft} left`} style={styles.reroll} />
+          <Plate label={t('draft.reroll')} variant="secondary" roles={on} onPress={onReroll}
+            accessibilityHint={t('draft.left', { n: rerollsLeft })} style={styles.reroll} />
         ) : null}
       </View>
       {colour ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colour }, flashStyle]} /> : null}
@@ -350,14 +353,17 @@ export function PlayerTag({ roles, name, position, nationality, rating, availabl
 }) {
   const flag = flagLargeOf(flagForNationality(nationality))
   const tint = LINE_TINT[lineOf(position)]
-  const detail = [nationality.toUpperCase(), age ? `${age}` : null, alsoOf(also)].filter(Boolean).join(' · ')
+  // One label per country, whichever form the data stored (SPAIN, never SPANISH beside it).
+  const nation = countryName(nationalityCountry(nationality))
+  const detail = [nation.toUpperCase(), age ? `${age}` : null, alsoOf(also)].filter(Boolean).join(' · ')
   return (
     <Pressable
       onPress={onPress}
       disabled={!available}
       accessibilityRole="button"
       accessibilityState={{ disabled: !available, selected: chosen }}
-      accessibilityLabel={`${name}, ${position}, ${nationality}${age ? `, aged ${age}` : ''}, rating ${rating}${available ? '' : blocked ? `, ${blocked.toLowerCase()}` : ', no open position'}`}
+      accessibilityLabel={t('draft.playerA11y', { name, pos: position, nation }) + (age ? t('draft.aged', { age }) : '') + t('draft.ratingA11y', { rating })
+        + (available ? '' : blocked ? `, ${blocked.toLowerCase()}` : t('draft.noOpenPosition'))}
       style={({ pressed }) => [
         styles.player,
         {
@@ -377,11 +383,15 @@ export function PlayerTag({ roles, name, position, nationality, rating, availabl
       {/* A shade rising from the foot, so the name reads on any flag (white
           stripes included) without a flat black band cutting the card in two.
           It starts halfway down: the top half is all flag (P8.5-11). */}
-      <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 1 1">
+      {/* Sized explicitly: react-native-svg on web draws a zero-size SVG from a
+          style alone, so the shade never showed and white stripes ate the name. */}
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1 1">
         <Defs>
           <LinearGradient id="tagShade" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={prim.ink} stopOpacity={0} />
-            <Stop offset="0.5" stopColor={prim.ink} stopOpacity={0.1} />
+            <Stop offset="0.5" stopColor={prim.ink} stopOpacity={0.2} />
+            {/* Dark enough by the name's line that a white stripe can't swallow it. */}
+            <Stop offset="0.68" stopColor={prim.ink} stopOpacity={0.72} />
             <Stop offset="1" stopColor={prim.ink} stopOpacity={0.92} />
           </LinearGradient>
         </Defs>
@@ -390,10 +400,10 @@ export function PlayerTag({ roles, name, position, nationality, rating, availabl
       {!available && <Stripe roles={roles} band={4} style={styles.playerStripe} />}
       <View style={styles.playerTop}>
         <View style={[styles.playerChip, { backgroundColor: tint }]}><KitText t="tag" color={prim.ink}>{position}</KitText></View>
-        {icon ? <View style={[styles.playerChip, { backgroundColor: prim.gold }]}><KitText t="tag" color={prim.ink}>ICON</KitText></View> : null}
+        {icon ? <View style={[styles.playerChip, { backgroundColor: prim.gold }]}><KitText t="tag" color={prim.ink}>{t('draft.icon')}</KitText></View> : null}
         <View style={{ flex: 1 }} />
         <View style={[styles.playerRating, { backgroundColor: prim.cotton, borderColor: prim.ink }]}>
-          <KitText t="figure" color={prim.ink}>{available ? rating : blocked ?? 'NO SLOT'}</KitText>
+          <KitText t="figure" color={prim.ink}>{available ? rating : blocked ?? t('draft.noSlot')}</KitText>
         </View>
       </View>
       <View style={styles.playerLabel}>

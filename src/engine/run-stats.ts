@@ -3,6 +3,7 @@
 // so the same path serves real runs, the quick-sim tester, and history loads.
 
 import type { RosterPlayer, CompetitionStats, SeasonAwards, MatchScorers, GoalEvent, AwardCandidate } from '@/types/stats'
+import { timeAsync } from '@/diag/perf'
 import type { DraftedPlayer } from '@/types/game'
 import {
   attributeMatchScorers, createStatsAccumulator, computeAwards, buildClubGKMap,
@@ -145,10 +146,13 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
   // run's stats (player pages, the game log, the teams of the matchday) still
   // count every match; only the awards are split. Same pass, two more
   // accumulators, so no match sheet is generated twice.
-  const staged = p.matches.some(m => m.stage === 'qualifying')
+  // F-20: the full path's domestic season is a stage too. It counts for the
+  // run's stats and in no European award.
+  const staged = p.matches.some(m => m.stage)
+  const hasQual = p.matches.some(m => m.stage === 'qualifying')
   const accCtx = { rosterIndex, clubGK, playerPool: p.playerPool, playerClubId: p.playerClubId }
   const mainAcc = staged ? createStatsAccumulator(accCtx) : null
-  const qualAcc = staged ? createStatsAccumulator(accCtx) : null
+  const qualAcc = hasQual ? createStatsAccumulator(accCtx) : null
   const matchLog: PlayerMatchLog = new Map()
   const rounds = new Map<string, RoundLine[]>()
 
@@ -195,7 +199,7 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
       sheet: detail ? { home: detail.home, away: detail.away } : undefined,
     }
     acc.recordMatch(record)
-    ;(m.stage === 'qualifying' ? qualAcc : mainAcc)?.recordMatch(record)
+    ;(m.stage === 'qualifying' ? qualAcc : m.stage === 'domestic' ? null : mainAcc)?.recordMatch(record)
     const roundKey = roundKeyOf(m, idx)
     const roundArr = rounds.get(roundKey) ?? []
     for (const l of played) {
@@ -227,16 +231,17 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
     rosterIndex, finalPositionByClub: p.finalPositionByClub, teamsInComp: p.teamsInComp,
   })
   // P8-130: the big matches count for more (importance.ts). Weighed over the
-  // games the awards are for: the full path's qualifying has its own.
-  const qualLabels = new Set(p.matches.filter(m => m.stage === 'qualifying').map(m => m.label ?? ''))
+  // games the awards are for: the full path's qualifying has its own, and its
+  // domestic season none.
+  const qualLabels = new Set(p.matches.filter(m => m.stage).map(m => m.label ?? ''))
   const lastMd = lastMatchdayOf(p.matches.map(m => m.label ?? ''))
   const gamesOf = (id: string) => (matchLog.get(id) ?? [])
     .filter(e => !qualLabels.has(e.label)).map(e => ({ label: e.label, rating: e.line.rating }))
   awards.playerOfTheSeason = applyImportance(awards.playerOfTheSeason, gamesOf, l => matchWeight(l, lastMd))
   // The same candidates (applyImportance changed their scores), re-ranked.
   awards.bestU21 = [...awards.bestU21].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  if (mainStats) awards.teams = mainStats.teams
   if (mainStats && qualAcc) {
-    awards.teams = mainStats.teams
     // Qualifying has no finishing order to carry anyone (a club out in Q1 and
     // one through to the league phase both "finished" qualifying), so no carry.
     const qual = computeAwards(qualAcc.build(), {
@@ -263,7 +268,7 @@ function bestPerPosition(cands: AwardCandidate[], keep: number): AwardCandidate[
 // One-call league stats: fetch rosters, reuse stored scorers, aggregate + awards.
 // Deterministic (uses the scorers attributed during the sim), so result and stats
 // screens both call this and get identical numbers.
-export async function computeLeagueRunStats(
+async function computeLeagueRunStatsNow(
   simResult: SeasonResult,
   draftedPlayers: DraftedPlayer[],
   placedLeague: LeagueSeason,
@@ -340,7 +345,7 @@ export function attributeWCResultScorers(result: WCSeasonResult, poolByClub: Map
 // ── Champions League ────────────────────────────────────────────────────────
 // `qualTies` (custom path): the qualifying-round ties count toward stats/awards
 // too — the whole competition, not just the league phase + knockouts.
-export async function computeCLRunStats(
+async function computeCLRunStatsNow(
   result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[], useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
   const standings = result.leaguePhaseStandings
@@ -348,6 +353,8 @@ export async function computeCLRunStats(
   const playerClubId = result.playerTeam.clubId
   const clubIds = new Set(standings.map(t => t.clubId))
   for (const t of qualTies ?? []) { clubIds.add(t.teamA.clubId); if (t.teamB) clubIds.add(t.teamB.clubId) }
+  // F-20: the full path's domestic league (the same 2025/26 edition).
+  for (const m of result.domesticMatchdays ?? []) { clubIds.add(m.home.clubId); clubIds.add(m.away.clubId) }
   const rosters    = await getRostersForClubs([...clubIds], yearStart)
   const playerPool = draftedToPool(draftedPlayers, playerClubId, result.playerTeam.clubName, yearStart)
 
@@ -363,7 +370,7 @@ export async function computeCLRunStats(
 // ── World Cup ───────────────────────────────────────────────────────────────
 const WC_ROUND_POS: Record<string, number> = { r32: 17, r16: 9, qf: 5, sf: 3, final: 2 }
 
-export async function computeWCRunStats(
+async function computeWCRunStatsNow(
   result: WCSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2026, useSubstitutes = true,
 ): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
   const allTeams = result.groups.flatMap(g => g.teams)
@@ -581,3 +588,12 @@ export function teamOfTheRound(
   }
   return pickTeam([...best.values()])
 }
+
+// Phase 9: timed for the Diagnostics screen (stats:league, docs/diagnostics/03-BUDGETS.md).
+export const computeLeagueRunStats = (...a: Parameters<typeof computeLeagueRunStatsNow>) => timeAsync('stats:league', () => computeLeagueRunStatsNow(...a))
+
+// Phase 9: timed for the Diagnostics screen (stats:ucl, docs/diagnostics/03-BUDGETS.md).
+export const computeCLRunStats = (...a: Parameters<typeof computeCLRunStatsNow>) => timeAsync('stats:ucl', () => computeCLRunStatsNow(...a))
+
+// Phase 9: timed for the Diagnostics screen (stats:wc, docs/diagnostics/03-BUDGETS.md).
+export const computeWCRunStats = (...a: Parameters<typeof computeWCRunStatsNow>) => timeAsync('stats:wc', () => computeWCRunStatsNow(...a))

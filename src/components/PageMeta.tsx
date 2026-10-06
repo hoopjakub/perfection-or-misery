@@ -1,4 +1,5 @@
 import React from 'react'
+import { t } from '@/i18n'
 import { Platform } from 'react-native'
 import Head from 'expo-router/head'
 
@@ -10,7 +11,7 @@ import Head from 'expo-router/head'
 // EXPO_PUBLIC_SITE_URL (e.g. https://perfectionormisery.com) and they appear.
 const SITE = process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, '')
 const NAME = 'Perfection or Misery'
-const DEFAULT_DESC = 'Draft an XI from random real club-seasons, get dropped into a league or cup, and find out: Perfection or Misery.'
+const DEFAULT_DESC = t('common.pageDescription')
 
 export function PageMeta({ title, description = DEFAULT_DESC, path, jsonLd }: { title?: string; description?: string; path?: string; jsonLd?: object }) {
   if (Platform.OS !== 'web') return null

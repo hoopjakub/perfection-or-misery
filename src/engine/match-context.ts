@@ -10,6 +10,7 @@
 // retained; it's fully deterministic, so a screen that HAS snapshots and one
 // that derives them here will agree.
 
+import { compareRows } from './standings'
 import type { PlayerMatchLine } from '@/types/match-stats'
 import type { MatchScorers } from '@/types/stats'
 
@@ -158,9 +159,7 @@ export function standingsAsOf(matches: ContextMatch[], upToMatchday: number): Co
 
   // Same ordering the live standings use (points → GD → goals scored), so the
   // snapshot can't disagree with the table the player watched all season.
-  return [...rows.values()].sort((a, b) =>
-    b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor
-    || (a.clubName < b.clubName ? -1 : 1))
+  return [...rows.values()].sort(compareRows)
 }
 
 /**
@@ -222,7 +221,11 @@ export function clCompetitionMatches(
   rounds: { label: string; ties: import('./cl-sim').CLKnockoutMatch[] }[],
 ): ContextMatch[] {
   return appendKnockoutRounds(leaguePhase.map(m => ({
-    matchday: m.matchday, label: `Matchday ${m.matchday}`,
+    // The label every other view gives a league-phase game. It said just
+    // "Matchday n" until 3 Oct 2026 (centralisation step 3), and the sheet
+    // reads its kick-off and venue off the label: a game opened from a
+    // result's form rows was dated as a domestic fixture.
+    matchday: m.matchday, label: `League Phase · Matchday ${m.matchday}`,
     homeClubId: m.home.clubId, homeClubName: m.home.clubName,
     awayClubId: m.away.clubId, awayClubName: m.away.clubName,
     homeGoals: m.homeGoals, awayGoals: m.awayGoals,
@@ -282,7 +285,7 @@ export function appendKnockoutRounds(
           })
         } else if (leg === 2 && t.leg2) {
           // Leg 2 is played at teamB's ground, and folds its extra time in —
-          // same convention as koLegDetailRequest, so both agree.
+          // the one convention every sheet uses (tieRequest in stages.ts reads it).
           const et = t.leg2ExtraTime
           const merged = et
             ? {

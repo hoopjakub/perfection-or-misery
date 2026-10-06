@@ -1,3 +1,6 @@
+import { shuffle } from '../lib/rng'
+import { time } from '@/diag/perf'
+import { compareStandings } from './standings'
 import { SimTeam } from '@/types/simulation'
 import type { MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
@@ -156,7 +159,7 @@ export function simulateWorldCup(teams: WCTeam[]): WCSeasonResult {
   // The bracket is drawn ONCE here, then fixed: every later round pairs
   // consecutive winners, so the winners of two adjacent ties always meet in the
   // next round. (Re-drawing each round broke the visual bracket tree.)
-  let current = [...r32Teams].sort(() => Math.random() - 0.5)
+  let current = shuffle(Math.random, r32Teams)
   let playerFinalRound = 'groups'
   let sfLosers: WCTeam[] = []
 
@@ -241,7 +244,7 @@ export function generateWCGroupFixtures(
 }
 
 // Runs knockout phase from already-simulated groups
-export function simulateWCKnockoutsOnly(
+function simulateWCKnockoutsOnlyNow(
   groups: WCGroup[],
   allTeams: WCTeam[],
   // §10.5 phase 4 — optional availability hook, called per tie in bracket order:
@@ -252,11 +255,7 @@ export function simulateWCKnockoutsOnly(
   hook?: KnockoutSimHook<WCKnockoutMatch>,
 ): Omit<WCSeasonResult, 'groups'> {
   const byStats = (a: WCTeam, b: WCTeam) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-    const gdA = a.stats.goalsFor - a.stats.goalsAgainst
-    const gdB = b.stats.goalsFor - b.stats.goalsAgainst
-    if (gdB !== gdA) return gdB - gdA
-    return b.stats.goalsFor - a.stats.goalsFor
+    return compareStandings(a, b)
   }
   for (const group of groups) group.teams.sort(byStats)
 
@@ -276,7 +275,7 @@ export function simulateWCKnockoutsOnly(
   const roundNames = ['r32', 'r16', 'qf', 'sf']
   // Draw the bracket ONCE, then keep it fixed: each round pairs consecutive
   // winners so adjacent ties feed the same next-round match (a real tree).
-  let current          = [...r32Teams].sort(() => Math.random() - 0.5)
+  let current          = shuffle(Math.random, r32Teams)
   let playerFinalRound = 'groups'
   let sfLosers: WCTeam[] = []
 
@@ -364,7 +363,7 @@ export function assignGroups(teams: WCTeam[]): WCGroup[] {
   sorted.forEach((t, i) => pots[Math.floor(i / 12)].push(t))
 
   for (const pot of pots) {
-    const shuffled = [...pot].sort(() => Math.random() - 0.5)
+    const shuffled = shuffle(Math.random, pot)
     shuffled.forEach((team, i) => {
       if (i < groups.length) {
         team.groupId = groupIds[i]
@@ -414,3 +413,6 @@ export function buildWCTeams(
     },
   }))
 }
+
+// Phase 9: timed for the Diagnostics screen (sim:knockouts, docs/diagnostics/03-BUDGETS.md).
+export const simulateWCKnockoutsOnly = (...a: Parameters<typeof simulateWCKnockoutsOnlyNow>) => time('sim:knockouts', () => simulateWCKnockoutsOnlyNow(...a))

@@ -14,6 +14,7 @@
 // The session (Supabase's auth storage) stays on AsyncStorage: it already
 // survives a reload, and moving it would sign everyone out once.
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { log } from '@/diag/log'
 import { createMMKV, type MMKV } from 'react-native-mmkv'
 
 export const sessionStorage = AsyncStorage
@@ -23,7 +24,7 @@ let mmkv: MMKV | null = null
 try {
   mmkv = createMMKV({ id: 'pom.settings' })
 } catch (e) {
-  console.warn('[settings] MMKV unavailable in this build, using AsyncStorage:', e)
+  log.warn('app', 'settings: MMKV unavailable in this build, using AsyncStorage', e)
 }
 
 /** Settings storage: synchronous when MMKV is there (`readNow`), else AsyncStorage. */

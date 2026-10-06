@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { log, noteSave } from '@/diag/log'
 import { useUserStore } from '@/store/userStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -58,7 +59,7 @@ export function useRunSave({ applies, signedIn, ready }: {
         // P8.5-24: saved on the phone instead, not lost. It stays "in flight"
         // so leaving the screen doesn't try again: the queue sends it.
         if (e instanceof RunQueuedError) { setStatus('queued'); return }
-        console.warn('[run-save] failed:', e)
+        log.warn('save', 'run-save: failed', e)
         inflight.current = null
         setStatus('failed')
       },
@@ -66,6 +67,12 @@ export function useRunSave({ applies, signedIn, ready }: {
     inflight.current = p
     return p
   }, [applies, signedIn])
+
+  // Phase 9: the save ledger says whether this run was saved (04-CHECKS §6).
+  useEffect(() => {
+    if (status === 'waiting') return
+    noteSave('run', status === 'off' ? 'skipped · tester or a saved run' : status === 'guest' ? 'skipped · guest' : status === 'failed' ? 'failed' : status)
+  }, [status])
 
   // A queued run that the queue has since sent: its id lands on the store.
   const savedRunId = useGameStore(s => s.savedRunId)

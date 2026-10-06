@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React, { useState } from 'react'
 import { StyleSheet } from 'react-native'
 import { ROLES, space } from '@/theme'
@@ -21,7 +22,7 @@ export default function SheetScreen() {
           {sheet.render()}
         </>
       ) : (
-        <EmptyState roles={roles} title="Nothing to show" body="This page is opened from a live competition, and the page was reloaded. Go back and open it again." />
+        <EmptyState roles={roles} title={t('rules.nothing')} body={t('rules.nothingBody')} />
       )}
     </KitScreen>
   )

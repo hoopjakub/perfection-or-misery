@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 import { Loader } from '@/components/kit'
 import { View, StyleSheet, useWindowDimensions } from 'react-native'
@@ -50,7 +51,7 @@ export function NavGuard() {
     </View>
   )
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="auto" accessibilityLabel="Opening" accessibilityLiveRegion="polite">
+    <View style={StyleSheet.absoluteFill} pointerEvents="auto" accessibilityLabel={t('parts.opening')} accessibilityLiveRegion="polite">
       {spinner && (
         <View style={[styles.bar, { top: insets.top }]}>
           <Loader color={prim.orange} width={width} />

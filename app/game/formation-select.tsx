@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+import { label } from '@/i18n/labels'
 import React, { useState } from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native'
@@ -18,20 +20,8 @@ import { EVERYDAY } from '@/lib/appearance'
 // difficulty rules (app/game/difficulty-custom.tsx).
 const roles = ROLES[EVERYDAY]
 
-const LINES: Record<Formation, string> = {
-  '4-3-3':     'Three up front, three in midfield, a back four.',
-  '4-4-2':     'Two strikers and a flat midfield four.',
-  '4-2-3-1':   'Two holding mids, three attacking mids and a lone striker.',
-  '3-5-2':     'Three at the back, wing-backs, five across midfield and two strikers.',
-  '5-3-2':     'Five at the back, three in midfield, two strikers.',
-  '3-4-3':     'A back three, wing-backs and a front three.',
-  '4-1-4-1':   'One holding mid, a banked four and one striker.',
-  '4-3-1-2':   'A flat three, a playmaker and two strikers. Narrow.',
-  '4-1-2-1-2': 'The narrow diamond: a holding mid, two runners and a ten behind two strikers.',
-  '5-4-1':     'Five at the back, a flat four ahead and one striker.',
-  '3-4-2-1':   'A back three, wing-backs and two tens behind one striker.',
-  '3-4-1-2':   'A back three, wing-backs, one ten and two strikers.',
-}
+// P8.5-28: the lines are setup.shapes.* in src/i18n, keyed by the shape's digits.
+const LINES = Object.fromEntries(ALL_FORMATIONS.map(f => [f, t(`setup.shapes.f${f.replace(/-/g, '')}` as 'setup.shapes.f433')])) as Record<Formation, string>
 
 // "You'll need" — the positions this shape asks the draft for, counted.
 // P8-01: which other positions each slot takes (at a small OVR cost), one
@@ -52,7 +42,6 @@ function needs(formation: Formation): string[] {
 export default function YourShapeScreen() {
   const { mode, startRun, lastFormation } = useGameStore()
   const [selected, setSelected] = useState<Formation>(lastFormation ?? '4-3-3')
-  const fixedMode = mode === 'chaos' || mode === 'cursed'
   const wide = useSizeClass() === 'expanded'
 
   function draft() {
@@ -84,24 +73,24 @@ export default function YourShapeScreen() {
     <>
       <View style={styles.titleRow}>
         <KitText t="superM" color={roles.text}>{selected}</KitText>
-        {selected === lastFormation && <Tag roles={roles}>LAST TIME</Tag>}
+        {selected === lastFormation && <Tag roles={roles}>{t('run.lastTime')}</Tag>}
       </View>
       <KitText t="bodyL" color={roles.textMuted}>{LINES[selected]}</KitText>
-      <View style={styles.needs} accessible accessibilityLabel={`You'll need ${needs(selected).join(', ')}`}>
-        <KitText t="tag" color={roles.textMuted}>YOU'LL NEED</KitText>
+      <View style={styles.needs} accessible accessibilityLabel={t('setup.youNeedA11y', { list: needs(selected).join(', ') })}>
+        <KitText t="tag" color={roles.textMuted}>{t('setup.youNeed')}</KitText>
         {needs(selected).map(n => <Tag key={n} roles={roles}>{n}</Tag>)}
       </View>
       <View style={styles.fits}>
-        <KitText t="tag" color={roles.textMuted}>WHO ELSE FITS</KitText>
+        <KitText t="tag" color={roles.textMuted}>{t('setup.whoElseFits')}</KitText>
         {fits(selected).filter(f => f.accepts.length > 0).map(f => (
           <View key={f.label} style={[styles.fitRow, { borderBottomColor: roles.rule }]}>
             <KitText t="tag" color={roles.text} style={styles.fitSlot}>{f.label}</KitText>
-            <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{f.accepts.join(' · ')}</KitText>
+            <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{f.accepts.map(label).join(' · ')}</KitText>
           </View>
         ))}
       </View>
       {mode === 'cursed' && (
-        <StripedNotice roles={roles}>Cursed: you won't know which position a pick is for until you've made it.</StripedNotice>
+        <StripedNotice roles={roles}>{t('setup.cursedShape')}</StripedNotice>
       )}
     </>
   )
@@ -112,13 +101,13 @@ export default function YourShapeScreen() {
   if (wide) {
     return (
       <KitScreen ground={EVERYDAY} width="wide">
-        <RunHeader roles={roles} stage={3} colourway={colourwayFor(mode)} title="Your shape" skipped={fixedMode ? [2] : []} />
+        <RunHeader roles={roles} stage={3} colourway={colourwayFor(mode)} title={t('setup.yourShape')} />
         <View style={styles.wide}>
           <View style={styles.widePitch}><PitchShape roles={roles} formation={selected} tall /></View>
           <View style={styles.wideSide}>
             {details}
             <View style={styles.rackWrap}>{rackItems}</View>
-            <Plate label={`Draft a ${selected}`} icon="forward" roles={roles} onPress={draft} style={styles.plate} />
+            <Plate label={t('setup.draftA', { shape: selected })} icon="forward" roles={roles} onPress={draft} style={styles.plate} />
             <VersionButton roles={roles} style={{ marginTop: space[4] }} />
           </View>
         </View>
@@ -128,13 +117,13 @@ export default function YourShapeScreen() {
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <RunHeader roles={roles} stage={3} colourway={colourwayFor(mode)} title="Your shape" skipped={fixedMode ? [2] : []} />
+      <RunHeader roles={roles} stage={3} colourway={colourwayFor(mode)} title={t('setup.yourShape')} />
       <PitchShape roles={roles} formation={selected} />
       {details}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rack} contentContainerStyle={styles.rackContent}>
         {rackItems}
       </ScrollView>
-      <Plate label={`Draft a ${selected}`} icon="forward" roles={roles} onPress={draft} style={styles.plate} />
+      <Plate label={t('setup.draftA', { shape: selected })} icon="forward" roles={roles} onPress={draft} style={styles.plate} />
       {/* P8-73: the version on every menu before a run starts. */}
       <VersionButton roles={roles} style={{ marginTop: space[4] }} />
     </KitScreen>
@@ -158,7 +147,7 @@ function PitchShape({ roles, formation, tall }: { roles: Roles; formation: Forma
     // P8-04: a real pitch, floodlit green with its markings, the shirts laid out
     // by the same rows the draft pitch uses, so the shape doesn't move between
     // the two screens.
-    <Pitch tall={tall} accessibilityLabel={`${formation} on the pitch`}
+    <Pitch tall={tall} accessibilityLabel={t('setup.onThePitch', { shape: formation })}
       rows={rows.map(row => row.flatMap((slot, i) => slot ? [(
         <View key={i} style={styles.shirt}>
           <View style={[styles.shirtBody, { borderColor: roles.line, backgroundColor: roles.surface }]}>

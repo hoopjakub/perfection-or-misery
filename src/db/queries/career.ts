@@ -1,4 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import { noteSave } from '@/diag/log'
+import { timeAsync } from '@/diag/perf'
+import { log } from '@/diag/log'
 import type { CareerStats, CareerPlayerLine, Competition, PlayerStatLine } from '@/types/stats'
 import type { CareerRun } from '@/lib/careerSummary'
 import { shownRuns } from '@/lib/shownNames'
@@ -23,7 +26,7 @@ export async function fetchCareer(userId: string): Promise<CareerStats | null> {
   }
 }
 
-export async function mergeCareerFromRun(userId: string, params: {
+async function mergeCareerFromRunNow(userId: string, params: {
   competition:  Competition
   yourPlayers:  PlayerStatLine[]
   goalsFor:     number
@@ -58,7 +61,8 @@ export async function mergeCareerFromRun(userId: string, params: {
     goals_against: existing.goalsAgainst + params.goalsAgainst,
     updated_at:    new Date().toISOString(),
   } as any, { onConflict: 'user_id' })
-  if (error) console.warn('[career] upsert failed:', error)
+  if (error) log.warn('save', 'career: upsert failed', error)
+  noteSave('career', error ? 'failed' : 'saved')
 }
 
 // ── P8-150: the career read off every saved run ──────────────────────────────
@@ -81,3 +85,6 @@ export async function fetchCareerRuns(userId: string): Promise<CareerRun[]> {
   }
   return []
 }
+
+// Phase 9: timed for the Diagnostics screen (save:career, docs/diagnostics/03-BUDGETS.md).
+export const mergeCareerFromRun = (...a: Parameters<typeof mergeCareerFromRunNow>) => timeAsync('save:career', () => mergeCareerFromRunNow(...a))

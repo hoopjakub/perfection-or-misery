@@ -18,6 +18,7 @@
  * were set by hand to land on the same scale. A handful of numbers, not a fit
  * to anyone's ratings.
  */
+import { clubStrength } from '../../src/engine/rating'
 
 export type LeagueBand = { top: number; bottom: number } // club level of 1st and last
 
@@ -190,13 +191,15 @@ export function attributes(pos: string, o: number): Attr {
   }
 }
 
-/** A club-season's strength from its best 14, stretched around 81 (the game's historical_ovr). */
-export function teamStrength(players: { ovr: number }[]): number {
-  if (players.length === 0) return 70
-  const top = [...players].sort((a, b) => b.ovr - a.ovr).slice(0, 14)
-  const avg = top.reduce((s, p) => s + p.ovr, 0) / top.length
-  const CENTER = 81, SPREAD = 1.55
-  return Math.round(Math.max(60, Math.min(94, CENTER + (avg - CENTER) * SPREAD)))
+/**
+ * A club-season's strength (the game's historical_ovr). Until 3 Oct 2026 this
+ * was the best 14 stretched ×1.55 around 81, a different scale from the one
+ * that rates your XI (Wave G audit G-L3). It now rates the club exactly like
+ * your XI, so a seed's stored number agrees with what build-db.ts writes (the
+ * build re-rates every club-season anyway, from the players it holds).
+ */
+export function teamStrength(players: { ovr: number; primary_position: string }[]): number {
+  return clubStrength(players.map(p => ({ ovr: p.ovr, primaryPosition: p.primary_position })))
 }
 
 // The same range as the old library's, so every id comes out as before.

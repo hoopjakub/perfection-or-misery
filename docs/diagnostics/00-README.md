@@ -13,7 +13,7 @@ This set documents how The Dugout's version works, file by file and fault by fau
 
 | | The Dugout | PoM plan |
 |---|---|---|
-| Budgets | 26 keys, `target` + `hardFail`, scaled by world tier | 30 runtime, 3 planned, 4 build-time and 7 self-test keys. One key per operation per mode, so no scaling table is needed |
+| Budgets | 26 keys, `target` + `hardFail`, scaled by world tier | 35 runtime (30 in the plan; re-cut in step 2, four added with Phase 9), 3 planned, 4 build-time and 7 self-test keys. One key per operation per mode, so no scaling table is needed |
 | Recorder | Ring buffer of 256 samples, p50/p95/max, `longtask` observer | Same recorder, plus a JS-thread stall detector (RN has no `longtask`) that names the route it happened on |
 | Log | Ring of 500 in memory. The doc claims it survives a crash; the code never writes it | Ring of 300, warnings and errors persisted, fatal JS errors caught by a global handler and the router's `ErrorBoundary` |
 | Self-test | Match, matchday, season and table benchmarks under `bench:*` | The same benchmarks, plus an engine fingerprint, a 200-match invariant run, a database check and a backend ping |

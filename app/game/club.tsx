@@ -1,8 +1,11 @@
+import { t, dec } from '@/i18n'
+import { label } from '@/i18n/labels'
+import { ordinal } from '@/lib/format'
 import React, { useMemo, useState } from 'react'
 import { teamInFormation } from '@/engine/awards'
 import { FormationPitch } from '@/components/season/AwardsParts'
 import type { Formation } from '@/types/game'
-import { forCompetition } from '@/data/competition'
+import { isTournament } from '@/data/competition'
 import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
@@ -24,11 +27,7 @@ import { EVERYDAY } from '@/lib/appearance'
 const roles = ROLES[EVERYDAY]
 type Tab = 'matches' | 'squad' | 'record'
 
-const LINE_NAME: Record<string, string> = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' }
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
-}
+const LINE_NAME: Record<string, string> = { GK: t('hub.goalkeepers'), DEF: t('hub.defenders'), MID: t('hub.midfielders'), FWD: t('hub.forwards') }
 
 export default function ClubScreen() {
   const { id, runId } = useLocalSearchParams<{ id: string; runId?: string }>()
@@ -36,7 +35,7 @@ export default function ClubScreen() {
   const [tab, setTab] = useState<Tab>('matches')
 
   const row = data?.table.find(r => r.clubId === id) ?? null
-  const team = data?.stats.teams.find(t => t.clubId === id) ?? null
+  const team = data?.stats.teams.find(x => x.clubId === id) ?? null
   const name = row?.clubName ?? team?.clubName ?? data?.stats.players.find(p => p.clubId === id)?.clubName ?? ''
   const isYours = !!data?.playerClubId && data.playerClubId === id
 
@@ -65,13 +64,13 @@ export default function ClubScreen() {
     return teamInFormation(usual[0] as Formation, picks)
   }, [usual, squad, data])
 
-  if (loading) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText></KitScreen>
-  if (failed || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} /></KitScreen>
-  if (!name) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><EmptyState roles={roles} title="Not in this run" body="This club didn't play in the competition." /></KitScreen>
+  if (loading) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>{t('hub.reading')}</KitText></KitScreen>
+  if (failed || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message={t('hub.readFailed')} onRetry={retry} /></KitScreen>
+  if (!name) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><EmptyState roles={roles} title={t('hub.notInRun')} body={t('hub.clubNotIn')} /></KitScreen>
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title={name} description={forCompetition(`${name}'s season in a Perfection or Misery run.`, data.mode)} />
+      <PageMeta title={name} description={t(isTournament(data.mode) ? 'hub.clubDescTournament' : 'hub.clubDescSeason', { name })} />
       <BackControl roles={roles} />
 
       {/* The club as a tag: code, name, finish and record. */}
@@ -85,42 +84,42 @@ export default function ClubScreen() {
         <KitText t="superL" color={roles.text}>{name.toUpperCase()}</KitText>
         {row && (
           <KitText t="tag" color={roles.textMuted}>
-            {`${row.group ? `Group ${row.group} · ` : ''}${ordinal(row.position)} · W ${row.won} D ${row.drawn} L ${row.lost} · ${row.gf}–${row.ga} · ${row.points} pts`}
+            {(row.group ? t('hub.groupPrefix', { g: row.group }) : '') + t('hub.clubLine', { place: ordinal(row.position), w: row.won, d: row.drawn, l: row.lost, gf: row.gf, ga: row.ga, pts: row.points })}
           </KitText>
         )}
-        {isYours && <Tag roles={roles} variant="you">YOUR XI</Tag>}
+        {isYours && <Tag roles={roles} variant="you">{t('hub.yourXiTag')}</Tag>}
         {!isYours && data.replacedClubName === name && (
-          <KitText t="body" color={roles.textMuted}>Your XI took this club's place in the competition.</KitText>
+          <KitText t="body" color={roles.textMuted}>{t('hub.tookPlace')}</KitText>
         )}
       </View>
 
       {vsYou.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Against your XI</SectionTag>
+          <SectionTag roles={roles}>{t('hub.againstYou')}</SectionTag>
           {vsYou.map((m, i) => <MatchRow key={`h${i}`} m={m} clubId={id!} onPress={() => openRunMatch(data, m)} />)}
         </View>
       )}
 
       {bestXI && usual && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Most-used XI</SectionTag>
+          <SectionTag roles={roles}>{t('hub.mostUsedXi')}</SectionTag>
           <FormationPitch roles={roles} team={bestXI} showScores="score" onPlayer={pid => openPlayer(pid, runId)}
-            caption={`The eleven that started most, in the shape played most (${usual[1]} of ${shapes.length} matches).`}
-            benchLabel="Next in line" />
+            caption={t('hub.mostUsedCaption', { n: usual[1], m: shapes.length })}
+            benchLabel={t('hub.nextInLine')} />
         </View>
       )}
 
       <SegmentSwitch<Tab> roles={roles} value={tab} onChange={setTab} options={[
-        { id: 'matches', label: 'Matches', count: matches.length || undefined },
-        { id: 'squad', label: 'Squad', count: squad.length || undefined },
-        { id: 'record', label: 'Record' },
+        { id: 'matches', label: t('hub.tabMatches'), count: matches.length || undefined },
+        { id: 'squad', label: t('hub.tabSquad'), count: squad.length || undefined },
+        { id: 'record', label: t('hub.tabRecord') },
       ]} />
 
       {tab === 'matches' && (
-        data.missing.includes('match-by-match detail')
-          ? <KitText t="body" color={roles.textMuted} style={styles.pad}>Saved runs don't keep every match. The record and the squad are complete.</KitText>
+        data.missing.includes(t('hub.missMatch'))
+          ? <KitText t="body" color={roles.textMuted} style={styles.pad}>{t('hub.savedNoMatches')}</KitText>
           : matches.length === 0
-          ? <KitText t="body" color={roles.textMuted} style={styles.pad}>No matches.</KitText>
+          ? <KitText t="body" color={roles.textMuted} style={styles.pad}>{t('hub.noMatches')}</KitText>
           : matches.map((m, i) => <MatchRow key={i} m={m} clubId={id!} onPress={() => openRunMatch(data, m)} />)
       )}
 
@@ -135,8 +134,8 @@ export default function ClubScreen() {
                 style={({ pressed }) => [styles.row, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
                 <KitText t="tag" color={roles.textMuted} style={styles.pos}>{p.position}</KitText>
                 <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{p.name}</KitText>
-                <KitText t="figure" color={roles.textMuted} style={styles.num}>{`${p.matchesRated ?? 0} apps`}</KitText>
-                <KitText t="figure" color={roles.textMuted} style={styles.num}>{`${p.goals}G ${p.assists}A`}</KitText>
+                <KitText t="figure" color={roles.textMuted} style={styles.num}>{t('hub.appsShort', { n: p.matchesRated ?? 0 })}</KitText>
+                <KitText t="figure" color={roles.textMuted} style={styles.num}>{t('hub.goalsAssists', { g: p.goals, a: p.assists })}</KitText>
                 {p.avgRating != null
                   ? <RatingSquare value={p.avgRating} />
                   : <View style={styles.rating} />}
@@ -151,48 +150,48 @@ export default function ClubScreen() {
         <View style={styles.section}>
           {marks.length > 0 && (
             <>
-              <SectionTag roles={roles}>Form</SectionTag>
+              <SectionTag roles={roles}>{t('hub.form')}</SectionTag>
               <SeasonStrip roles={roles} marks={marks} total={marks.length} viewing={null} onPick={() => {}} />
             </>
           )}
           {team && (
             <View style={styles.bigRow}>
-              <Big label="Scored" value={String(team.goalsFor)} />
-              <Big label="Conceded" value={String(team.goalsAgainst)} />
-              <Big label="Clean sheets" value={String(team.cleanSheets)} />
+              <Big label={t('hub.scored')} value={String(team.goalsFor)} />
+              <Big label={t('hub.conceded')} value={String(team.goalsAgainst)} />
+              <Big label={t('hub.cleanSheets')} value={String(team.cleanSheets)} />
             </View>
           )}
           {/* P8-80 — the club's own numbers from every match sheet (newer runs). */}
           {team?.matches ? (
             <>
-              <SectionTag roles={roles}>{`Club numbers · ${team.matches} matches`}</SectionTag>
+              <SectionTag roles={roles}>{t('hub.clubNumbers', { n: team.matches })}</SectionTag>
               <View style={styles.bigGrid}>
-                <Big label="xG" value={(team.xg ?? 0).toFixed(1)} />
-                <Big label="xG against" value={(team.xgAgainst ?? 0).toFixed(1)} />
-                <Big label="Possession" value={`${((team.possessionSum ?? 0) / team.matches).toFixed(1)}%`} />
-                <Big label="Pass accuracy" value={`${((team.passAccuracySum ?? 0) / team.matches).toFixed(1)}%`} />
-                <Big label="Shots" value={String(team.shots ?? 0)} />
-                <Big label="On target" value={String(team.shotsOnTarget ?? 0)} />
-                <Big label="Big chances" value={String(team.bigChances ?? 0)} />
-                <Big label="Corners" value={String(team.corners ?? 0)} />
-                <Big label="Fouls" value={String(team.fouls ?? 0)} />
-                <Big label="Yellow / red" value={`${team.yellowCards ?? 0} / ${team.redCards ?? 0}`} />
+                <Big label={t('hub.club.xg')} value={dec(team.xg ?? 0, 1)} />
+                <Big label={t('hub.club.xga')} value={dec(team.xgAgainst ?? 0, 1)} />
+                <Big label={t('hub.club.pos')} value={`${dec((team.possessionSum ?? 0) / team.matches, 1)}%`} />
+                <Big label={t('hub.club.pass')} value={`${dec((team.passAccuracySum ?? 0) / team.matches, 1)}%`} />
+                <Big label={t('hub.club.shots')} value={String(team.shots ?? 0)} />
+                <Big label={t('hub.onTarget')} value={String(team.shotsOnTarget ?? 0)} />
+                <Big label={t('hub.club.big')} value={String(team.bigChances ?? 0)} />
+                <Big label={t('hub.club.corners')} value={String(team.corners ?? 0)} />
+                <Big label={t('hub.club.fouls')} value={String(team.fouls ?? 0)} />
+                <Big label={t('hub.yellowRed')} value={`${team.yellowCards ?? 0} / ${team.redCards ?? 0}`} />
               </View>
             </>
           ) : null}
           {data.positions && data.positions.get(id!) && (
             <>
-              <SectionTag roles={roles}>Position, matchday by matchday</SectionTag>
+              <SectionTag roles={roles}>{t('hub.positionByMd')}</SectionTag>
               <PositionCompare roles={roles} clubId={id!} positions={data.positions} table={data.table} clubs={data.table.length} />
             </>
           )}
           {stories.length > 0 && (
             <>
-              <SectionTag roles={roles}>In the press</SectionTag>
+              <SectionTag roles={roles}>{t('hub.inThePress')}</SectionTag>
               {stories.map(s => (
                 <Pressable key={s.id} onPress={() => openStory(s.id, runId)} accessibilityRole="link"
                   style={({ pressed }) => [styles.row, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
-                  <KitText t="tag" color={roles.textMuted} style={styles.pos}>{`MD ${s.matchday}`}</KitText>
+                  <KitText t="tag" color={roles.textMuted} style={styles.pos}>{t('hub.mdTag', { md: s.matchday })}</KitText>
                   <KitText t="body" color={roles.text} style={{ flex: 1 }}>{storyText(s).headline}</KitText>
                   <Icon name="chevron" size={16} color={roles.textMuted} />
                 </Pressable>
@@ -217,15 +216,15 @@ function MatchRow({ m, clubId, onPress }: { m: RunMatch; clubId: string; onPress
   const us = home ? m.homeGoals : m.awayGoals, them = home ? m.awayGoals : m.homeGoals
   return (
     <Pressable onPress={onPress} accessibilityRole="button"
-      accessibilityLabel={`${m.label ?? ''}, ${home ? 'home to' : 'away at'} ${home ? m.awayClubName : m.homeClubName}, ${us}–${them}`}
+      accessibilityLabel={t('hub.matchA11y', { label: label(m.label ?? ''), where: home ? t('hub.homeTo') : t('hub.awayAt'), opp: home ? m.awayClubName : m.homeClubName, us, them })}
       style={({ pressed }) => [styles.row, styles.tall, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
       <View style={{ flex: 1 }}>
-        {m.label ? <KitText t="tag" color={roles.textMuted}>{m.label}</KitText> : null}
-        <KitText t="body" color={roles.text} numberOfLines={1}>{`${home ? 'v' : 'at'} ${home ? m.awayClubName : m.homeClubName}`}</KitText>
+        {m.label ? <KitText t="tag" color={roles.textMuted}>{label(m.label)}</KitText> : null}
+        <KitText t="body" color={roles.text} numberOfLines={1}>{home ? t('hub.vOpp', { name: m.awayClubName }) : t('hub.atOpp', { name: m.homeClubName })}</KitText>
       </View>
       {/* P8-70: the shape this club played in this match. */}
       {(home ? m.homeFormation : m.awayFormation) ? <Tag roles={roles}>{(home ? m.homeFormation : m.awayFormation)!}</Tag> : null}
-      <Tag roles={roles} variant={res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'}>{`${res} ${us}–${them}`}</Tag>
+      <Tag roles={roles} variant={res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'}>{t('hub.result', { res: t(`match.outcome${res}`), us, them })}</Tag>
       <Icon name="chevron" size={16} color={roles.textMuted} />
     </Pressable>
   )

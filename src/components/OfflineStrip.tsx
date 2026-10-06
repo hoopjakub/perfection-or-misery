@@ -1,4 +1,5 @@
 import React from 'react'
+import { t } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { ROLES, space } from '@/theme'
 import { KitText, Stripe, Icon } from '@/components/kit'
@@ -23,9 +24,7 @@ export function OfflineStrip() {
       <Stripe roles={roles} band={4} style={styles.edge} />
       <Icon name="offline" size={16} color={roles.text} />
       <KitText t="tag" color={roles.text} style={{ flex: 1 }}>
-        {waiting > 0
-          ? `Offline. You can play; ${waiting} run${waiting === 1 ? '' : 's'} will go up when you're back.`
-          : "Offline. You can play; your runs will go up when you're back."}
+        {waiting > 0 ? t('common.offlineQueued', { count: waiting }) : t('common.offlinePlay')}
       </KitText>
     </View>
   )
@@ -45,7 +44,7 @@ export function OfflineNotice() {
   return (
     <View style={[styles.notice, { borderColor: roles.line, backgroundColor: roles.surface }]} accessibilityRole="alert">
       <Icon name="offline" size={16} color={roles.text} />
-      <KitText t="body" color={roles.text} style={{ flex: 1 }}>You're offline. This needs a connection; it'll load when you're back.</KitText>
+      <KitText t="body" color={roles.text} style={{ flex: 1 }}>{t('common.offlineNeeds')}</KitText>
     </View>
   )
 }

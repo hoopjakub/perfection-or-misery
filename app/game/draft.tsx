@@ -1,12 +1,17 @@
+import { t } from '@/i18n'
+import { timeAsync } from '@/diag/perf'
+import { log } from '@/diag/log'
+import { getFlag } from '@/lib/flagMap'
+import { surname } from '@/lib/format'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, cancelAnimation } from 'react-native-reanimated'
 import { Loader } from '@/components/kit'
 import { useSizeClass } from '@/hooks/useSizeClass'
 import { WebKeys } from '@/lib/webKeys'
 import { View, ScrollView, StyleSheet, Platform } from 'react-native'
 import { router, useNavigation } from 'expo-router'
-import { usePreventRemove } from '@react-navigation/native'
+import { usePreventRemove, useIsFocused } from '@react-navigation/native'
 import { useGameStore, nextBenchIndex } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { getSlotsForFormation, getFormationRows } from '@/engine/formations'
@@ -16,7 +21,6 @@ import { getClubSeasonsForMode } from '@/db/queries/seasons'
 import { spinClubSeason, footballerKey } from '@/engine/draft'
 import { rerollLimitFor, ratingsHiddenFor, resolveDifficulty } from '@/engine/difficulty'
 import { getRandomFact } from '@/lib/clubFacts'
-import { flagForCountry } from '@/data/geo-iso'
 import { ROLES, space, border, colourwayFor, prim } from '@/theme'
 import {
   KitScreen, KitText, RunHeader, Plate, Tag, Chips, StripedNotice, InlineConfirm, Pitch, Tape,
@@ -58,7 +62,6 @@ const CURSED_LETTERS = 0.35
 // A small stable tilt per player for Chaos's cards (never the same twice in a
 // row, never enough to hurt reading).
 const tiltOf = (id: string) => { let h = 7; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 7) - 3) * 0.6 }
-const surname = (name: string) => name.split(' ').slice(-1)[0]
 const seasonLabel = (y: number) => `${y}/${String(y + 1).slice(-2)}`
 const POS_ORDER = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST']
 
@@ -157,7 +160,7 @@ export default function DraftScreen() {
     setLoading(true)
     getClubSeasonsForMode(mode ?? 'league', selectedLeague)
       .then(setPool)
-      .catch(e => { console.warn('[draft] pool failed:', e); setPoolFailed(true) })
+      .catch(e => { log.warn('db', 'draft: pool failed', e); setPoolFailed(true) })
       .finally(() => setLoading(false))
   }, [formation])
 
@@ -187,13 +190,14 @@ export default function DraftScreen() {
     try {
       club = spinClubSeason(pool, spunSeasonIds, mode ?? 'league', weightedPicks)
     } catch (e: any) {
-      console.warn('[draft] spin failed:', e?.message)
+      log.warn('db', 'draft: spin failed', e?.message)
       setPhase('idle')
       return
     }
     markSeasonSpun(club.id)
     // Start loading the squad now so it's usually ready when the strip lands.
-    squadLoad.current = getPlayersForClubSeason(club.id)
+    // Phase 9: the wait between a spin and its squad (the wheel's own animation isn't in it).
+    squadLoad.current = timeAsync('draft:spin', () => getPlayersForClubSeason(club.id))
     const decoys: SpinItem[] = Array.from({ length: 11 }, () => {
       const c = pool[Math.floor(Math.random() * pool.length)]
       return spinItem(c)
@@ -215,7 +219,7 @@ export default function DraftScreen() {
   // (and their own colours) in every mode — a World Cup spin was a grey strip.
   function spinItem(c: ClubSeasonRow): SpinItem {
     return mode === 'world_cup'
-      ? { title: c.club_name, clubId: c.id, flag: flagForCountry(c.club_name) || null }
+      ? { title: c.club_name, clubId: c.id, flag: getFlag(c.id) }
       : { title: c.club_name, sub: seasonLabel(c.year_start), colour: c.primary_color, clubId: c.id }
   }
 
@@ -225,7 +229,7 @@ export default function DraftScreen() {
       const players = await (squadLoad.current ?? getPlayersForClubSeason(spin.club.id))
       setSquad(players)
     } catch (e) {
-      console.warn('[draft] squad failed:', e)
+      log.warn('db', 'draft: squad failed', e)
       setSquad([])
     }
     setFact(getRandomFact(spin.club.id))
@@ -258,6 +262,11 @@ export default function DraftScreen() {
     const drafted = toDrafted(p, spin.club, slot.slotIndex)
     setSlots(prev => prev.map((s, i) => (i === slot.slotIndex ? { ...s, filledBy: drafted } : s)))
     addPlayer(drafted)
+    // I-2: the best player you could have taken from this club and didn't,
+    // for the result's "one that got away" (it shows only if they then
+    // played in your run).
+    const passed = squad.filter(x => x.id !== p.id).sort((a, b) => b.ovr - a.ovr)[0]
+    if (passed) useGameStore.setState(st => ({ gotAway: [...st.gotAway, { playerId: passed.id, name: passed.name }] }))
     setJustFilled(`${slot.slotIndex}:${p.id}`)
     clearSpin()
   }
@@ -270,7 +279,7 @@ export default function DraftScreen() {
       const others = squad.filter(o => o.id !== p.id && !taken.has(footballerKey(o.name, o.birth_year, o.nationality)) && fitsFor(o.primary_position).length > 0)
       if (others.length) {
         const cursed = others[Math.floor(Math.random() * others.length)]
-        setOmen({ line: `THE CURSE CHOSE ${surname(cursed.name).toUpperCase()}`, tone: 'cursed' })
+        setOmen({ line: t('draft.curseChose', { name: surname(cursed.name).toUpperCase() }), tone: 'cursed' })
         setTimeout(() => { setOmen(null); assign(cursed, fitsFor(cursed.primary_position)[0]) }, OMEN_MS)
         return
       }
@@ -288,7 +297,7 @@ export default function DraftScreen() {
     // spot he can play, at whatever it costs him.
     if (mode === 'chaos') {
       const slot = fits[Math.floor(Math.random() * fits.length)]
-      setOmen({ line: `CHAOS PUT ${surname(p.name).toUpperCase()} AT ${slot.label}`, tone: 'chaos' })
+      setOmen({ line: t('draft.chaosPut', { name: surname(p.name).toUpperCase(), slot: slot.label }), tone: 'chaos' })
       setTimeout(() => setOmen(null), OMEN_MS)
       assign(p, slot)
       return
@@ -310,11 +319,11 @@ export default function DraftScreen() {
       const back = positionPenalty(slot.filledBy.primaryPosition, slots[held.slotIndex].primary)
       if (back === null) return null
     }
-    return `IN ${ratingText(Math.max(40, held.ovr - pen))}`
+    return t('draft.inOvr', { ovr: ratingText(Math.max(40, held.ovr - pen)) })
   }
   function subTarget(sub: DraftedPlayer, slot: PositionSlot): string | null {
     const pen = positionPenalty(sub.primaryPosition, slot.primary)
-    return pen === null ? null : `IN ${ratingText(Math.max(40, sub.ovr - pen))}`
+    return pen === null ? null : t('draft.inOvr', { ovr: ratingText(Math.max(40, sub.ovr - pen)) })
   }
   const benchCanCover = (sub: DraftedPlayer, starter: DraftedPlayer) =>
     positionPenalty(sub.primaryPosition, slots[starter.slotIndex].primary) !== null
@@ -392,13 +401,13 @@ export default function DraftScreen() {
     // P8-21: the question can be switched off here, and back on in You › Settings.
     if (!useSettingsStore.getState().noBenchWarning) { drop(); return }
     openConfirm({
-      question: 'No bench?',
-      consequence: `Nobody gets subs this run, you or anyone else.${benchPlayers.length ? ` Your ${benchPlayers.length} sub${benchPlayers.length === 1 ? '' : 's'} will be dropped.` : ''}`,
-      confirmLabel: 'Play without a bench',
-      stayLabel: 'Keep drafting subs',
+      question: t('draft.noBenchQuestion'),
+      consequence: t('draft.noBenchConsequence') + (benchPlayers.length ? t('draft.subsDropped', { count: benchPlayers.length }) : ''),
+      confirmLabel: t('draft.playWithoutBench'),
+      stayLabel: t('draft.keepDraftingSubs'),
       onConfirm: drop,
       optOut: {
-        label: "Don't ask again. You can turn it back on in Settings.",
+        label: t('draft.dontAskAgain'),
         apply: () => useSettingsStore.getState().setNoBenchWarning(false),
       },
     })
@@ -420,8 +429,12 @@ export default function DraftScreen() {
     () => new Set([...draftedPlayers, ...benchPlayers].map(d => footballerKey(d.name, d.birthYear, d.nationality))),
     [draftedPlayers, benchPlayers],
   )
+  // Phase 9 (stop loops nobody sees): the draft stays mounted under the rest of
+  // the run (it opens the next screen with push), so the scramble also waits
+  // for the draft to be the screen in front.
+  const focused = useIsFocused()
   useEffect(() => {
-    if (mode !== 'cursed' || phase !== 'picking' || squad.length < 2) { setScramble(null); return }
+    if (mode !== 'cursed' || phase !== 'picking' || squad.length < 2 || !focused) { setScramble(null); return }
     // P8-169: the names used to swap between tags, so you tapped "Kane" and
     // got whoever's card it was — a cheat, not a curse. Each tag keeps its own
     // player now; the curse is not being sure who: his name shows as question
@@ -432,7 +445,7 @@ export default function DraftScreen() {
     shuffle()
     const t = setInterval(shuffle, 1000)
     return () => clearInterval(t)
-  }, [mode, phase, squad])
+  }, [mode, phase, squad, focused])
 
   const sortedSquad = useMemo(() => {
     const avail = (p: PlayerRow) => draftingBench || fitsFor(p.primary_position).length > 0
@@ -464,13 +477,13 @@ export default function DraftScreen() {
     let state: 'empty' | 'filled' | 'holding' | 'target' | 'focus' = p ? 'filled' : 'empty'
     let note: string | undefined
     if (holding?.kind === 'starter' && holding.player.slotIndex === slot.slotIndex) state = 'holding'
-    else if (holding?.kind === 'starter') { const t = starterTarget(holding.player, slot); if (t) { state = 'target'; note = t } }
-    else if (holding?.kind === 'sub') { const t = subTarget(holding.player, slot); if (t) { state = 'target'; note = t } }
+    else if (holding?.kind === 'starter') { const target = starterTarget(holding.player, slot); if (target) { state = 'target'; note = target } }
+    else if (holding?.kind === 'sub') { const target = subTarget(holding.player, slot); if (target) { state = 'target'; note = target } }
     else if (placing) {
       const fit = fitsFor(placing.primary_position).find(s => s.slotIndex === slot.slotIndex)
       if (fit) {
         state = 'target'
-        note = `OVR ${ratingText(Math.max(40, placing.ovr - (positionPenalty(placing.primary_position, fit.primary) ?? 0)))}`
+        note = t('draft.ovrNote', { ovr: ratingText(Math.max(40, placing.ovr - (positionPenalty(placing.primary_position, fit.primary) ?? 0))) })
       }
     } else if (spunPosition?.slotIndex === slot.slotIndex) state = 'focus'
 
@@ -489,8 +502,8 @@ export default function DraftScreen() {
         mark={p ? { clubId: p.clubId, clubName: p.clubName, nationality: p.nationality } : undefined}
         onPress={() => tapHanger(slot)}
         a11y={p
-          ? `${slot.label}: ${p.name}, rating ${ratingText(effectiveOvr(p, slot))}${pen ? ', out of position' : ''}${note ? `. ${note}` : ''}`
-          : `${slot.label}: empty${note ? `. ${note}` : ''}`}
+          ? t('draft.slotFilledA11y', { slot: slot.label, name: p.name, rating: ratingText(effectiveOvr(p, slot)) }) + (pen ? t('draft.outOfPosition') : '') + (note ? `. ${note}` : '')
+          : t('draft.slotEmptyA11y', { slot: slot.label }) + (note ? `. ${note}` : '')}
       />
     )
   }
@@ -500,7 +513,7 @@ export default function DraftScreen() {
     return (
       <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
         <Loader color={roles.text} />
-        <KitText t="tag" color={roles.textMuted}>Loading the pool…</KitText>
+        <KitText t="tag" color={roles.textMuted}>{t('draft.loadingPool')}</KitText>
       </KitScreen>
     )
   }
@@ -518,7 +531,7 @@ export default function DraftScreen() {
         <View style={styles.pitchFoot}>
           <KitText t="tag" color={prim.cottonMuted}>{`${slots.length - openSlots.length}/11`}</KitText>
           <KitText t="tag" color={prim.cotton}>
-            {`TEAM OVR ${ratingsHidden ? '??' : teamOvr ?? '—'}`}
+            {t('draft.teamOvr', { ovr: ratingsHidden ? '??' : teamOvr ?? '—' })}
           </KitText>
         </View>
       } />
@@ -536,14 +549,14 @@ export default function DraftScreen() {
               <Hanger
                 key={i}
                 roles={roles}
-                label={`SUB ${i + 1}`}
+                label={t('draft.sub', { n: i + 1 })}
                 surname={sub ? surname(sub.name) : undefined}
                 rating={sub ? ratingText(sub.ovr) : undefined}
                 state={held ? 'holding' : lit || open ? 'target' : sub ? 'filled' : 'empty'}
-                note={lit ? 'SWAP' : open ? 'BENCH' : undefined}
+                note={lit ? t('parts.swap') : open ? t('parts.benchNote') : undefined}
                 onPress={sub || open ? () => tapBench(sub) : undefined}
                 swingKey={sub && justFilled === `bench:${sub.playerId}` ? justFilled : undefined}
-                a11y={sub ? `Sub ${i + 1}: ${sub.name}, ${sub.primaryPosition}` : `Sub ${i + 1}: empty`}
+                a11y={sub ? t('draft.subA11y', { n: i + 1, name: sub.name, pos: sub.primaryPosition }) : t('draft.subEmptyA11y', { n: i + 1 })}
               />
             )
           })}
@@ -554,9 +567,9 @@ export default function DraftScreen() {
         <View style={styles.holdLine}>
           <KitText t="body" color={roles.text} style={{ flex: 1 }}>
             {/* P8-125: the full name; a surname alone can be two players in one squad. */}
-            {`Holding ${holding.player.name}. Tap a lit spot to move him, or tap him again to let go.`}
+            {t('draft.holding', { name: holding.player.name })}
           </KitText>
-          <Plate label="Let go" variant="quiet" roles={roles} onPress={() => setHolding(null)} />
+          <Plate label={t('draft.letGo')} variant="quiet" roles={roles} onPress={() => setHolding(null)} />
         </View>
       )}
     </>
@@ -564,23 +577,21 @@ export default function DraftScreen() {
   const spinPane = (
     <>
       {poolFailed && (
-        <StripedNotice roles={roles} failed>The player pool didn't load. Go back and try again.</StripedNotice>
+        <StripedNotice roles={roles} failed>{t('draft.poolFailed')}</StripedNotice>
       )}
 
       {/* The spin */}
       {phase === 'idle' && !squadDone && (
         <KitText t="bodyL" color={roles.textMuted} style={styles.lead}>
           {draftingBench
-            ? `Now the bench: ${benchNeeded} to go. Subs come on in the second half and score less often.`
-            : mode === 'cursed'
-              ? 'Spin. A position is picked first, then a club-season. You pick one player for that spot.'
-              : 'Spin a club-season. Pick one player from it.'}
+            ? t('draft.benchLead', { count: benchNeeded })
+            : mode === 'cursed' ? t('draft.cursedLead') : t('draft.spinLead')}
           {ratingsHidden && !draftingBench && slots.length - openSlots.length === 0
-            ? ' Ratings are hidden until the squad is complete.' : ''}
+            ? t('draft.ratingsHiddenLead') : ''}
         </KitText>
       )}
       {phase === 'position' && spunPosition && (
-        <KitText t="superS" color={roles.text} style={styles.lead}>{`THIS PICK IS YOUR ${spunPosition.label}`}</KitText>
+        <KitText t="superS" color={roles.text} style={styles.lead}>{t('draft.thisPick', { slot: spunPosition.label })}</KitText>
       )}
       {phase === 'spinning' && spin && (
         <RackSpin key={`${spin.club.id}:${spinsDone}`} roles={roles} items={spin.items} durationMs={spin.duration} onLanded={onLanded} />
@@ -594,43 +605,42 @@ export default function DraftScreen() {
             name={spin.club.club_name}
             sub={mode === 'world_cup' ? undefined : seasonLabel(spin.club.year_start)}
             colour={spin.club.primary_color}
-            flag={mode === 'world_cup' ? flagForCountry(spin.club.club_name) || undefined : undefined}
+            flag={mode === 'world_cup' ? getFlag(spin.club.club_id) ?? undefined : undefined}
             fact={fact}
             rerollsLeft={rerollsLeft}
             onReroll={handleReroll}
           />
           {mode === 'cursed' && spunPosition && !draftingBench && (
-            <KitText t="tag" color={roles.text}>{`PICKING FOR ${spunPosition.label}`}</KitText>
+            <KitText t="tag" color={roles.text}>{t('draft.pickingFor', { slot: spunPosition.label })}</KitText>
           )}
           {omen && <Omen line={omen.line} tone={omen.tone} />}
           {placing && (
             <View style={styles.holdLine}>
               <KitText t="body" color={roles.text} style={{ flex: 1 }}>
-                {`${placing.name} fits more than one spot. Tap a lit one.`}
+                {t('draft.fitsMore', { name: placing.name })}
               </KitText>
-              <Plate label="Cancel" variant="quiet" roles={roles} onPress={() => setPlacing(null)} />
+              <Plate label={t('draft.cancel')} variant="quiet" roles={roles} onPress={() => setPlacing(null)} />
             </View>
           )}
           {/* P8-06: this pick for the eleven or the bench. */}
           {canBenchEarly && (
-            <Chips roles={roles} label="PICK FOR" value={pickTo} onChange={setPickTo}
-              options={[{ id: 'xi' as const, label: 'XI' }, { id: 'bench' as const, label: `BENCH ${BENCH_SIZE - benchNeeded}/${BENCH_SIZE}` }]} />
+            <Chips roles={roles} label={t('draft.pickFor')} value={pickTo} onChange={setPickTo}
+              options={[{ id: 'xi' as const, label: t('draft.xi') }, { id: 'bench' as const, label: t('draft.bench', { n: BENCH_SIZE - benchNeeded, size: BENCH_SIZE }) }]} />
           )}
           {nobodyFits ? (
-            <StripedNotice roles={roles} actionLabel="Spin again" onAction={() => { clearSpin(); handleSpin() }}>
+            <StripedNotice roles={roles} actionLabel={t('draft.spinAgain')} onAction={() => { clearSpin(); handleSpin() }}>
               {canBenchEarly
-                ? 'Nobody here fits your open positions. Pick for the bench instead, or spin again for free.'
-                : 'Nobody here fits your open positions. Spinning again is free.'}
+                ? t('draft.nobodyFitsBench') : t('draft.nobodyFits')}
             </StripedNotice>
           ) : (
             <Chips
               roles={roles}
-              label="SORT"
+              label={t('draft.sort')}
               value={sortBy}
               onChange={setSortBy}
               options={[
                 ...(ratingsHidden ? [] : [{ id: 'ovr' as const, label: 'OVR' }]),
-                { id: 'position' as const, label: 'POS' },
+                { id: 'position' as const, label: t('draft.pos') },
                 // Cursed's names are hidden, so an A–Z order would sort by
                 // names you can't read, and give away what they start with.
                 // Position still sorts: that's never hidden.
@@ -652,7 +662,7 @@ export default function DraftScreen() {
                   also={p.secondary_positions || undefined}
                   icon={p.is_icon === 1}
                   available={!taken.has(footballerKey(p.name, p.birth_year, p.nationality)) && (toBench || fitsFor(p.primary_position).length > 0)}
-                  blocked={taken.has(footballerKey(p.name, p.birth_year, p.nationality)) ? 'YOURS' : undefined}
+                  blocked={taken.has(footballerKey(p.name, p.birth_year, p.nationality)) ? t('draft.yours') : undefined}
                   chosen={placing?.id === p.id}
                   onPress={() => pickPlayer(p)}
                 />
@@ -665,14 +675,14 @@ export default function DraftScreen() {
       {draftingBench && phase === 'idle' && (
         // P8-07: a real choice, so a real plate: secondary, under the orange
         // "Spin for sub" plate that stays the main action.
-        <Plate label="Play without a bench" variant="secondary" roles={roles} onPress={skipBench} style={styles.noBench} />
+        <Plate label={t('draft.playWithoutBench')} variant="secondary" roles={roles} onPress={skipBench} style={styles.noBench} />
       )}
 
       {!useSubstitutes && xiDone && phase === 'idle' && (
         // P8-110: the mirror of it. Turning the bench off isn't final: once the
         // eleven is done you can change your mind, in the same place you turned
         // it off, not up by the draw.
-        <Plate label="Draft a bench after all" variant="secondary" roles={roles}
+        <Plate label={t('draft.benchAfterAll')} variant="secondary" roles={roles}
           onPress={() => useGameStore.setState({ useSubstitutes: true })} style={styles.noBench} />
       )}
     </>
@@ -683,19 +693,19 @@ export default function DraftScreen() {
       <View style={styles.actions}>
         {squadDone ? (
           <Plate
-            label={ratingsHidden ? 'See your ratings' : 'To the draw'}
+            label={ratingsHidden ? t('draft.seeRatings') : t('draft.toTheDraw')}
             icon="forward"
             roles={roles}
             onPress={() => { router.push(next) }}
           />
         ) : phase === 'idle' ? (
           <Plate
-            label={draftingBench ? `Spin for sub ${benchPlayers.length + 1}` : 'Spin'}
+            label={draftingBench ? t('draft.spinForSub', { n: benchPlayers.length + 1 }) : t('draft.spin')}
             icon="again"
             roles={roles}
             onPress={handleSpin}
             disabled={pool.length === 0}
-            missingStep="No clubs to spin"
+            missingStep={t('draft.noClubs')}
           />
         ) : null}
       </View>
@@ -716,16 +726,15 @@ export default function DraftScreen() {
         roles={roles}
         stage={4}
         colourway={colourway}
-        skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []}
-        right={<Tag roles={roles}>{`REROLLS ${Math.max(0, rerollsLeft)}`}</Tag>}
+        right={<Tag roles={roles}>{t('draft.rerolls', { n: Math.max(0, rerollsLeft) })}</Tag>}
       />
 
       {confirmLeave && (
         <InlineConfirm
           roles={roles}
-          message={`Leave the draft? Your ${pickCount} pick${pickCount === 1 ? '' : 's'} will be discarded.`}
-          cancelLabel="Keep drafting"
-          confirmLabel={`Discard ${pickCount} pick${pickCount === 1 ? '' : 's'}`}
+          message={t('draft.leave', { count: pickCount })}
+          cancelLabel={t('draft.keepDrafting')}
+          confirmLabel={t('draft.discard', { count: pickCount })}
           onCancel={() => setConfirmLeave(false)}
           onConfirm={() => { setConfirmLeave(false); setLeaving(true) }}
         />
@@ -756,11 +765,12 @@ export default function DraftScreen() {
 // curse's flickers like a bad signal; Chaos's is a warning tape.
 function Omen({ line, tone }: { line: string; tone: 'chaos' | 'cursed' }) {
   const reduced = useReducedMotion()
+  const focused = useIsFocused()   // Phase 9: no flicker under another screen
   const flicker = useSharedValue(1)
   useEffect(() => {
-    if (reduced) return
+    if (reduced || !focused) { cancelAnimation(flicker); flicker.value = 1; return }
     flicker.value = withRepeat(withSequence(withTiming(0.25, { duration: 70 }), withTiming(1, { duration: 110 }), withTiming(0.6, { duration: 60 }), withTiming(1, { duration: 260 })), -1)
-  }, [reduced])
+  }, [reduced, focused])
   const style = useAnimatedStyle(() => ({ opacity: flicker.value }))
   return (
     <Animated.View style={[styles.omen, { borderColor: tone === 'cursed' ? '#7234F0' : prim.misery, backgroundColor: prim.ink }, style]}

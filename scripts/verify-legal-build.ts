@@ -52,7 +52,7 @@ if (fs.existsSync(dbPath)) {
   db.close()
 }
 // Club facts are free text about real clubs: the public build shows none.
-check(/BRAND_MODE === 'real' \? \(factsData as Record<string, string\[\]>\) : \{\}/.test(fs.readFileSync(path.join(ROOT, 'src/lib/clubFacts.ts'), 'utf8')), 'the legal build shows club facts')
+check(/BRAND_MODE === 'real' \? \(?factsData[^:]*: \{\}/.test(fs.readFileSync(path.join(ROOT, 'src/lib/clubFacts.ts'), 'utf8')), 'the legal build shows club facts')
 
 // 2. No crest, no competition logo.
 check(Object.keys(LOGO_MAP).length === 0 && Object.keys(COMPETITION_MAP).length === 0, 'logoMap.legal.ts maps something')

@@ -1,7 +1,7 @@
 # 04 · Checks: self-test, integrity and the scripts behind the screen
 
 > Part of the diagnostics set. Start at [`00-README.md`](00-README.md).
-> Status: **plan.**
+> Status: **as built 5 October 2026 (Diagnostics step 3)**, with the changes written in [06](06-IMPLEMENTATION.md) step 3: the fingerprint's matches are synthetic and seeded end to end, `ENGINE_VERSION` lives in `src/engine/version.ts`, and the run keeper now keeps the draft to kick-off (§5.2).
 
 Budgets say how fast. Checks say whether the thing is right. The Dugout's screen is mostly budgets plus a world count. PoM's is richer here, because PoM has failure modes The Dugout doesn't: seeded sheets that have to replay identically across two JavaScript engines, a bundled database copied by version number, a run that lives only in memory, and saves that happen on a button press.
 

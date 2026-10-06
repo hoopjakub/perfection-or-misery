@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import type { Story } from '@/engine/press'
 import { useRunData } from '@/lib/runData'
 import React, { useRef } from 'react'
@@ -9,9 +10,10 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border, OFFSET, colourwayFor } from '@/theme'
 import { KitScreen, KitText, Tag, BackControl, EmptyState, Plate, Icon, ClubName, Rivets, Tape, Wordmark, VenueMark, TeamMark, RatingSquare } from '@/components/kit'
 import { useGameStore } from '@/store/gameStore'
-import { storyText, storyBody } from '@/engine/press'
+import { storyText, storyBody, storyWhen } from '@/engine/press'
 import { openClub, openRunMatch } from '@/lib/runNav'
 import { shareRunLabel } from '@/lib/shareRun'
+import { useRunOwner, ShareOwner, ownerPrefix, type RunOwner } from '@/components/profile/ProfileParts'
 import { EVERYDAY } from '@/lib/appearance'
 
 // D6 · A story, opened (docs/ui-overhaul/07d). Typeset as a back page: the
@@ -42,6 +44,8 @@ export default function StoryScreen() {
   const i = id ? press.findIndex(s => key(s.id) === key(String(id))) : -1
   const story = i >= 0 ? press[i] : null
   const card = useRef<View>(null)
+  // N-18: the story's card says whose run it is, as the verdict's does (yours, live).
+  const owner = useRunOwner(runId ? savedRun?.ownerId : undefined)
   const shareCard = useRef<View>(null)
   // The run's own colourway on the card's tape (the league's, P8-55).
   const mode = useGameStore(s => s.mode)
@@ -52,7 +56,7 @@ export default function StoryScreen() {
     return (
       <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
-        <EmptyState roles={roles} title="Story not found" body="The press belongs to a live run, and this one has ended or the page was reloaded." />
+        <EmptyState roles={roles} title={t('hub.storyNotFound')} body={t('hub.storyGone')} />
       </KitScreen>
     )
   }
@@ -67,8 +71,8 @@ export default function StoryScreen() {
       <BackControl roles={roles} />
       <View ref={card} style={styles.article} collapsable={false}>
         <View style={styles.meta}>
-          <KitText t="tag" color={roles.textMuted}>{`Matchday ${story.matchday} of ${story.totalMatchdays}`}</KitText>
-          {story.involvesPlayer && <Tag roles={roles} variant="you">YOUR XI</Tag>}
+          <KitText t="tag" color={roles.textMuted}>{storyWhen(story)}</KitText>
+          {story.involvesPlayer && <Tag roles={roles} variant="you">{t('hub.yourXiTag')}</Tag>}
         </View>
         <KitText t="superM" color={roles.text} accessibilityRole="header">{headline.toUpperCase()}</KitText>
         <KitText t="bodyL" color={roles.textMuted}>{standfirst}</KitText>
@@ -80,10 +84,10 @@ export default function StoryScreen() {
             with the story, like the table. */}
         {story.form?.length ? (
           <View style={[styles.table, { borderColor: roles.line }]}>
-            <KitText t="tag" color={roles.textMuted}>{`${story.names[0]}'s last ${story.form.length}`.toUpperCase()}</KitText>
+            <KitText t="tag" color={roles.textMuted}>{t('hub.lastN', { name: story.names[0], n: story.form.length }).toUpperCase()}</KitText>
             {story.form.map((f, k) => (
               <View key={k} style={[styles.row, { borderBottomColor: roles.rule }]}>
-                <Tag roles={roles} variant={f.mark === 'W' ? 'win' : f.mark === 'D' ? 'draw' : 'loss'}>{f.mark}</Tag>
+                <Tag roles={roles} variant={f.mark === 'W' ? 'win' : f.mark === 'D' ? 'draw' : 'loss'}>{t(`match.outcome${f.mark}`)}</Tag>
                 <VenueMark roles={roles} home={f.home} />
                 <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{f.opponent}</KitText>
                 <KitText t="figure" color={roles.text}>{f.score}</KitText>
@@ -102,7 +106,7 @@ export default function StoryScreen() {
             <Pressable disabled={!found || !savedRun} onPress={() => { if (found && savedRun) openRunMatch(savedRun, found) }}
               accessibilityRole={found ? 'button' : undefined} accessibilityLabel={`${m.homeName} ${m.homeGoals}, ${m.awayName} ${m.awayGoals}`}
               style={({ pressed }) => [styles.table, styles.match, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
-              <KitText t="tag" color={roles.textMuted}>{`MATCHDAY ${story.matchday}`}</KitText>
+              <KitText t="tag" color={roles.textMuted}>{story.totalMatchdays === 0 ? storyWhen(story, 'caps') : t('hub.mdCaps', { md: story.matchday })}</KitText>
               <View style={styles.matchRow}>
                 <View style={[styles.matchSide, { alignItems: 'flex-end' }]}>
                   <TeamMark roles={roles} clubId={m.homeId} name={m.homeName} size={24} />
@@ -116,26 +120,26 @@ export default function StoryScreen() {
               </View>
               {story.kind === 'masterclass' ? (
                 <View style={styles.row}>
-                  <Tag roles={roles} variant="selected">MAN OF THE MATCH</Tag>
+                  <Tag roles={roles} variant="selected">{t('match.motmTag')}</Tag>
                   <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{story.names[0]}</KitText>
                   <RatingSquare value={story.n.r10 / 10} size="sm" />
                 </View>
               ) : null}
-              {found ? <KitText t="tag" color={roles.textMuted}>OPEN THE MATCH SHEET</KitText> : null}
+              {found ? <KitText t="tag" color={roles.textMuted}>{t('hub.openSheet')}</KitText> : null}
             </Pressable>
           )
         })() : (
         <>
         {/* The table as it stood that week, set into the story like a graphic. */}
         <View style={[styles.table, { borderColor: roles.line }]}>
-          <KitText t="tag" color={roles.textMuted}>{`The table after matchday ${story.matchday}`}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('hub.tableAfter', { md: story.matchday })}</KitText>
           {/* P8-18: the columns say what they are, and each club wears its crest. */}
           <View style={[styles.row, styles.head, { borderBottomColor: roles.line }]}>
             <KitText t="tag" color={roles.textMuted} style={styles.pos}>#</KitText>
-            <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>Club</KitText>
-            <KitText t="tag" color={roles.textMuted} style={styles.num}>P</KitText>
-            <KitText t="tag" color={roles.textMuted} style={styles.num}>GD</KitText>
-            <KitText t="tag" color={roles.textMuted} style={styles.num}>PTS</KitText>
+            <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{t('season.colClub')}</KitText>
+            <KitText t="tag" color={roles.textMuted} style={styles.num}>{t('season.colP')}</KitText>
+            <KitText t="tag" color={roles.textMuted} style={styles.num}>{t('season.colGd')}</KitText>
+            <KitText t="tag" color={roles.textMuted} style={styles.num}>{t('season.colPts').toUpperCase()}</KitText>
           </View>
           {story.rows.map(r => (
             <Pressable key={r.clubId} onPress={() => openClub(r.clubId)} accessibilityRole="link"
@@ -152,27 +156,27 @@ export default function StoryScreen() {
         )}
       </View>
 
-      <Plate label="Share this story" icon="forward" variant="secondary" roles={roles}
-        onPress={() => { shareRunLabel(shareCard.current as never, `${headline}. ${standfirst}`, { width: SHARE_WIDTH }) }} style={styles.share} />
+      <Plate label={t('hub.share')} icon="forward" variant="secondary" roles={roles}
+        onPress={() => { const whose = ownerPrefix(owner); shareRunLabel(shareCard.current as never, `${whose ? `${whose}: ` : ''}${headline}. ${standfirst}`, { width: SHARE_WIDTH }) }} style={styles.share} />
 
       {/* P8-69: what gets shared — a card made for it, off-screen, not a crop of
           the page. It was the article captured as it sat on the phone: small,
           zoomed in, and nothing on it said Perfection or Misery. */}
       <View style={styles.offscreen} pointerEvents="none" importantForAccessibility="no-hide-descendants">
         <View ref={shareCard} collapsable={false}>
-          <StoryShareCard headline={headline} standfirst={standfirst} story={story} colourway={colourway} />
+          <StoryShareCard headline={headline} standfirst={standfirst} story={story} colourway={colourway} owner={owner} />
         </View>
       </View>
 
       <View style={styles.pager}>
-        <Pressable disabled={!prev} onPress={() => prev && go(prev.id)} accessibilityRole="button" accessibilityLabel="Previous story"
+        <Pressable disabled={!prev} onPress={() => prev && go(prev.id)} accessibilityRole="button" accessibilityLabel={t('hub.prevStory')}
           style={({ pressed }) => [styles.page, { borderColor: prev ? roles.line : roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
           <Icon name="back" size={20} color={prev ? roles.text : roles.textFaint} />
-          <KitText t="body" color={prev ? roles.text : roles.textFaint} numberOfLines={2} style={{ flex: 1 }}>{prev ? storyText(prev).headline : 'The first story'}</KitText>
+          <KitText t="body" color={prev ? roles.text : roles.textFaint} numberOfLines={2} style={{ flex: 1 }}>{prev ? storyText(prev).headline : t('hub.firstStory')}</KitText>
         </Pressable>
-        <Pressable disabled={!next} onPress={() => next && go(next.id)} accessibilityRole="button" accessibilityLabel="Next story"
+        <Pressable disabled={!next} onPress={() => next && go(next.id)} accessibilityRole="button" accessibilityLabel={t('hub.nextStory')}
           style={({ pressed }) => [styles.page, { borderColor: next ? roles.line : roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
-          <KitText t="body" color={next ? roles.text : roles.textFaint} numberOfLines={2} style={{ flex: 1, textAlign: 'right' }}>{next ? storyText(next).headline : 'The latest story'}</KitText>
+          <KitText t="body" color={next ? roles.text : roles.textFaint} numberOfLines={2} style={{ flex: 1, textAlign: 'right' }}>{next ? storyText(next).headline : t('hub.latestStory')}</KitText>
           <Icon name="chevron" size={20} color={next ? roles.text : roles.textFaint} />
         </Pressable>
       </View>
@@ -189,8 +193,8 @@ export default function StoryScreen() {
 const SHARE_BASE = 360
 const SHARE_WIDTH = 1080
 
-function StoryShareCard({ headline, standfirst, story, colourway }: {
-  headline: string; standfirst: string; story: Story; colourway: string[]
+function StoryShareCard({ headline, standfirst, story, colourway, owner }: {
+  headline: string; standfirst: string; story: Story; colourway: string[]; owner: RunOwner | null
 }) {
   return (
     <View style={[shareStyles.ground, { backgroundColor: roles.bg }]}>
@@ -200,9 +204,10 @@ function StoryShareCard({ headline, standfirst, story, colourway }: {
           <Rivets color={roles.line} />
           <Tape colours={colourway} roles={roles} vertical thickness={border.tape} style={shareStyles.tape} />
           <View style={shareStyles.body}>
+            <ShareOwner roles={roles} owner={owner} />
             <View style={shareStyles.top}>
-              <KitText t="tag" color={roles.textMuted}>{`MATCHDAY ${story.matchday} OF ${story.totalMatchdays}`}</KitText>
-              {story.involvesPlayer && <Tag roles={roles} variant="you">YOUR XI</Tag>}
+              <KitText t="tag" color={roles.textMuted}>{storyWhen(story, 'caps')}</KitText>
+              {story.involvesPlayer && <Tag roles={roles} variant="you">{t('hub.yourXiTag')}</Tag>}
             </View>
             <KitText t="superM" color={roles.text}>{headline.toUpperCase()}</KitText>
             <KitText t="body" color={roles.textMuted}>{standfirst}</KitText>
@@ -211,7 +216,7 @@ function StoryShareCard({ headline, standfirst, story, colourway }: {
                 <View key={r.clubId} style={[shareStyles.row, r.isPlayer && { backgroundColor: roles.yours }]}>
                   <KitText t="figure" color={roles.textMuted} style={shareStyles.pos}>{String(r.pos)}</KitText>
                   <ClubName roles={roles} clubId={r.clubId} name={r.clubName} size={16} style={{ flex: 1 }} />
-                  <KitText t="figure" color={roles.text} style={shareStyles.pts}>{`${r.points} PTS`}</KitText>
+                  <KitText t="figure" color={roles.text} style={shareStyles.pts}>{t('hub.ptsCaps', { n: r.points })}</KitText>
                 </View>
               ))}
             </View>

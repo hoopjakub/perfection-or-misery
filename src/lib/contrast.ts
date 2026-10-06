@@ -20,3 +20,17 @@ export function ratio(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
   return (hi + 0.05) / (lo + 0.05)
 }
+
+/**
+ * Whichever of two inks reads better on every one of the given backgrounds
+ * (centralisation N-15, phase two step 2): the higher of their worst ratios.
+ * The rule that keeps text legible on a colour someone chose (a club's tag,
+ * your crest, your pin, your profile theme), written five times before. The
+ * inks come from the caller (`prim.ink`, `prim.cotton`) so this file stays
+ * free of the theme and importable from the verify scripts.
+ */
+export function inkOn(backgrounds: string | readonly string[], ink: string, cotton: string): string {
+  const bgs = typeof backgrounds === 'string' ? [backgrounds] : backgrounds
+  const worst = (fg: string) => Math.min(...bgs.map(bg => ratio(fg, bg)))
+  return worst(ink) >= worst(cotton) ? ink : cotton
+}

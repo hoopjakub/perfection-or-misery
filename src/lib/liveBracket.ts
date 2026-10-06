@@ -1,6 +1,11 @@
+import { t } from '@/i18n'
+// Ties are named `t` in this file's callbacks; `tr` is t() where that shadows it.
+const tr = t
 import type { MatchScorers } from '@/types/stats'
 import type { BracketColumn, BracketTie } from './bracket'
 import { kickoffFor } from '@/engine/schedule'
+import type { StageTie } from '@/engine/stages'
+import { tieDetail } from './tieDetail'
 
 // P8-91: the whole bracket, opened in the middle of a knockout round. Finished
 // ties show their results, the round being played shows every tie's score as
@@ -56,6 +61,18 @@ export function scoreAt(t: TieLike, p: number): { a: number; b: number } {
 
 const isThird = (r: RoundLike) => /third|3rd/i.test(`${r.round} ${r.label}`)
 
+/** A live tie as the engine's one tie model (src/engine/stages.ts). */
+export function stageTieOf(t: TieLike): StageTie {
+  return {
+    a: t.teamA, b: t.teamB, aGoals: t.aGoals, bGoals: t.bGoals,
+    legs: t.leg1 && t.leg2 ? [{ a: t.leg1.aGoals, b: t.leg1.bGoals }, { a: t.leg2.aGoals, b: t.leg2.bGoals }] : undefined,
+    extraTime: t.extraTime, shootout: t.aPens !== undefined,
+    pens: t.aPens !== undefined && t.bPens !== undefined ? { a: t.aPens, b: t.bPens } : undefined,
+    winnerIsA: t.winner.clubId === t.teamA.clubId,
+    scorers: [t.leg1Scorers, t.leg2Scorers, t.leg2ExtraTimeScorers, t.scorers],
+  }
+}
+
 export function liveBracket(rounds: RoundLike[], o: {
   /** Rounds revealed so far (the last of them is the one being played). */
   visible: number
@@ -72,9 +89,10 @@ export function liveBracket(rounds: RoundLike[], o: {
       if (i >= o.visible) return { a: null, b: null, note: when }                 // still to come
       if (i === o.visible - 1 && o.liveOpen) {                                     // being played now
         const s = scoreAt(t, o.progress)
-        return { a: { clubId: t.teamA.clubId, name: t.teamA.clubName, goals: String(s.a) }, b: { clubId: t.teamB.clubId, name: t.teamB.clubName, goals: String(s.b) }, note: 'LIVE' }
+        return { a: { clubId: t.teamA.clubId, name: t.teamA.clubName, goals: String(s.a) }, b: { clubId: t.teamB.clubId, name: t.teamB.clubName, goals: String(s.b) }, note: tr('parts.live') }
       }
-      const note = [t.extraTime ? 'AET' : '', t.aPens !== undefined ? `pens ${t.aPens}-${t.bPens}` : ''].filter(Boolean).join(' · ')
+      // The same line every tie row and result bracket writes (tieDetail).
+      const note = tieDetail(stageTieOf(t))
       return {
         a: { clubId: t.teamA.clubId, name: t.teamA.clubName, goals: String(t.aGoals) },
         b: { clubId: t.teamB.clubId, name: t.teamB.clubName, goals: String(t.bGoals) },

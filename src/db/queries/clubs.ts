@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import { t } from '@/i18n'
 import { uuid } from '@/lib/uuid'
-import { isBadWord, isBanned, refusalLine, BANNED_TEXT } from '@/lib/moderation'
+import { isBadWord, isBanned, refusalLine, bannedText } from '@/lib/moderation'
 
 // P8-181: clubs (supabase/clubs.sql). Creating, joining, leaving and editing
 // go through the database's own functions, so each is one step that can't
@@ -29,7 +30,7 @@ export type ClubMessage = { id: number; club_id: string; user_id: string; body: 
 /** The same limits supabase/clubs.sql checks. */
 export const CLUB_LIMITS = { name: [3, 30] as const, tag: [2, 4] as const, about: 190, message: 500 }
 export const MEMBER_LIMITS: { id: string; label: string; value: number | null }[] = [
-  { id: 'none', label: 'No limit', value: null }, { id: '10', label: '10', value: 10 }, { id: '25', label: '25', value: 25 },
+  { id: 'none', label: t('clubs.noLimit'), value: null }, { id: '10', label: '10', value: 10 }, { id: '25', label: '25', value: 25 },
   { id: '50', label: '50', value: 50 }, { id: '100', label: '100', value: 100 },
 ]
 export const cleanTag = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CLUB_LIMITS.tag[1])
@@ -46,24 +47,24 @@ function fail(e: { code?: string; message?: string }): never {
 /** What went wrong, in words a player can act on. */
 export function clubErrorText(e: unknown): string {
   const m = String((e as { message?: string })?.message ?? e)
-  if (e instanceof ClubsUnavailable) return 'Clubs need the database set up first: run supabase/clubs.sql.'
-  if (/ALREADY_IN_A_CLUB/.test(m)) return "You're already in a club. Leave it first."
-  if (/CLUB_FULL/.test(m)) return 'That club is full.'
-  if (/GUEST/.test(m)) return 'Make an account to join a club.'
+  if (e instanceof ClubsUnavailable) return t('clubs.setUpShort')
+  if (/ALREADY_IN_A_CLUB/.test(m)) return t('clubs.errAlready')
+  if (/CLUB_FULL/.test(m)) return t('clubs.errFull')
+  if (/GUEST/.test(m)) return t('clubs.errGuest')
   // P8.5-44 (supabase/moderation.sql): a name, tag or description it refuses.
   if (isBadWord(e)) return refusalLine()
-  if (isBanned(e)) return BANNED_TEXT
-  if (/INVITE_ONLY/.test(m)) return 'That club is invite-only. Its owner has to invite you.'
-  if (/WRONG_PASSWORD/.test(m)) return "That's not the club's password."
-  if (/BAD_PASSWORD/.test(m)) return 'A password is 4 to 64 characters.'
-  if (/NO_SUCH_PLAYER/.test(m)) return 'Nobody has that username.'
-  if (/ALREADY_A_MEMBER/.test(m)) return "They're already in the club."
-  if (/NOT_A_MEMBER/.test(m)) return 'They have to be in the club.'
-  if (/LIMIT_BELOW_MEMBERS/.test(m)) return 'The limit can’t be below the members the club already has.'
-  if (/clubs_tag_unique|duplicate key.*tag/i.test(m)) return 'Another club has that tag.'
-  if (/clubs_name_unique|duplicate key.*name/i.test(m)) return 'Another club has that name.'
-  if (/check constraint/i.test(m)) return 'Something in there is too long or too short.'
-  return 'That didn’t go through. Try again.'
+  if (isBanned(e)) return bannedText()
+  if (/INVITE_ONLY/.test(m)) return t('clubs.errInviteOnly')
+  if (/WRONG_PASSWORD/.test(m)) return t('clubs.errWrongPassword')
+  if (/BAD_PASSWORD/.test(m)) return t('clubs.errBadPassword')
+  if (/NO_SUCH_PLAYER/.test(m)) return t('clubs.errNoPlayer')
+  if (/ALREADY_A_MEMBER/.test(m)) return t('clubs.errAlreadyMember')
+  if (/NOT_A_MEMBER/.test(m)) return t('clubs.errNotMember')
+  if (/LIMIT_BELOW_MEMBERS/.test(m)) return t('clubs.errLimit')
+  if (/clubs_tag_unique|duplicate key.*tag/i.test(m)) return t('clubs.errTagTaken')
+  if (/clubs_name_unique|duplicate key.*name/i.test(m)) return t('clubs.errNameTaken')
+  if (/check constraint/i.test(m)) return t('clubs.errLength')
+  return t('clubs.errGeneric')
 }
 
 export async function fetchClub(id: string): Promise<{ club: Club; members: ClubMember[] } | null> {

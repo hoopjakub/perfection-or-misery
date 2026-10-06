@@ -1,8 +1,10 @@
+import { countryName } from '@/data/countries-sk'
+import { t } from '@/i18n'
+import { label } from '@/i18n/labels'
 import React, { useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { openSheet } from '@/lib/sheet'
-import { appendKnockoutRounds } from '@/engine/match-context'
-import { ROLES, MODE_THEMES, space, border, type Roles } from '@/theme'
+import { ROLES, space, border, type Roles } from '@/theme'
 import { europeBerthFor, type EuroComp, type UclPath, type UclRound } from '@/data/uefa-coefficients'
 import { EUROPE } from '@/data/europe'
 import { QUAL_ROUND_LABEL, PATH_LABEL } from '@/data/cl-qual-labels'
@@ -10,12 +12,9 @@ import { FORMAT_LABEL, FORMAT_EXPLAINER, isSpecialFormat } from '@/data/league-f
 import { flagForCountry } from '@/data/geo-iso'
 import { KitText, Tag, Chips, RoundFlag, TeamMark, Icon } from '@/components/kit'
 import { LeagueTable, ZoneLegend, type TableZone } from '@/components/season/SeasonParts'
-import { koLegDetailRequest } from '@/components/MatchStatsParts'
-import { openMatchStats } from '@/lib/matchStats'
 import { ordinal } from '@/lib/format'
 import type { SimLeagueTable } from '@/engine/cl-league-sim'
 import type { CLKnockoutMatch } from '@/engine/cl-sim'
-import type { DraftedPlayer } from '@/types/game'
 import { EVERYDAY, useScreenRoles } from '@/lib/appearance'
 import { BracketTree } from '@/components/BracketTree'
 import { cupToColumns } from '@/lib/bracket'
@@ -27,22 +26,21 @@ import type { DomesticCup } from '@/engine/domestic-cup'
 // badges and a legend of their own. They're the kit's now: the same
 // LeagueTable, zones and crests as every other table in the app.
 
-const CL = MODE_THEMES.champions_league
 // P8.5-25: the ground comes from the screen this sits on (useScreenRoles).
 // A domestic place is worth a berth (or nothing), drawn as the table's zones.
 const BERTH_ZONE: Record<UclRound, TableZone> = {
-  league_phase: { code: 'UCL', label: 'League phase', tone: 'top' },
-  playoff:      { code: 'PO',  label: 'Play-off round', tone: 'mid' },
-  q3:           { code: 'Q3',  label: 'Third qualifying round', tone: 'low' },
-  q2:           { code: 'Q2',  label: 'Second qualifying round', tone: 'low' },
-  q1:           { code: 'Q1',  label: 'First qualifying round', tone: 'low' },
+  league_phase: { code: 'UCL', label: t('parts.berthLp'), tone: 'top' },
+  playoff:      { code: 'PO',  label: t('parts.berthPo'), tone: 'mid' },
+  q3:           { code: 'Q3',  label: t('parts.berthQ3'), tone: 'low' },
+  q2:           { code: 'Q2',  label: t('parts.berthQ2'), tone: 'low' },
+  q1:           { code: 'Q1',  label: t('parts.berthQ1'), tone: 'low' },
 }
 
 // P8-52: a finish can earn a Europa or Conference League place too. One code
 // each (the round is in the stakes list), under the Champions League's.
 const LOWER_ZONE: Record<Exclude<EuroComp, 'ucl'>, TableZone> = {
-  uel:  { code: 'UEL',  label: 'Europa League', tone: 'mid' },
-  uecl: { code: 'UECL', label: 'Conference League', tone: 'low' },
+  uel:  { code: 'UEL',  label: EUROPE.uel.name, tone: 'mid' },
+  uecl: { code: 'UECL', label: EUROPE.uecl.name, tone: 'low' },
 }
 const zoneOf = (b: { comp: EuroComp; round: UclRound }) => (b.comp === 'ucl' ? BERTH_ZONE[b.round] : LOWER_ZONE[b.comp]) ?? null
 
@@ -53,12 +51,6 @@ export function berthZones(rank: number, places: number): (TableZone | null)[] {
   })
 }
 
-export function berthLabel(round: UclRound, path: UclPath, comp: EuroComp = 'ucl'): string {
-  const name = comp === 'ucl' ? '' : `${EUROPE[comp].name}, `
-  if (round === 'league_phase') return `${name}league phase, direct`.replace(/^l/, 'L')
-  return `${name}${QUAL_ROUND_LABEL[round]} · ${PATH_LABEL[path]}`
-}
-
 /** What each finish earns in one association (the draw, and the viewers). */
 export function PositionStakes({ roles, rank }: { roles: Roles; rank: number }) {
   const rows: { position: number; comp: EuroComp; round: UclRound; path: UclPath }[] = []
@@ -67,7 +59,7 @@ export function PositionStakes({ roles, rank }: { roles: Roles; rank: number }) 
     if (b) rows.push({ position: pos, ...b })
   }
   if (rows.length === 0) {
-    return <KitText t="body" color={roles.textMuted}>No European places for this league. Its clubs only get in as title holders.</KitText>
+    return <KitText t="body" color={roles.textMuted}>{t('parts.noEuroPlaces')}</KitText>
   }
   return (
     <View>
@@ -81,12 +73,12 @@ export function PositionStakes({ roles, rank }: { roles: Roles; rank: number }) 
           <View style={{ flex: 1 }}>
             <KitText t="body" color={roles.text} numberOfLines={1}>{EUROPE[r.comp].name}</KitText>
             <KitText t="tag" color={roles.textMuted}>
-              {(r.round === 'league_phase' ? 'League phase, direct' : `${QUAL_ROUND_LABEL[r.round]} · ${PATH_LABEL[r.path]}`).toUpperCase()}
+              {(r.round === 'league_phase' ? t('parts.lpDirect') : `${label(QUAL_ROUND_LABEL[r.round])} · ${label(PATH_LABEL[r.path])}`).toUpperCase()}
             </KitText>
           </View>
         </View>
       ))}
-      <KitText t="tag" color={roles.textMuted} style={styles.stakesNote}>ANY LOWER: NO EUROPE, UNLESS THE CUP · A CUP WINNER ALREADY IN PASSES HIS PLACE DOWN</KitText>
+      <KitText t="tag" color={roles.textMuted} style={styles.stakesNote}>{t('parts.anyLower')}</KitText>
     </View>
   )
 }
@@ -97,7 +89,7 @@ export function LeagueRow({ roles, table, yours, onPress }: { roles: Roles; tabl
   const champ = table.standings[0]
   return (
     <Pressable onPress={onPress} accessibilityRole="link"
-      accessibilityLabel={`${table.name}, number ${table.rank} in Europe, champions ${champ?.clubName ?? 'none'}`}
+      accessibilityLabel={t('parts.leagueA11y', { name: table.name, rank: table.rank, champ: champ?.clubName ?? t('parts.none') })}
       style={({ pressed }) => [styles.leagueRow, { borderBottomColor: roles.rule }, yours && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <RoundFlag roles={roles} emoji={flagForCountry(table.country)} code={table.country ?? table.name} size={20} />
       <View style={{ flex: 1 }}>
@@ -133,8 +125,8 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
       )}
       {hasPhases && (
         <Chips<'regular' | 'final'> roles={roles} value={phase} onChange={setPhase} options={[
-          { id: 'regular', label: 'At the split' },
-          { id: 'final', label: table.format === 'belgium_playoff' ? 'After the play-off' : 'Final table' },
+          { id: 'regular', label: t('parts.atSplit') },
+          { id: 'final', label: table.format === 'belgium_playoff' ? t('parts.afterPlayoff') : t('parts.finalTable') },
         ]} />
       )}
       <LeagueTable roles={roles} zones={zones} rows={rows.map(c => ({
@@ -151,7 +143,7 @@ export function LeagueTableView({ table, playerClubId }: { table: SimLeagueTable
 export function openLeagueTable(table: SimLeagueTable, playerClubId?: string | null) {
   openSheet({
     title: table.name,
-    sub: [table.country?.toUpperCase(), `#${table.rank} IN EUROPE`, table.format ? FORMAT_LABEL[table.format].toUpperCase() : null].filter(Boolean).join(' · '),
+    sub: [table.country && countryName(table.country).toUpperCase(), t('parts.rankInEurope', { rank: table.rank }), table.format ? FORMAT_LABEL[table.format].toUpperCase() : null].filter(Boolean).join(' · '),
     render: () => <LeagueTableView table={table} playerClubId={playerClubId} />,
   })
 }
@@ -162,7 +154,7 @@ export function openCupBracket(cup: DomesticCup, country?: string | null, player
   onTie?: (t: DomesticCup['rounds'][number]['ties'][number], roundLabel: string) => void) {
   openSheet({
     title: cup.name,
-    sub: [country?.toUpperCase(), cup.winner ? `WON BY ${cup.winner.clubName.toUpperCase()}` : null, 'TOP FLIGHT ONLY · ONE MATCH A TIE'].filter(Boolean).join(' · '),
+    sub: [country && countryName(country).toUpperCase(), cup.winner ? t('parts.wonBy', { club: cup.winner.clubName.toUpperCase() }) : null, t('parts.topFlightOnly')].filter(Boolean).join(' · '),
     render: () => <BracketTree columns={cupToColumns(cup, onTie)} playerClubId={playerClubId} />,
   })
 }
@@ -174,7 +166,7 @@ export function MarkRow({ roles, clubId, clubName, label, onPress, yours }: {
 }) {
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : 'text'}
-      accessibilityLabel={`${label}: ${clubName}${yours ? ', you' : ''}`}
+      accessibilityLabel={t('parts.markA11y', { label, club: clubName }) + (yours ? t('parts.markYou') : '')}
       style={({ pressed }) => [styles.leagueRow, { borderBottomColor: roles.rule }, yours && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <TeamMark roles={roles} clubId={clubId} name={clubName} size={20} />
       <View style={{ flex: 1 }}>
@@ -188,7 +180,7 @@ export function MarkRow({ roles, clubId, clubName, label, onPress, yours }: {
 
 export function openLeaguesBrowser(tables: SimLeagueTable[], playerClubId?: string | null) {
   openSheet({
-    title: 'Every league', sub: `${tables.length} LEAGUES, PLAYED THIS RUN`,
+    title: t('parts.everyLeague'), sub: t('parts.leaguesPlayed', { count: tables.length }),
     render: () => (
       <View>
         {tables.map(t => (
@@ -218,19 +210,6 @@ export function qualTieToKoMatch(t: import('@/engine/cl-qualifying').QualTie): C
     leg1Scorers: t.leg1Scorers, leg2Scorers: t.leg2Scorers, leg2ExtraTimeScorers: t.leg2ExtraTimeScorers,
     leg1Seed: t.leg1Seed, leg2Seed: t.leg2Seed,
   }
-}
-
-// ── Knockout tie detail (aggregate, both legs, ET, shootout) ────────────────
-
-// A knockout or qualifying tie opens on its first leg (Phase 5: was
-// KoTieDetailModal). The match sheet shows the tie, both legs tappable, the
-// aggregate and any shootout, so the modal in between said nothing new.
-export function openKoTie(m: CLKnockoutMatch, opts: { label?: string; playerClubId?: string; drafted?: DraftedPlayer[]; yearStart?: number; accent?: string; playerFormation?: import('@/types/game').Formation }) {
-  const label = opts.label ?? m.round
-  const req = koLegDetailRequest(m, 1, { label, yearStart: opts.yearStart ?? 2025, playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation })
-  if (!req) return
-  const context = appendKnockoutRounds([], [{ label, ties: [m] }])
-  openMatchStats({ ...req, matchday: context[0]?.matchday, contextMatches: context }, opts.accent ?? CL.accent)
 }
 
 const styles = StyleSheet.create({

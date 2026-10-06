@@ -1,3 +1,6 @@
+import { t, num, dec } from '@/i18n'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
 import React, { useCallback, useEffect, useState } from 'react'
 import { friendIds } from '@/lib/friends'
 import { PageMeta } from '@/components/PageMeta'
@@ -32,34 +35,38 @@ const roles = ROLES[EVERYDAY]
 
 // P8-152: a season's board is the same runs read between its dates.
 type Board = 'all' | 'week' | 'season' | 'clubs'
+const BOARD_OPTIONS: { id: Board; label: string }[] = [
+  { id: 'all', label: t('ranks.allTime') }, { id: 'week', label: t('ranks.weekly') }, { id: 'season', label: t('ranks.season') }, { id: 'clubs', label: t('ranks.clubs') },
+]
 type ModeFilter = 'any' | 'all_time' | 'league' | 'chaos' | 'cursed' | 'tournaments' | 'champions_league' | 'champions_league_custom' | 'europa_league' | 'conference_league' | 'world_cup'
 type DiffFilter = 'any' | 'easy' | 'medium' | 'hard' | 'custom'
 type HardFilter = 'any' | '3' | '6' | '8' | '10'
 type EuroFilter = 'any' | 'ucl' | 'uel' | 'uecl'
 type HuntFilter = 'any' | 'none' | 'ucl' | 'uel' | 'uecl'
 const HUNT_OPTIONS: { id: HuntFilter; label: string }[] = [
-  { id: 'any', label: 'All runs' }, { id: 'none', label: 'Wherever it leads' },
-  { id: 'ucl', label: 'Aimed: Champions' }, { id: 'uel', label: 'Aimed: Europa' }, { id: 'uecl', label: 'Aimed: Conference' },
+  { id: 'any', label: t('ranks.allRuns') }, { id: 'none', label: t('ranks.wherever') },
+  { id: 'ucl', label: t('ranks.aimedUcl') }, { id: 'uel', label: t('ranks.aimedUel') }, { id: 'uecl', label: t('ranks.aimedUecl') },
 ]
 const EURO_OPTIONS: { id: EuroFilter; label: string }[] = [
-  { id: 'any', label: 'All three' }, { id: 'ucl', label: 'Champions' }, { id: 'uel', label: 'Europa' }, { id: 'uecl', label: 'Conference' },
+  { id: 'any', label: t('ranks.allThree') }, { id: 'ucl', label: t('ranks.champions') }, { id: 'uel', label: t('ranks.europa') }, { id: 'uecl', label: t('ranks.conference') },
 ]
 
 const MODE_OPTIONS: { id: ModeFilter; label: string }[] = [
-  { id: 'any', label: 'All' }, { id: 'all_time', label: 'All Time' }, { id: 'league', label: 'League' },
-  { id: 'chaos', label: 'Chaos' }, { id: 'cursed', label: 'Cursed' }, { id: 'tournaments', label: 'All tournaments' },
-  { id: 'champions_league', label: 'UCL Finals' }, { id: 'champions_league_custom', label: 'European Full Path' },
-  { id: 'europa_league', label: 'Europa League' }, { id: 'conference_league', label: 'Conference League' }, { id: 'world_cup', label: 'World Cup' },
+  { id: 'any', label: t('ranks.all') }, { id: 'all_time', label: t('modes.allTime') }, { id: 'league', label: t('modes.league') },
+  { id: 'chaos', label: t('modes.chaos') }, { id: 'cursed', label: t('modes.cursed') }, { id: 'tournaments', label: t('ranks.allTournaments') },
+  { id: 'champions_league', label: t('ranks.uclFinals') }, { id: 'champions_league_custom', label: t('comp.europePath') },
+  { id: 'europa_league', label: t('comp.uelShort') }, { id: 'conference_league', label: t('comp.ueclShort') }, { id: 'world_cup', label: t('modes.groupWorldCup') },
 ]
 const TOURNAMENTS = ['champions_league', 'champions_league_custom', 'europa_league', 'conference_league', 'world_cup']
 const DIFF_OPTIONS: { id: DiffFilter; label: string }[] = [
-  { id: 'any', label: 'Any' }, { id: 'easy', label: 'Easy' }, { id: 'medium', label: 'Medium' }, { id: 'hard', label: 'Hard' }, { id: 'custom', label: 'Custom' },
+  { id: 'any', label: t('ranks.any') }, { id: 'easy', label: t('difficulty.easy') }, { id: 'medium', label: t('difficulty.medium') }, { id: 'hard', label: t('difficulty.hard') }, { id: 'custom', label: t('difficulty.custom') },
 ]
 const HARD_OPTIONS: { id: HardFilter; label: string }[] = [
-  { id: 'any', label: 'Any' }, { id: '3', label: '3.0–11' }, { id: '6', label: '6.0–11' }, { id: '8', label: '8.0–11' }, { id: '10', label: '10.0–11' },
+  { id: 'any', label: t('ranks.any') }, { id: '3', label: `${dec(3)}–11` }, { id: '6', label: `${dec(6)}–11` }, { id: '8', label: `${dec(8)}–11` }, { id: '10', label: `${dec(10)}–11` },
 ]
 
 export default function LeaderboardScreen() {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [mine, setMine] = useState<{ place: number; score: number } | null>(null)
@@ -103,7 +110,7 @@ export default function LeaderboardScreen() {
   // top when you're in the first 25, otherwise 25 above you and 25 below.
   useEffect(() => {
     if (!friendsOnly || !me) return
-    friendIds().then(setFriends).catch(e => { console.warn('[leaderboard] friends failed:', e); setFriends([]) })
+    friendIds().then(setFriends).catch(e => { log.warn('net', 'leaderboard: friends failed', e); setFriends([]) })
   }, [friendsOnly, me])
   const aroundPlace = (place: number) => setStart(Math.max(0, place - 26))
 
@@ -114,15 +121,15 @@ export default function LeaderboardScreen() {
       let active = true
       ;(async () => {
         try {
-          const [data, place] = await Promise.all([
+          const [data, place] = await once(Promise.all([
             fetchLeaderboard(filter),
-            me ? fetchMyPlace(me, filter).catch(e => { console.warn('[leaderboard] your place failed:', e); return null }) : Promise.resolve(null),
-          ])
+            me ? fetchMyPlace(me, filter).catch(e => { log.warn('net', 'leaderboard: your place failed', e); return null }) : Promise.resolve(null),
+          ]))
           if (active) { setLeaderboard(data); setMine(place); setFailed(false) }
           // Friends only centres on you once your place is known.
           if (active && friendsOnly && place && start === 0 && place.place > 25) aroundPlace(place.place)
         } catch (error) {
-          console.warn('[leaderboard] load failed:', error)
+          log.warn('net', 'leaderboard: load failed', error)
           if (active) setFailed(true)
         } finally {
           if (active) setLoading(false)
@@ -135,44 +142,44 @@ export default function LeaderboardScreen() {
   const filters = (
     <View style={styles.filters}>
       <SegmentSwitch<Board> roles={roles} value={board} onChange={setBoard}
-        options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'Weekly' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
+        options={BOARD_OPTIONS} />
       {board === 'week' && (
-        <KitText t="tag" color={roles.textMuted}>Monday 00:00 to Sunday 23:59, Slovak time (Europe/Bratislava)</KitText>
+        <KitText t="tag" color={roles.textMuted}>{t('ranks.weekWindow')}</KitText>
       )}
       {/* The live season and every one before it. */}
       {board === 'season' && (
         <>
-          <Chips<string> roles={roles} label="Season" value={seasonN} onChange={setSeasonN}
-            options={seasonsSoFar().map(x => ({ id: String(x.n), label: `Season ${x.n}` }))} />
+          <Chips<string> roles={roles} label={t('ranks.season')} value={seasonN} onChange={setSeasonN}
+            options={seasonsSoFar().map(x => ({ id: String(x.n), label: t('ranks.seasonN', { n: x.n }) }))} />
           <KitText t="tag" color={roles.textMuted}>
-            {`${season.name.toUpperCase()} · ${seasonDates(season).toUpperCase()} · ${isFinished(season) ? 'FINAL' : 'LIVE'}`}
+            {`${season.name.toUpperCase()} · ${seasonDates(season).toUpperCase()} · ${isFinished(season) ? t('ranks.final') : t('ranks.live')}`}
           </KitText>
         </>
       )}
-      <Chips<ModeFilter> roles={roles} label="Mode" options={MODE_OPTIONS} value={mode} onChange={setMode} />
+      <Chips<ModeFilter> roles={roles} label={t('ranks.mode')} options={MODE_OPTIONS} value={mode} onChange={setMode} />
       {mode === 'champions_league_custom' && (
         <>
-          <Chips<EuroFilter> roles={roles} label="Competition" options={EURO_OPTIONS} value={euro} onChange={setEuro} />
-          <Chips<HuntFilter> roles={roles} label="Hunting" options={HUNT_OPTIONS} value={hunt} onChange={setHunt} />
+          <Chips<EuroFilter> roles={roles} label={t('ranks.competition')} options={EURO_OPTIONS} value={euro} onChange={setEuro} />
+          <Chips<HuntFilter> roles={roles} label={t('ranks.hunting')} options={HUNT_OPTIONS} value={hunt} onChange={setHunt} />
         </>
       )}
-      <Chips<DiffFilter> roles={roles} label="Difficulty" options={DIFF_OPTIONS} value={diff} onChange={setDiff} />
+      <Chips<DiffFilter> roles={roles} label={t('ranks.difficulty')} options={DIFF_OPTIONS} value={diff} onChange={setDiff} />
       {diff === 'custom' && (
-        <Chips<HardFilter> roles={roles} label="Hardness" options={HARD_OPTIONS} value={hard} onChange={setHard} />
+        <Chips<HardFilter> roles={roles} label={t('ranks.hardness')} options={HARD_OPTIONS} value={hard} onChange={setHard} />
       )}
       {!!me && (
-        <Chips<'all' | 'friends'> roles={roles} label="Who" value={friendsOnly ? 'friends' : 'all'} onChange={v => setFriendsOnly(v === 'friends')}
-          options={[{ id: 'all', label: 'Everyone' }, { id: 'friends', label: 'You and your friends' }]} />
+        <Chips<'all' | 'friends'> roles={roles} label={t('ranks.who')} value={friendsOnly ? 'friends' : 'all'} onChange={v => setFriendsOnly(v === 'friends')}
+          options={[{ id: 'all', label: t('ranks.everyone') }, { id: 'friends', label: t('ranks.youAndFriends') }]} />
       )}
       {/* Any fifty on the board: your own, or from a place you type. */}
       <View style={styles.jumpRow}>
-        {mine && <Plate label="Around you" icon="you" variant="secondary" roles={roles} onPress={() => aroundPlace(mine.place)} />}
+        {mine && <Plate label={t('ranks.aroundYou')} icon="you" variant="secondary" roles={roles} onPress={() => aroundPlace(mine.place)} />}
         <View style={{ flex: 1 }}>
-          <Field roles={roles} label="Go to place" value={placeInput} keyboardType="number-pad" onChangeText={v => setPlaceInput(v.replace(/[^\d]/g, ''))}
+          <Field roles={roles} label={t('ranks.goToPlace')} value={placeInput} keyboardType="number-pad" onChangeText={v => setPlaceInput(v.replace(/[^\d]/g, ''))}
             onSubmitEditing={() => { const n = Number(placeInput); if (n > 0) aroundPlace(n) }} returnKeyType="go" />
         </View>
       </View>
-      {start > 0 && <Plate label="Back to the top" variant="quiet" roles={roles} onPress={() => setStart(0)} />}
+      {start > 0 && <Plate label={t('ranks.backToTop')} variant="quiet" roles={roles} onPress={() => setStart(0)} />}
     </View>
   )
 
@@ -180,15 +187,15 @@ export default function LeaderboardScreen() {
 
   return (
     <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
-      <PageMeta title="Ranks" description="The fifty best runs anyone has played, by score." path="/leaderboard" />
+      <PageMeta title={t('ranks.pageTitle')} description={t('ranks.pageDesc')} path="/leaderboard" />
       <OfflineNotice />
-      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>RANKS</KitText>
-      <KitText t="tag" color={roles.textMuted}>{board === 'clubs' ? 'Every club, by all its members\' runs added together' : board === 'week' ? 'The fifty best runs this week, by score' : 'The fifty best runs, by score'}</KitText>
+      <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{t('ranks.title')}</KitText>
+      <KitText t="tag" color={roles.textMuted}>{board === 'clubs' ? t('ranks.subClubs') : board === 'week' ? t('ranks.subWeek') : t('ranks.subAll')}</KitText>
       {board === 'clubs' ? (
         <>
           <View style={styles.filters}>
             <SegmentSwitch<Board> roles={roles} value={board} onChange={setBoard}
-              options={[{ id: 'all', label: 'All time' }, { id: 'week', label: 'Weekly' }, { id: 'season', label: 'Season' }, { id: 'clubs', label: 'Clubs' }]} />
+              options={BOARD_OPTIONS} />
           </View>
           <ClubBoard />
         </>
@@ -196,19 +203,19 @@ export default function LeaderboardScreen() {
       {filters}
       {/* Your place, even outside the fifty. */}
       {mine && (
-        <View style={[styles.you, { borderColor: prim.orange }]} accessible accessibilityLabel={`You: ${ordinal(mine.place)}, ${mine.score} points`}>
-          <Tag roles={roles} variant="you">YOU</Tag>
+        <View style={[styles.you, { borderColor: prim.orange }]} accessible accessibilityLabel={t('ranks.youA11y', { place: ordinal(mine.place), points: num(mine.score) })}>
+          <Tag roles={roles} variant="you">{t('ranks.you')}</Tag>
           <KitText t="title" color={roles.text}>{ordinal(mine.place)}</KitText>
-          <KitText t="figure" color={roles.textMuted} style={styles.youScore}>{mine.score.toLocaleString('en-US')}</KitText>
-          {!inList && <KitText t="tag" color={roles.textMuted}>OUTSIDE THE FIFTY</KitText>}
+          <KitText t="figure" color={roles.textMuted} style={styles.youScore}>{num(mine.score)}</KitText>
+          {!inList && <KitText t="tag" color={roles.textMuted}>{t('ranks.outsideFifty')}</KitText>}
         </View>
       )}
       {loading ? (
         <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
       ) : failed && leaderboard.length === 0 ? (
-        <InlineError roles={roles} message="The ranks couldn't be loaded." onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+        <InlineError roles={roles} message={t('ranks.loadFailed')} onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
       ) : leaderboard.length === 0 ? (
-        <EmptyState roles={roles} title="Nobody yet" body={board === 'week' ? 'No runs this week with these filters. Finish one and be first.' : 'No runs with these filters. Finish one and be the first on the board.'} />
+        <EmptyState roles={roles} title={t('ranks.nobody')} body={board === 'week' ? t('ranks.nobodyWeek') : t('ranks.nobodyAll')} />
       ) : (
         <View style={[styles.list, wide && styles.grid]}>
           {leaderboard.map((entry, i) => {
@@ -217,12 +224,12 @@ export default function LeaderboardScreen() {
               <View key={entry.id} style={[styles.row, wide && styles.cell]}>
                 <View style={styles.placeCol}>
                   <KitText t={start + i < 3 ? 'superM' : 'superS'} color={start + i < 3 ? roles.text : roles.textMuted} style={styles.place}>{String(start + i + 1)}</KitText>
-                  {yours && <Tag roles={roles} variant="you">YOU</Tag>}
+                  {yours && <Tag roles={roles} variant="you">{t('ranks.you')}</Tag>}
                 </View>
                 {/* Your own runs wear an orange outline as well as the tag. */}
                 <View style={[{ flex: 1 }, yours && [styles.yours, { borderColor: prim.orange }]]}>
                   {/* P8-88/89: whose run, with their picture and team badge, a tap from their profile. */}
-                  <PlayerName roles={roles} name={entry.profiles.username ?? 'Player'} avatarPath={entry.profiles.avatar_path} tag={entry.profiles.club_tag}
+                  <PlayerName roles={roles} name={entry.profiles.username ?? t('ranks.player')} avatarPath={entry.profiles.avatar_path} tag={entry.profiles.club_tag}
                     badgeTeamId={entry.profiles.badge_team_id} badgeTeamName={entry.profiles.badge_team_name}
                     onPress={() => router.push({ pathname: '/u/[id]', params: { id: entry.user_id } })} />
                   <RunLabel
@@ -230,7 +237,7 @@ export default function LeaderboardScreen() {
                     colourway={colourwayFor(entry.mode)}
                     title={formatTier(entry.tier)}
                     meta={runMeta(entry)}
-                    score={entry.score.toLocaleString('en-US')}
+                    score={num(entry.score)}
                     verdict={verdictOf(entry.tier)}
                     onPress={() => router.push({ pathname: runRoute(entry.mode), params: { runId: entry.id } })}
                   />
@@ -260,16 +267,16 @@ function ClubBoard() {
     return () => { active = false }
   }, []))
   if (state === 'loading') return <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
-  if (state === 'unavailable') return <EmptyState roles={roles} title="Not set up yet" body="The clubs leaderboard needs supabase/clubs-2.sql run in the Supabase SQL editor." />
-  if (state === 'failed') return <EmptyState roles={roles} title="Couldn't load the clubs" body="Try again in a moment." />
-  if (!rows?.length) return <EmptyState roles={roles} title="No clubs yet" body="Start one on the Clubs tab." />
+  if (state === 'unavailable') return <EmptyState roles={roles} title={t('ranks.notSetUp')} body={t('ranks.notSetUpBody')} />
+  if (state === 'failed') return <EmptyState roles={roles} title={t('ranks.clubsFailed')} body={t('ranks.tryLater')} />
+  if (!rows?.length) return <EmptyState roles={roles} title={t('ranks.noClubs')} body={t('ranks.noClubsBody')} />
   return (
     <View style={styles.list}>
       {rows.map((c, i) => {
         const yours = !!myTag && c.tag === myTag
         return (
           <Pressable key={c.id} onPress={() => router.push({ pathname: '/club/[id]', params: { id: c.id } })} accessibilityRole="button"
-            accessibilityLabel={`${i + 1}, ${c.name}, ${c.score} points from ${c.runs} runs, ${c.members} members${yours ? ', your club' : ''}`}
+            accessibilityLabel={t('ranks.clubA11y', { place: i + 1, name: c.name, points: num(c.score), runs: c.runs, members: c.members }) + (yours ? t('ranks.yourClub') : '')}
             style={({ pressed }) => [styles.row, styles.clubRow, yours && [styles.yours, { borderColor: prim.orange }], pressed && { opacity: 0.7 }]}>
             <View style={styles.placeCol}>
               <KitText t={i < 3 ? 'superM' : 'superS'} color={i < 3 ? roles.text : roles.textMuted} style={styles.place}>{String(i + 1)}</KitText>
@@ -277,9 +284,9 @@ function ClubBoard() {
             <ClubTag tag={c.tag} colour={c.colour} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <KitText t="body" color={roles.text} numberOfLines={1}>{c.name}</KitText>
-              <KitText t="tag" color={roles.textMuted}>{`${c.members} MEMBER${c.members === 1 ? '' : 'S'} · ${c.runs} RUN${c.runs === 1 ? '' : 'S'}`}</KitText>
+              <KitText t="tag" color={roles.textMuted}>{t('ranks.membersRuns', { members: t('clubs.headerMembers', { count: c.members }), runs: t('ranks.runs', { count: c.runs }) })}</KitText>
             </View>
-            <KitText t="figure" color={roles.text}>{c.score.toLocaleString('en-US')}</KitText>
+            <KitText t="figure" color={roles.text}>{num(c.score)}</KitText>
           </Pressable>
         )
       })}

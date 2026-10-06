@@ -1,4 +1,5 @@
 import { Platform, Share } from 'react-native'
+import { log } from '@/diag/log'
 import { captureRef } from 'react-native-view-shot'
 import * as Sharing from 'expo-sharing'
 
@@ -23,7 +24,7 @@ export async function shareRunLabel(view: React.Component | null, text: string, 
     await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: text })
     return 'shared'
   } catch (e) {
-    console.warn('[share] failed:', e)
+    log.warn('ui', 'share: failed', e)
     return 'unavailable'
   }
 }
@@ -47,7 +48,7 @@ export async function shareRunLink(text: string, link: string): Promise<ShareRes
     await Share.share({ message: `${text} ${link}` })
     return 'shared'
   } catch (e) {
-    console.warn('[share] link failed:', e)
+    log.warn('ui', 'share: link failed', e)
     return 'unavailable'
   }
 }

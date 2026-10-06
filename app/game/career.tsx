@@ -1,5 +1,8 @@
+import { t, num, dec } from '@/i18n'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
 import React, { useEffect, useMemo, useState } from 'react'
-import { forCompetition } from '@/data/competition'
+import { isTournament } from '@/data/competition'
 import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
@@ -10,7 +13,7 @@ import { summarise, type CareerRun } from '@/lib/careerSummary'
 import { formatTier, verdictOf, runMeta, MODE_TAG } from '@/data/tiers'
 import { runRoute } from '@/lib/nav'
 import { ROLES, space, border, prim, colourwayFor } from '@/theme'
-import { KitScreen, KitText, BackControl, Chips, SectionTag, Tag, EmptyState, InlineError, RunLabel, Tape } from '@/components/kit'
+import { KitScreen, KitText, BackControl, Chips, SectionTag, Tag, EmptyState, InlineError, RunLabel, Tape, GhostRows } from '@/components/kit'
 import type { CareerStats } from '@/types/stats'
 import { EVERYDAY } from '@/lib/appearance'
 
@@ -30,11 +33,12 @@ const roles = ROLES[EVERYDAY]
 type Tab = 'goals' | 'assists' | 'cleanSheets' | 'matchesPlayed'
 type Comp = 'all' | 'league' | 'champions_league' | 'champions_league_custom' | 'world_cup'
 
-const COMP_LABEL: Record<string, string> = { league: 'League', champions_league: 'UCL', champions_league_custom: 'UCL Full Path', world_cup: 'World Cup' }
-const COMPS: { id: Comp; label: string }[] = [{ id: 'all', label: 'All' }, ...(['league', 'champions_league', 'champions_league_custom', 'world_cup'] as const).map(c => ({ id: c, label: COMP_LABEL[c] }))]
-const TABS: { id: Tab; label: string }[] = [{ id: 'goals', label: 'Goals' }, { id: 'assists', label: 'Assists' }, { id: 'cleanSheets', label: 'Clean sheets' }, { id: 'matchesPlayed', label: 'Apps' }]
+const COMP_LABEL: Record<string, string> = { league: t('career.compLeague'), champions_league: t('career.compUcl'), champions_league_custom: t('career.compUclFull'), world_cup: t('career.compWc') }
+const COMPS: { id: Comp; label: string }[] = [{ id: 'all', label: t('career.compAll') }, ...(['league', 'champions_league', 'champions_league_custom', 'world_cup'] as const).map(c => ({ id: c, label: COMP_LABEL[c] }))]
+const TABS: { id: Tab; label: string }[] = [{ id: 'goals', label: t('career.tabGoals') }, { id: 'assists', label: t('career.tabAssists') }, { id: 'cleanSheets', label: t('career.tabCleanSheets') }, { id: 'matchesPlayed', label: t('career.tabApps') }]
 
 export default function CareerScreen() {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
   const [career, setCareer] = useState<CareerStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -50,10 +54,10 @@ export default function CareerScreen() {
     ;(async () => {
       if (!user || isGuest) { setLoading(false); return }
       try {
-        const [c, rs] = await Promise.all([fetchCareer(user.id), fetchCareerRuns(user.id)])
+        const [c, rs] = await once(Promise.all([fetchCareer(user.id), fetchCareerRuns(user.id)]))
         if (alive) { setCareer(c); setRuns(rs); setFailed(false) }
       }
-      catch (e) { console.warn('[career] load failed:', e); if (alive) setFailed(true) }
+      catch (e) { log.warn('net', 'career: load failed', e); if (alive) setFailed(true) }
       finally { if (alive) setLoading(false) }
     })()
     return () => { alive = false }
@@ -61,15 +65,15 @@ export default function CareerScreen() {
 
   const shell = (children: React.ReactNode) => (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="Career" path="/game/career" />
-      <BackControl roles={roles} title="CAREER" />
+      <PageMeta title={t('career.pageTitle')} path="/game/career" />
+      <BackControl roles={roles} title={t('career.heading')} />
       {children}
     </KitScreen>
   )
-  if (loading) return shell(<KitText t="bodyL" color={roles.textMuted}>Reading your career.</KitText>)
-  if (isGuest || !user) return shell(<EmptyState roles={roles} icon="lock" title="Sign in to build a career" body="Guest runs aren't saved, so there's nothing to add up." />)
-  if (failed) return shell(<InlineError roles={roles} message="Your career couldn't be loaded." onRetry={() => { setLoading(true); setAttempt(a => a + 1) }} />)
-  if (runs.length === 0 && (!career || career.players.length === 0)) return shell(<EmptyState roles={roles} title="No career yet" body="Finish some runs and your career adds up here." />)
+  if (loading) return shell(<><KitText t="bodyL" color={roles.textMuted}>{t('career.reading')}</KitText><GhostRows roles={roles} /></>)
+  if (isGuest || !user) return shell(<EmptyState roles={roles} icon="lock" title={t('career.signIn')} body={t('career.guestBody')} />)
+  if (failed) return shell(<InlineError roles={roles} message={t('career.failed')} onRetry={() => { setLoading(true); setAttempt(a => a + 1) }} />)
+  if (runs.length === 0 && (!career || career.players.length === 0)) return shell(<EmptyState roles={roles} title={t('career.none')} body={t('career.noneBody')} />)
 
   const players = career?.players ?? []
   const pool = comp === 'all' ? players : players.filter(p => p.competition === comp)
@@ -86,32 +90,32 @@ export default function CareerScreen() {
     <>
       {/* The whole career in figures. */}
       <View style={styles.bigRow}>
-        <Big label="Runs" value={String(sm.runs)} />
-        <Big label="Won" value={String(sm.won)} />
-        <Big label="Perfection" value={String(sm.perfection)} />
-        {sm.seconds > 0 && <Big label="Played" value={formatPlaytime(sm.seconds)} />}
+        <Big label={t('career.runs')} value={String(sm.runs)} />
+        <Big label={t('career.won')} value={String(sm.won)} />
+        <Big label={t('career.perfection')} value={String(sm.perfection)} />
+        {sm.seconds > 0 && <Big label={t('career.played')} value={formatPlaytime(sm.seconds)} />}
       </View>
       {played > 0 && (
         <View style={[styles.recordStrip, { borderColor: roles.rule }]}>
-          <KitText t="tag" color={roles.textMuted}>MATCHES</KitText>
-          <KitText t="figure" color={roles.text}>{`W ${sm.matches.w}  D ${sm.matches.d}  L ${sm.matches.l}`}</KitText>
-          <KitText t="tag" color={roles.textMuted}>{`${Math.round((sm.matches.w / played) * 100)}% WON · GOALS ${sm.goals.for}–${sm.goals.against}`}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('career.matches')}</KitText>
+          <KitText t="figure" color={roles.text}>{t('career.wdl', { w: sm.matches.w, d: sm.matches.d, l: sm.matches.l })}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('career.wonGoals', { pct: Math.round((sm.matches.w / played) * 100), f: sm.goals.for, a: sm.goals.against })}</KitText>
         </View>
       )}
 
       {sm.best && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Your best run</SectionTag>
+          <SectionTag roles={roles}>{t('career.bestRun')}</SectionTag>
           <RunLabel roles={roles} colourway={colourwayFor(sm.best.mode)} title={formatTier(sm.best.tier ?? '')} meta={runMeta(sm.best)}
-            score={sm.best.score.toLocaleString('en-US')} verdict={verdictOf(sm.best.tier)} onPress={() => openRun(sm.best!)} />
+            score={num(sm.best.score)} verdict={verdictOf(sm.best.tier)} onPress={() => openRun(sm.best!)} />
         </View>
       )}
 
       {sm.records.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Records</SectionTag>
+          <SectionTag roles={roles}>{t('career.records')}</SectionTag>
           {sm.records.map(r => (
-            <Pressable key={r.key} onPress={() => openRun(r.run)} accessibilityRole="button" accessibilityLabel={`${r.label}: ${r.value}. Open the run`}
+            <Pressable key={r.key} onPress={() => openRun(r.run)} accessibilityRole="button" accessibilityLabel={t('career.recordA11y', { label: r.label, value: r.value })}
               style={({ pressed }) => [styles.row, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <KitText t="tag" color={roles.textMuted}>{r.label.toUpperCase()}</KitText>
@@ -125,7 +129,7 @@ export default function CareerScreen() {
 
       {sm.modes.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>By mode</SectionTag>
+          <SectionTag roles={roles}>{t('career.byMode')}</SectionTag>
           {sm.modes.map(m => {
             const top = Math.max(1, ...m.recent.map(x => x.score))
             const mp = m.matches.w + m.matches.d + m.matches.l
@@ -138,10 +142,10 @@ export default function CareerScreen() {
                     {m.bestTier ? <Tag roles={roles} variant={verdictOf(m.bestTier) === 'perfection' ? 'win' : 'data'}>{formatTier(m.bestTier).toUpperCase()}</Tag> : null}
                   </View>
                   <KitText t="tag" color={roles.textMuted}>
-                    {`${m.runs} RUN${m.runs === 1 ? '' : 'S'} · ${m.won} WON · AVERAGE ${m.averageScore}${mp ? ` · ${Math.round((m.matches.w / mp) * 100)}% OF MATCHES WON` : ''}`}
+                    {t('career.modeLine', { count: m.runs, won: m.won, avg: m.averageScore }) + (mp ? t('career.modeMatchesWon', { pct: Math.round((m.matches.w / mp) * 100) }) : '')}
                   </KitText>
                   {/* The last twelve scores, oldest first, each bar in its verdict's colour. */}
-                  <View style={styles.bars} accessibilityLabel={`Last scores: ${m.recent.map(x => x.score).join(', ')}`}>
+                  <View style={styles.bars} accessibilityLabel={t('career.lastScores', { list: m.recent.map(x => x.score).join(', ') })}>
                     {m.recent.map(x => (
                       <View key={x.id} style={[styles.bar, { height: 4 + 36 * (x.score / top),
                         backgroundColor: x.verdict === 'perfection' ? prim.volt : x.verdict === 'misery' ? prim.misery : roles.textMuted, borderColor: roles.line }]} />
@@ -155,16 +159,16 @@ export default function CareerScreen() {
       )}
 
       <View style={styles.section}>
-        <SectionTag roles={roles}>Against the pundits</SectionTag>
+        <SectionTag roles={roles}>{t('career.vsPundits')}</SectionTag>
         {sm.pundits.points.length === 0 ? (
-          <KitText t="body" color={roles.textMuted}>Every run saved from now on keeps where the pundits had you, and it adds up here.</KitText>
+          <KitText t="body" color={roles.textMuted}>{t('career.punditsEmpty')}</KitText>
         ) : (
           <>
             <KitText t="body" color={roles.text}>
-              {`You beat their call in ${sm.pundits.beaten} of ${sm.pundits.points.length} run${sm.pundits.points.length === 1 ? '' : 's'}, by ${Math.abs(sm.pundits.average ?? 0).toFixed(1)} place${Math.abs(sm.pundits.average ?? 0) === 1 ? '' : 's'} ${(sm.pundits.average ?? 0) >= 0 ? 'better' : 'worse'} on average.`}
+              {t('career.punditsBeat', { beaten: sm.pundits.beaten, count: sm.pundits.points.length, places: t((sm.pundits.average ?? 0) >= 0 ? 'career.placesBetter' : 'career.placesWorse', { count: Math.abs(sm.pundits.average ?? 0), n: dec(Math.abs(sm.pundits.average ?? 0), 1) }) })}
             </KitText>
             {/* Run by run: above the line, better than they tipped; below, worse. */}
-            <View style={styles.diffChart} accessibilityLabel={`Places against the pundits, run by run: ${sm.pundits.points.map(p => p.diff).join(', ')}`}>
+            <View style={styles.diffChart} accessibilityLabel={t('career.diffA11y', { list: sm.pundits.points.map(p => p.diff).join(', ') })}>
               <View style={[styles.axis, { backgroundColor: roles.rule }]} />
               {sm.pundits.points.slice(-24).map(p => (
                 <View key={p.id} style={styles.diffCol}>
@@ -179,13 +183,13 @@ export default function CareerScreen() {
 
       {sm.drafted.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>The players you pick most</SectionTag>
+          <SectionTag roles={roles}>{t('career.pickMost')}</SectionTag>
           {sm.drafted.map((d, i) => (
             <View key={`${d.name}${i}`} style={[styles.row, { borderBottomColor: roles.rule }]}>
               <KitText t="figure" color={roles.textMuted} style={styles.rank}>{String(i + 1)}</KitText>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <KitText t="body" color={roles.text} numberOfLines={1}>{d.name}</KitText>
-                <KitText t="tag" color={roles.textMuted}>{`${d.position} · YOUR RUNS WITH HIM AVERAGE ${d.averageScore}`}</KitText>
+                <KitText t="tag" color={roles.textMuted}>{t('career.pickLine', { pos: d.position, avg: d.averageScore })}</KitText>
               </View>
               <KitText t="figure" color={roles.text} style={styles.val}>{`×${d.times}`}</KitText>
             </View>
@@ -195,40 +199,40 @@ export default function CareerScreen() {
 
       {players.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Your players</SectionTag>
+          <SectionTag roles={roles}>{t('career.yourPlayers')}</SectionTag>
           <View style={styles.bigRow}>
-            <Big label="Players fielded" value={String(new Set(players.map(p => p.playerId)).size)} />
-            <Big label="Goals for" value={String(career?.goalsFor ?? 0)} />
-            <Big label="Goals against" value={String(career?.goalsAgainst ?? 0)} />
+            <Big label={t('career.fielded')} value={String(new Set(players.map(p => p.playerId)).size)} />
+            <Big label={t('career.goalsFor')} value={String(career?.goalsFor ?? 0)} />
+            <Big label={t('career.goalsAgainst')} value={String(career?.goalsAgainst ?? 0)} />
           </View>
         </View>
       )}
-      <Chips roles={roles} label="Competition" options={COMPS} value={comp} onChange={setComp} />
+      <Chips roles={roles} label={t('career.competition')} options={COMPS} value={comp} onChange={setComp} />
 
       {decorated.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Awards cabinet</SectionTag>
+          <SectionTag roles={roles}>{t('career.cabinet')}</SectionTag>
           {decorated.map(p => (
             <View key={key(p)} style={[styles.row, { borderBottomColor: roles.rule }]}>
               <View style={{ flex: 1 }}>
                 <KitText t="body" color={roles.text} numberOfLines={1}>{p.name}</KitText>
                 <KitText t="tag" color={roles.textMuted}>{`${p.seasonLabel} · ${COMP_LABEL[p.competition] ?? p.competition}`}</KitText>
               </View>
-              {p.potsWins > 0 && <Tag roles={roles} variant="win">{`${forCompetition('PLAYER OF THE SEASON', p.competition)} ×${p.potsWins}`}</Tag>}
-              {p.u21Wins > 0 && <Tag roles={roles} variant="win">{`BEST U21 ×${p.u21Wins}`}</Tag>}
+              {p.potsWins > 0 && <Tag roles={roles} variant="win">{t(isTournament(p.competition) ? 'career.potsTournament' : 'career.potsSeason', { n: p.potsWins })}</Tag>}
+              {p.u21Wins > 0 && <Tag roles={roles} variant="win">{t('career.u21', { n: p.u21Wins })}</Tag>}
             </View>
           ))}
         </View>
       )}
 
       <View style={styles.section}>
-        <Chips roles={roles} label="Board" options={TABS} value={tab} onChange={setTab} />
-        {list.length === 0 ? <KitText t="body" color={roles.textMuted}>Nothing here yet.</KitText> : list.map((p, i) => (
+        <Chips roles={roles} label={t('career.board')} options={TABS} value={tab} onChange={setTab} />
+        {list.length === 0 ? <KitText t="body" color={roles.textMuted}>{t('career.nothingYet')}</KitText> : list.map((p, i) => (
           <View key={key(p)} style={[styles.row, { borderBottomColor: roles.rule }]}>
             <KitText t="figure" color={roles.textMuted} style={styles.rank}>{String(i + 1)}</KitText>
             <View style={{ flex: 1 }}>
               <KitText t="body" color={roles.text} numberOfLines={1}>{p.name}</KitText>
-              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${p.seasonLabel} · ${COMP_LABEL[p.competition] ?? p.competition} · ${p.runs} run${p.runs !== 1 ? 's' : ''} · ${p.matchesPlayed} apps`}</KitText>
+              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{t('career.boardLine', { season: p.seasonLabel, comp: COMP_LABEL[p.competition] ?? p.competition, count: p.runs, apps: p.matchesPlayed })}</KitText>
             </View>
             <KitText t="figure" color={roles.text} style={styles.val}>{String(p[tab])}</KitText>
           </View>

@@ -89,9 +89,15 @@ export const CUSTOM_CL_ROUND_SCORE: Record<string, number> = {
 // weights, 0.8 and 0.65), prefixed with where it was; going out in the
 // Conference League's qualifying, where nobody drops any further, scores under
 // its league phase and over not qualifying.
+// How much a round in each European competition is worth against the same
+// round in the Champions League (P8-172, docs/europe/02). One table (N-04,
+// phase two step 2): it was written as 0.8 and 0.65 in both ladders below and
+// again in src/data/tiers.ts, and src/data/europe.ts said it held them.
+export const COMP_WEIGHT = { ucl: 1, uel: 0.8, uecl: 0.65 } as const
+
 const prefixed = (p: string, ladder: Record<string, number>, w: number) =>
   Object.fromEntries(Object.entries(ladder).map(([k, v]) => [`${p}_${k}`, Math.round(v * w)]))
-Object.assign(CUSTOM_CL_ROUND_SCORE, prefixed('uel', CL_ROUND_SCORE, 0.8), prefixed('uecl', CL_ROUND_SCORE, 0.65), {
+Object.assign(CUSTOM_CL_ROUND_SCORE, prefixed('uel', CL_ROUND_SCORE, COMP_WEIGHT.uel), prefixed('uecl', CL_ROUND_SCORE, COMP_WEIGHT.uecl), {
   uecl_q1_exit: 40, uecl_q2_exit: 60, uecl_q3_exit: 85, uecl_quali_playoff_exit: 110,
 })
 Object.assign(CUSTOM_CL_ROUND_TO_POSITION,
@@ -113,8 +119,8 @@ const compOfTier = (tier: string) => tier.startsWith('uecl_') ? 'uecl' : tier.st
 // down — the same round against a weaker field is worth less (docs/europe/02).
 const weighed = (ladder: Record<string, number>, w: number): Record<string, number> =>
   Object.fromEntries(Object.entries(ladder).map(([k, v]) => [k, Math.round(v * w)]))
-export const UEL_ROUND_SCORE = weighed(CL_ROUND_SCORE, 0.8)
-export const UECL_ROUND_SCORE = weighed(CL_ROUND_SCORE, 0.65)
+export const UEL_ROUND_SCORE = weighed(CL_ROUND_SCORE, COMP_WEIGHT.uel)
+export const UECL_ROUND_SCORE = weighed(CL_ROUND_SCORE, COMP_WEIGHT.uecl)
 
 const LEAGUE_MODES = new Set(['league', 'all_time', 'chaos', 'cursed', 'era'])
 const LEAGUE_TIERS = new Set([

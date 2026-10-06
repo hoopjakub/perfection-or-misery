@@ -1,4 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react'
+import { t, num, dec, numText } from '@/i18n'
+import { label } from '@/i18n/labels'
+import { ordinal } from '@/lib/format'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { time } from '@/diag/perf'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { PunditTournament } from '@/engine/cup-calls'
 import { punditPanel, punditRatings, type PredictionTeam } from '@/engine/predictions'
@@ -6,11 +10,10 @@ import { PunditRail } from '@/components/season/PunditRail'
 import { GroupWall, LeagueTable, SegmentSwitch, CL_PHASE_ZONES, type MiniGroup, type TableRowVM } from '@/components/season/SeasonParts'
 import { BracketTree, type BracketColumn } from '@/components/BracketTree'
 import { View, Pressable, StyleSheet, Platform } from 'react-native'
-import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { ROLES, space, border, prim, type Roles } from '@/theme'
-import { KitText, Plate, Tag, Tape, Stripe, Rivets, H2, Icon, TeamMark, Twinkle } from '@/components/kit'
-import { useRunOwner, RunOwnerLine, Avatar } from '@/components/profile/ProfileParts'
-import { ClubTag } from '@/components/ClubParts'
+import { KitText, Plate, Tag, Tape, Rivets, H2, Icon, TeamMark, Twinkle } from '@/components/kit'
+import { useRunOwner, RunOwnerLine, ShareOwner, ownerPrefix } from '@/components/profile/ProfileParts'
 import { shareRunLabel, shareRunLink, runLink } from '@/lib/shareRun'
 import { punditsSummary, callOf, type PunditRow } from '@/lib/punditsSummary'
 import { useGameStore } from '@/store/gameStore'
@@ -54,7 +57,7 @@ export function VerdictBlock({
   // P8-89: every run says whose it is, on the page, on the card and in the
   // shared text; your own says it's yours.
   const owner = useRunOwner(ownerId)
-  const whose = owner ? (owner.yours ? 'My run' : `${owner.name}'s run`) : null
+  const whose = ownerPrefix(owner)
   // Read as a hook, so the link appears the moment a live run's save lands.
   const savedRunId = useGameStore(s => s.savedRunId)
   const liveRow = useGameStore(s => s.savedRunRow)
@@ -63,6 +66,13 @@ export function VerdictBlock({
     return row ? scoreBreakdown(row as RunRow) : null
   }, [scoreRow, liveRow])
   const [showHow, setShowHow] = useState(false)
+  // The tier is set at superXl (72) and wraps only at spaces, so one long word
+  // ran off a phone's card: RESPECTABLE MEDIOCRITY lost its E (found filming
+  // the trailer, 3 Oct 2026), and Slovak tiers run longer. Size it so the
+  // longest word fits the row: Barlow Condensed 900 caps average ~0.5em a letter.
+  const [titleW, setTitleW] = useState(0)
+  const longest = Math.max(...title.split(/\s+/).map(w => w.length), 1)
+  const titleSize = titleW > 0 ? Math.min(72, Math.floor(titleW / (longest * 0.52))) : 72
   const link = runLink(runId ?? savedRunId)
   const text = whose ? `${whose}: ${shareText}` : shareText
   async function share() {
@@ -80,7 +90,7 @@ export function VerdictBlock({
         style={[styles.card, { borderColor: roles.line, backgroundColor: roles.surface }]}
         accessible
         accessibilityRole="header"
-        accessibilityLabel={`${title}. ${line ?? ''} ${score != null ? `${score} points` : ''}`}
+        accessibilityLabel={t('verdict.cardA11y', { title, line: line ?? '', points: score != null ? t('verdict.pointsA11y', { n: score }) : '' })}
       >
         <Rivets color={roles.line} />
         {/* P8-111: Misery's edge is red, not the stripe. */}
@@ -92,42 +102,35 @@ export function VerdictBlock({
           {/* P8.5-04: the card is what gets shared, so it names whose run it is
               with their picture, name and club, never just "YOUR RUN" (which
               told whoever received it nothing). */}
-          {owner && (
-            <View style={styles.whose}>
-              <Avatar roles={roles} path={owner.avatarPath} name={owner.name} size={24} />
-              <KitText t="tag" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{`${owner.name.toUpperCase()}'S RUN`}</KitText>
-              {owner.clubTag && owner.clubColour ? <ClubTag tag={owner.clubTag} colour={owner.clubColour} /> : null}
-              {owner.badgeTeamId && owner.badgeTeamName ? <TeamMark roles={roles} clubId={owner.badgeTeamId} name={owner.badgeTeamName} size={16} /> : null}
-            </View>
-          )}
+          <ShareOwner roles={roles} owner={owner} />
           {/* P8.5-41: the points, big, under whose run it is, and how they were made. */}
           {points && (
             <View style={styles.points}>
               <Pressable onPress={() => setShowHow(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: showHow }}
-                accessibilityLabel={`${points.total} points. ${showHow ? 'Hide' : 'Show'} how they were made`}
+                accessibilityLabel={t('verdict.howA11y', { n: points.total, action: showHow ? t('verdict.hide') : t('verdict.show') })}
                 style={({ pressed }) => [styles.pointsRow, pressed && { opacity: 0.7 }]}>
-                <KitText t="tag" color={roles.textMuted}>PTS</KitText>
-                <KitText t="figureL" color={roles.text}>{points.total.toLocaleString('en-US')}</KitText>
+                <KitText t="tag" color={roles.textMuted}>{t('verdict.pts')}</KitText>
+                <KitText t="figureL" color={roles.text}>{num(points.total)}</KitText>
                 <View style={{ transform: [{ rotate: showHow ? '-90deg' : '90deg' }] }}><Icon name="chevron" size={16} color={roles.textMuted} /></View>
               </Pressable>
               {showHow && (
                 <View style={[styles.how, { borderTopColor: roles.rule }]}>
                   {points.lines.map(l => (
                     <View key={l.label} style={styles.howRow}>
-                      <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{l.label}</KitText>
-                      <KitText t="figure" color={roles.text}>{l.value}</KitText>
+                      <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{label(l.label)}</KitText>
+                      <KitText t="figure" color={roles.text}>{numText(l.value)}</KitText>
                     </View>
                   ))}
                   <View style={styles.howRow}>
-                    <KitText t="body" color={roles.text} style={{ flex: 1 }}>Points</KitText>
-                    <KitText t="figure" color={roles.text}>{points.total.toLocaleString('en-US')}</KitText>
+                    <KitText t="body" color={roles.text} style={{ flex: 1 }}>{t('verdict.points')}</KitText>
+                    <KitText t="figure" color={roles.text}>{num(points.total)}</KitText>
                   </View>
                 </View>
               )}
             </View>
           )}
-          <View style={styles.titleRow}>
-            <KitText t="superXl" color={roles.text} style={[styles.title, { flexShrink: 1 }]}>{title.toUpperCase()}</KitText>
+          <View style={styles.titleRow} onLayout={e => setTitleW(e.nativeEvent.layout.width - (tone === 'perfection' ? 32 : 0))}>
+            <KitText t="superXl" color={roles.text} style={[styles.title, { flexShrink: 1, fontSize: titleSize, lineHeight: titleSize }]}>{title.toUpperCase()}</KitText>
             {/* P8-145: Perfection lives a little. */}
             {tone === 'perfection' && <Twinkle />}
           </View>
@@ -137,20 +140,20 @@ export function VerdictBlock({
           {score != null && !points && (
             <View style={styles.scoreRow}>
               <KitText t="figureL" color={roles.text}>{String(score)}</KitText>
-              <KitText t="tag" color={roles.textMuted}>POINTS</KitText>
+              <KitText t="tag" color={roles.textMuted}>{t('verdict.pointsTag')}</KitText>
               {multiplier != null && multiplier !== 1 && (
-                <Tag roles={roles}>{`×${multiplier.toFixed(2)} HARDNESS`}</Tag>
+                <Tag roles={roles}>{t('verdict.hardness', { m: dec(multiplier, 2) })}</Tag>
               )}
             </View>
           )}
 
           {(pundits || punditsText) && (
             <View style={[styles.pundits, { borderTopColor: roles.rule }]}>
-              <KitText t="tag" color={roles.textMuted}>The pundits</KitText>
+              <KitText t="tag" color={roles.textMuted}>{t('verdict.thePundits')}</KitText>
               {pundits ? (
                 <>
                   <KitText t="bodyL" color={roles.text}>
-                    {`They had you ${ordinal(pundits.predicted)}. You finished ${ordinal(pundits.actual)}.`}
+                    {t('verdict.theyHadYou', { tipped: ordinal(pundits.predicted), actual: ordinal(pundits.actual) })}
                   </KitText>
                   <KitText t="body" color={roles.textMuted}>{punditVerdict(pundits)}</KitText>
                 </>
@@ -162,7 +165,7 @@ export function VerdictBlock({
         </View>
       </Animated.View>
 
-      <Plate label={shared === 'copied' ? 'Copied' : shared === 'unavailable' ? 'Sharing is off on this device' : Platform.OS === 'web' ? 'Share this run' : 'Share the picture'}
+      <Plate label={shared === 'copied' ? t('verdict.copied') : shared === 'unavailable' ? t('verdict.sharingOff') : Platform.OS === 'web' ? t('verdict.shareRun') : t('verdict.sharePicture')}
         icon="forward" variant="secondary" roles={roles} onPress={share} disabled={shared === 'unavailable'} />
       {/* P8-121: a link opens the run, in the app where it's installed and on
           the web where it isn't. Only a saved run has one. */}
@@ -171,18 +174,14 @@ export function VerdictBlock({
   )
 }
 
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
-}
 
 function punditVerdict({ predicted, actual, field }: { predicted: number; actual: number; field: number }): string {
   const by = predicted - actual
-  if (by >= Math.max(3, field / 6)) return `You beat their call by ${by} places. Nobody saw that coming.`
-  if (by > 0) return `${by} ${by === 1 ? 'place' : 'places'} better than they said.`
-  if (by === 0) return 'Exactly where they said you would be.'
-  if (-by >= Math.max(3, field / 6)) return `${-by} places worse than they said. They were kind.`
-  return `${-by} ${-by === 1 ? 'place' : 'places'} worse than they said.`
+  if (by >= Math.max(3, field / 6)) return t('verdict.beatCall', { n: by })
+  if (by > 0) return t('verdict.better', { count: by })
+  if (by === 0) return t('verdict.exactly')
+  if (-by >= Math.max(3, field / 6)) return t('verdict.muchWorse', { n: -by })
+  return t('verdict.worse', { count: -by })
 }
 
 // P8-121: the run's link as its own share (a phone's sheet can't carry the
@@ -193,10 +192,10 @@ function punditVerdict({ predicted, actual, field }: { predicted: number; actual
 export function ShareLinkPlate({ roles, runId, text, waiting }: { roles: Roles; runId?: string | null; text: string; waiting?: boolean }) {
   const [state, setState] = useState<null | 'shared' | 'copied' | 'unavailable'>(null)
   const link = runLink(runId)
-  if (!link && waiting) return <Plate label="In a second you'll be able to share the link" icon="forward" variant="secondary" roles={roles} disabled onPress={() => {}} />
+  if (!link && waiting) return <Plate label={t('verdict.linkSoon')} icon="forward" variant="secondary" roles={roles} disabled onPress={() => {}} />
   if (!link) return null
   return (
-    <Plate label={state === 'copied' ? 'Link copied' : state === 'unavailable' ? "The link couldn't be shared" : 'Share the link'}
+    <Plate label={state === 'copied' ? t('verdict.linkCopied') : state === 'unavailable' ? t('verdict.linkFailed') : t('verdict.shareLink')}
       icon="forward" variant="secondary" roles={roles} onPress={async () => setState(await shareRunLink(text, link))} />
   )
 }
@@ -207,7 +206,6 @@ const styles = StyleSheet.create({
   how: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: space[2], gap: 2 },
   howRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 28 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2] },
-  whose: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   wrap: { gap: space[2], marginBottom: space[4] },
   card: { flexDirection: 'row', borderWidth: border.plate, overflow: 'hidden' },
   edge: { width: 12, alignSelf: 'stretch' },
@@ -227,12 +225,14 @@ const callColour = (off: number) => off > 0 ? (roles.perfectionText ?? roles.tex
 const Sparkle = ({ i }: { i: number }) => <Twinkle i={i} />
 
 function Call({ off, label, i, spot }: { off: number; label: string; i: number; spot?: boolean }) {
-  const twoLines = / SPOT ON$/.test(label)
+  // A spot-on call breaks before its last words ("MEGA" over "SPOT ON").
+  const spotWord = t('verdict.spotOn')
+  const twoLines = label.endsWith(` ${spotWord}`)
   return (
     <View style={tableStyles.call}>
       {(spot ?? off === 0) && <Sparkle i={i} />}
       <KitText t="tag" color={callColour(off)} style={{ textAlign: 'right', flexShrink: 1 }}>
-        {twoLines ? label.replace(/ SPOT ON$/, '\nSPOT ON') : label}
+        {twoLines ? `${label.slice(0, -spotWord.length - 1)}\n${spotWord}` : label}
       </KitText>
     </View>
   )
@@ -251,22 +251,22 @@ export function PunditsTable({ rows }: { rows: PunditRow[] }) {
   const withPoints = rows.some(r => r.predictedPoints != null && r.points != null)
   return (
     <View style={tableStyles.wrap}>
-      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>THE PUNDITS, CHECKED</KitText>
+      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>{t('verdict.checked')}</KitText>
       {punditsSummary(rows).map((line, i) => (
         <KitText key={i} t="body" color={i === 0 ? roles.text : roles.textMuted}>{line}</KitText>
       ))}
       <View style={[tableStyles.row, tableStyles.head, { borderBottomColor: roles.line }]}>
         <KitText t="tag" color={roles.textMuted} style={tableStyles.pos}>#</KitText>
-        <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>Club</KitText>
-        {withPoints && <KitText t="tag" color={roles.textMuted} style={tableStyles.pts}>Pts</KitText>}
-        <KitText t="tag" color={roles.textMuted} style={[tableStyles.diff, { textAlign: 'right' }]}>Call</KitText>
+        <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{t('verdict.colClub')}</KitText>
+        {withPoints && <KitText t="tag" color={roles.textMuted} style={tableStyles.pts}>{t('verdict.colPts')}</KitText>}
+        <KitText t="tag" color={roles.textMuted} style={[tableStyles.diff, { textAlign: 'right' }]}>{t('verdict.colCall')}</KitText>
       </View>
       {sorted.map((r, i) => {
         const off = r.predicted - r.finalPosition   // positive = did better than tipped
         const call = callOf(r)
         return (
           <View key={r.clubId} style={[tableStyles.row, tableStyles.tall, { borderBottomColor: roles.rule }, r.isPlayer && { backgroundColor: roles.yours }]}
-            accessible accessibilityLabel={`${r.finalPosition}, ${r.clubName}, tipped ${r.predicted}${r.predictedPoints != null ? ` on ${r.predictedPoints} points` : ''}${r.points != null ? `, finished on ${r.points}` : ''}`}>
+            accessible accessibilityLabel={t('verdict.rowA11y', { place: r.finalPosition, name: r.clubName, tipped: r.predicted }) + (r.predictedPoints != null ? t('verdict.onPoints', { n: r.predictedPoints }) : '') + (r.points != null ? t('verdict.finishedOn', { n: r.points }) : '')}>
             <KitText t="figure" color={roles.text} style={tableStyles.pos}>{String(r.finalPosition)}</KitText>
             {/* The club with its crest, and under it what they said. */}
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -275,7 +275,7 @@ export function PunditsTable({ rows }: { rows: PunditRow[] }) {
                 <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.clubName}</KitText>
               </View>
               <KitText t="tag" color={roles.textMuted}>
-                {`TIPPED ${ordinal(r.predicted).toUpperCase()}${r.predictedPoints != null ? ` · ${r.predictedPoints} PTS` : ''}`}
+                {t('verdict.tipped', { place: ordinal(r.predicted).toUpperCase() }) + (r.predictedPoints != null ? t('verdict.tippedPts', { n: r.predictedPoints }) : '')}
               </KitText>
             </View>
             {/* More points than they tipped in volt, fewer in red, exactly theirs in gold. */}
@@ -326,7 +326,7 @@ export type ActualTournament = {
 }
 
 /** One pundit's tournament, drawn: their groups or league phase, then their bracket. */
-export function TheirTournament({ roles: r = roles, t, name, playerClubId, flagOf }: {
+export function TheirTournament({ roles: r = roles, t: tour, name, playerClubId, flagOf }: {
   roles?: Roles
   t: PunditTournament
   name: string
@@ -334,29 +334,29 @@ export function TheirTournament({ roles: r = roles, t, name, playerClubId, flagO
   flagOf?: (clubId: string) => string | null
 }) {
   const bracket = {
-    columns: t.rounds.map(round => ({
+    columns: tour.rounds.map(round => ({
       key: round.key, label: round.label,
       ties: round.ties.map(x => ({
         a: { clubId: x.a.clubId, name: x.a.clubName, goals: String(x.goalsA) },
         b: { clubId: x.b.clubId, name: x.b.clubName, goals: String(x.goalsB) },
         winner: x.winner,
         // After the run: whether the side they sent through really got that far.
-        note: x.real == null ? undefined : x.real ? 'RIGHT: WENT THIS FAR' : 'WRONG: NOT FOR REAL',
+        note: x.real == null ? undefined : x.real ? t('verdict.rightThisFar') : t('verdict.wrongNotReal'),
       })),
     })),
   }
   return (
     <>
-      {t.tables.length > 1 ? (
-        <GroupWall roles={r} groups={t.tables.map(g => ({
+      {tour.tables.length > 1 ? (
+        <GroupWall roles={r} groups={tour.tables.map(g => ({
           id: g.id, you: g.rows.some(x => x.isPlayer),
           rows: g.rows.map(x => ({ clubId: x.clubId, clubName: x.clubName, flag: flagOf?.(x.clubId), points: x.points, isPlayer: x.isPlayer })),
         }))} />
-      ) : t.tables[0] ? (
+      ) : tour.tables[0] ? (
         <LeagueTable roles={r} zones={CL_PHASE_ZONES}
-          rows={t.tables[0].rows.map(x => ({ clubId: x.clubId, clubName: x.clubName, isPlayer: x.isPlayer, played: x.played, gd: x.gd, points: x.points }))} />
+          rows={tour.tables[0].rows.map(x => ({ clubId: x.clubId, clubName: x.clubName, isPlayer: x.isPlayer, played: x.played, gd: x.gd, points: x.points }))} />
       ) : null}
-      <KitText t="tag" color={r.textMuted} style={tourStyles.round}>{`${name.toUpperCase()}'S BRACKET`}</KitText>
+      <KitText t="tag" color={r.textMuted} style={tourStyles.round}>{t('verdict.bracketOf', { name: name.toUpperCase() })}</KitText>
       <BracketTree {...bracket} playerClubId={playerClubId} height={440} />
     </>
   )
@@ -377,39 +377,65 @@ export function PunditsPlayedOut({ field, seed, build, actual, playerClubId, fla
   // change with the sides and the seed, so those are the key.
   const key = `${seed}:${field.map(f => f.clubId).join()}`
   const panel = useMemo(() => punditPanel(field, seed), [key])
-  const versions = useMemo(() => [build(punditRatings(field, seed), seed), ...panel.map(p => build(p.ratings, p.picksSeed))], [key, panel])
+  // Phase 9 (the maintainer, 25 Sept: opening the pundits' tournaments "lags the
+  // phone badly"): every pundit's whole tournament was played out on the first
+  // frame. Now the panel's is drawn at once and each pundit's follows, one a
+  // frame, filling in the rail as it lands; each build is timed (pundits:build).
+  const together = useMemo(() => time('pundits:build', () => build(punditRatings(field, seed), seed)), [key])
+  const [theirs, setTheirs] = useState<{ key: string; tours: PunditTournament[] }>({ key, tours: [] })
+  useEffect(() => {
+    let alive = true
+    const tours: PunditTournament[] = []
+    setTheirs({ key, tours: [] })
+    const next = () => {
+      if (!alive || tours.length >= panel.length) return
+      const p = panel[tours.length]
+      tours.push(time('pundits:build', () => build(p.ratings, p.picksSeed)))
+      setTheirs({ key, tours: [...tours] })
+      setTimeout(next, 0)
+    }
+    const first = setTimeout(next, 0)
+    return () => { alive = false; clearTimeout(first) }
+  }, [key, panel])
+  const versions: (PunditTournament | undefined)[] = [together, ...panel.map((_, i) => theirs.key === key ? theirs.tours[i] : undefined)]
   const [who, setWho] = useState(0)          // 0: the panel together; i: the (i − 1)th pundit
   const [view, setView] = useState<'theirs' | 'real'>('theirs')
-  const t = versions[who]
-  if (!t) return null
-  const name = who === 0 ? 'The panel' : panel[who - 1].name
-  const sc = t.score
-  const scoreLine = (x: PunditTournament) => x.score ? `${x.score.qualified}/${x.score.qualifiedOf} THROUGH · ${x.score.through}/${x.score.ties} TIES` : ''
+  // A pundit not built yet shows the panel's tournament for the moment it takes.
+  const tour = versions[who] ?? together
+  if (!tour) return null
+  const name = who === 0 ? t('verdict.thePanel') : panel[who - 1].name
+  const sc = tour.score
+  const scoreLine = (x: PunditTournament) => x.score ? t('verdict.throughLine', { q: x.score.qualified, qOf: x.score.qualifiedOf, t: x.score.through, ties: x.score.ties }) : ''
   return (
     <View style={tableStyles.wrap}>
-      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>THE PUNDITS' TOURNAMENT</KitText>
+      <KitText t="superS" color={roles.text} accessibilityRole="header" {...H2}>{t('verdict.tournamentTitle')}</KitText>
       <KitText t="body" color={roles.textMuted}>
-        {`Before a ball was kicked, each pundit drew the tournament their own way and played it out, backing the side they rated higher. ${who === 0 ? 'The panel together' : name} had ${t.champion.isPlayer ? 'you' : t.champion.clubName} as champions${sc?.champion ? ', and was right' : ''}.${sc ? ` ${sc.qualified} of the ${sc.qualifiedOf} they put through to the knockouts really got there${sc.places != null ? `, ${sc.places} league-phase places were exactly right` : ''}, and ${sc.through} of the ${sc.ties} sides they sent through a round really got that far.` : ''}`}
+        {t('verdict.tournamentIntro') + t('verdict.hadChampions', { who: who === 0 ? t('verdict.panelTogether') : name, champion: tour.champion.isPlayer ? t('verdict.youLower') : tour.champion.clubName })
+          + (sc?.champion ? t('verdict.wasRight') : '') + '.'
+          + (sc ? t('verdict.scoreQualified', { q: sc.qualified, qOf: sc.qualifiedOf }) + (sc.places != null ? t('verdict.scorePlaces', { n: sc.places }) : '') + t('verdict.scoreThrough', { t: sc.through, ties: sc.ties }) : '')}
       </KitText>
       <PunditRail roles={roles} selected={who} onSelect={setWho}
         cards={[
-          { key: 'panel', top: `ALL ${panel.length}`, title: 'The panel', lines: [`CHAMPIONS: ${versions[0].champion.isPlayer ? 'YOU' : versions[0].champion.clubName.toUpperCase()}`, scoreLine(versions[0])],
-            accessibilityLabel: `The panel together: champions ${versions[0].champion.clubName}` },
-          ...panel.map((p, i) => ({
-            key: p.name, country: p.country, title: p.name,
-            lines: [`CHAMPIONS: ${versions[i + 1].champion.isPlayer ? 'YOU' : versions[i + 1].champion.clubName.toUpperCase()}`, scoreLine(versions[i + 1])],
-            accessibilityLabel: `${p.name}, ${p.country}: champions ${versions[i + 1].champion.clubName}. Open their tournament`,
-          })),
+          { key: 'panel', top: t('verdict.all', { n: panel.length }), title: t('verdict.thePanel'), lines: [t('verdict.champions', { name: together.champion.isPlayer ? t('verdict.you') : together.champion.clubName.toUpperCase() }), scoreLine(together)],
+            accessibilityLabel: t('verdict.panelA11y', { name: together.champion.clubName }) },
+          ...panel.map((p, i) => {
+            const v = versions[i + 1]
+            return {
+              key: p.name, country: p.country, title: p.name,
+              lines: v ? [t('verdict.champions', { name: v.champion.isPlayer ? t('verdict.you') : v.champion.clubName.toUpperCase() }), scoreLine(v)] : ['…'],
+              accessibilityLabel: v ? t('verdict.punditA11y', { name: p.name, country: p.country, champion: v.champion.clubName }) : p.name,
+            }
+          }),
         ]} />
       <SegmentSwitch<'theirs' | 'real'> roles={roles} value={view} onChange={setView}
-        options={[{ id: 'theirs', label: who === 0 ? "The panel's" : `${panel[who - 1].name.split(' ')[0]}'s` }, { id: 'real', label: 'What happened' }]} />
+        options={[{ id: 'theirs', label: who === 0 ? t('verdict.panels') : t('verdict.theirs', { name: panel[who - 1].name.split(' ')[0] }) }, { id: 'real', label: t('verdict.whatHappened') }]} />
       {view === 'theirs' ? (
-        <TheirTournament t={t} name={name} playerClubId={playerClubId} flagOf={flagOf} />
+        <TheirTournament t={tour} name={name} playerClubId={playerClubId} flagOf={flagOf} />
       ) : (
         <>
           {actual.groups ? <GroupWall roles={roles} groups={actual.groups} />
             : actual.table ? <LeagueTable roles={roles} rows={actual.table} zones={CL_PHASE_ZONES} /> : null}
-          <KitText t="tag" color={roles.textMuted} style={tourStyles.round}>THE REAL BRACKET</KitText>
+          <KitText t="tag" color={roles.textMuted} style={tourStyles.round}>{t('verdict.realBracket')}</KitText>
           <BracketTree {...actual.bracket} playerClubId={playerClubId} height={440} />
         </>
       )}

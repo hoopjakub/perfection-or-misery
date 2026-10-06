@@ -99,10 +99,10 @@ Astro, the sections of [01](01-THE-SITE.md) §2, the counters, the logo (tinted 
 Updates, questions with search and the prefilled ask, the inbox of your questions, in both languages.
 
 ### Step 5 · The admin
-The account (created and stored by the maintainer), the row, TOTP, the route, the inbox, private conversations.
+The account (created and stored by the maintainer), the row, TOTP, the route, the inbox, private conversations, and the moderation tab: the app's reports and unsure names ([02](02-COMMUNITY-AND-QUESTIONS.md) §5a, added 1 Oct 2026).
 
 ### Step 6 · The APK and updates
-The download page, `latest.json`, GitHub Releases ([`../release/05-UPDATES-AND-THE-APK.md`](../release/05-UPDATES-AND-THE-APK.md)).
+The download page, `latest.json`, GitHub Releases ([`../release/05-UPDATES-AND-THE-APK.md`](../release/05-UPDATES-AND-THE-APK.md)). The releases repo exists: [hoopjakub/perfection-or-misery-release](https://github.com/hoopjakub/perfection-or-misery-release) (1 Oct 2026).
 
 ### Step 7 · The audit
 The upgraded audit, the two-account test, the critique again.

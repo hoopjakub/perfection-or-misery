@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from 'react'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
+import { t, num } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { KitScreen, KitText, SectionTag, BackControl, Plate, Tag, ClubName, RunLabel, InlineError, EmptyState, ListRow } from '@/components/kit'
+import { KitScreen, KitText, SectionTag, BackControl, Plate, Tag, ClubName, RunLabel, InlineError, EmptyState, ListRow, GhostRows } from '@/components/kit'
 import { fetchClubOf, type Club } from '@/db/queries/clubs'
 import { PageMeta } from '@/components/PageMeta'
 import { ProfileCard, SeasonBadgeCard } from '@/components/profile/ProfileParts'
@@ -24,6 +27,7 @@ import { OfflineNotice } from '@/components/OfflineStrip'
 const roles = ROLES[EVERYDAY]
 
 export default function ProfileScreen() {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { id } = useLocalSearchParams<{ id: string }>()
   const me = useUserStore(s => (s.isGuest ? null : s.user?.id ?? null))
   const [profile, setProfile] = useState<PublicProfile | null>(null)
@@ -39,7 +43,7 @@ export default function ProfileScreen() {
     let active = true
     ;(async () => {
       try {
-        const p = await fetchPublicProfile(id)
+        const p = await once(fetchPublicProfile(id))
         if (!active) return
         if (!p) { setState('missing'); return }
         setProfile(p)
@@ -48,33 +52,36 @@ export default function ProfileScreen() {
           fetchUserStats(id).catch(() => null),
           fetchMyPlace(id, {}).catch(() => null),
           fetchRunsByIds(p.pinned_run_ids ?? []).catch(() => []),
-          fetchSeasonBadges(id).catch(e => { console.warn('[profile] season badges failed:', e); return [] }),
+          fetchSeasonBadges(id).catch(e => { log.warn('net', 'profile: season badges failed', e); return [] }),
           fetchClubOf(id).catch(() => null),
         ])
         if (!active) return
         setStats(s); setPlace(rank?.place ?? null); setPins(runs); setBadges(seasons); setClub(clubOf)
       } catch (e) {
-        console.warn('[profile] load failed:', e)
+        log.warn('net', 'profile: load failed', e)
         if (active) setState('failed')
       }
     })()
     return () => { active = false }
   }, [id, attempt]))
 
-  const name = profile?.username ?? 'Player'
+  const name = profile?.username ?? t('profile.player')
   const own = !!me && me === id
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title={`${name}'s profile`} path={`/u/${id}`} />
+      <PageMeta title={t('profile.pageTitle', { name })} path={`/u/${id}`} />
       <OfflineNotice />
       <BackControl roles={roles} />
       {state === 'loading' ? (
-        <KitText t="bodyL" color={roles.textMuted} style={styles.top}>Finding the player.</KitText>
+        <View style={styles.top}>
+          <KitText t="bodyL" color={roles.textMuted}>{t('profile.finding')}</KitText>
+          <GhostRows roles={roles} count={3} />
+        </View>
       ) : state === 'failed' ? (
-        <InlineError roles={roles} message="This profile couldn't be loaded." onRetry={() => { setState('loading'); setAttempt(a => a + 1) }} />
+        <InlineError roles={roles} message={t('profile.loadFailed')} onRetry={() => { setState('loading'); setAttempt(a => a + 1) }} />
       ) : state === 'missing' || !profile ? (
-        <EmptyState roles={roles} title="No such player" body="This profile doesn't exist, or the account was deleted." />
+        <EmptyState roles={roles} title={t('profile.noSuchPlayer')} body={t('profile.noSuchPlayerBody')} />
       ) : (
         <>
           {/* P8-178: the player's card, Discord's way: banner, framed picture,
@@ -82,30 +89,30 @@ export default function ProfileScreen() {
           <ProfileCard roles={roles} name={name} avatarPath={profile.avatar_path} look={readLook(profile)}
             badgeTeamId={profile.badge_team_id} badgeTeamName={profile.badge_team_name} tag={club?.tag} />
           {club ? (
-            <ListRow roles={roles} label={club.name} sub={`Their club · ${club.tag}`} onPress={() => router.push({ pathname: '/club/[id]', params: { id: club.id } })} />
+            <ListRow roles={roles} label={club.name} sub={t('profile.theirClub', { tag: club.tag })} onPress={() => router.push({ pathname: '/club/[id]', params: { id: club.id } })} />
           ) : null}
           {own && (
             <View style={styles.actions}>
-              <Plate label="Edit your profile" variant="secondary" roles={roles} onPress={() => router.push('/profile-edit')} />
-              <Plate label="Friends" variant="secondary" roles={roles} onPress={() => router.push('/friends')} />
+              <Plate label={t('profile.editYours')} variant="secondary" roles={roles} onPress={() => router.push('/profile-edit')} />
+              <Plate label={t('profile.friends')} variant="secondary" roles={roles} onPress={() => router.push('/friends')} />
             </View>
           )}
           {/* P8-90: where you stand with this player, and the one thing to do about it. */}
           {!!me && !own && <FriendButton id={id} name={name} />}
 
-          <SectionTag roles={roles}>Record</SectionTag>
+          <SectionTag roles={roles}>{t('profile.record')}</SectionTag>
           <View style={styles.record}>
-            {place != null && <Fact label="World rank" value={ordinal(place)} />}
-            {stats?.bestTier && <Fact label="Best" value={formatTier(stats.bestTier)} />}
-            <Fact label="Runs" value={String(profile.runs_played ?? stats?.totalRuns ?? 0)} />
+            {place != null && <Fact label={t('profile.worldRank')} value={ordinal(place)} />}
+            {stats?.bestTier && <Fact label={t('profile.best')} value={formatTier(stats.bestTier)} />}
+            <Fact label={t('profile.runs')} value={String(profile.runs_played ?? stats?.totalRuns ?? 0)} />
             {/* Only runs saved since P8-88 carry their length; with none yet, say nothing rather than "0 min". */}
-            {!!profile.playtime_seconds && <Fact label="Played" value={formatPlaytime(profile.playtime_seconds)} />}
+            {!!profile.playtime_seconds && <Fact label={t('profile.played')} value={formatPlaytime(profile.playtime_seconds)} />}
           </View>
 
           {/* P8-152: a badge for every season played, the live one marked as so far. */}
           {badges.length > 0 && (
             <>
-              <SectionTag roles={roles}>Seasons</SectionTag>
+              <SectionTag roles={roles}>{t('profile.seasons')}</SectionTag>
               <View style={styles.badges}>
                 {badges.map(b => <SeasonBadgeCard key={b.season.n} roles={roles} badge={b} />)}
               </View>
@@ -114,7 +121,7 @@ export default function ProfileScreen() {
 
           {(profile.favourite_team_id || profile.favourite_player) ? (
             <>
-              <SectionTag roles={roles}>Favourites</SectionTag>
+              <SectionTag roles={roles}>{t('profile.favourites')}</SectionTag>
               {profile.favourite_team_id && profile.favourite_team_name
                 ? <ClubName roles={roles} clubId={profile.favourite_team_id} name={profile.favourite_team_name} size={24} t="bodyL" />
                 : null}
@@ -124,11 +131,11 @@ export default function ProfileScreen() {
 
           {pins.length > 0 && (
             <>
-              <SectionTag roles={roles}>Pinned runs</SectionTag>
+              <SectionTag roles={roles}>{t('profile.pinnedRuns')}</SectionTag>
               <View style={styles.pins}>
                 {pins.map(run => (
                   <RunLabel key={run.id} roles={roles} colourway={colourwayFor(run.mode)} title={formatTier(run.tier)}
-                    meta={runMeta(run)} score={run.score.toLocaleString('en-US')} verdict={verdictOf(run.tier)}
+                    meta={runMeta(run)} score={num(run.score)} verdict={verdictOf(run.tier)}
                     onPress={() => router.push({ pathname: runRoute(run.mode), params: { runId: run.id } })} />
                 ))}
               </View>
@@ -137,7 +144,7 @@ export default function ProfileScreen() {
 
           {(profile.shown_achievements?.length ?? 0) > 0 && (
             <>
-              <SectionTag roles={roles}>On display</SectionTag>
+              <SectionTag roles={roles}>{t('profile.onDisplay')}</SectionTag>
               <View style={styles.trophies}>
                 {profile.shown_achievements!.map(t => <Tag key={t} roles={roles} variant="win">{trophyLabel(t).toUpperCase()}</Tag>)}
               </View>
@@ -146,7 +153,7 @@ export default function ProfileScreen() {
 
           {/* P8.5-44: at the foot, quiet, so it's there when needed and not in the way. */}
           {!own && (
-            <Plate label="Report this player" variant="quiet" roles={roles} style={styles.report}
+            <Plate label={t('moderation.reportPlayer')} variant="quiet" roles={roles} style={styles.report}
               onPress={() => router.push({ pathname: '/report', params: { type: 'player', id, name } })} />
           )}
         </>
@@ -158,27 +165,27 @@ export default function ProfileScreen() {
 function FriendButton({ id, name }: { id: string; name: string }) {
   const [rel, setRel] = useState<{ state: Relationship; requestId?: string } | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const load = useCallback(() => { relationshipWith(id).then(setRel).catch(e => console.warn('[profile] friendship failed:', e)) }, [id])
+  const load = useCallback(() => { relationshipWith(id).then(setRel).catch(e => log.warn('net', 'profile: friendship failed', e)) }, [id])
   useFocusEffect(load)
   const run = async (fn: () => Promise<unknown>, done: string) => {
     try { await fn(); setNote(done); load() }
-    catch (e) { console.warn('[profile] friend action failed:', e); setNote("That didn't go through. Try again.") }
+    catch (e) { log.warn('net', 'profile: friend action failed', e); setNote(t('friends.errGeneric')) }
   }
   if (!rel) return null
   return (
     <View style={styles.friend}>
-      {rel.state === 'none' && <Plate label="Add friend" icon="keep" roles={roles} onPress={() => run(() => sendFriendRequest(id), `Request sent to ${name}.`)} />}
-      {rel.state === 'sent' && <Tag roles={roles}>REQUEST SENT</Tag>}
+      {rel.state === 'none' && <Plate label={t('friends.addFriend')} icon="keep" roles={roles} onPress={() => run(() => sendFriendRequest(id), t('friends.requestSentTo', { name }))} />}
+      {rel.state === 'sent' && <Tag roles={roles}>{t('friends.requestSent')}</Tag>}
       {rel.state === 'received' && rel.requestId && (
-        <Plate label={`Accept ${name}'s request`} roles={roles} onPress={() => run(() => respondToRequest(rel.requestId!, true), `You and ${name} are friends.`)} />
+        <Plate label={t('friends.acceptTheirs', { name })} roles={roles} onPress={() => run(() => respondToRequest(rel.requestId!, true), t('friends.nowFriends', { name }))} />
       )}
       {rel.state === 'friends' && (
         <View style={styles.actions}>
-          <Tag roles={roles} variant="win">FRIENDS</Tag>
-          <Plate label="Remove friend" variant="quiet" roles={roles} onPress={() => openConfirm({
-            question: `Remove ${name} as a friend?`,
-            consequence: 'You come off each other\'s friends lists. Either of you can ask again.',
-            confirmLabel: 'Remove', stayLabel: 'Keep', onConfirm: () => run(() => removeFriend(id), `${name} removed.`),
+          <Tag roles={roles} variant="win">{t('friends.statusFriends')}</Tag>
+          <Plate label={t('friends.removeFriend')} variant="quiet" roles={roles} onPress={() => openConfirm({
+            question: t('friends.removeQuestion', { name }),
+            consequence: t('friends.removeConsequence'),
+            confirmLabel: t('friends.remove'), stayLabel: t('friends.keep'), onConfirm: () => run(() => removeFriend(id), t('friends.removed', { name })),
           })} />
         </View>
       )}

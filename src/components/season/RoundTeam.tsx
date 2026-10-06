@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+import { log } from '@/diag/log'
 import React, { useEffect, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import type { Roles } from '@/theme'
@@ -39,7 +41,7 @@ export function RoundTeam({ roles, roundKey, label, fixtures, poolByClub, ctx }:
     if (byRound.has(roundKey)) { setTeam(byRound.get(roundKey)!); return }
     const t = setTimeout(() => {
       let picked: PickedTeam | null = null
-      try { picked = teamOfTheRound(fixtures, poolByClub, ctx, roundKey) } catch (e) { console.warn('[round team] failed:', e) }
+      try { picked = teamOfTheRound(fixtures, poolByClub, ctx, roundKey) } catch (e) { log.warn('sim', 'round team: failed', e) }
       byRound.set(roundKey, picked)
       setTeam(picked)
     }, 0)
@@ -52,7 +54,7 @@ export function RoundTeam({ roles, roundKey, label, fixtures, poolByClub, ctx }:
       <View style={styles.wrap}>
         <SectionTag roles={roles}>{label}</SectionTag>
         <FormationPitch roles={roles} team={team} showScores="rating"
-          caption="The best-rated player in every position this round." benchLabel="Close calls" />
+          caption={t('season.roundTeamCaption')} benchLabel={t('season.closeCalls')} />
       </View>
     </SafeSection>
   )

@@ -96,6 +96,28 @@ Filters: status, and "edited since I looked". Actions on a question: set the sta
 
 There is no count of "unanswered" that the public sees. The inbox is private.
 
+## 5a · The moderation inbox
+
+*Added 1 October 2026 (P8.5-44).* The app's moderation was built in Wave D: names are checked in the database, players report players and clubs from their pages, and unsure names and reports collect in `mod_flags` and `mod_reports` (`supabase/moderation.sql`). The maintainer, after a day with the inbox in the app: the inbox belongs **on the website**, beside the questions, under the same admin. So the app has no moderator role or screen any more, and until the site exists the inbox is run from the Supabase SQL editor:
+
+```sql
+select * from mod_inbox();                 -- what's open, most-reported first
+select mod_act(<id>, 'dismiss');           -- or 'rename', 'ban', 'close' (clubs)
+```
+
+What the site adds:
+
+| Part | What it does |
+|---|---|
+| A **Moderation** tab in the admin's inbox | The open flags, most-reported first: what was flagged (a player's name or profile text, a club's name and tag), why (the filter wasn't sure, or the report reasons with the reporters' notes), how many reported it, when |
+| Actions | Let it be; take the name (the player is asked for a new one, `profiles.must_rename`); ban (`profiles.banned_at`: no runs, chat, clubs or reports); for a club, take the name or close it. Each says what it does before it's done, like the app's confirmations |
+| Open the thing | A link to the player's or club's page, to see it in context |
+| The word lists | Read-only first: a search box that says whether a word is listed, inside-words or review, and which list it came from. Editing stays in the repo (`scripts/moderation/`, [`../MODERATION.md`](../MODERATION.md)), so every change is reviewed and versioned |
+
+How it's built: `qa_`-style admin functions that start with `site_is_admin()` ([03](03-ACCOUNTS-AND-THE-ADMIN.md) §3, the second factor included) and then call `mod_inbox()` and `mod_act()`. Those two are closed to every app account today (revoked from `anon` and `authenticated`), so the wrapper is the only way in. The site's build order adds this to step 5 (the admin) of [05](05-OPEN-QUESTIONS.md) §3.
+
+Left out, and when to add it: hiding a name automatically after a few reports (until the volume says it's needed); a log of what the admin did (with a second admin).
+
 ## 6 · The screens
 
 Phone first, then the wide layout. Kit Drop's grammar: tags for statuses, a riveted plate for the one primary action, hairline rules between rows.

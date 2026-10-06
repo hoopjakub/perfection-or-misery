@@ -6,6 +6,7 @@
 // World Cup national-team club ids (`*_nt`) → ISO numeric.
 // The club→country maps are keyed by club name, so they live in their own
 // module with a public-build twin (europe-countries.legal.ts, P8.5 Wave D).
+import { englishCountry } from './countries-sk'
 import { EUROPE_CLUB_COUNTRY, CL_CLUB_COUNTRY } from './europe-countries'
 export const NATION_ISO: Record<string, number> = {
   algeria_nt: 12, argentina_nt: 32, australia_nt: 36, austria_nt: 40, belgium_nt: 56,
@@ -115,6 +116,9 @@ function flagFromA2(a2: string): string {
 export function flagForCountry(country?: string | null): string {
   if (!country) return ''
   if (COUNTRY_FLAG[country]) return COUNTRY_FLAG[country]
+  // P8.5-28: a name already shown in Slovak ("Brazília") finds its flag too.
+  const en = englishCountry(country)
+  if (en && en !== country) return flagForCountry(en)
   const iso = COUNTRY_ISO[country]
   const a2 = iso ? ISO_NUM_TO_A2[iso] : undefined
   return a2 ? flagFromA2(a2) : ''
@@ -169,8 +173,48 @@ const NATIONALITY_A2: Record<string, string> = {
   Mauritius: 'MU', Malaysia: 'MY', Macao: 'MO', Liechtenstein: 'LI', Laos: 'LA', 'Korea, North': 'KP',
   Guatemala: 'GT', Ethiopia: 'ET', 'El Salvador': 'SV', Djibouti: 'DJ', Bermuda: 'BM', Barbados: 'BB',
   Bangladesh: 'BD', Bahrain: 'BH', Aruba: 'AW', 'Antigua and Barbuda': 'AG',
+  // Phase 9 (verify-nationality, 6 Oct): the last eleven with a blank flag on
+  // their draft card, 59 players. DEMONYM_COUNTRY below already named their
+  // countries; the flag lookup reads this table, which didn't have them.
+  // British and Briton are the UK's flag (the home nations keep their own).
+  British: 'GB', Briton: 'GB', 'British Virgin Islands': 'VG', Botswanan: 'BW', Chinese: 'CN',
+  Dominican: 'DO', Greenland: 'GL', 'Puerto Rican': 'PR', Seychellois: 'SC', 'South Sudanese': 'SS', Sudanese: 'SD',
 }
 const HOME_NATIONS: Record<string, string> = { English: 'England', Scottish: 'Scotland', Welsh: 'Wales', 'Northern Ireland': 'Northern Ireland' }
+
+// The country a flag belongs to, read back off COUNTRY_FLAG (first name wins,
+// so the UK's shared flag stays 'Northern Ireland' only where nothing else has it).
+let FLAG_COUNTRY: Map<string, string> | null = null
+// Demonyms whose country COUNTRY_FLAG doesn't name (every one left over in
+// players_v5.db, 3 Oct 2026). "Dominican" is the Dominican Republic: every
+// player stored that way plays for it, none for Dominica.
+const DEMONYM_COUNTRY: Record<string, string> = {
+  Cameroonian: 'Cameroon', Peruvian: 'Peru', Malian: 'Mali', Nigerian: 'Nigeria', Guinean: 'Guinea',
+  Chilean: 'Chile', Jamaican: 'Jamaica', Russian: 'Russia', Venezuelan: 'Venezuela', 'Costa Rican': 'Costa Rica',
+  Angolan: 'Angola', Gabonese: 'Gabon', Bolivian: 'Bolivia', Zambian: 'Zambia', 'Puerto Rican': 'Puerto Rico',
+  Botswanan: 'Botswana', 'South Sudanese': 'South Sudan', Sudanese: 'Sudan', Dominican: 'Dominican Republic',
+  Seychellois: 'Seychelles', Chinese: 'China', Briton: 'United Kingdom', British: 'United Kingdom',
+}
+
+/**
+ * A nationality as one consistent label: the country's English name.
+ * The data mixes the two forms ("Spain" for 1,373 players, "Spanish" for 571,
+ * "Argentina" beside "Argentine"), so a draft card could read SPAIN and the
+ * next SPANISH (found filming the trailer, 3 Oct 2026). The flag lookup
+ * already resolves both forms; this names the country that flag belongs to,
+ * and screens pass it through countryName() for Slovak. Falls back to the
+ * raw value for the few the flag table doesn't name.
+ */
+export function nationalityCountry(nationality?: string | null): string {
+  if (!nationality) return ''
+  const home = HOME_NATIONS[nationality] ?? DEMONYM_COUNTRY[nationality]
+  if (home) return home
+  if (!FLAG_COUNTRY) {
+    FLAG_COUNTRY = new Map()
+    for (const [name, flag] of Object.entries(COUNTRY_FLAG)) if (!FLAG_COUNTRY.has(flag) || name === 'Northern Ireland') FLAG_COUNTRY.set(flag, FLAG_COUNTRY.get(flag) ?? name)
+  }
+  return FLAG_COUNTRY.get(flagForNationality(nationality)) ?? nationality
+}
 
 /** A player's flag emoji from his nationality (demonym or country), or ''. */
 export function flagForNationality(nationality?: string | null): string {

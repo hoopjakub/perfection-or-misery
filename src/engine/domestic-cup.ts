@@ -11,10 +11,12 @@
 // it's played (an open draw, as the real cups are), from the run's seed, and
 // every tie is one match with extra time and penalties (simulateKnockout).
 // The cup is an honour, not points: the run's score still comes from the league.
+import { t as tr } from '../i18n'
+import { label } from '../i18n/labels'
 import { simulateKnockout, simulateTwoLegs, type LegScore } from './knockout-match'
 import { attributeFixtureScorers } from './play-fixture'
 import type { MatchScorers, RosterPlayer } from '@/types/stats'
-import { mulberry32, deriveSeed } from '@/lib/rng'
+import { mulberry32, deriveSeed, shuffle } from '@/lib/rng'
 import type { SimTeam } from '@/types/simulation'
 
 export type CupSide = { clubId: string; clubName: string; isPlayer: boolean }
@@ -55,11 +57,6 @@ const LABEL: Record<CupRoundKey, string> = { r1: 'First round', r16: 'Last sixte
 
 const sideOf = (t: { clubId: string; clubName: string; isPlayer: boolean }): CupSide => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer })
 
-function shuffled<T>(rng: () => number, xs: T[]): T[] {
-  const a = [...xs]
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
-  return a
-}
 
 /** The cup's shape for this league: who plays the first round, and when each round falls. */
 export function planCup(teams: { clubId: string; clubName: string; isPlayer: boolean; ovr: number }[], totalMatchdays: number, seed: number, name: string, twoLeggedSemis = false): DomesticCup | null {
@@ -111,7 +108,7 @@ export function playCupAfter(cup: DomesticCup, md: number, teams: SimTeam[]): Do
     if (r.played || r.afterMatchday !== md) return
     // An open draw each round, from the run's seed: the same run draws the same way.
     const rng = mulberry32(deriveSeed(cup.seed, 0xc0f + i))
-    const inRound = shuffled(rng, entrantsOf(next, i, all))
+    const inRound = shuffle(rng, entrantsOf(next, i, all))
     const ties: CupTie[] = []
     for (let k = 0; k + 1 < inRound.length; k += 2) {
       const home = inRound[k], away = inRound[k + 1]
@@ -158,19 +155,19 @@ export function cupReachOf(cup: DomesticCup | null | undefined, clubId: string):
 
 /** "a.e.t." or "4–3 on penalties", for a tie's line. */
 export function tieNote(t: CupTie): string | null {
-  const end = t.homePens != null && t.awayPens != null ? `${t.homePens}–${t.awayPens} on penalties`
-    : t.extraTime ? 'after extra time' : null
+  const end = t.homePens != null && t.awayPens != null ? tr('result.onPens', { a: t.homePens, b: t.awayPens })
+    : t.extraTime ? tr('result.aet') : null
   if (!t.legs) return end
   // Both legs from the first leg's home side, so they read with the aggregate.
-  const legs = `on aggregate · legs ${t.legs.leg1.homeGoals}–${t.legs.leg1.awayGoals}, ${t.legs.leg2.awayGoals}–${t.legs.leg2.homeGoals}`
+  const legs = tr('result.onAggregate', { l1: `${t.legs.leg1.homeGoals}–${t.legs.leg1.awayGoals}`, l2: `${t.legs.leg2.awayGoals}–${t.legs.leg2.homeGoals}` })
   return end ? `${legs} · ${end}` : legs
 }
 
 /** What reaching a round is called, for the result screen and the run list. */
 export function reachLabel(reach: CupReach, cupName: string): string {
-  if (reach === 'winner') return `${cupName} winners`
-  if (reach === 'final') return `${cupName} finalists`
-  return `Out in the ${LABEL[reach].toLowerCase()}`
+  if (reach === 'winner') return tr('result.cupWinners', { cup: cupName })
+  if (reach === 'final') return tr('result.cupFinalists', { cup: cupName })
+  return tr('result.cupOutIn', { round: label(LABEL[reach]).toLowerCase() })
 }
 
 /**

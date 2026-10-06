@@ -108,8 +108,8 @@ The house style (see `scripts/verify-match-detail.ts`, `verify-difficulty.ts`,
 ### 3. Browser walkthrough — the quick-sim tester
 
 The fastest way to exercise draft → sim → result → stats end-to-end without
-manually drafting 11 players: **About tab → tap the version number 8×**
-to reveal the hidden Quick Sim Tester, then League/UCL/UCL✦/WC. It only
+manually drafting 11 players: **About → tap "Made in Slovakia" 8× (or the
+Diagnostics row) → Tools**, the Quick Sim Tester at `/diagnostics/tools`, then League/UCL/UCL✦/WC. It only
 unlocks in development (`__DEV__`, e.g. `npm run web`) or in builds with
 `EXPO_PUBLIC_DEV_TOOLS=1` (the `development` and `preview` EAS profiles). It auto-drafts,
 simulates headlessly, and lands on the result screen (stats included).
@@ -121,6 +121,36 @@ simulates headlessly, and lands on the result screen (stats included).
 - Check `read_console_messages(onlyErrors)` — it should be empty.
 - The dev server can take ~30s to first-bundle and the SQLite worker occasionally
   stalls on a cold boot; a reload clears it. That's infra, not your change.
+
+### 4. Diagnostics — measure, don't guess (Phase 9)
+
+- **Log, never `console`.** `log.info/warn/error(cat, msg, data)` from
+  `@/diag/log` (on the phone every line also reaches Android's log in every
+  build, `adb logcat -s ReactNativeJS`, lines start `POM`); `verify-diag` fails on any console call outside
+  `src/diag/log.ts`. Categories include `run` (RUN STARTED / RUN ENDED) and
+  `screen`. Warnings and errors are kept on the device across a crash.
+- **Timed work has a budget.** `time`/`timeAsync`/`timeToFrame`/`frame` from
+  `@/diag/perf` with a key in `src/diag/budgets.ts`; `verify-budgets` fails if a
+  runtime budget has no site or a key has more than two. The screen is
+  `/diagnostics` (About, 8 taps, or Ctrl+Shift+D on web); the web console has
+  `pomPerf.readings()` and `await runSelfTest()`.
+- **The match rules live once**, in `src/engine/invariants.ts`;
+  `verify-match-detail` and `verify-deep-match` call them, print their check
+  count, and take `--seed N` to replay a run exactly.
+- **Changing what a seed produces is a decision.** Anything that moves seeded
+  output (match-detail, deep-match, lineups, attribution) means: bump
+  `ENGINE_VERSION` (`src/engine/version.ts`), run `npx tsx scripts/diag-golden.ts`,
+  and commit the new `src/diag/golden.ts`. `verify-diag-golden` fails until you
+  do, because every saved run's sheets are rebuilt from seeds with today's engine.
+- `verify-report` keeps the shared report under 4,000 characters and free of
+  anything personal; `verify-reload` reports what a reload loses.
+- **The legal build swaps five modules only for one importer each**
+  (`metro.config.js`). Import `logoMap`, `dbAsset`, `stadiums`,
+  `europe-countries` and `clubFactsData` only through their named file, or real
+  names ship in the public build; `verify-diag` fails otherwise. To check a
+  real export: `EXPO_PUBLIC_BRAND_MODE=original npx expo export --platform web`
+  then `verify-legal-bundle <dir>` (the local `.env` is the personal build).
+  Build sizes: `npx tsx scripts/perf-size.ts --web <dir> --log` → `docs/PERF-LOG.md`.
 
 ## Architecture (what to preserve)
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { log } from '@/diag/log'
 import { unreadCount } from '@/lib/friends'
 import { useUserStore } from './userStore'
 
@@ -13,7 +14,7 @@ export const useNoticeStore = create<NoticeStore>(set => ({
     const { user, isGuest } = useUserStore.getState()
     if (!user || isGuest) { set({ unread: 0 }); return }
     try { set({ unread: await unreadCount() }) }
-    catch (e) { console.warn('[notices] count failed:', e) }   // the table may not allow it yet; no badge then
+    catch (e) { log.warn('net', 'notices: count failed', e) }   // the table may not allow it yet; no badge then
   },
   clear: () => set({ unread: 0 }),
 }))

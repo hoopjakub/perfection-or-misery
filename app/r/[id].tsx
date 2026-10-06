@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React, { useEffect, useState } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 import { KitScreen, KitText, Loader, EmptyState, Plate } from '@/components/kit'
@@ -35,13 +36,13 @@ export default function SharedRunScreen() {
     <KitScreen ground={EVERYDAY} scroll={false}>
       {failed ? (
         <>
-          <EmptyState roles={roles} title="Run not found" body="This link doesn't lead to a saved run. It may have been deleted, or the link was cut short." />
-          <Plate label="Go home" roles={roles} onPress={exitToHome} />
+          <EmptyState roles={roles} title={t('screens.runNotFound')} body={t('screens.runNotFoundBody')} />
+          <Plate label={t('screens.goHome')} roles={roles} onPress={exitToHome} />
         </>
       ) : (
         <>
-          <Loader color={roles.text} label="Opening the run" />
-          <KitText t="bodyL" color={roles.textMuted}>Opening the run…</KitText>
+          <Loader color={roles.text} label={t('screens.openingRun')} />
+          <KitText t="bodyL" color={roles.textMuted}>{t('screens.openingRunDots')}</KitText>
         </>
       )}
     </KitScreen>

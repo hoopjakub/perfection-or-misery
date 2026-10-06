@@ -18,19 +18,23 @@
 // `minute` number. Every panel selects the frame it needs from that minute, so
 // a tick re-renders numbers, never structure.
 
+import { t } from '@/i18n'
+import { useFrameSampler } from '@/diag/frames'
+import { time } from '@/diag/perf'
+import { label } from '@/i18n/labels'
 import { RatingSquare } from '@/components/kit'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { TeamColoursContext, useTeamColours } from '@/lib/teamColours'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { forCompetition } from '@/data/competition'
+import { isTournament } from '@/data/competition'
 import { useGameStore } from '@/store/gameStore'
 import { WebColumn } from '@/components/kit'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { ROLES, space, border, prim, ratingColor, ratingInk } from '@/theme'
-import { flagForCountry } from '@/data/geo-iso'
-import { KitText, Plate, Tag, SectionTag, RoundFlag } from '@/components/kit'
+import { countryName } from '@/data/countries-sk'
+import { KitText, Plate, Tag, SectionTag, RoundFlag, TeamMark } from '@/components/kit'
 import { ThumbBar } from '@/components/season/RunChrome'
 import { lineForEvent, quietLine, chanceLines, clockFromFrames, type CommentaryLine } from '@/engine/commentary'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
@@ -87,9 +91,9 @@ export default function DeepMatchScreen() {
   if (!request) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <KitText t="superM" color={roles.text}>NO FINAL</KitText>
-        <KitText t="bodyL" color={roles.textMuted}>There's no final waiting to be played.</KitText>
-        <Plate label="Go back" roles={roles} onPress={() => router.back()} />
+        <KitText t="superM" color={roles.text}>{t('match.noFinal')}</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('match.noFinalBody')}</KitText>
+        <Plate label={t('match.goBack')} roles={roles} onPress={() => router.back()} />
       </View>
     )
   }
@@ -97,8 +101,8 @@ export default function DeepMatchScreen() {
   if (loading || !detail) {
     return (
       <View style={[styles.container, styles.centred]}>
-        <KitText t="superL" color={roles.text}>WALKING OUT</KitText>
-        <KitText t="bodyL" color={roles.textMuted}>The tunnel. The noise. The lights.</KitText>
+        <KitText t="superL" color={roles.text}>{t('match.walkingOut')}</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('match.tunnel')}</KitText>
       </View>
     )
   }
@@ -113,8 +117,8 @@ export default function DeepMatchScreen() {
         won={won}
         kind={kind}
         title={won
-          ? (kind === 'globe' ? 'World Champions' : 'Champions of Europe')
-          : 'Runners-up'}
+          ? (kind === 'globe' ? t('match.worldChampions') : t('match.championsOfEurope'))
+          : t('match.runnersUp')}
         subtitle={`${home} ${r.detail.homeGoals} – ${r.detail.awayGoals} ${away}`}
         accent={r.accent}
         onContinue={() => setPhase('exiting')}
@@ -147,7 +151,7 @@ function MatchBeats({ request, detail, phase, onStart, onFinished }: {
   onStart: () => void; onFinished: () => void
 }) {
   const timeline = useRef<DeepMatchTimeline>(
-    buildDeepMatchTimeline(detail, effectiveSeed(request.detail)),
+    time('deep:timeline', () => buildDeepMatchTimeline(detail, effectiveSeed(request.detail))),
   ).current
 
   if (phase === 'lineups') {
@@ -171,8 +175,8 @@ function ExitToResults({ request }: { request: DeepMatchRequest }) {
   }, [])
   return (
     <View style={[styles.container, styles.centred]}>
-      <KitText t="superM" color={roles.text}>AWARDS NIGHT</KitText>
-      <KitText t="bodyL" color={roles.textMuted}>{forCompetition('The season, counted up.', useGameStore.getState().mode)}</KitText>
+      <KitText t="superM" color={roles.text}>{t('match.awardsNight')}</KitText>
+      <KitText t="bodyL" color={roles.textMuted}>{t(isTournament(useGameStore.getState().mode) ? 'match.countedTournament' : 'match.countedSeason')}</KitText>
     </View>
   )
 }
@@ -196,14 +200,14 @@ function LineupsStep({ request, detail, timeline, onStart }: {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollBody}>
         <View style={styles.sheetHead}>
-          <SectionTag roles={roles}>{request.competitionLabel}</SectionTag>
-          <KitText t="superXl" color={roles.text} style={styles.centreText}>{request.roundLabel.toUpperCase()}</KitText>
-          <KitText t="bodyL" color={roles.textMuted} style={styles.centreText}>One match. Everything on it.</KitText>
+          <SectionTag roles={roles}>{label(request.competitionLabel)}</SectionTag>
+          <KitText t="superXl" color={roles.text} style={styles.centreText}>{label(request.roundLabel).toUpperCase()}</KitText>
+          <KitText t="bodyL" color={roles.textMuted} style={styles.centreText}>{t('match.oneMatch')}</KitText>
         </View>
         <View style={styles.finalistRow}>
-          <Finalist name={request.detail.homeName} align="right" />
-          <KitText t="tag" color={roles.textMuted}>V</KitText>
-          <Finalist name={request.detail.awayName} align="left" />
+          <Finalist name={request.detail.homeName} clubId={request.detail.homeClubId} align="right" />
+          <KitText t="tag" color={roles.textMuted}>{t('match.versus')}</KitText>
+          <Finalist name={request.detail.awayName} clubId={request.detail.awayClubId} align="left" />
         </View>
 
         {sides.map(s => (
@@ -215,18 +219,19 @@ function LineupsStep({ request, detail, timeline, onStart }: {
       </ScrollView>
 
       <ThumbBar>
-        <Plate label="Kick off the final" icon="play" roles={roles} onPress={onStart} />
+        <Plate label={t('match.kickOffFinal')} icon="play" roles={roles} onPress={onStart} />
       </ThumbBar>
     </View>
   )
 }
 
-function Finalist({ name, align }: { name: string; align: 'left' | 'right' }) {
-  const flag = flagForCountry(name)
+// Step 1 (A-08): the mark by the side's id, so a club's crest shows too, not
+// only a nation's flag found by its name.
+function Finalist({ name, clubId, align }: { name: string; clubId: string; align: 'left' | 'right' }) {
   return (
     <View style={[styles.finalist, { alignItems: align === 'right' ? 'flex-end' : 'flex-start' }]}>
-      {flag ? <RoundFlag emoji={flag} code={name.slice(0, 3)} size={24} roles={roles} /> : null}
-      <KitText t="superS" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{name.toUpperCase()}</KitText>
+      <TeamMark roles={roles} clubId={clubId} name={name} size={24} />
+      <KitText t="superS" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{countryName(name).toUpperCase()}</KitText>
     </View>
   )
 }
@@ -240,6 +245,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
 
   const [minute, setMinute] = useState(0)
   const [paused, setPaused] = useState(false)
+  useFrameSampler('frame:deepMatch', !paused)   // Phase 9: the live phase's frames
   const finishedRef = useRef(false)
   // P8-63: a goal, a red card or a missed penalty holds the clock for a beat —
   // the ground stops for it before the next minute ticks on.
@@ -280,8 +286,8 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
     [timeline, minute],
   )
 
-  const half = minute > 45 && minute <= 90 ? '2nd half' : minute <= 45 ? '1st half' : 'Extra time'
-  const status = minute >= timeline.duration ? 'FULL TIME' : half
+  const half = minute > 45 && minute <= 90 ? t('match.half2') : minute <= 45 ? t('match.half1') : t('match.extraTime')
+  const status = minute >= timeline.duration ? t('match.fullTimeCaps') : half
 
   // The graph's x-axis is scaled to the duration and labels the breaks, so
   // handing it 120 from the first minute announced "this one goes to extra
@@ -319,7 +325,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
           latest line of commentary under it. */}
       <View style={[styles.board, { borderBottomColor: roles.line }]}>
         <View style={styles.boardTop}>
-          <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{request.roundLabel}</KitText>
+          <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{label(request.roundLabel)}</KitText>
           <Tag roles={roles} variant="selected">{`${minute}'`}</Tag>
           <KitText t="tag" color={roles.textMuted}>{status}</KitText>
         </View>
@@ -347,7 +353,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
 
       <ScrollView contentContainerStyle={styles.scrollBody}>
         <View style={styles.section}>
-          <SectionTag roles={roles}>Momentum</SectionTag>
+          <SectionTag roles={roles}>{t('match.momentumTag')}</SectionTag>
           <MomentumGraph
             series={detail.momentum.slice(0, shownDuration)} duration={shownDuration}
             markers={momentumMarkers(shownEvents)}
@@ -358,29 +364,29 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
 
         {frame && (
           <View style={styles.section}>
-            <SectionTag roles={roles}>Match stats</SectionTag>
+            <SectionTag roles={roles}>{t('match.matchStats')}</SectionTag>
             <StatSideHeader homeName={home} awayName={away} accent={accent} />
-            <StatBar label="Ball possession" home={frame.home.possession} away={frame.away.possession} accent={accent} pct />
-            <StatBar label="Expected goals (xG)" home={frame.home.xg} away={frame.away.xg} accent={accent} />
-            <StatBar label="Total shots" home={frame.home.shots} away={frame.away.shots} accent={accent} />
-            <StatBar label="Shots on target" home={frame.home.shotsOnTarget} away={frame.away.shotsOnTarget} accent={accent} />
-            <StatBar label="Big chances" home={frame.home.bigChances} away={frame.away.bigChances} accent={accent} />
-            <StatBar label="Accurate passes" home={frame.home.accuratePasses} away={frame.away.accuratePasses} accent={accent} />
-            <StatBar label="Tackles won" home={frame.home.tacklesWon} away={frame.away.tacklesWon} accent={accent} />
-            <StatBar label="Fouls" home={frame.home.fouls} away={frame.away.fouls} accent={accent} />
-            <StatBar label="Corners" home={frame.home.corners} away={frame.away.corners} accent={accent} />
+            <StatBar label={t('match.stat.possession')} home={frame.home.possession} away={frame.away.possession} accent={accent} pct />
+            <StatBar label={t('match.stat.xg')} home={frame.home.xg} away={frame.away.xg} accent={accent} />
+            <StatBar label={t('match.stat.shots')} home={frame.home.shots} away={frame.away.shots} accent={accent} />
+            <StatBar label={t('match.stat.shotsOnTarget')} home={frame.home.shotsOnTarget} away={frame.away.shotsOnTarget} accent={accent} />
+            <StatBar label={t('match.stat.bigChances')} home={frame.home.bigChances} away={frame.away.bigChances} accent={accent} />
+            <StatBar label={t('match.stat.accuratePasses')} home={frame.home.accuratePasses} away={frame.away.accuratePasses} accent={accent} />
+            <StatBar label={t('match.stat.tacklesWon')} home={frame.home.tacklesWon} away={frame.away.tacklesWon} accent={accent} />
+            <StatBar label={t('match.stat.fouls')} home={frame.home.fouls} away={frame.away.fouls} accent={accent} />
+            <StatBar label={t('match.stat.corners')} home={frame.home.corners} away={frame.away.corners} accent={accent} />
             <View style={styles.teamRatingRow}>
               <RatingPill value={frame.homeRating} />
-              <KitText t="tag" color={roles.textMuted}>Team rating</KitText>
+              <KitText t="tag" color={roles.textMuted}>{t('match.teamRatingTag')}</KitText>
               <RatingPill value={frame.awayRating} />
             </View>
           </View>
         )}
 
         <View style={styles.section}>
-          <SectionTag roles={roles}>Commentary</SectionTag>
+          <SectionTag roles={roles}>{t('match.commentary')}</SectionTag>
           {commentary.length === 0
-            ? <KitText t="body" color={roles.textMuted}>Nothing yet. They're feeling each other out.</KitText>
+            ? <KitText t="body" color={roles.textMuted}>{t('match.nothingYet')}</KitText>
             : commentary.slice(0, 12).map((c, i) => (
                 <View key={`${c.minute}${i}`} style={[styles.feedRow, { borderBottomColor: roles.rule }]}>
                   <KitText t="tag" color={roles.textMuted} style={styles.feedMin}>{c.minute}</KitText>
@@ -390,9 +396,9 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
         </View>
 
         <View style={styles.section}>
-          <SectionTag roles={roles}>Timeline</SectionTag>
+          <SectionTag roles={roles}>{t('match.timeline')}</SectionTag>
           {shownEvents.length === 0
-            ? <KitText t="body" color={roles.textMuted}>No events yet.</KitText>
+            ? <KitText t="body" color={roles.textMuted}>{t('match.noEvents')}</KitText>
             : (
               // The SAME timeline the stats screen draws, so the live match and
               // the sheet you open afterwards tell the story the same way.
@@ -418,18 +424,18 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
       {/* §7 R4 — both controls are pure UI: everything already happened. */}
       <ThumbBar>
         <View style={styles.controls}>
-          <Plate label={paused ? 'Resume' : 'Pause'} icon={paused ? 'play' : 'pause'} variant="secondary" roles={roles}
+          <Plate label={paused ? t('match.resume') : t('match.pause')} icon={paused ? 'play' : 'pause'} variant="secondary" roles={roles}
             onPress={() => setPaused(p => !p)} disabled={minute >= timeline.duration} style={{ flex: 1 }} />
-          <Plate label="Skip to the whistle" icon="skip" roles={roles} onPress={() => setMinute(timeline.duration)} style={{ flex: 1 }} />
+          <Plate label={t('match.skipWhistle')} icon="skip" roles={roles} onPress={() => setMinute(timeline.duration)} style={{ flex: 1 }} />
         </View>
       </ThumbBar>
 
       {silence && (
         <Animated.View entering={reduced ? undefined : FadeIn.duration(120)} style={[StyleSheet.absoluteFill, styles.silence]}
-          accessibilityLiveRegion="assertive" accessibilityLabel={`Full time. ${home} ${frame?.homeGoals ?? 0}, ${away} ${frame?.awayGoals ?? 0}`}>
-          <KitText t="tag" color={roles.textMuted}>Full time</KitText>
+          accessibilityLiveRegion="assertive" accessibilityLabel={t('match.ftA11y', { home, away, h: frame?.homeGoals ?? 0, a: frame?.awayGoals ?? 0 })}>
+          <KitText t="tag" color={roles.textMuted}>{t('match.fullTime')}</KitText>
           <KitText t="superXl" color={roles.text}>{`${frame?.homeGoals ?? 0}–${frame?.awayGoals ?? 0}`}</KitText>
-          <KitText t="bodyL" color={roles.textMuted} style={styles.centreText}>{`${home} v ${away}`}</KitText>
+          <KitText t="bodyL" color={roles.textMuted} style={styles.centreText}>{t('match.fixture', { home, away })}</KitText>
         </Animated.View>
       )}
     </View>
@@ -489,12 +495,12 @@ function SideLineup({ name, shape, isHome, players, sheet, accent, showRatings =
       )}
       {bench.length > 0 && (
         <>
-          <KitText t="tag" color={roles.textMuted}>Bench</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('match.bench')}</KitText>
           <MatchBench
             players={bench} accent={accent} showRatings={showRatings}
             // "unused" is a full-time verdict; before kickoff and mid-match he's
             // just sitting there.
-            unusedLabel={showRatings ? 'on the bench' : 'sub'}
+            unusedLabel={showRatings ? t('match.onBench') : t('match.subShort')}
           />
         </>
       )}

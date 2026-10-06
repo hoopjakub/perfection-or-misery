@@ -2,10 +2,9 @@
 // in a run is a route, reached with one of these. No modals.
 import { router } from 'expo-router'
 import { openMatchStats } from '@/lib/matchStats'
-import { prim } from '@/theme'
 import type { RunData } from '@/lib/runData'
 import type { RunMatch } from '@/engine/run-stats'
-import type { MatchDetailRequest } from '@/components/MatchStatsParts'
+import { matchRequest, legsRequest, runMatch } from '@/engine/stages'
 
 const withRun = (params: Record<string, string>, runId?: string) => (runId ? { ...params, runId } : params)
 
@@ -35,21 +34,10 @@ const LEG = / · Leg ([12])$/
 export function openRunMatch(data: RunData, m: RunMatch) {
   const yearStart = data.yearStart
   if (yearStart == null) return
-  const req = (x: RunMatch): MatchDetailRequest => ({
-    homeClubId: x.homeClubId, homeName: x.homeClubName,
-    awayClubId: x.awayClubId, awayName: x.awayClubName,
-    homeGoals: x.homeGoals, awayGoals: x.awayGoals, extraTime: x.extraTime,
-    pensNote: x.pensNote, shootout: x.shootout,
-    scorers: x.scorers, seed: x.seed,
-    homeRotation: x.homeRotation, awayRotation: x.awayRotation,
-    absent: x.absent, standIns: x.standIns,
-    yearStart,
-    competitionLabel: x.label,
-    playerClubId: data.playerClubId ?? undefined,
-    drafted: data.drafted,
-    playerFormation: data.formation ?? undefined,
-    linkPages: true,
-  })
+  const ctx = {
+    yearStart, playerClubId: data.playerClubId ?? undefined, drafted: data.drafted,
+    playerFormation: data.formation ?? undefined, linkPages: true,
+  }
   // P8-101: a leg of a two-legged tie brings the other leg along, so the sheet
   // can switch between them. The other leg is the same round with the two
   // clubs the other way round.
@@ -57,6 +45,7 @@ export function openRunMatch(data: RunData, m: RunMatch) {
   const round = m.label?.replace(LEG, '')
   const other = leg ? data.matches?.find(x => x !== m && x.label?.match(LEG) && x.label.replace(LEG, '') === round
     && x.homeClubId === m.awayClubId && x.awayClubId === m.homeClubId) : undefined
-  const legs = leg && other ? (leg[1] === '1' ? [req(m), req(other)] : [req(other), req(m)]) : undefined
-  openMatchStats({ ...req(m), legs }, prim.cotton)
+  openMatchStats(leg && other
+    ? legsRequest((leg[1] === '1' ? [m, other] : [other, m]).map(runMatch), leg[1] === '1' ? 0 : 1, ctx)
+    : matchRequest(runMatch(m), ctx))
 }

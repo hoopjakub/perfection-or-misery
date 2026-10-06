@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { router, useNavigation } from 'expo-router'
 import { ROLES, space } from '@/theme'
@@ -18,8 +20,8 @@ export default function ConfirmScreen() {
   if (!request) {
     return (
       <KitScreen ground={EVERYDAY} scroll={false}>
-        <KitText t="superM" color={roles.text}>NOTHING TO CONFIRM</KitText>
-        <Plate label="Back to Play" onPress={() => router.replace('/(tabs)')} roles={roles} style={styles.plate} />
+        <KitText t="superM" color={roles.text}>{t('common.nothingToConfirm')}</KitText>
+        <Plate label={t('common.backToPlay')} onPress={() => router.replace('/(tabs)')} roles={roles} style={styles.plate} />
       </KitScreen>
     )
   }
@@ -59,7 +61,7 @@ export default function ConfirmScreen() {
       }
     } catch (e) {
       intended.current = false
-      console.warn('[confirm] action failed:', e)
+      log.warn('net', 'confirm: action failed', e)
       setFailed(true)
       setWorking(false)
     }
@@ -75,7 +77,7 @@ export default function ConfirmScreen() {
         {request.optOut && (
           <Checkbox checked={optedOut} onChange={setOptedOut} roles={roles}>{request.optOut.label}</Checkbox>
         )}
-        {failed && <StripedNotice roles={roles} failed>That didn't work. Check your connection and try again.</StripedNotice>}
+        {failed && <StripedNotice roles={roles} failed>{t('common.failedConnection')}</StripedNotice>}
       </View>
       <View style={styles.actions}>
         <Plate label={request.stayLabel} onPress={() => { intended.current = true; router.back() }} roles={roles} variant="secondary" />

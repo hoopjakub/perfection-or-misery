@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React, { useState } from 'react'
 import { router } from 'expo-router'
 import { ROLES } from '@/theme'
@@ -15,9 +16,9 @@ export default function RunAwardsScreen() {
   if (!view) {
     return (
       <KitScreen ground={EVERYDAY} scroll={false}>
-        <KitText t="superM" color={roles.text}>NO AWARDS</KitText>
-        <KitText t="bodyL" color={roles.textMuted}>Open the awards from a finished run.</KitText>
-        <Plate label="Go back" roles={roles} onPress={() => router.back()} />
+        <KitText t="superM" color={roles.text}>{t('screens.noAwards')}</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('screens.openAwards')}</KitText>
+        <Plate label={t('screens.goBack')} roles={roles} onPress={() => router.back()} />
       </KitScreen>
     )
   }

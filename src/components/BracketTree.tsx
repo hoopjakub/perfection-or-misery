@@ -1,10 +1,13 @@
-import React, { useEffect, useRef } from 'react'
+import { countryName } from '@/data/countries-sk'
+import { useUiFrameSampler } from '@/diag/frames'
+import { t } from '@/i18n'
+import React, { useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, Pressable, LayoutChangeEvent, Platform, useWindowDimensions } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated'
 import { ROLES, space, border } from '@/theme'
 import { KitText, Tag, Icon, TeamMark } from '@/components/kit'
-import type { KoRoundVM } from '@/components/KnockoutRoundsView'
+import type { TieVM } from '@/components/season/SeasonParts'
 import { orderBracket, type BracketSide, type BracketTie, type BracketColumn } from '@/lib/bracket'
 import { useScreenRoles } from '@/lib/appearance'
 export type { BracketSide, BracketTie, BracketColumn }
@@ -34,15 +37,19 @@ function clampWorklet(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
-/** The cup result screens' knockout rounds (the shared KoRoundVM) as columns. */
+/** A knockout round on a result screen: its tie rows, built by `tieVM` from
+ *  the engine's one tie model (src/engine/stages.ts). */
+export type KoRoundVM = { key: string; label: string; sub?: string; infoTopic?: string; ties: TieVM[] }
+
+/** The cup result screens' knockout rounds as columns. */
 export function koRoundsToColumns(rounds: KoRoundVM[]): { columns: BracketColumn[]; third?: BracketColumn } {
   const toTie = (r: KoRoundVM['ties'][number]): BracketTie => {
-    const [ga, gb] = (r.scoreLabel ?? '').split('–').map(x => x.trim())
+    const [ga, gb] = (r.score ?? '').split('–').map(x => x.trim())
     return {
-      a: { clubId: r.teamAClubId, name: r.teamAName, goals: ga || undefined, seed: r.directA },
-      b: r.bye ? null : { clubId: r.teamBClubId, name: r.teamBName, goals: gb || undefined, seed: r.directB },
+      a: { clubId: r.aClubId, name: r.aName, goals: ga || undefined, seed: r.directA },
+      b: r.bye ? null : { clubId: r.bClubId, name: r.bName, goals: gb || undefined, seed: r.directB },
       winner: r.winnerIsA ? 'a' : 'b',
-      note: [r.subLine, r.inlineSuffix?.replace(/[()]/g, '')].filter(Boolean).join(' · ') || undefined,
+      note: r.detail,
       onPress: r.onPress,
     }
   }
@@ -105,7 +112,12 @@ export function BracketTree({ columns, third, playerClubId, height }: {
   // The pinch anchors where your fingers went down, not the middle.
   const focalX = useSharedValue(0)
   const focalY = useSharedValue(0)
+  // Phase 9: frame:bracket is sampled while a finger is down, not while the tree sits still.
+  const [touching, setTouching] = useState(false)
+  useUiFrameSampler('frame:bracket', touching)
   const pinchGesture = Gesture.Pinch()
+    .onBegin(() => { runOnJS(setTouching)(true) })
+    .onFinalize(() => { runOnJS(setTouching)(false) })
     .onStart(e => { focalX.value = e.focalX; focalY.value = e.focalY })
     .onUpdate(e => {
       const newScale = clampWorklet(savedScale.value * e.scale, minScale.value, MAX_SCALE)
@@ -127,6 +139,8 @@ export function BracketTree({ columns, third, playerClubId, height }: {
   // P8-77: one finger only, so a pinch owns the position for its whole duration.
   const panGesture = Gesture.Pan()
     .maxPointers(1)
+    .onBegin(() => { runOnJS(setTouching)(true) })
+    .onFinalize(() => { runOnJS(setTouching)(false) })
     .onUpdate(e => {
       const c = containerSize.value, k = contentSize.value
       const maxX = Math.max(0, (k.width * scale.value - c.width) / 2)
@@ -185,12 +199,12 @@ export function BracketTree({ columns, third, playerClubId, height }: {
     <View style={styles.wrap}>
       <View style={styles.hintRow}>
         <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>
-          {Platform.OS === 'web' ? 'Scroll to zoom · drag to pan' : 'Pinch to zoom · drag to pan'}
+          {Platform.OS === 'web' ? t('parts.scrollZoom') : t('parts.pinchZoom')}
         </KitText>
-        <Pressable onPress={() => fit()} accessibilityRole="button" accessibilityLabel="Fit the bracket to the panel"
+        <Pressable onPress={() => fit()} accessibilityRole="button" accessibilityLabel={t('parts.fitA11y')}
           style={({ pressed }) => [styles.fitBtn, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
           <Icon name="retry" size={16} color={roles.text} />
-          <KitText t="tag" color={roles.text}>Fit</KitText>
+          <KitText t="tag" color={roles.text}>{t('parts.fit')}</KitText>
         </Pressable>
       </View>
       <View ref={panelRef} onLayout={onPanelLayout}
@@ -262,8 +276,8 @@ function TieCard({ tie, playerClubId, top }: { tie: BracketTie; playerClubId?: s
   const roles = useScreenRoles()
   const mine = !!playerClubId && (tie.a?.clubId === playerClubId || tie.b?.clubId === playerClubId)
   const label = tie.a && tie.b
-    ? `${tie.a.name} ${tie.a.goals ?? ''}, ${tie.b.name} ${tie.b.goals ?? ''}${tie.winner ? `, ${(tie.winner === 'a' ? tie.a : tie.b).name} through` : ''}`
-    : 'Not drawn yet'
+    ? `${countryName(tie.a.name)} ${tie.a.goals ?? ''}, ${countryName(tie.b.name)} ${tie.b.goals ?? ''}${tie.winner ? t('parts.through', { name: countryName((tie.winner === 'a' ? tie.a : tie.b).name) }) : ''}`
+    : t('parts.notDrawn')
   return (
     <Pressable onPress={tie.onPress} disabled={!tie.onPress} accessibilityRole={tie.onPress ? 'button' : undefined} accessibilityLabel={label}
       style={({ pressed }) => [
@@ -288,8 +302,8 @@ function SideRow({ side, won, decided, you }: { side: BracketSide | null; won: b
   return (
     <View style={styles.side}>
       <TeamMark roles={roles} clubId={side.clubId} name={side.name} size={16} />
-      <KitText t={you || (decided && won) ? 'title' : 'body'} color={colour} numberOfLines={1} style={{ flex: 1 }}>{side.name}</KitText>
-      {side.seed ? <KitText t="tag" color={roles.textMuted}>SEED</KitText> : null}
+      <KitText t={you || (decided && won) ? 'title' : 'body'} color={colour} numberOfLines={1} style={{ flex: 1 }}>{countryName(side.name)}</KitText>
+      {side.seed ? <KitText t="tag" color={roles.textMuted}>{t('parts.seed')}</KitText> : null}
       {side.goals != null ? <KitText t="figure" color={colour}>{side.goals}</KitText> : null}
     </View>
   )

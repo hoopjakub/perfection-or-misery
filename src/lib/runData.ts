@@ -7,8 +7,11 @@
 // time anything computes it, and a saved run's data is cached by id for the
 // session. Pages call `useRunData(runId?)` and get it instantly after the
 // first time.
+import { compareStandings } from '@/engine/standings'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
 import { runQualTies } from '@/engine/europe-path'
-import { isClassicEurope, isEuropeMode } from '@/data/europe'
+import { isClassicEurope, isEuropeMode, compOfMode } from '@/data/europe'
 import { useEffect, useState } from 'react'
 import { adoptRunCrest } from '@/store/crestStore'
 import { useGameStore } from '@/store/gameStore'
@@ -16,6 +19,18 @@ import { computeLeagueRunStats, computeCLRunStats, computeWCRunStats, type RunMa
 import { fetchRunById } from '@/db/queries/runs'
 import type { CompetitionStats, SeasonAwards } from '@/types/stats'
 import type { DraftedPlayer, Formation } from '@/types/game'
+import { punditField, type PredictionTeam } from '@/engine/predictions'
+import type { Absence } from '@/engine/availability'
+import type { DomesticCup } from '@/engine/domestic-cup'
+import type { CLSeasonResult } from '@/engine/cl-sim'
+import type { WCSeasonResult } from '@/engine/world-cup-sim'
+import type { QualifyingResult } from '@/engine/cl-qualifying'
+import type { SimLeagueTable } from '@/engine/cl-league-sim'
+import type { GotAway } from '@/lib/resultStory'
+import { cupPress, clPressStages, wcPressStages } from '@/engine/cup-press'
+import type { Story } from '@/engine/press'
+
+const pick = (t: { clubId: string; clubName: string; ovr: number; isPlayer?: boolean }): PredictionTeam => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: !!t.isPlayer })
 
 export type RunData = {
   key: string                    // 'live' or the saved run's id
@@ -43,6 +58,28 @@ export type RunData = {
   ownerId?: string | null
   /** Anything a saved run can't show, said plainly on the page. */
   missing: string[]
+  /** What moved off the result screen into the hub (Wave F, step 6). */
+  more: RunMore
+}
+
+/** The run's parts the hub's Pundits, Cup, Europe and Squad tabs draw. */
+export type RunMore = {
+  /** The pundits' field and seed: a live run, or a saved cup run from 3 Oct 2026 on. */
+  pundits: { field: PredictionTeam[]; seed: number; matchesPerClub?: number } | null
+  /** A saved league run keeps the pundits' places and points instead (P8-96). */
+  punditPlaces: Record<string, number> | null
+  punditPoints: Record<string, number> | null
+  absences: Absence[]
+  /** A league run's cup (P8-173). */
+  cup: DomesticCup | null
+  /** A cup run's whole result, for the pundits' tournament to be scored against. */
+  cl: CLSeasonResult | null
+  wc: WCSeasonResult | null
+  /** The full path: its qualifying and the 53 leagues it started from. */
+  qual: QualifyingResult | null
+  domesticTables: SimLeagueTable[] | null
+  /** I-2: the best player passed on at each pick. */
+  gotAway: GotAway[]
 }
 
 export type TableRow = {
@@ -61,7 +98,7 @@ const rowOf = (t: { clubId: string; clubName: string; isPlayer?: boolean; stats:
 function liveTable(st: ReturnType<typeof useGameStore.getState>): TableRow[] {
   if (st.mode === 'world_cup' && st.wcResult) {
     return st.wcResult.groups.flatMap(g => [...g.teams]
-      .sort((a, b) => b.stats.points - a.stats.points || (b.stats.goalsFor - b.stats.goalsAgainst) - (a.stats.goalsFor - a.stats.goalsAgainst) || b.stats.goalsFor - a.stats.goalsFor)
+      .sort(compareStandings)
       .map((t, i) => rowOf(t, i + 1, g.id)))
   }
   if (isEuropeMode(st.mode) && st.clResult) return st.clResult.leaguePhaseStandings.map((t, i) => rowOf(t, i + 1))
@@ -76,12 +113,39 @@ function livePositions(st: ReturnType<typeof useGameStore.getState>): Map<string
   return out
 }
 
+/**
+ * A cup run's press (F-01), rebuilt from its result: the same stories the live
+ * screens wrote, because the press is a pure function of the rounds played.
+ * A saved cup run keeps its whole result, so older saves get a press too.
+ */
+function cupPressOf(mode: string | null | undefined, cl: CLSeasonResult | null | undefined, wc: WCSeasonResult | null | undefined, qual?: QualifyingResult | null): Story[] {
+  try {
+    if (mode === 'world_cup' && wc?.groups) return cupPress(wcPressStages(wc), wc.absences ?? [])
+    if (isEuropeMode(mode) && cl?.leaguePhaseStandings) return cupPress(clPressStages(cl, { qual }), cl.absences ?? [])
+  } catch (e) {
+    log.warn('stats', 'runData: the cup press failed', e)
+  }
+  return []
+}
+
 const saved = new Map<string, RunData>()
 
+// Phase 9 ("no screen transition waits on a full-run computation", computed
+// once): two callers at the same moment (Awards Night handing over to the
+// result) each started the whole stats pass, because the store only holds the
+// answer once the first finishes. They share the one in flight now.
+let livePending: Promise<RunData | null> | null = null
+
 /** Compute (once) the live run's data from the store, keeping it there. */
-export async function liveRunData(): Promise<RunData | null> {
+export function liveRunData(): Promise<RunData | null> {
   const st = useGameStore.getState()
-  if (st.runData) return st.runData
+  if (st.runData) return Promise.resolve(st.runData)
+  if (!livePending) livePending = computeLiveRunData().finally(() => { livePending = null })
+  return livePending
+}
+
+async function computeLiveRunData(): Promise<RunData | null> {
+  const st = useGameStore.getState()
   const drafted = [...st.draftedPlayers, ...st.benchPlayers]
   const { mode, clResult, wcResult, simResult, placedLeague, clYear, customUclQual, useSubstitutes } = st
   const res =
@@ -98,10 +162,30 @@ export async function liveRunData(): Promise<RunData | null> {
     leagueId: mode === 'world_cup' || isEuropeMode(mode) ? null : (placedLeague?.leagueId ?? null),
     playerClubId: simResult?.playerTeam.clubId ?? clResult?.playerTeam.clubId ?? wcResult?.playerTeam.clubId ?? null,
     drafted, formation: st.formation,
-    table: liveTable(st), positions: livePositions(st), press: st.simResult?.press ?? [],
+    table: liveTable(st), positions: livePositions(st),
+    press: st.simResult?.press ?? cupPressOf(mode, clResult, wcResult, mode === 'champions_league_custom' ? customUclQual : null),
     replacedClubName: st.placedLeague?.replacedTeamName ?? null,
     missing: [],
+    more: (() => {
+      // The pundits call the classic cups and the leagues; the full path's
+      // pundits only call its domestic league, which the run doesn't keep.
+      const field = mode === 'champions_league_custom' ? null : punditField(mode, { clTeams: st.clTeams, wcTeams: st.wcTeams, placedLeague: st.placedLeague })
+      return {
+        pundits: field && st.predictionSeed != null ? { field: field.teams, matchesPerClub: field.matchesPerClub, seed: st.predictionSeed } : null,
+        punditPlaces: null, punditPoints: null,
+        absences: simResult?.absences ?? clResult?.absences ?? wcResult?.absences ?? [],
+        cup: simResult?.cup ?? null,
+        cl: clResult ?? null, wc: wcResult ?? null,
+        qual: mode === 'champions_league_custom' ? customUclQual ?? null : null,
+        domesticTables: mode === 'champions_league_custom' ? st.customUclLeagues ?? null : null,
+        gotAway: st.gotAway,
+      }
+    })(),
   }
+  // Only if it's still the same run: a new run started meanwhile would
+  // otherwise be handed the last run's stats.
+  const now = useGameStore.getState()
+  if ((now.clResult ?? now.wcResult ?? now.simResult) !== (clResult ?? wcResult ?? simResult)) return null
   useGameStore.setState({ runData: data })
   return data
 }
@@ -139,9 +223,9 @@ export async function savedRunData(runId: string): Promise<RunData | null> {
       : like.simResult && run.year_start ? await computeLeagueRunStats(like.simResult, drafted, { yearStart: run.year_start, leagueId: run.league_id } as any, useSubs)
       : null
   } catch (e) {
-    console.warn('[runData] rebuilding the saved run failed:', e)
+    log.warn('stats', 'runData: rebuilding the saved run failed', e)
   }
-  const press = (run.highlights?.press ?? []) as import('@/engine/press').Story[]
+  const press = (run.highlights?.press ?? cupPressOf(mode, cl, wc, cl?._customUclQual ?? null)) as Story[]
   const data: RunData = {
     key: runId, mode,
     stats: run.stats as CompetitionStats, awards: run.awards as SeasonAwards,
@@ -159,9 +243,29 @@ export async function savedRunData(runId: string): Promise<RunData | null> {
     // Said plainly, and only what's really missing: a run too old to rebuild,
     // or a league run saved before the press was kept.
     missing: [
-      ...(regen ? [] : ['match-by-match detail', 'teams of the matchday']),
-      ...(mode && !isEuropeMode(mode) && mode !== 'world_cup' && !press.length ? ['the press'] : []),
+      ...(regen ? [] : [t('hub.missMatch'), t('hub.missTeams')]),
+      ...(mode && !isEuropeMode(mode) && mode !== 'world_cup' && !press.length ? [t('hub.missPress')] : []),
     ],
+    more: (() => {
+      const h = run.highlights ?? {}
+      // A saved cup run keeps the pundits' seed from 3 Oct 2026; its field is
+      // the competition's own clubs, which the saved result carries.
+      const seed: number | null = h.punditSeed ?? null
+      const field: PredictionTeam[] | null =
+        wc ? (wc.groups ?? []).flatMap((g: any) => g.teams).map(pick)
+        : cl && mode !== 'champions_league_custom' ? (cl.leaguePhaseStandings ?? []).map(pick)
+        : null
+      return {
+        pundits: seed != null && field?.length ? { field, seed, matchesPerClub: wc ? 3 : compOfMode(mode)?.matchdays } : null,
+        punditPlaces: h.pundits ?? null, punditPoints: h.punditPoints ?? null,
+        absences: h.absences ?? cl?.absences ?? wc?.absences ?? [],
+        cup: h.cup ?? null,
+        cl: cl ?? null, wc: wc ?? null,
+        qual: cl?._customUclQual ?? run.custom_ucl_qual ?? null,
+        domesticTables: cl?._customUclTables ?? run.custom_ucl_tables ?? null,
+        gotAway: h.gotAway ?? [],
+      }
+    })(),
   }
   saved.set(runId, data)
   return data
@@ -179,7 +283,7 @@ export function useRunData(runId?: string): { data: RunData | null; loading: boo
     setLoading(true); setFailed(false)
     ;(runId ? savedRunData(runId) : liveRunData())
       .then(d => { if (!alive) return; setData(d); setFailed(!d) })
-      .catch(e => { console.warn('[run-data] failed:', e); if (alive) setFailed(true) })
+      .catch(e => { log.warn('stats', 'run-data: failed', e); if (alive) setFailed(true) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [runId, attempt])

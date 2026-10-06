@@ -12,12 +12,13 @@
  * minutes the way an event list would.
  */
 
+import { t } from '@/i18n'
 import type { MatchEvent, MatchStats } from '@/types/match-stats'
 import { buildShotMap } from './match-geometry'
 import { mulberry32, deriveSeed } from '@/lib/rng'
 
 /** The sending-off card's heading; the feed draws that one card in red. */
-export const SENT_OFF = 'Sent off'
+export const SENT_OFF = t('com.title.sentOff')
 
 export type CommentaryLine = {
   minute: string; text: string; big: boolean; isHome?: boolean
@@ -36,6 +37,9 @@ function hash(s: string): number {
 }
 
 const pick = <T,>(options: T[], key: string): T => options[hash(key) % options.length]
+/** One of a set of lines in src/i18n (com.<set>.0, .1…), chosen by the same hash. */
+const say = (set: string, n: number, key: string, vars: Record<string, unknown>) =>
+  t(`com.${set}.${hash(key) % n}` as 'com.own.0', vars as never) as unknown as string
 const minuteOf = (e: { minute: number; plus?: number }) => `${e.minute}${e.plus ? `+${e.plus}` : ''}'`
 const last = (name: string) => name.split(' ').slice(-1)[0]
 
@@ -47,48 +51,33 @@ export function lineForEvent(e: MatchEvent, homeName: string, awayName: string):
   switch (e.type) {
     case 'goal':
       if (e.ownGoal) {
-        text = pick([
-          `Own goal. ${who} turns it into his own net, and ${team} are grateful.`,
-          `Disaster for ${who}: into his own goal. ${team} take it.`,
-        ], key)
+        text = say('own', 2, key, { who, team })
       } else if (e.penalty) {
-        text = pick([
-          `${who} from the spot. Sends the keeper the wrong way.`,
-          `Penalty converted. ${who} makes no mistake for ${team}.`,
-          `${who} steps up and buries it.${e.penWonName ? ` ${last(e.penWonName)} won it.` : ''}`,
-        ], key)
+        text = say('pen', 3, key, { who, team, won: e.penWonName ? t('com.penWon', { name: last(e.penWonName) }) : '' })
       } else if (e.assistName) {
-        text = pick([
-          `GOAL. ${who} finishes it off, ${last(e.assistName)} with the ball in.`,
-          `${last(e.assistName)} finds ${who}, and ${who} doesn't miss. ${team} score.`,
-          `GOAL for ${team}. ${who}, set up by ${last(e.assistName)}.`,
-        ], key)
+        text = say('assist', 3, key, { who, team, assist: last(e.assistName) })
       } else {
-        text = pick([
-          `GOAL. ${who} does it all himself for ${team}.`,
-          `${who} scores. Nobody laid a glove on him.`,
-          `GOAL for ${team}, and it's ${who}.`,
-        ], key)
+        text = say('solo', 3, key, { who, team })
       }
-      if (e.errorByName) text += ` ${last(e.errorByName)} will want that one back.`
-      return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.ownGoal ? 'Own goal' : e.penalty ? 'Penalty, scored' : 'Goal', player: e.playerName }
+      if (e.errorByName) text += t('com.error', { name: last(e.errorByName) })
+      return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.ownGoal ? t('com.title.own') : e.penalty ? t('com.title.penScored') : t('com.title.goal'), player: e.playerName }
     case 'penMissed':
       text = e.saved && e.keeperName
-        ? pick([`Saved. ${last(e.keeperName)} guesses right and keeps out ${who}'s penalty.`, `${who}'s penalty, and ${last(e.keeperName)} gets down to it.`], key)
-        : pick([`${who} misses from the spot.`, `Over the bar. ${who} has wasted the penalty.`], key)
-      return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.saved ? 'Penalty saved' : 'Penalty missed', player: e.playerName }
+        ? say('saved', 2, key, { who, keeper: last(e.keeperName) })
+        : say('missed', 2, key, { who })
+      return { minute: minuteOf(e), text, big: true, isHome: e.isHome, title: e.saved ? t('com.title.penSaved') : t('com.title.penMissed'), player: e.playerName }
     case 'red':
-      return { minute: minuteOf(e), text: pick([`Red card. ${who} is off, and ${team} are down to ten.`, `${who} is sent off. ${team} will have to do it with ten.`], key), big: true, isHome: e.isHome, title: SENT_OFF, player: e.playerName }
+      return { minute: minuteOf(e), text: say('red', 2, key, { who, team }), big: true, isHome: e.isHome, title: SENT_OFF, player: e.playerName }
     case 'yellow':
-      return { minute: minuteOf(e), text: pick([`${who} goes into the book.`, `Yellow card for ${who}.`, `${who} is booked.`], key), big: false, isHome: e.isHome, title: 'Booked', player: e.playerName }
+      return { minute: minuteOf(e), text: say('yellow', 3, key, { who }), big: false, isHome: e.isHome, title: t('com.title.booked'), player: e.playerName }
     case 'sub':
       return {
         minute: minuteOf(e),
-        text: e.offPlayerName ? `${team} change: ${who} on, ${last(e.offPlayerName)} off.` : `${team} bring on ${who}.`,
-        big: false, isHome: e.isHome, title: 'Change', player: e.playerName,
+        text: e.offPlayerName ? t('com.subOff', { team, who, off: last(e.offPlayerName) }) : t('com.subOn', { team, who }),
+        big: false, isHome: e.isHome, title: t('com.title.change'), player: e.playerName,
       }
     case 'injury':
-      return { minute: minuteOf(e), text: pick([`${who} is down and can't carry on.`, `Bad news for ${team}: ${who} has to come off hurt.`], key), big: false, isHome: e.isHome, title: 'Injury', player: e.playerName }
+      return { minute: minuteOf(e), text: say('hurt', 2, key, { who, team }), big: false, isHome: e.isHome, title: t('com.title.injury'), player: e.playerName }
   }
 }
 
@@ -101,15 +90,15 @@ export type PlayState = {
 /** A line for the minutes between events, read from the state of play. */
 export function quietLine(minute: number, state: PlayState | null, homeName: string, awayName: string): CommentaryLine {
   const m = `${minute}'`
-  if (!state || minute <= 1) return { minute: m, text: 'Kick-off. Here we go.', big: false }
+  if (!state || minute <= 1) return { minute: m, text: t('com.kickOff'), big: false }
   const key = `quiet|${Math.floor(minute / 6)}`
   const on = state.homePossession >= 55 ? homeName : state.homePossession <= 45 ? awayName : null
   const shots = state.homeShots - state.awayShots
   const pressing = shots >= 4 ? homeName : shots <= -4 ? awayName : null
-  if (minute === 45) return { minute: m, text: 'Into stoppage time at the end of the half.', big: false }
-  if (pressing) return { minute: m, text: pick([`${pressing} are camped in the other half.`, `Wave after wave from ${pressing}.`, `${pressing} keep coming.`], key), big: false }
-  if (on) return { minute: m, text: pick([`${on} have the ball and they're keeping it.`, `${on} are dictating this.`, `Patient from ${on}, passing it around.`], key), big: false }
-  return { minute: m, text: pick(['Cagey. Neither side giving an inch.', 'End to end, but nothing clear-cut.', 'A lot of midfield and not much else.'], key), big: false }
+  if (minute === 45) return { minute: m, text: t('com.stoppage'), big: false }
+  if (pressing) return { minute: m, text: say('pressing', 3, key, { team: pressing }), big: false }
+  if (on) return { minute: m, text: say('holding', 3, key, { team: on }), big: false }
+  return { minute: m, text: say('even', 3, key, {}), big: false }
 }
 
 /** Everything said up to `minute`, newest first — the live feed. */
@@ -184,7 +173,7 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
   const when = (k: keyof FeedClock, isHome: boolean, playerId?: string) =>
     queues?.[k][isHome ? 'home' : 'away'].shift() ?? atFor(playerId)
   const out: FeedItem[] = []
-  const say = (minute: number, kind: FeedKind, text: string, isHome: boolean, big = false, title?: string, player?: string) =>
+  const line = (minute: number, kind: FeedKind, text: string, isHome: boolean, big = false, title?: string, player?: string) =>
     out.push({ minute, kind, line: { minute: `${minute}'`, text, big, isHome, title, player } })
 
   // Shots that weren't goals. A missed penalty is already an event of its own.
@@ -202,7 +191,8 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
       varOffside = side.offsides > 0 && vrng() < 0.6
     }
   }
-  const varReason = varOffside ? 'offside' : pick(['handball', 'a foul in the build-up'], `var|${seed}`)
+  const varWhy = varOffside ? 'offside' : pick(['handball', 'foul'] as const, `var|${seed}`)
+  const varReason = t(`com.reason.${varWhy}`)
 
   shots.forEach((s, i) => {
     const told = out.length
@@ -219,34 +209,27 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
       out.push({
         minute: m, kind: 'var',
         line: {
-          minute: `${m}'`, isHome: s.isHome, big: true, title: 'Chalked off', player: s.name,
-          text: pick([
-            `${who} has it in the net for ${team}! But VAR is checking… and it's ruled out for ${varReason}.`,
-            `The celebrations stop. ${who}'s goal is chalked off by VAR: ${varReason}.`,
-          ], key),
+          minute: `${m}'`, isHome: s.isHome, big: true, title: t('com.title.chalkedOff'), player: s.name,
+          text: say('var', 2, key, { who, team, reason: varReason }),
         },
-        var: { isHome: s.isHome, playerName: s.name, reason: varOffside ? 'chalked off, offside' : `chalked off, ${varReason === 'handball' ? 'handball' : 'a foul'}` },
+        var: { isHome: s.isHome, playerName: s.name, reason: t(`com.varTag.${varWhy}`) },
       })
       return
     }
     switch (s.outcome) {
       case 'saved':
-        say(m, 'shot', bigChance
-          ? pick([`Big chance for ${team}! ${who} is clean through, and the keeper saves.`, `How has that stayed out? ${who} from close in, brilliant save.`], key)
-          : pick([`${who} tests the keeper. Saved.`, `Good stop, low down, from ${who}'s effort.`, `${who} makes the keeper work.`], key),
-          s.isHome, bigChance, bigChance ? 'Big chance' : undefined, bigChance ? s.name : undefined)
+        line(m, 'shot', bigChance ? say('savedBig', 2, key, { who, team }) : say('savedSmall', 3, key, { who }),
+          s.isHome, bigChance, bigChance ? t('com.title.bigChance') : undefined, bigChance ? s.name : undefined)
         break
       case 'off':
-        say(m, 'shot', bigChance
-          ? pick([`Big chance missed. ${who} should have scored for ${team}.`, `${who} with the goal at his mercy, and it goes wide.`], key)
-          : pick([`${who} shoots wide.`, `Off target from ${who}.`, `${who} lets fly, over the bar.`], key),
-          s.isHome, bigChance, bigChance ? 'Big chance' : undefined, bigChance ? s.name : undefined)
+        line(m, 'shot', bigChance ? say('offBig', 2, key, { who, team }) : say('offSmall', 3, key, { who }),
+          s.isHome, bigChance, bigChance ? t('com.title.bigChance') : undefined, bigChance ? s.name : undefined)
         break
       case 'blocked':
-        say(m, 'shot', pick([`${who}'s shot is blocked.`, `Bodies on the line to stop ${who}.`, `Charged down. ${who} can't get it through.`], key), s.isHome)
+        line(m, 'shot', say('blocked', 3, key, { who }), s.isHome)
         break
       case 'woodwork':
-        say(m, 'shot', pick([`Off the post! ${who} so close for ${team}.`, `The woodwork saves them. ${who} hits the bar.`], key), s.isHome, true, 'Woodwork', s.name)
+        line(m, 'shot', say('post', 2, key, { who, team }), s.isHome, true, t('com.title.woodwork'), s.name)
         break
     }
   }
@@ -254,23 +237,23 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
   // Corners and offsides, as many as the sheet counted for each side. An
   // offside VAR call already told one of them.
   for (const isHome of [true, false]) {
-    const t = isHome ? detail.home : detail.away
+    const side = isHome ? detail.home : detail.away
     const team = isHome ? homeName : awayName
-    for (let i = 0; i < t.corners; i++)
-      say(when('corners', isHome), 'corner', pick([`Corner to ${team}.`, `${team} win a corner.`, `Another corner for ${team}.`], `corner|${isHome}|${i}`), isHome)
+    for (let i = 0; i < side.corners; i++)
+      line(when('corners', isHome), 'corner', say('corner', 3, `corner|${isHome}|${i}`, { team }), isHome)
     const varTook = varOffside && shots[varShot].isHome === isHome ? 1 : 0
-    for (let i = varTook; i < t.offsides; i++)
-      say(when('offsides', isHome), 'offside', pick([`Flag's up. ${team} caught offside.`, `Offside against ${team}.`], `offside|${isHome}|${i}`), isHome)
+    for (let i = varTook; i < side.offsides; i++)
+      line(when('offsides', isHome), 'offside', say('offside', 2, `offside|${isHome}|${i}`, { team }), isHome)
   }
 
   // Fouls: each side's count, each one named from the players' own
   // `foulsCommitted` while they were on the pitch, with the free kick it gives.
   const frng = mulberry32(deriveSeed(seed, FOUL_SALT))
   for (const isHome of [true, false]) {
-    const t = isHome ? detail.home : detail.away
+    const side = isHome ? detail.home : detail.away
     const other = isHome ? awayName : homeName
     const owed = detail.players.filter(p => p.isHome === isHome && p.foulsCommitted > 0).map(p => ({ p, left: p.foulsCommitted }))
-    for (let i = 0; i < t.fouls; i++) {
+    for (let i = 0; i < side.fouls; i++) {
       const pool = owed.filter(o => o.left > 0)
       const o = pool.length ? pool[Math.floor(frng() * pool.length)] : null
       if (o) o.left--
@@ -279,20 +262,23 @@ export function chanceLines(detail: MatchStats, seed: number, homeName: string, 
       const key = `foul|${isHome}|${i}`
       const danger = frng() < 0.2
       const text = danger
-        ? pick([`Free kick to ${other} in a dangerous position${who ? `, ${who} the culprit` : ''}.`, `${who ? `${who} brings his man down` : 'A foul'} just outside the box. Free kick, ${other}.`], key)
+        ? pick([
+            t('com.danger', { other, culprit: who ? t('com.culprit', { who }) : '' }),
+            who ? t('com.dangerWho', { who, other }) : t('com.dangerNone', { other }),
+          ], key)
         : who
-          ? pick([`Foul by ${who}. Free kick to ${other}.`, `${who} is penalised. ${other} take the free kick.`, `${who} goes through the back. Free kick.`], key)
-          : `Foul. Free kick to ${other}.`
-      say(m, 'foul', text, isHome)
+          ? say('foulWho', 3, key, { who, other })
+          : t('com.foulNone', { other })
+      line(m, 'foul', text, isHome)
     }
   }
 
   // The added time, as the fourth official holds up the board.
-  const boards: [number, number | undefined, string][] = [[45, detail.addedTime.firstHalf, 'the half'], [90, detail.addedTime.secondHalf, 'the match']]
-  if (extra) boards.push([105, detail.addedTime.firstET, 'the first period'], [120, detail.addedTime.secondET, 'extra time'])
+  const boards: [number, number | undefined, string][] = [[45, detail.addedTime.firstHalf, t('com.of.half')], [90, detail.addedTime.secondHalf, t('com.of.match')]]
+  if (extra) boards.push([105, detail.addedTime.firstET, t('com.of.firstEt')], [120, detail.addedTime.secondET, t('com.of.et')])
   for (const [at, n, of] of boards) {
     if (!n) continue
-    out.push({ minute: at + 0.001, kind: 'added', line: { minute: `${at}'`, text: `${n} minute${n === 1 ? '' : 's'} added at the end of ${of}.`, big: false, title: `Board up · +${n}` } })
+    out.push({ minute: at + 0.001, kind: 'added', line: { minute: `${at}'`, text: t('com.added', { count: n, of }), big: false, title: t('match.boardUp', { n }) } })
   }
   return out.sort((a, b) => a.minute - b.minute)
 }

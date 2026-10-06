@@ -1,7 +1,17 @@
+// P8.5-28: the language is decided before any other module of the app is
+// evaluated, so `t()` at module level anywhere reads the right one (src/i18n).
+// Keep this the first import.
+import '@/i18n'
 import { useEffect } from 'react'
-import { View, Platform, AppState } from 'react-native'
+import { View, Text, Pressable, Platform, AppState } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Stack } from 'expo-router'
+import { Stack, router, usePathname, type ErrorBoundaryProps } from 'expo-router'
+import { t } from '@/i18n'
+import { installDiagnostics } from '@/diag/install'
+import { log, flushLog } from '@/diag/log'
+import { mark, measure, sample } from '@/diag/perf'
+import { setRoute } from '@/diag/watch'
+import { space, font } from '@/theme'
 import { installNavGuard } from '@/lib/navGuard'
 import { startRunKeeper } from '@/lib/runKeeper'
 import { flushSavedRuns } from '@/db/queries/runs'
@@ -93,6 +103,11 @@ const KIT_FONTS = {
   'Kit-BodyBlack':   require('@expo-google-fonts/archivo/800ExtraBold/Archivo_800ExtraBold.ttf'),
 }
 
+// Phase 9: the log is kept on the device and fatal errors are caught, before
+// anything else can throw (src/diag/install.ts).
+installDiagnostics()
+// boot:interactive runs from here to Home's first frame ((tabs)/index.tsx).
+mark('boot')
 // Before any screen can navigate: see src/lib/navGuard.ts.
 installNavGuard()
 // P8-149: the run up to its kick-off is kept on the device as it's played.
@@ -108,8 +123,49 @@ useUserStore.subscribe((st, prev) => { if (st.user?.id && st.user.id !== prev.us
 // P8.5-31: is there a newer build? Silently, in the background (public build only).
 checkForAppUpdate()
 
+// Phase 9 (docs/diagnostics/02-POM-ARCHITECTURE.md §4.3): a screen that throws
+// while drawing lands here instead of on a red box (the phone) or a blank page
+// (the web). It's logged and written to the device at once, so the next launch
+// can show it. Plain React Native on purpose: if the kit is what broke, the
+// way out mustn't depend on it.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => { log.error('ui', 'a screen failed to draw', error); flushLog() }, [error])
+  const r = ROLES[EVERYDAY]
+  const button = { borderWidth: 2, borderColor: r.text, paddingVertical: space[3], paddingHorizontal: space[4], alignSelf: 'flex-start' as const }
+  return (
+    <View style={{ flex: 1, backgroundColor: r.bg, justifyContent: 'center', padding: space[5], gap: space[4] }} accessibilityRole="alert">
+      <Text style={{ color: r.text, fontFamily: font.superPlain, fontSize: 28 }}>{t('common.crashTitle')}</Text>
+      <Text style={{ color: r.textMuted, fontFamily: font.body, fontSize: 16 }}>{t('common.crashBody')}</Text>
+      <Pressable onPress={retry} style={button} accessibilityRole="button">
+        <Text style={{ color: r.text, fontFamily: font.bodyBold, fontSize: 16 }}>{t('common.tryAgain')}</Text>
+      </Pressable>
+      <Pressable onPress={() => router.replace('/')} accessibilityRole="button" style={{ ...button, borderColor: r.line }}>
+        <Text style={{ color: r.text, fontFamily: font.bodyBold, fontSize: 16 }}>{t('common.backToPlay')}</Text>
+      </Pressable>
+      {/* The one place Diagnostics is offered to someone who didn't go looking (02 §4.3). */}
+      <Pressable onPress={() => router.replace('/diagnostics')} accessibilityRole="button" style={{ ...button, borderColor: r.line }}>
+        <Text style={{ color: r.text, fontFamily: font.bodyBold, fontSize: 16 }}>{t('diag.open')}</Text>
+      </Pressable>
+    </View>
+  )
+}
+
 export default function RootLayout() {
   const reduceMotion = useSettingsStore(st => st.reduceMotion)
+  // Phase 9: every screen change, in the log and timed (ui:navigate: a tap to
+  // the new screen's first frame, counted only within 2 s of the tap, since a
+  // screen that redirects itself later wasn't caused by it).
+  const pathname = usePathname()
+  useEffect(() => {
+    setRoute(pathname)
+    const id = requestAnimationFrame(() => {
+      const ms = measure('ui:navigate', 'nav', 2000)
+      // The audit's result-screen budget (04 §2): the same span, on that screen alone.
+      if (ms !== undefined && pathname === '/game/result') sample('screen:result', ms)
+      log.info('screen', `${pathname}${ms !== undefined ? ` drawn in ${Math.round(ms)} ms` : ''}`)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [pathname])
   // Fonts are local files, so this resolves in a frame or two. A load error
   // still renders the app (on the system face) rather than a blank screen.
   const [fontsLoaded, fontError] = useFonts(KIT_FONTS)
@@ -131,13 +187,13 @@ export default function RootLayout() {
 
       if (Platform.OS === 'web') {
         // Warm the db once Home has painted, so starting a run doesn't wait on it.
-        setTimeout(() => { getDb().catch(console.error) }, 2500)
+        setTimeout(() => { getDb().catch(e => log.error('db', 'warming the database failed', e)) }, 2500)
         installWebChrome()
         installEscBack()
-        installFlagFont().catch(console.error)
+        installFlagFont().catch(e => log.warn('boot', 'the flag font failed', e))
       }
     }
-    boot().catch(console.error)
+    boot().catch(e => log.error('boot', 'start-up failed', e))
   }, [])
 
   // Phase 6 (docs/ui-overhaul/10-ADAPT-OPTIMIZE-A11Y.md §2): no frame cap at

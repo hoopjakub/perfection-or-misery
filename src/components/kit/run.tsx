@@ -1,46 +1,72 @@
 // Kit Drop pieces for the run: the RunHeader every setup and in-run screen
 // wears, and the choice controls setup is made of.
+import { t } from '@/i18n'
 import React from 'react'
 import { View, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { type Roles, space, border, OFFSET } from '@/theme'
 import { KitText, Stripe, Tape, Rivets, Icon } from './primitives'
 import { BackControl } from './controls'
 import { Tag } from './labels'
+import { useGameStore } from '@/store/gameStore'
+import { isClassicEurope } from '@/data/europe'
 
 // ── RunHeader ────────────────────────────────────────────────────────────────
 // The run's own header (docs/ui-overhaul/08 §2.7): the colourway tape, where
 // you are among the six stages, and the stage title. Setup stands on cotton,
 // the season on nylon; the header follows whatever `roles` it's given.
-export const RUN_STAGES = ['Where', 'How hard', 'Shape', 'Draft', 'Draw', 'Season'] as const
-const stageName = (n: number, tournament?: boolean) => (n === 6 && tournament ? 'Tournament' : RUN_STAGES[n - 1])
+export const RUN_STAGES = [t('run.stageWhere'), t('run.stageHowHard'), t('run.stageShape'), t('run.stageDraft'), t('run.stageDraw'), t('run.stageSeason')] as const
+const stageName = (n: number, tournament?: boolean) => (n === 6 && tournament ? t('run.stageTournament') : RUN_STAGES[n - 1])
 export type RunStage = 1 | 2 | 3 | 4 | 5 | 6
 
-export function RunHeader({ roles, stage, colourway, title, right, onBack, skipped = [], back = true, tournament }: {
+// S-01 / S-02 (centralisation step 4): what the strip shows follows the mode,
+// worked out here once. Six screens used to pass `skipped` themselves and the
+// pundits forgot `tournament`, so a cup's strip said "Season" on the pundits
+// screen and "Tournament" one tap later. Chaos and Cursed fix their own
+// difficulty, so they skip "How hard"; a cup's stage 6 is the Tournament
+// (P8-78). The full path opens with a domestic season, so it keeps "Season".
+export function runStagesFor(mode: string | null | undefined): { skipped: RunStage[]; tournament: boolean } {
+  return {
+    skipped: mode === 'chaos' || mode === 'cursed' ? [2] : [],
+    tournament: isClassicEurope(mode) || mode === 'world_cup',
+  }
+}
+
+export function RunHeader({ roles, stage, colourway, title, right, onBack, back = true, road }: {
   roles: Roles
   stage: RunStage
   colourway: string[]
   title?: string
   right?: React.ReactNode
   onBack?: () => void
-  skipped?: RunStage[]   // stages this mode doesn't have (Chaos and Cursed skip "How hard")
-  tournament?: boolean   // a cup: stage 6 is the Tournament, not the Season (P8-78)
   back?: boolean
+  /** A run with stages of its own (the full path's road: domestic season,
+   *  the other leagues, qualifying, league phase, knockouts) shows where it is
+   *  among them under the six (C-10: it used to be a second header, `Road`). */
+  road?: { names: readonly string[]; current: number }
 }) {
+  const { skipped, tournament } = runStagesFor(useGameStore(st => st.mode))
   return (
     <View style={styles.header}>
       <Tape colours={colourway} roles={roles} style={styles.tape} />
       <View style={styles.headerRow}>
         {back ? <BackControl roles={roles} onPress={onBack} /> : null}
-        <View style={styles.stages} accessible accessibilityLabel={`Stage ${stage} of 6, ${stageName(stage, tournament)}`}>
+        <View style={styles.stages} accessible accessibilityLabel={t('run.stageA11y', { n: stage, name: stageName(stage, tournament) })}>
           {RUN_STAGES.map((name, i) => {
             const n = (i + 1) as RunStage
             if (n === stage) return <Tag key={n} roles={roles} variant="selected">{`${n} ${stageName(n, tournament) ?? name}`}</Tag>
-            if (skipped.includes(n)) return <KitText key={n} t="tag" color={roles.textFaint}>{`${n} SET`}</KitText>
+            if (skipped.includes(n)) return <KitText key={n} t="tag" color={roles.textFaint}>{t('run.stageSet', { n })}</KitText>
             return <KitText key={n} t="tag" color={n < stage ? roles.text : roles.textFaint}>{String(n)}</KitText>
           })}
         </View>
         {right}
       </View>
+      {road ? (
+        <View style={styles.road} accessible accessibilityLabel={t('season.roadA11y', { n: road.current + 1, total: road.names.length, name: road.names[road.current] })}>
+          {road.names.map((name, i) => i === road.current
+            ? <Tag key={name} roles={roles} variant="selected">{name}</Tag>
+            : <KitText key={name} t="tag" color={i < road.current ? roles.text : roles.textFaint}>{i < road.current ? t('season.done', { name }) : name}</KitText>)}
+        </View>
+      ) : null}
       {title ? (
         <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>
           {title.toUpperCase()}
@@ -94,8 +120,8 @@ export function ChoiceLabel({
             FULL PATH" "EUROPEAN FULL". */}
         {(lastTime || comingSoon) && (
           <View style={styles.labelTags}>
-            {lastTime && <Tag roles={roles}>LAST TIME</Tag>}
-            {comingSoon && <Tag roles={roles} variant="selected">SOON</Tag>}
+            {lastTime && <Tag roles={roles}>{t('run.lastTime')}</Tag>}
+            {comingSoon && <Tag roles={roles} variant="selected">{t('run.soon')}</Tag>}
           </View>
         )}
         {note ? <KitText t="body" color={roles.textMuted}>{note}</KitText> : null}
@@ -105,7 +131,7 @@ export function ChoiceLabel({
   )
   const frame = [styles.label, { backgroundColor: roles.surface, borderColor: comingSoon ? roles.rule : roles.line }, selected && { borderWidth: border.plate }]
   if (comingSoon || !onPress) {
-    return <View style={frame} accessible accessibilityLabel={`${title}${comingSoon ? ', coming soon' : ''}`}>{body}</View>
+    return <View style={frame} accessible accessibilityLabel={title + (comingSoon ? t('run.comingSoon') : '')}>{body}</View>
   }
   return (
     <View style={styles.wrap}>
@@ -239,6 +265,7 @@ const styles = StyleSheet.create({
   header: { marginBottom: space[3] },
   tape: { marginHorizontal: -space[4], marginTop: -space[3], marginBottom: space[2] },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  road: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[2], marginTop: space[2] },
   stages: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
   title: { marginTop: space[2] },
 

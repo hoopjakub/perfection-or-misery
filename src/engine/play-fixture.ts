@@ -13,6 +13,7 @@
 import type { SimTeam, MatchResult } from '@/types/simulation'
 import type { RosterPlayer, MatchScorers } from '@/types/stats'
 import { simulateMatch } from './match'
+import { recordResult } from './standings'
 import { rotationFor, type StakesInput } from './rotation'
 import { availabilityFor, recordMatchOutcome, type AvailabilityLedger } from './availability'
 import { effectiveMatchOvrs } from './lineup'
@@ -93,17 +94,7 @@ export function playFixture(home: SimTeam, away: SimTeam, ctx: PlayFixtureCtx): 
   })
   const result = (ctx.simulate ?? simulateMatch)({ ...home, ovr: eff.homeOvr }, { ...away, ovr: eff.awayOvr })
 
-  home.stats.played++; away.stats.played++
-  home.stats.goalsFor += result.homeGoals; home.stats.goalsAgainst += result.awayGoals
-  away.stats.goalsFor += result.awayGoals; away.stats.goalsAgainst += result.homeGoals
-  if (result.outcome === 'home') { home.stats.won++; home.stats.points += 3; away.stats.lost++ }
-  else if (result.outcome === 'away') { away.stats.won++; away.stats.points += 3; home.stats.lost++ }
-  else { home.stats.drawn++; home.stats.points++; away.stats.drawn++; away.stats.points++ }
-  const form = (t: SimTeam, out: 'win' | 'draw' | 'loss') => {
-    t.form = Math.max(-1, Math.min(1, t.form * 0.85 + (out === 'win' ? 0.15 : out === 'draw' ? 0 : -0.15)))
-  }
-  form(home, result.outcome === 'home' ? 'win' : result.outcome === 'draw' ? 'draw' : 'loss')
-  form(away, result.outcome === 'away' ? 'win' : result.outcome === 'draw' ? 'draw' : 'loss')
+  recordResult(home, away, result)
 
   const scorers = attributeFixtureScorers(poolByClub, home.clubId, away.clubId, result.homeGoals, result.awayGoals, false, false, seed, lineups)
   if (ledger) recordMatchOutcome(ledger, poolByClub, {

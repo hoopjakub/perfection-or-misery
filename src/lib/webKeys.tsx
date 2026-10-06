@@ -19,6 +19,8 @@ const typing = (e: KeyboardEvent) => {
 export function installEscBack() {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return
   window.addEventListener('keydown', e => {
+    // Phase 9: Ctrl+Shift+D opens Diagnostics from any screen.
+    if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) { e.preventDefault(); router.push('/diagnostics'); return }
     if (e.key !== 'Escape' || typing(e) || e.defaultPrevented) return
     if (router.canGoBack()) router.back()
   })

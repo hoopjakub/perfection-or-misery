@@ -20,6 +20,7 @@
 // The core below takes its storage and its sender as arguments, so
 // scripts/verify-run-queue.ts drives it headless with a fake server.
 import { create } from 'zustand'
+import { log } from '@/diag/log'
 
 export type QueuedRun = { clientId: string; playedAt: string; payload: Record<string, unknown> }
 /** What sending one run did: in (or already in), not reachable, or refused for good. */
@@ -46,7 +47,7 @@ export async function flushQueue(deps: QueueDeps, onSent?: (item: QueuedRun, id?
   for (const item of [...items]) {
     const out = await deps.send(item)
     if (out.result === 'offline') break
-    if (out.result === 'refused') console.warn(`[run-queue] dropped a run the server refused: ${out.why}`)
+    if (out.result === 'refused') log.warn('save', `run-queue: dropped a run the server refused: ${out.why}`)
     else onSent?.(item, out.id)
     items = items.filter(i => i.clientId !== item.clientId)
     await deps.save(items)
@@ -77,7 +78,7 @@ export function flushRunQueue(onSent?: (item: QueuedRun, id?: string) => void): 
   const d = deps
   flushing = flushQueue(d, onSent)
     .then(n => { useRunQueue.setState({ count: n }); return n })
-    .catch(e => { console.warn('[run-queue] flush failed:', e); return useRunQueue.getState().count })
+    .catch(e => { log.warn('save', 'run-queue: flush failed', e); return useRunQueue.getState().count })
     .finally(() => { flushing = null })
   return flushing
 }

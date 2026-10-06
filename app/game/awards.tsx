@@ -1,16 +1,17 @@
-import { isClassicEurope } from '@/data/europe'
+import { t } from '@/i18n'
+import { log } from '@/diag/log'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { verdictIn } from '@/lib/motion'
-import { forCompetition } from '@/data/competition'
+import { isTournament } from '@/data/competition'
 import { View, StyleSheet } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
-import Animated, { FadeIn } from 'react-native-reanimated'
+import { router } from 'expo-router'
+import Animated from 'react-native-reanimated'
 import { useGameStore } from '@/store/gameStore'
 import { liveRunData } from '@/lib/runData'
 import { useUserStore } from '@/store/userStore'
 import { buildAwardsNight, type AwardsNight as Night } from '@/engine/awards'
-import { stashRunStats, clubsForManagerAward, openPlayerSeason } from '@/lib/awardsNight'
+import { managerClubsFor, openPlayerSeason } from '@/lib/awardsNight'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
 import { ROLES, space, border } from '@/theme'
 import { KitScreen, KitText, Plate, SectionTag, Stripe } from '@/components/kit'
@@ -45,16 +46,7 @@ type Beat =
 
 export default function AwardsNightScreen() {
   const store = useGameStore()
-  const { mode, draftedPlayers, benchPlayers, useSubstitutes, simResult, placedLeague, clResult, wcResult, clYear, customUclQual, predictionSeed, punditPicks } = store
-  // Where the verdict lives for this mode. A short key, not a path: a slashed
-  // value in a query string is easy to mangle in transit.
-  const { to } = useLocalSearchParams<{ to?: string }>()
-  const VERDICT: Record<string, string> = {
-    league: '/game/result', cl: '/game/cl-result', wc: '/game/wc-result', cucl: '/game/custom-ucl-result',
-  }
-  const resultRoute = VERDICT[to ?? ''] ?? VERDICT[
-    isClassicEurope(mode) ? 'cl' : mode === 'world_cup' ? 'wc' : mode === 'champions_league_custom' ? 'cucl' : 'league'
-  ]
+  const { mode, simResult, punditPicks } = store
   useSimBackGuard(true)
   const reduced = useReducedMotion()
 
@@ -65,7 +57,6 @@ export default function AwardsNightScreen() {
   const [showAll, setShowAll] = useState(false)
   const leaving = useRef(false)
 
-  const fullSquad = useMemo(() => [...draftedPlayers, ...benchPlayers], [draftedPlayers, benchPlayers])
 
   useEffect(() => {
     let cancelled = false
@@ -76,16 +67,14 @@ export default function AwardsNightScreen() {
         const res = await liveRunData()
         if (cancelled) return
         if (!res) { setFailed(true); return }
-        // The verdict reads these instead of regenerating every match sheet.
-        stashRunStats({ stats: res.stats, awards: res.awards, rounds: res.rounds ?? undefined })
         setNight(buildAwardsNight({
           awards: res.awards, stats: res.stats, rounds: res.rounds ?? undefined,
-          clubs: clubsForManagerAward(placedLeague?.teams, simResult?.table, predictionSeed),
+          clubs: managerClubsFor(useGameStore.getState()),
           playerClubId: simResult?.playerTeam.clubId, mode,
           managerName: useUserStore.getState().profile?.username ?? undefined,
         }))
       } catch (e) {
-        console.warn('[awards] stats compute failed:', e)
+        log.warn('stats', 'awards: stats compute failed', e)
         if (!cancelled) setFailed(true)
       }
     }
@@ -125,15 +114,15 @@ export default function AwardsNightScreen() {
   function done() {
     if (leaving.current) return
     leaving.current = true
-    router.replace(resultRoute as never)
+    router.replace('/game/result')  // one result route for every mode (Wave F)
   }
 
   if (failed) {
     return (
       <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.centre}>
-        <KitText t="superM" color={roles.text} style={styles.centred}>NO AWARDS</KitText>
-        <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>This run's stats couldn't be read. Your verdict is still waiting.</KitText>
-        <Plate label="See your verdict" icon="forward" roles={roles} onPress={done} />
+        <KitText t="superM" color={roles.text} style={styles.centred}>{t('screens.noAwards')}</KitText>
+        <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>{t('screens.awardsUnread')}</KitText>
+        <Plate label={t('screens.seeVerdict')} icon="forward" roles={roles} onPress={done} />
       </KitScreen>
     )
   }
@@ -144,8 +133,8 @@ export default function AwardsNightScreen() {
         {/* The title in the header's size, centred. At superL it wrapped on a
             narrow phone and the first line sat off to the left ("AWARDS"),
             while a wider screen fit it on one line — hence "sometimes". */}
-        <KitText t="superM" color={roles.text} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.title}>AWARDS NIGHT</KitText>
-        <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>{forCompetition('Counting the season up.', mode)}</KitText>
+        <KitText t="superM" color={roles.text} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.title}>{t('screens.awardsNight')}</KitText>
+        <KitText t="bodyL" color={roles.textMuted} style={styles.centred}>{t(isTournament(mode) ? 'screens.countingTournament' : 'screens.countingSeason')}</KitText>
       </KitScreen>
     )
   }
@@ -170,9 +159,9 @@ export default function AwardsNightScreen() {
             line (it shrinks to fit rather than wrap); the counter sits with the
             ticks it counts. */}
         <KitText t="superM" color={roles.text} accessibilityRole="header" numberOfLines={1}
-          adjustsFontSizeToFit minimumFontScale={0.6} style={styles.title}>AWARDS NIGHT</KitText>
+          adjustsFontSizeToFit minimumFontScale={0.6} style={styles.title}>{t('screens.awardsNight')}</KitText>
         <View style={styles.tickRow}>
-          <View style={styles.ticks} accessibilityLabel={`Award ${shown} of ${beats.length}`}>
+          <View style={styles.ticks} accessibilityLabel={t('screens.awardOf', { n: shown, m: beats.length })}>
             {beats.map((_, i) => (
               <View key={i} style={[styles.tick, { backgroundColor: i <= idx || showAll ? roles.text : 'transparent', borderColor: roles.line }]} />
             ))}
@@ -190,12 +179,12 @@ export default function AwardsNightScreen() {
       <ThumbBar>
         {!atEnd && (
           <View style={styles.row}>
-            <Plate label={paused ? 'Continue' : 'Pause'} icon={paused ? 'play' : 'pause'} variant="secondary" roles={roles}
+            <Plate label={paused ? t('screens.continue') : t('screens.pause')} icon={paused ? 'play' : 'pause'} variant="secondary" roles={roles}
               onPress={() => setPaused(p => !p)} style={{ flex: 1 }} />
-            <Plate label="Show them all" variant="secondary" roles={roles} onPress={() => setShowAll(true)} style={{ flex: 1 }} />
+            <Plate label={t('screens.showAll')} variant="secondary" roles={roles} onPress={() => setShowAll(true)} style={{ flex: 1 }} />
           </View>
         )}
-        <Plate label="See your verdict" icon="forward" roles={roles} onPress={done} />
+        <Plate label={t('screens.seeVerdict')} icon="forward" roles={roles} onPress={done} />
       </ThumbBar>
     </View>
   )
@@ -210,7 +199,7 @@ function BeatView({ night, beat, onPlayer, picks }: { night: Night; beat: Beat; 
     case 'team':
       return night.teamOfTheSeason ? (
         <View style={styles.beat}>
-          <SectionTag roles={roles}>{`Team of the ${night.word ?? 'season'}`}</SectionTag>
+          <SectionTag roles={roles}>{night.word === 'tournament' ? t('screens.totTournament') : t('screens.totSeason')}</SectionTag>
           <KitText t="body" color={roles.textMuted}>{TEAM_HOW}</KitText>
           <FormationPitch roles={roles} team={night.teamOfTheSeason} onPlayer={onPlayer} />
         </View>

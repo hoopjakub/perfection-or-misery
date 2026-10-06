@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { getSlotsForFormation } from '@/engine/formations'
@@ -13,7 +14,7 @@ import { FLOODLIT } from '@/lib/appearance'
 // this was the last pre-redesign pitch, a rounded box with coloured position
 // chips). Each player shows his effective OVR in the slot he played, which is
 // what the sim used; the bench shows each sub's club and OVR.
-export function LineupPitch({ formation, draftedPlayers, benchPlayers, title, caption = "Each player's OVR in the slot he played.", scoreText }: {
+export function LineupPitch({ formation, draftedPlayers, benchPlayers, title, caption = t('season.slotCaption'), scoreText }: {
   formation: Formation
   draftedPlayers: DraftedPlayer[]
   benchPlayers?: DraftedPlayer[]
@@ -35,7 +36,7 @@ export function LineupPitch({ formation, draftedPlayers, benchPlayers, title, ca
   return (
     <View style={styles.wrap}>
       {title ? <SectionTag roles={roles}>{title}</SectionTag> : null}
-      <FormationPitch roles={roles} team={team} showScores="score" benchScores benchLabel="Bench"
+      <FormationPitch roles={roles} team={team} showScores="score" benchScores benchLabel={t('parts.bench')}
         caption={caption} scoreText={scoreText && (p => scoreText(p.id, p.score))} />
     </View>
   )

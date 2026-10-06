@@ -10,13 +10,15 @@
 // from — which is what makes a 3-4-3 look like a 3-4-3 instead of every side
 // collapsing into the same generic blocks.
 
+import { t } from '@/i18n'
 import { EventMark, Pitch } from '@/components/kit'
 import { RatingSquare } from '@/components/kit'
 import React from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 // P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
 import { ScaleText as Text } from '@/components/kit'
-import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
+// C-18: the kit's colours (gold for the man of the match, the referee's yellow for a card).
+import { space, prim, font, ROLES } from '@/theme'
 import { getFormationRows } from '@/engine/formations'
 import type { Formation } from '@/types/game'
 import type { LineupShape, PlayerMatchLine } from '@/types/match-stats'
@@ -98,7 +100,7 @@ function PitchPlayer({ label, line, accent, onPress, showRatings = true }: {
   return (
     <Pressable style={styles.slot} onPress={onPress} disabled={!onPress}>
       <View style={styles.shirtWrap}>
-        <View style={[styles.shirt, { borderColor: accent }, line?.motm && { borderColor: colors.warning, borderWidth: 2 }]}>
+        <View style={[styles.shirt, { borderColor: accent }, line?.motm && { borderColor: prim.gold, borderWidth: 2 }]}>
           <Text style={styles.shirtLabel}>{label}</Text>
         </View>
         {line && showRatings && line.minutes > 0 && (
@@ -118,7 +120,7 @@ function PitchPlayer({ label, line, accent, onPress, showRatings = true }: {
 }
 
 /** The named substitutes, with whether they got on and what they did. */
-export function MatchBench({ players, accent, onPressPlayer, showRatings = true, unusedLabel = 'unused' }: {
+export function MatchBench({ players, accent, onPressPlayer, showRatings = true, unusedLabel = t('match.unused') }: {
   players: PlayerMatchLine[]
   accent: string
   onPressPlayer?: (l: PlayerMatchLine) => void
@@ -157,7 +159,7 @@ const styles = StyleSheet.create({
   pitch: {
     backgroundColor: prim.nylonSunken, borderRadius: 0,
     borderWidth: 1, borderColor: prim.ruleNylon,
-    paddingVertical: spacing.md, paddingHorizontal: spacing.xs, gap: spacing.md,
+    paddingVertical: space[4], paddingHorizontal: space[1], gap: space[4],
   },
   row: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'flex-start' },
   slot: { alignItems: 'center', width: 62, gap: 2 },
@@ -170,16 +172,16 @@ const styles = StyleSheet.create({
   ratingDot: { position: 'absolute', right: -8, bottom: -4 },
   pips: { position: 'absolute', left: -8, top: -2, gap: 1, alignItems: 'center' },
   benchPips: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pipYellow: { width: 6, height: 8, borderRadius: 1, backgroundColor: colors.warning },
-  pipRed: { width: 6, height: 8, borderRadius: 1, backgroundColor: colors.danger },
+  pipYellow: { width: 6, height: 8, borderRadius: 1, backgroundColor: prim.cardYellow },
+  pipRed: { width: 6, height: 8, borderRadius: 1, backgroundColor: prim.misery },
   name: { fontSize: 9, color: prim.cotton, fontFamily: font.bodyBold, textAlign: 'center' },
-  subOff: { fontSize: 8, color: colors.danger },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm },
+  subOff: { fontSize: 8, color: prim.misery },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space[2] },
   formationText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, letterSpacing: 1 },
-  rotatedText: { fontSize: 9, color: colors.warning, },
+  rotatedText: { fontSize: 9, color: ROLES.nylon.textMuted },   // a note, not a warning: the floodlit ground's muted text
 
-  bench: { marginTop: spacing.sm, gap: 3 },
-  benchItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
+  bench: { marginTop: space[2], gap: 3 },
+  benchItem: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 3 },
   benchPos: { width: 30, fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted },
   benchName: { flex: 1, fontSize: 11, color: prim.cottonMuted },
   benchOn: { fontSize: 9, fontFamily: font.bodyBold },

@@ -2,6 +2,7 @@
 // patches, the European Full Path's trophy grid (P8.5-21) and the feats
 // (src/lib/feats.ts). Moved out of the Achievements screen (P8.5-36) so the
 // toast that announces a new one reads exactly the same rules.
+import { t } from '@/i18n'
 import { MODE_LABELS } from '@/data/mode-labels'
 import { isRunWon, FEATS, featCounts, fullPathTrophy, type EuroTrophy } from '@/lib/feats'
 import { EUROPE } from '@/data/europe'
@@ -11,22 +12,22 @@ import type { AchievementRun } from '@/db/queries/leaderboard'
 // but old runs/career_stats may still carry `mode: 'era'`. Per the resolved
 // decision, historical data is never deleted/rewritten; it's just rendered
 // with this single retired label instead of offering the mode to play.
-export const ERA_RETIRED_LABEL = 'Era (retired)'
+export const ERA_RETIRED_LABEL = t('ach.eraRetired')
 
 // Which modes to show, in display order, with their identity + whether they have
 // a base-difficulty axis (chaos/cursed don't — they're a single conquest).
 export const MODE_META: { mode: string; title: string; hasDifficulty: boolean; trophy: string; byTrophy?: boolean }[] = [
-  { mode: 'world_cup',               title: MODE_LABELS.world_cup,               hasDifficulty: true,  trophy: 'Lift the FIFA World Cup' },
+  { mode: 'world_cup',               title: MODE_LABELS.world_cup,               hasDifficulty: true,  trophy: t('ach.liftWc') },
   // P8.5-21: the full path can end with any of three trophies; each has its own line.
-  { mode: 'champions_league_custom', title: MODE_LABELS.champions_league_custom, hasDifficulty: true,  trophy: 'Win any of the three European trophies', byTrophy: true },
-  { mode: 'champions_league',        title: MODE_LABELS.champions_league,        hasDifficulty: true,  trophy: 'Win the finals-only UCL' },
-  { mode: 'europa_league',           title: MODE_LABELS.europa_league,           hasDifficulty: true,  trophy: 'Lift the Europa League' },
-  { mode: 'conference_league',       title: MODE_LABELS.conference_league,       hasDifficulty: true,  trophy: 'Lift the Conference League' },
-  { mode: 'all_time',                title: 'All Time',                  hasDifficulty: true,  trophy: 'Win the league' },
-  { mode: 'league',                  title: 'League Mode',               hasDifficulty: true,  trophy: 'Win the league' },
-  { mode: 'era',                     title: ERA_RETIRED_LABEL,           hasDifficulty: true,  trophy: 'Win the league' },
-  { mode: 'chaos',                   title: 'Chaos Mode',                hasDifficulty: false, trophy: 'Win the league' },
-  { mode: 'cursed',                  title: 'Cursed Mode',               hasDifficulty: false, trophy: 'Win the league' },
+  { mode: 'champions_league_custom', title: MODE_LABELS.champions_league_custom, hasDifficulty: true,  trophy: t('ach.anyEuro'), byTrophy: true },
+  { mode: 'champions_league',        title: MODE_LABELS.champions_league,        hasDifficulty: true,  trophy: t('ach.finalsUcl') },
+  { mode: 'europa_league',           title: MODE_LABELS.europa_league,           hasDifficulty: true,  trophy: t('ach.liftUel') },
+  { mode: 'conference_league',       title: MODE_LABELS.conference_league,       hasDifficulty: true,  trophy: t('ach.liftUecl') },
+  { mode: 'all_time',                title: t('ach.allTime'),         hasDifficulty: true,  trophy: t('ach.winLeague') },
+  { mode: 'league',                  title: t('ach.leagueMode'),      hasDifficulty: true,  trophy: t('ach.winLeague') },
+  { mode: 'era',                     title: ERA_RETIRED_LABEL,           hasDifficulty: true,  trophy: t('ach.winLeague') },
+  { mode: 'chaos',                   title: t('ach.chaosMode'),       hasDifficulty: false, trophy: t('ach.winLeague') },
+  { mode: 'cursed',                  title: t('ach.cursedMode'),      hasDifficulty: false, trophy: t('ach.winLeague') },
 ]
 
 export type ModeAch = {
@@ -87,16 +88,17 @@ const targetOf = (run: AchievementRun) => (run.difficulty_meta as { target?: str
 export function earnedList(runs: AchievementRun[]): { key: string; title: string; line: string }[] {
   const ach = computeAchievements(runs)
   const out: { key: string; title: string; line: string }[] = []
-  const DIFFS: ['wonEasy' | 'wonMedium' | 'wonHard', string][] = [['wonEasy', 'Easy'], ['wonMedium', 'Medium'], ['wonHard', 'Hard']]
+  // The label in the key stays English: seen toasts are stored by key.
+  const DIFFS: ['wonEasy' | 'wonMedium' | 'wonHard', string, string][] = [['wonEasy', 'Easy', t('ach.easy')], ['wonMedium', 'Medium', t('ach.medium')], ['wonHard', 'Hard', t('ach.hard')]]
   for (const m of MODE_META) {
     const a = ach[m.mode]
     if (!a?.conquered) continue
-    if (!m.hasDifficulty) { out.push({ key: m.mode, title: m.title, line: 'Conquered' }); continue }
-    if (!m.byTrophy) for (const [k, label] of DIFFS) if (a[k]) out.push({ key: `${m.mode}:${label}`, title: m.title, line: `Won on ${label}` })
+    if (!m.hasDifficulty) { out.push({ key: m.mode, title: m.title, line: t('ach.conquered') }); continue }
+    if (!m.byTrophy) for (const [k, label, level] of DIFFS) if (a[k]) out.push({ key: `${m.mode}:${label}`, title: m.title, line: t('ach.wonOn', { level }) })
   }
   for (const c of TROPHIES) for (const aimed of [false, true]) {
     const a = ach[trophyKey(c, aimed)]
-    if (a) for (const [k, label] of DIFFS) if (a[k]) out.push({ key: `${trophyKey(c, aimed)}:${label}`, title: `${EUROPE[c].name}${aimed ? ', aimed' : ''}`, line: `Won on ${label}` })
+    if (a) for (const [k, label, level] of DIFFS) if (a[k]) out.push({ key: `${trophyKey(c, aimed)}:${label}`, title: aimed ? t('ach.aimed', { comp: EUROPE[c].name }) : EUROPE[c].name, line: t('ach.wonOn', { level }) })
   }
   const feats = featCounts(runs)
   for (const f of FEATS) if ((feats.get(f.id) ?? 0) > 0) out.push({ key: `feat:${f.id}`, title: f.title, line: f.how })

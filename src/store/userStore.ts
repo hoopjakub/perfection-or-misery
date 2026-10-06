@@ -1,4 +1,5 @@
 import { useCrestStore } from '@/store/crestStore'
+import { log } from '@/diag/log'
 import { choiceHex } from '@/theme'
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
@@ -14,9 +15,7 @@ type Profile = {
   badge_team_name?: string | null
   // P8-181 (supabase/clubs.sql): your club's tag, kept on the profile by the club functions.
   club_tag?: string | null
-  // P8.5-44 (supabase/moderation.sql): the inbox's keeper (set by the
-  // maintainer in the SQL editor), a ban, and a name the moderator took away.
-  is_admin?: boolean
+  // P8.5-44 (supabase/moderation.sql): a ban, and a name the moderator took away.
   banned_at?: string | null
   must_rename?: boolean
 }
@@ -63,7 +62,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
         .single()
 
       if (error) {
-        console.warn('[userStore] fetchProfile failed:', error.code)
+        log.warn('auth', 'userStore: fetchProfile failed', error.code)
         set({ profile: null, isGuest: true })
       } else {
         set({ profile: data, isGuest: data?.is_guest ?? true })
@@ -74,7 +73,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
         import('@/db/queries/profile').then(m => m.fetchPin(user.id)).then(p => useCrestStore.getState().setPin(p ? { hex: choiceHex(p.colour) } : null)).catch(() => {})
       }
     } catch (err) {
-      console.error('[userStore] fetchProfile threw exception:', err)
+      log.error('auth', 'userStore: fetchProfile threw exception', err)
       set({ profile: null, isGuest: true })
     }
   },
@@ -115,7 +114,7 @@ export function initAuthListener() {
 
       if (session) {
         useUserStore.getState().fetchProfile().catch(err => {
-          console.error('[userStore] auth listener: profile fetch failed', err)
+          log.error('auth', 'userStore: auth listener: profile fetch failed', err)
         })
       }
     }

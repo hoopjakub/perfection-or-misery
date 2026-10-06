@@ -1,7 +1,7 @@
 # 06 · Implementation order, improvements over The Dugout, and risks
 
 > Part of the diagnostics set. Start at [`00-README.md`](00-README.md).
-> Status: **plan.** Each step leaves the app shippable, `tsc` clean and every `verify-*` script green. Per the maintainer's standing rule, the builder typechecks and runs the scripts; the maintainer tests the screen on a device.
+> Status: **as built, steps 1 to 5 (5–6 October 2026)**, except step 5's last done-when: the first reading from the maintainer's phone. Each step leaves the app shippable, `tsc` clean and every `verify-*` script green. Per the maintainer's standing rule, the builder typechecks and runs the scripts; the maintainer tests the screen on a device.
 
 ---
 
@@ -23,6 +23,16 @@ Five steps. The order puts the scripts before the screen, because The Dugout's s
 - `verify-diag` passes, and fails if a `console.log` is added to `app/`.
 - A thrown error inside a screen shows the recovery screen instead of a red box or a blank page.
 
+*(Done 5 October 2026, Phase 9's first step.*
+- *`src/diag/budgets.ts` (44 budgets then; 45 after step 2: 30 runtime, 3 planned, 4 build-time, 7 self-test, as 03 §6), `perf.ts` (the recorder; `pomPerf.readings()` in a web console), `log.ts` and `install.ts`.*
+- *The log: a ring of 300 in categories `boot db sim stats deep ui save net auth app`, plus **`run` and `screen`** for the maintainer's 1 October ask (RUN STARTED / RUN ENDED, a screen opened, drawn, left; written from step 2). Errors and Supabase answers are cut to one short line, and only a Supabase error's code, status and message are written, nothing else on it.*
+- *Changed from the plan: **warnings and errors are kept in MMKV, not AsyncStorage**, through `settingsStorage` (`src/lib/mmkv.ts`). MMKV writes synchronously, so the line written as a fatal error ends the session lands; AsyncStorage's write might not finish. They're also kept in their own list of 100, apart from the ring, because a check showed a burst of info lines could push a warning out of the ring before its debounced write. Once read back at start-up (marked `prev`), the stored copy is cleared, so a quiet session doesn't show the same old trouble again.*
+- *All 89 `console.warn`/`console.error` calls and the three `console.log` lines are on the log; the live match's timing line (`[live] … s, … ms a minute`) is now kept in every build, not only development, since Phase 9 asks about it.*
+- *`ErrorUtils` and the web's `error`/`unhandledrejection` are caught, logged and written at once; the root layout exports `ErrorBoundary`, a plain recovery screen (Try again, Back to Play) in both languages. Diagnostics joins it in step 4.*
+- *D4 taken on its default: sign-out removes only Supabase's `sb-…` keys. **This was a live bug on the web:** AsyncStorage there is the same localStorage MMKV's web build uses, so signing out also wiped the settings, the offline run queue, the run keeper and now the log.*
+- *Left for its consumer: `env.ts` is step 4's (the screen and the report are the only things that read it).*
+- *Checks: `verify-budgets` (passes with the rule off, 30 failures with it on) and `verify-diag` (no console call outside the log, no storage wipe, the database files exist, club_facts parses, and the log's ring, debug switch, short errors and device copy; seen failing with a `console.log` in `app/`). Checklist P9-1 to P9-3.)*
+
 ### Step 2 · Instrumentation
 
 **Build**
@@ -37,6 +47,18 @@ Five steps. The order puts the scripts before the screen, because The Dugout's s
 - `verify-budgets` passes with the NO DATA rule on: every runtime budget has a recording site.
 - No key has more than two sites.
 - `globalThis.pomPerf.report()` in a web console after one quick-sim run shows real numbers for boot, sim, stats and detail keys.
+
+*(Done 5 October 2026.*
+- *Every runtime budget has a recording site, and `verify-budgets` now requires it (`REQUIRE_RECORDED` on; seen failing with `placement:build` removed). No key has more than two. The simulation keys were re-cut to today's screens (03 §2.3, *As built*): 31 runtime keys, not 30.*
+- *The recorder grew `timeToFrame` (work timed to the first frame after it, for everything a player waits to see), `measure(key, from, withinMs)` with the mark used up, and background time dropped: a span that crosses a trip to the background isn't kept.*
+- *Engine and query sites are wrapped once at the definition (`query:pool`, `detail:generate`, the three `stats:*`, `sim:knockouts`, `save:run` at `sendPayload`, `save:career`, `net:*`), so their callers can't drift. `runStatsFor(store)` wasn't needed: the stats are now computed in `runData.ts` only, and recorded inside the functions.*
+- *`ui:navigate` runs from the nav guard's wrapped `router` calls (every push, replace and back, not only `PressCard`) to the new screen's first frame, if within 2 s. `boot:interactive` from the root layout's module to Home's first frame.*
+- *Frames, `src/diag/frames.ts`: a JS-thread sampler for the Deep Match's live phase and the ceremony, and a UI-thread one (`useFrameCallback`, sent across every 30 frames) for the globes, which run on the UI thread since P8-164, and the bracket, sampled only while a finger is down.*
+- *`src/diag/watch.ts`: the stall detector (250 ms tick, over 50 ms late is a stall, pinned to the screen and the timed work still open; over 200 ms gets a log line), `mem:js` every 10 s, paused in the background, and the long-task probe.*
+- ***The probes aren't answered yet.** They need a release build on the phone. Each one says in the log which source answered: "memory read from HermesInternal" or "no memory reading on this engine", and "long tasks observed" if the feed exists. The maintainer's first log answers 02 §1.*
+- *The maintainer's log categories: `RUN STARTED <tag> · mode · difficulty · formation` and `RUN ENDED <tag> · finished/abandoned after N s` (`runStarted` in `startRun`, `runEnded` on the result and on abandon); `screen /path drawn in N ms` on every screen change; matchday stamps (`league MD12`, `ucl LP5`, `wc G2`) from the timed wrappers. The tag is four random characters made on the phone, not the saved run's id.*
+- *The save ledger (04 §6): `saveLedger` in `log.ts`, written from `useRunSave`'s status, the career merge and the schema retry.*
+- *Not done: a context stamp for knockout rounds (`ucl QF L2`): `KnockoutStage` reveals rounds already simulated, so there's no per-round work to stamp; it goes in with the screen if it turns out to be missed. Checklist P9-4 to P9-6.)*
 
 ### Step 3 · Checks
 
@@ -53,6 +75,17 @@ Five steps. The order puts the scripts before the screen, because The Dugout's s
 - Changing one constant in `match-detail.ts` makes `verify-diag-golden` fail with the first differing field named.
 - The self-test, run from a web console (`await runSelfTest()`), completes with the network off and reports `offline`, not an error.
 
+*(Done 5 October 2026.*
+- *`src/engine/invariants.ts`: `checkMatchDetail` and `checkTimeline`, every per-match rule of `verify-match-detail` and `verify-deep-match`, which now call them and keep only their aggregate checks. **Coverage didn't move:** on `--seed 1` the scripts ran 3,841,896 and 2,645,369 checks before the move and the same after (each script now prints its count). Seen failing with the possession rule broken.*
+- *`--seed N` on both scripts swaps `Math.random` for a seeded generator, since `simulateMatch` and `randomSeed` both draw from it, so a whole run replays; without it the seed comes from the clock and is printed.*
+- *`ENGINE_VERSION` is in `src/engine/version.ts` (pure, so Node can read it), not beside `DB_VERSION` in `setup.ts`, which imports native modules. `DB_VERSION` is exported for the data check.*
+- *`src/diag/fingerprint.ts` (pure): 50 synthetic matches made wholly from their seed (squads, score, scorers: no database, so a data rebuild never moves it), the sheet and the Deep Match frames hashed raw and as shown, FNV-1a, compared as MATCH, RAW DIFFERS, SHOWN DIFFERS or STALE. `scripts/diag-golden.ts` writes `src/diag/golden.ts` (78 KB with seeds 1 to 3's whole sheets). `scripts/verify-diag-golden.ts` fails on any difference: seen failing with `INJURY_PER_SIDE_PER_MATCH` nudged from 0.145 to 0.16 (seed 19, SHOWN DIFFERS). A field is named only for seeds 1 to 3, the sheets the file keeps; naming it for all 50 would put the file in the hundreds of KB. A nudge to `MISS_SHARE` moved none of the 50 matches, which says the 50 cover common paths better than rare ones.*
+- *`src/diag/checks.ts`: `runSelfTest(onStep, stop)` runs the five steps, yielding every 100 iterations, inside `selfTestScope`: while it runs only `bench:*` is recorded and the stall detector ignores itself. The invariant step uses the same synthetic matches as the fingerprint from a clock seed, so a violation on a phone replays anywhere: `npx tsx scripts/verify-diag-golden.ts --replay <seed>`. On the web `await runSelfTest()` works from the console now (loaded on first use).*
+- *Data check: bundled, installed (Android's version file) and `_meta` versions, `PRAGMA quick_check`, table counts, club facts. Logo and flag coverage are left for the screen: the crest decision now runs through `brand.ts` by build flavour, so "clubs with no crest" needs that rule, not a map count.*
+- *`src/diag/shape.ts`: the run (matches, seeds, fallback seeds, named scorers, extra time, shootouts, the result's size), the session kind, storage (key names masked, values never shown). **Changed from 04 §5.2:** the run isn't all lost on a reload any more. The run keeper (P8-149) keeps the draft to kick-off, so the line says that.*
+- *`scripts/verify-reload.ts`, reporting: GameStore has 34 fields, 13 kept to kick-off by the run keeper, 21 lost on a reload (the season and its result among them).*
+- *Checklist P9-7 and P9-8.)*
+
 ### Step 4 · The screen and the report
 
 **Build**
@@ -66,6 +99,16 @@ Five steps. The order puts the scripts before the screen, because The Dugout's s
 - Every state in [`05`](05-SCREEN-AND-REPORT.md) §3.2 is reachable (listed for the maintainer's device test, not tested by the builder).
 - `CLAUDE.md` and the `pom-dev` skill's "Browser walkthrough" section are updated to the new tester location.
 
+*(Done 6 October 2026.*
+- *`src/diag/env.ts` (moved here from step 1, its first reader), `src/diag/report.ts` (`budgetRows` worst first, `buildReport` cut by whole sections in six steps down to "payloads", `buildFullLog` for the log screen), `scripts/verify-report.ts`: the worst case (every budget failing three times over, 300 long log lines, every check failed) is 3,891 characters; a quiet report isn't trimmed; the table starts with a FAIL; a failed check keeps its seed.*
+- ***Rule 9 is enforced in the report, not only checked:** `scrub` blanks anything shaped like an email, a UUID, a JWT or the backend's address in every printed log line, since a server's error can carry an id. The check found a real fault on its first run: the UUID and token patterns had been written with a backspace character in place of `\b` (a quoting slip in the edit), so they matched nothing. Fixed; no other file in the repo has one. Seen failing with the scrub switched off.*
+- *`app/diagnostics/index.tsx`: actions (share or copy, the self-test with Cancel, refresh), summary and worst row, environment, checks with the time they ran, this run (shape, the save ledger, what a reload keeps), storage, budgets in seven groups that open themselves only on a WARN or FAIL, stalls, problems and last session, measured-with-no-budget, the selectable report. On a wide window the first half is a 420-point left pane (`Panes`). Web keys S, C, R and L. `app/diagnostics/log.tsx`: the ring newest first in a `FlatList`, level and category chips, search, a tap opens a line's payload, share the whole log.*
+- *Status tags reuse `Tag`: OK outlined, WARN ink, FAIL misery red (the kit's "out" since P8-111, not the stripe 05 §1 names), NO DATA faded. **No haptic on share**, against 05 §3.1: the app never adds haptics.*
+- *Ways in: the eighth tap on "Made in Slovakia" opens Diagnostics in every build and turns on debug lines (a development build still shows the tester on About until step 5); a Diagnostics row under Version on About, always there; Ctrl+Shift+D from any screen on the web; `pom://diagnostics` works as a route; the crash screen offers it. About's version already came from `Constants` (P8-73).*
+- *Strings: the screen's chrome is in both languages (`diag.*`); budget labels and status words stay English, as they are in the report the maintainer reads. `verify-i18n` treats DATA as a code word for NO DATA.*
+- *`CLAUDE.md` and the `pom-dev` skill: the walkthrough's door, and a Diagnostics section (log not console, budgets, the shared match rules and `--seed`, `ENGINE_VERSION` and the golden file).*
+- *Checklist P9-9 to P9-12.)*
+
 ### Step 5 · Tester move and the first real reading
 
 **Build**
@@ -76,6 +119,13 @@ Five steps. The order puts the scripts before the screen, because The Dugout's s
 **Done when**
 - A release build shows no Tools row, and `pom://diagnostics/tools` lands on `/diagnostics`.
 - The maintainer's first report from a real Android phone is in `PERF-LOG.md`, and every provisional target in [`03`](03-BUDGETS.md) either stays with a reading beside it or moves with a reason.
+
+*(Built 6 October 2026; the phone reading waits for the maintainer.*
+- *`app/diagnostics/tools.tsx`: the Quick Sim Tester, moved off About. Shown as a Tools row on Diagnostics only when `__DEV__` or `EXPO_PUBLIC_DEV_TOOLS=1`; in any other build the route is a `<Redirect>` to `/diagnostics`, so `pom://diagnostics/tools` lands there. About keeps only the door (eight taps) and the Diagnostics row.*
+- *`scripts/perf-size.ts`: the database (both flavours), assets as the web ships them (the export's own `assets/`, or `assets/` less the personal database, labelled an estimate), the web entry bundle gzipped (`--web`), the APK (`--apk`); `--log` appends to `docs/PERF-LOG.md`. A budget with no input says why instead of passing.*
+- *`docs/PERF-LOG.md`, with its first section: the web build as Vercel makes it. Database 12.8 MB (WARN, both flavours), assets 20.0 MB (OK, on the target), entry bundle 1,357 KB gzipped (OK). The self-test and its golden file are their own chunk, out of the entry bundle.*
+- ***A leak found on the way, and fixed.** It was the first export the legal-bundle check ever read, and it failed: two real club names and a player's name in the public web bundle, from the self-test's chunk (step 3). `checks.ts` imported the club facts directly; the legal build swaps them only when imported through `clubFacts.ts` (`metro.config.js`). Now it reads `clubFactCount()` through that file, the check passes, and `verify-diag` fails on any direct import of the five swapped modules (seen failing).*
+- *Checklist P9-13 and P9-14.)*
 
 ---
 

@@ -9,6 +9,7 @@
  * screens print it.
  */
 
+import { t } from '@/i18n'
 import type { PlayerStatLine } from '@/types/stats'
 import { lineOf, type Line } from './awards'
 
@@ -19,13 +20,12 @@ export type StatKey =
   | 'saves' | 'cleanSheets' | 'passes' | 'accuratePasses' | 'yellowCards' | 'redCards' | 'fouls'
   | 'avgRating' | 'potm'
 
-export const STAT_LABEL: Record<StatKey, string> = {
-  goals: 'Goals', assists: 'Assists', chancesCreated: 'Chances created', bigChancesCreated: 'Big chances created',
-  shots: 'Shots', shotsOnTarget: 'Shots on target', dribbles: 'Dribbles', tacklesWon: 'Tackles won',
-  interceptions: 'Interceptions', clearances: 'Clearances', blocks: 'Blocks', duelsWon: 'Duels won',
-  saves: 'Saves', cleanSheets: 'Clean sheets', passes: 'Passes', accuratePasses: 'Accurate passes',
-  yellowCards: 'Yellow cards', redCards: 'Red cards', fouls: 'Fouls', avgRating: 'Average rating', potm: 'Man of the match',
-}
+// P8.5-28: the words live in src/i18n (hub.stat.*); this keeps the old shape so
+// the boards and the player page read it the same way.
+const STAT_KEYS: StatKey[] = ['goals', 'assists', 'chancesCreated', 'bigChancesCreated', 'shots', 'shotsOnTarget', 'dribbles',
+  'tacklesWon', 'interceptions', 'clearances', 'blocks', 'duelsWon', 'saves', 'cleanSheets', 'passes', 'accuratePasses',
+  'yellowCards', 'redCards', 'fouls', 'avgRating', 'potm']
+export const STAT_LABEL = Object.fromEntries(STAT_KEYS.map(k => [k, t(`hub.stat.${k}` as 'hub.stat.goals')])) as Record<StatKey, string>
 
 // Averages and awards aren't per-90 figures; neither are clean sheets, which
 // belong to a whole match rather than a player's minutes.
@@ -87,5 +87,5 @@ export function positionRanks(players: PlayerStatLine[], key: StatKey, mode: 'to
 export function percentileTag(p: PlayerStatLine, r: Rank | undefined): string | null {
   // Ten players is the smallest line where "top 10%" means anything.
   if (!r || r.of < 10 || r.rank / r.of > 0.1) return null
-  return `TOP ${Math.max(1, Math.ceil((r.rank / r.of) * 100))}% · ${p.position}`
+  return t('hub.topPct', { pct: Math.max(1, Math.ceil((r.rank / r.of) * 100)), pos: p.position })
 }

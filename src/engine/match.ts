@@ -10,6 +10,21 @@ const UPSET_THRESHOLD = 8
 // (too flat, every game a coin-flip); 6.5 makes quality bite while still leaving
 // real room for upsets.
 const OVR_DELTA_DIVISOR = 6.5
+// One strength scale (Wave G audit G-L3, 3 Oct 2026). Clubs used to be rated
+// as their best 14 stretched ×1.55 around 81; your XI was never stretched, so
+// the same players rated differently on either side of a match. Both are now
+// rated the same way (clubStrength / calcTeamOvr in rating.ts), which narrows
+// the gaps between clubs: a Premier League went from 80–94 to 81–91, and a
+// season's first-to-last gap fell from 60 points to 50 (real leagues run
+// 60–75). The stretch now lives here, applied to EVERY side's rating alike,
+// so the numbers on screen stay honest and the gaps still bite. Only the
+// rating is stretched: home advantage, form and the difficulty tilt were
+// tuned in rating points and keep their meaning. Swept on 3 Oct 2026 over
+// the top five leagues (02 §8): 1.5 puts the strongest club's title rate
+// (39.9%) and the first-to-last gap (61.5 points) back where the old scale
+// had them (37.6%, 61.2), with goals per game and home wins unmoved.
+export const RATING_STRETCH = 1.5
+export const stretched = (ovr: number) => ovr * RATING_STRETCH
 const MAX_WIN_PROB = 0.90   // was 0.85 — let clear favourites actually dominate
 
 // ── Player-only difficulty tilt ─────────────────────────────────────────────
@@ -46,8 +61,8 @@ export function matchOdds(homeEff: number, awayEff: number): { home: number; dra
 }
 
 export function simulateMatch(home: SimTeam, away: SimTeam): MatchResult {
-  const homeEff = home.ovr + HOME_ADVANTAGE + home.form * FORM_WEIGHT + (home.isPlayer ? activeTilt : 0)
-  const awayEff = away.ovr + away.form * FORM_WEIGHT + (away.isPlayer ? activeTilt : 0)
+  const homeEff = stretched(home.ovr) + HOME_ADVANTAGE + home.form * FORM_WEIGHT + (home.isPlayer ? activeTilt : 0)
+  const awayEff = stretched(away.ovr) + away.form * FORM_WEIGHT + (away.isPlayer ? activeTilt : 0)
 
   const { home: homeWinProb, draw: drawProb } = matchOdds(homeEff, awayEff)
 
@@ -61,7 +76,7 @@ export function simulateMatch(home: SimTeam, away: SimTeam): MatchResult {
   const loserAdvantage =
     outcome === 'home' ? away.ovr - home.ovr :
     outcome === 'away' ? home.ovr - away.ovr : 0
-  const isUpset = loserAdvantage >= UPSET_THRESHOLD
+  const isUpset = stretched(loserAdvantage) >= UPSET_THRESHOLD
 
   return { homeGoals, awayGoals, outcome, isUpset }
 }

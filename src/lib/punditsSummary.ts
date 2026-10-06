@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { ordinal } from '@/lib/format'
 
 // The verdict's pundits, checked (P8-24, P8-122): one row per club, and what
@@ -18,10 +19,10 @@ export function callOf(r: PunditRow): { label: string; spot: 'mega' | 'place' | 
   const off = r.predicted - r.finalPosition   // positive = did better than tipped
   const hasPts = r.points != null && r.predictedPoints != null
   const ptsRight = hasPts && r.points === r.predictedPoints
-  if (off === 0 && ptsRight) return { label: 'MEGA SPOT ON', spot: 'mega', off }
-  if (off === 0) return { label: hasPts ? 'PLACE SPOT ON' : 'SPOT ON', spot: 'place', off }
-  if (ptsRight) return { label: 'POINTS SPOT ON', spot: 'points', off }
-  return { label: off > 0 ? `UP ${off}` : `DOWN ${-off}`, spot: null, off }
+  if (off === 0 && ptsRight) return { label: t('verdict.megaSpotOn'), spot: 'mega', off }
+  if (off === 0) return { label: hasPts ? t('verdict.placeSpotOn') : t('verdict.spotOn'), spot: 'place', off }
+  if (ptsRight) return { label: t('verdict.pointsSpotOn'), spot: 'points', off }
+  return { label: off > 0 ? t('verdict.up', { n: off }) : t('verdict.down', { n: -off }), spot: null, off }
 }
 
 // P8-122: what they got right and wrong, in a few lines, not one. The best
@@ -34,24 +35,23 @@ export function punditsSummary(rows: PunditRow[]): string[] {
   const best = [...rows].sort((a, b) => off(a) - off(b) || ptsOff(a) - ptsOff(b) || byName(a, b))[0]
   const worst = [...rows].sort((a, b) => off(b) - off(a) || byName(a, b))[0]
   const exact = rows.filter(r => off(r) === 0).length
-  const pts = (v?: number) => (v != null ? ` on ${v} points` : '')
-  const call = (r: PunditRow) => `${r.clubName}, tipped ${ordinal(r.predicted)}${pts(r.predictedPoints)}, finished ${ordinal(r.finalPosition)}${pts(r.points)}`
+  const pts = (v?: number) => (v != null ? t('verdict.sumOnPoints', { n: v }) : '')
+  const call = (r: PunditRow) => t('verdict.sumCall', { name: r.clubName, tipped: ordinal(r.predicted), tpts: pts(r.predictedPoints), place: ordinal(r.finalPosition), pts: pts(r.points) })
   const you = rows.find(r => r.isPlayer)
   const withPts = rows.some(r => r.points != null && r.predictedPoints != null)
   const ptsExact = rows.filter(r => r.points != null && r.points === r.predictedPoints).length
   const mega = rows.filter(r => callOf(r).spot === 'mega').length
   const lines = [
     withPts
-      ? `They got ${exact} of ${rows.length} places exactly right and ${ptsExact} points total${ptsExact === 1 ? "" : "s"}${mega ? `; ${mega} mega spot on, both` : ''}.`
-      : `They got ${exact} of ${rows.length} places exactly right.`,
-    `Their best call: ${call(best)}.`,
-    ...(worst !== best ? [`Their worst: ${call(worst)}.`] : []),
+      ? t('verdict.sumWithPts', { exact, count: rows.length, ptsExact, s: ptsExact === 1 ? '' : t('verdict.sumPtsS'), mega: mega ? t('verdict.sumMega', { n: mega }) : '' })
+      : t('verdict.sumPlaces', { exact, count: rows.length }),
+    t('verdict.sumBest', { call: call(best) }),
+    ...(worst !== best ? [t('verdict.sumWorst', { call: call(worst) })] : []),
   ]
   if (you) {
     const d = you.predicted - you.finalPosition
-    const how = d > 0 ? `${d} ${d === 1 ? 'place' : 'places'} better than they said`
-      : d < 0 ? `${-d} ${d === -1 ? 'place' : 'places'} worse than they said` : 'exactly where they said'
-    lines.push(`On you: tipped ${ordinal(you.predicted)}${pts(you.predictedPoints)}. You finished ${ordinal(you.finalPosition)}${pts(you.points)}, ${how}.`)
+    const how = d > 0 ? t('verdict.sumBetter', { count: d }) : d < 0 ? t('verdict.sumWorse', { count: -d }) : t('verdict.sumExactly')
+    lines.push(t('verdict.sumYou', { tipped: ordinal(you.predicted), tpts: pts(you.predictedPoints), place: ordinal(you.finalPosition), pts: pts(you.points), how }))
   }
   return lines
 }

@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+import { surname } from '@/lib/format'
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
@@ -43,8 +45,8 @@ export default function RevealScreen() {
   if (!formation || rows.length === 0) {
     return (
       <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
-        <KitText t="bodyL" color={roles.textMuted}>There's no squad to reveal.</KitText>
-        <Plate label="Back to the draft" roles={roles} onPress={() => router.replace('/game/draft')} />
+        <KitText t="bodyL" color={roles.textMuted}>{t('draft.noSquad')}</KitText>
+        <Plate label={t('draft.backToDraft')} roles={roles} onPress={() => router.replace('/game/draft')} />
       </KitScreen>
     )
   }
@@ -52,17 +54,16 @@ export default function RevealScreen() {
   const team = calcTeamOvr(draftedPlayers, slots)
   const best = rows.reduce((a, b) => (b.eff > a.eff ? b : a))
   const worst = rows.reduce((a, b) => (b.eff < a.eff ? b : a))
-  const surname = (n: string) => n.split(' ').slice(-1)[0].toUpperCase()
+  const shirt = (n: string) => surname(n).toUpperCase()
   const revealed = new Set(rows.slice(0, shown).map(r => r.player.playerId))
   const latest = shown > 0 && !done ? rows[shown - 1] : null
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <RunHeader roles={roles} stage={4} colourway={colourwayFor(mode)} title="Your ratings"
-        skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} back={false} />
+      <RunHeader roles={roles} stage={4} colourway={colourwayFor(mode)} title={t('draft.yourRatings')} back={false} />
 
       <LineupPitch formation={formation} draftedPlayers={draftedPlayers}
-        caption="Each player's OVR in the slot you put him in."
+        caption={t('draft.slotCaption')}
         scoreText={(id, ovr) => (revealed.has(id) ? String(ovr) : '??')} />
       {/* The figure that just turned over, said once more in words. */}
       {latest && (
@@ -73,19 +74,19 @@ export default function RevealScreen() {
 
       {done ? (
         <View style={styles.verdict} accessibilityLiveRegion="polite">
-          <KitText t="tag" color={roles.textMuted}>TEAM OVR</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('draft.teamOvrTag')}</KitText>
           <KitText t="superXl" color={roles.text}>{String(team)}</KitText>
-          <KitText t="bodyL" color={roles.text}>{`Blind, you built an ${team}.`}</KitText>
+          <KitText t="bodyL" color={roles.text}>{t('draft.blindBuilt', { ovr: team })}</KitText>
           <View style={styles.callouts}>
-            <Tag roles={roles} variant="win">{`STEAL · ${surname(best.player.name)} ${best.eff} AT ${best.slot.label}`}</Tag>
+            <Tag roles={roles} variant="win">{t('draft.steal', { name: shirt(best.player.name), ovr: best.eff, slot: best.slot.label })}</Tag>
             {worst !== best && (
-              <Tag roles={roles} variant="loss">{`BLUNDER · ${worst.eff} AT ${worst.slot.label}`}</Tag>
+              <Tag roles={roles} variant="loss">{t('draft.blunder', { ovr: worst.eff, slot: worst.slot.label })}</Tag>
             )}
           </View>
-          <Plate label="To the draw" icon="forward" roles={roles} onPress={() => router.replace('/game/placement')} style={styles.plate} />
+          <Plate label={t('draft.toTheDraw')} icon="forward" roles={roles} onPress={() => router.replace('/game/placement')} style={styles.plate} />
         </View>
       ) : (
-        <Plate label="Show all" variant="quiet" roles={roles} onPress={() => setShown(rows.length)} style={styles.skip} />
+        <Plate label={t('draft.showAll')} variant="quiet" roles={roles} onPress={() => setShown(rows.length)} style={styles.skip} />
       )}
     </KitScreen>
   )

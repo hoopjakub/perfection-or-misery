@@ -1,3 +1,4 @@
+import { t, dec } from '@/i18n'
 import React from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { View, StyleSheet } from 'react-native'
@@ -32,70 +33,68 @@ export default function CustomDifficultyScreen() {
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <RunHeader roles={roles} stage={2} colourway={colourwayFor(mode)} title="Custom rules" />
+      <RunHeader roles={roles} stage={2} colourway={colourwayFor(mode)} title={t('setup.customRules')} />
 
       {/* The live readout sits first so every change below is felt at once. */}
       <View style={[styles.readout, { borderColor: roles.line }]} accessible accessibilityLiveRegion="polite"
-        accessibilityLabel={`Hardness ${r.hardness.toFixed(1)} of 11, score multiplier ${r.scoreMultiplier.toFixed(2)}`}>
+        accessibilityLabel={t('setup.readoutA11y', { h: dec(r.hardness), m: dec(r.scoreMultiplier, 2) })}>
         <View>
-          <KitText t="tag" color={roles.textMuted}>HARDNESS</KitText>
-          <KitText t="figureL" color={roles.text}>{`${r.hardness.toFixed(1)}/11`}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('setup.hardness')}</KitText>
+          <KitText t="figureL" color={roles.text}>{`${dec(r.hardness)}/11`}</KitText>
         </View>
         <View style={styles.readoutRight}>
-          <KitText t="tag" color={roles.textMuted}>SCORE</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('setup.score')}</KitText>
           <KitText t="figureL" color={roles.text}>{multiplierText(r.scoreMultiplier)}</KitText>
         </View>
       </View>
 
-      <SectionTag roles={roles}>The AI</SectionTag>
+      <SectionTag roles={roles}>{t('setup.theAi')}</SectionTag>
       <View style={styles.row}>
         <View style={{ flex: 1, gap: 2 }}>
           <KitText t="title" color={roles.text}>{`${c.screwLevel} · ${level.name}`}</KitText>
           <KitText t="body" color={roles.textMuted}>{level.tagline}</KitText>
         </View>
-        <StepControl roles={roles} label="Difficulty level, 1 to 10" value={c.screwLevel} min={1} max={10}
+        <StepControl roles={roles} label={t('setup.levelLabel')} value={c.screwLevel} min={1} max={10}
           onChange={v => setCustomDifficulty({ ...c, screwLevel: v })} />
       </View>
-      <KitText t="body" color={roles.textMuted}>Easy, Medium and Hard sit at 2, 4 and 6.</KitText>
+      <KitText t="body" color={roles.textMuted}>{t('setup.presetsAt')}</KitText>
 
-      <SectionTag roles={roles}>The draft</SectionTag>
+      <SectionTag roles={roles}>{t('setup.theDraft')}</SectionTag>
       <View style={styles.row}>
         <View style={{ flex: 1, gap: 2 }}>
-          <KitText t="title" color={roles.text}>Rerolls</KitText>
-          <KitText t="body" color={roles.textMuted}>More rerolls make the draft easier and cut your score.</KitText>
+          <KitText t="title" color={roles.text}>{t('setup.rerolls')}</KitText>
+          <KitText t="body" color={roles.textMuted}>{t('setup.rerollsNote')}</KitText>
         </View>
-        <StepControl roles={roles} label="Rerolls, 0 to 10" value={c.rerolls} min={0} max={10}
+        <StepControl roles={roles} label={t('setup.rerollsLabel')} value={c.rerolls} min={0} max={10}
           onChange={v => setCustomDifficulty({ ...c, rerolls: v })} />
       </View>
       <ListRow
         roles={roles}
-        label={c.ratingsShown ? 'Ratings shown while you draft' : 'Draft blind: harder, and worth more'}
-        trailing={<Toggle roles={roles} label="Show ratings" value={c.ratingsShown} onChange={v => setCustomDifficulty({ ...c, ratingsShown: v })} />}
+        label={c.ratingsShown ? t('setup.ratingsShownLine') : t('setup.draftBlind')}
+        trailing={<Toggle roles={roles} label={t('setup.showRatings')} value={c.ratingsShown} onChange={v => setCustomDifficulty({ ...c, ratingsShown: v })} />}
       />
       {mode === 'champions_league_custom' && (
         <ListRow
           roles={roles}
-          label={weighted ? "Spins only come from Europe's six strongest leagues" : 'Spins come from every league'}
-          trailing={<Toggle roles={roles} label="Weighted picks" value={weighted} onChange={setWeightedPicksOverride} />}
+          label={weighted ? t('setup.weightedOn') : t('setup.weightedOff')}
+          trailing={<Toggle roles={roles} label={t('setup.weightedLabel')} value={weighted} onChange={setWeightedPicksOverride} />}
         />
       )}
 
-      <SectionTag roles={roles}>The bench</SectionTag>
+      <SectionTag roles={roles}>{t('setup.theBench')}</SectionTag>
       <ListRow
         roles={roles}
-        label={useSubstitutes
-          ? 'Play with a bench. Subs come on in the second half, for every club.'
-          : 'No bench, for you and every other club.'}
-        trailing={<Toggle roles={roles} label="Play with a bench" value={useSubstitutes} onChange={setUseSubstitutes} />}
+        label={useSubstitutes ? t('setup.benchOnLine') : t('setup.benchOffLine')}
+        trailing={<Toggle roles={roles} label={t('setup.playWithBench')} value={useSubstitutes} onChange={setUseSubstitutes} />}
       />
 
       <View style={styles.summary}>
-        <Tag roles={roles}>{`REROLLS ${c.rerolls}`}</Tag>
-        <Tag roles={roles}>{c.ratingsShown ? 'RATINGS SHOWN' : 'RATINGS HIDDEN'}</Tag>
-        <Tag roles={roles}>{useSubstitutes ? 'BENCH ON' : 'NO BENCH'}</Tag>
+        <Tag roles={roles}>{t('setup.rerollsTag', { n: c.rerolls })}</Tag>
+        <Tag roles={roles}>{c.ratingsShown ? t('setup.ratingsShownTag') : t('setup.ratingsHiddenTag')}</Tag>
+        <Tag roles={roles}>{useSubstitutes ? t('setup.benchOn') : t('setup.noBench')}</Tag>
       </View>
 
-      <Plate label="Use these rules" icon="forward" roles={roles} onPress={useThese} style={styles.plate} />
+      <Plate label={t('setup.useRules')} icon="forward" roles={roles} onPress={useThese} style={styles.plate} />
       {/* P8-73: the version on every menu before a run starts. */}
       <VersionButton roles={roles} style={{ marginTop: space[4] }} />
     </KitScreen>

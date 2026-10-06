@@ -14,6 +14,7 @@
 // orange edge, the one mark that always means "you"; the reason is words, so
 // it never depends on a colour.
 
+import { t } from '@/i18n'
 import React, { useState } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 import { ROLES, space, border } from '@/theme'
@@ -39,15 +40,15 @@ export function MedicalTable({ absences }: { absences?: Absence[]; accent?: stri
 
   return (
     <View style={styles.wrap}>
-      <SectionTag roles={roles}>Medical & suspensions</SectionTag>
+      <SectionTag roles={roles}>{t('parts.medical')}</SectionTag>
       <KitText t="body" color={roles.textMuted}>
         {`${rows.length} absence${rows.length === 1 ? '' : 's'} across the competition${mine > 0 ? ` · ${mine} of yours` : ''}`}
       </KitText>
 
       <View style={[styles.head, { borderBottomColor: roles.line }]}>
-        <KitText t="tag" color={roles.textMuted} style={styles.colPlayer}>Player</KitText>
-        <KitText t="tag" color={roles.textMuted} style={styles.colReason}>Reason</KitText>
-        <KitText t="tag" color={roles.textMuted} style={styles.colSpan}>Out</KitText>
+        <KitText t="tag" color={roles.textMuted} style={styles.colPlayer}>{t('parts.colPlayer')}</KitText>
+        <KitText t="tag" color={roles.textMuted} style={styles.colReason}>{t('parts.colReason')}</KitText>
+        <KitText t="tag" color={roles.textMuted} style={styles.colSpan}>{t('parts.colOut')}</KitText>
       </View>
 
       {shown.map(a => (
@@ -58,14 +59,14 @@ export function MedicalTable({ absences }: { absences?: Absence[]; accent?: stri
             <KitText t="body" color={roles.text} numberOfLines={1}>{a.playerName}</KitText>
             <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${a.position} · ${a.clubName}`}</KitText>
             {a.standInName ? (
-              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`Stand-in: ${a.standInName} (${a.standInOvr})`}</KitText>
+              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{t('parts.standIn', { name: a.standInName, ovr: a.standInOvr })}</KitText>
             ) : null}
           </View>
           <KitText t="tag" color={roles.text} numberOfLines={2} style={styles.colReason}>
-            {a.reason === 'injury' ? `Injury${a.minute ? ` · ${a.minute}'` : ''}` : 'Suspended'}
+            {a.reason === 'injury' ? t('parts.injury') + (a.minute ? ` · ${a.minute}'` : '') : t('parts.suspended')}
           </KitText>
           <KitText t="figure" color={roles.text} style={styles.colSpan}>
-            {a.fromMatchday === a.toMatchday ? `MD ${a.fromMatchday}` : `MD ${a.fromMatchday}–${a.toMatchday}`}
+            {a.fromMatchday === a.toMatchday ? t('parts.mdOne', { md: a.fromMatchday }) : t('parts.mdRange', { a: a.fromMatchday, b: a.toMatchday })}
           </KitText>
         </View>
       ))}
@@ -73,7 +74,7 @@ export function MedicalTable({ absences }: { absences?: Absence[]; accent?: stri
       {rows.length > COLLAPSED_ROWS && (
         <Pressable onPress={() => setExpanded(v => !v)} accessibilityRole="button" accessibilityState={{ expanded }}
           style={({ pressed }) => [styles.more, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
-          <KitText t="tag" color={roles.text}>{expanded ? 'Show fewer' : `Show all ${rows.length}`}</KitText>
+          <KitText t="tag" color={roles.text}>{expanded ? t('parts.showFewer') : t('parts.showAll', { n: rows.length })}</KitText>
         </Pressable>
       )}
     </View>

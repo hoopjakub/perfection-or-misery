@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useSettledOnce } from '@/lib/loading'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { KitText, SectionTag, Plate, StripedNotice, EmptyState, Loader, Tag, Field, Chips, ListRow } from '@/components/kit'
+import { KitText, SectionTag, Plate, StripedNotice, EmptyState, Tag, Field, Chips, ListRow, GhostRows } from '@/components/kit'
 import { PlayerName } from '@/components/profile/ProfileParts'
 import { ClubHeader, ClubForm } from '@/components/ClubParts'
 import {
@@ -35,6 +38,7 @@ export function ClubView({ id, onLeft }: {
   /** You left or closed the club (the Clubs tab goes back to joining one). */
   onLeft?: () => void
 }) {
+  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const me = useUserStore(s => (s.isGuest ? null : s.user?.id ?? null))
   const [data, setData] = useState<{ club: Club; members: ClubMember[] } | null>(null)
   const [score, setScore] = useState<{ score: number; runs: number } | null>(null)
@@ -48,12 +52,12 @@ export function ClubView({ id, onLeft }: {
 
   const load = useCallback(async () => {
     try {
-      const [d, mine] = await trackWork(Promise.all([fetchClub(id), me ? fetchClubOf(me) : Promise.resolve(null)]))
+      const [d, mine] = await trackWork(once(Promise.all([fetchClub(id), me ? fetchClubOf(me) : Promise.resolve(null)])))
       setData(d); setMyClub(mine?.id ?? null)
       setState(d ? 'ready' : 'missing')
       if (d) fetchClubScores([d.club.id]).then(m => setScore(m.get(d.club.id) ?? null)).catch(() => {})
     } catch (e) {
-      console.warn('[club] load failed:', e)
+      log.warn('net', 'club: load failed', e)
       setState(e instanceof ClubsUnavailable ? 'unavailable' : 'failed')
     }
   }, [id, me])
@@ -68,10 +72,10 @@ export function ClubView({ id, onLeft }: {
     finally { setBusy(false) }
   }
 
-  if (state === 'loading') return <Loader color={roles.text} />
-  if (state === 'unavailable') return <StripedNotice roles={roles}>Clubs need the database set up first: run supabase/clubs.sql.</StripedNotice>
-  if (state === 'failed') return <StripedNotice roles={roles} failed>This club couldn't be loaded.</StripedNotice>
-  if (state === 'missing' || !data) return <EmptyState roles={roles} title="No such club" body="It may have closed: a club closes when its last member leaves." />
+  if (state === 'loading') return <GhostRows roles={roles} />
+  if (state === 'unavailable') return <StripedNotice roles={roles}>{t('clubs.setUpShort')}</StripedNotice>
+  if (state === 'failed') return <StripedNotice roles={roles} failed>{t('clubs.clubFailed')}</StripedNotice>
+  if (state === 'missing' || !data) return <EmptyState roles={roles} title={t('clubs.noSuchClub')} body={t('clubs.noSuchClubBody')} />
 
   const { club, members } = data
   const isOwner = !!me && club.owner_id === me
@@ -80,7 +84,7 @@ export function ClubView({ id, onLeft }: {
   const way: ClubAccess = club.access ?? 'open'
   const others = members.filter(m => m.user_id !== me)
   const heirId = heir ?? others[0]?.user_id ?? null
-  const heirName = others.find(m => m.user_id === heirId)?.username ?? 'them'
+  const heirName = others.find(m => m.user_id === heirId)?.username ?? ''
 
   return (
     <>
@@ -88,84 +92,84 @@ export function ClubView({ id, onLeft }: {
 
       {isMember ? (
         <View style={styles.actions}>
-          <Plate label="Chat" icon="press" roles={roles} onPress={() => router.push({ pathname: '/club/chat', params: { id: club.id } })} style={{ flex: 1 }} />
-          <Plate label="Leave" variant="quiet" roles={roles} onPress={() => openConfirm({
-            question: `Leave ${club.name}?`,
+          <Plate label={t('clubs.chat')} icon="press" roles={roles} onPress={() => router.push({ pathname: '/club/chat', params: { id: club.id } })} style={{ flex: 1 }} />
+          <Plate label={t('clubs.leave')} variant="quiet" roles={roles} onPress={() => openConfirm({
+            question: t('clubs.leaveQuestion', { club: club.name }),
             consequence: isOwner
-              ? (members.length > 1 ? `The club passes to ${heirName} (choose someone else in Edit the club, under Hand it over). Your tag goes with you.` : "You're its last member, so the club closes.")
-              : 'Your ID tag loses the club\'s tag. You can join again, if there\'s room.',
-            confirmLabel: 'Leave the club', stayLabel: 'Stay', onConfirm: () => run(() => leaveClub(isOwner ? heirId : null), onLeft),
+              ? (members.length > 1 ? t('clubs.leaveOwnerHeir', { name: heirName }) : t('clubs.leaveOwnerLast'))
+              : t('clubs.leaveMember'),
+            confirmLabel: t('clubs.leaveConfirm'), stayLabel: t('clubs.stay'), onConfirm: () => run(() => leaveClub(isOwner ? heirId : null), onLeft),
           })} />
         </View>
       ) : me && !myClub ? (
-        full ? <Tag roles={roles}>THE CLUB IS FULL</Tag>
+        full ? <Tag roles={roles}>{t('clubs.clubFull')}</Tag>
           : way === 'invite' ? (
-            <KitText t="body" color={roles.textMuted}>Invite-only: its owner has to invite you. An invite shows on your Clubs tab.</KitText>
+            <KitText t="body" color={roles.textMuted}>{t('clubs.inviteOnlyNote')}</KitText>
           ) : (
             <View style={styles.join}>
               {way === 'password' && (
-                <Field roles={roles} label="The club's password" value={password} onChangeText={v => { setPassword(v); setError(null) }} secure autoCapitalize="none" autoCorrect={false} />
+                <Field roles={roles} label={t('clubs.clubPassword')} value={password} onChangeText={v => { setPassword(v); setError(null) }} secure autoCapitalize="none" autoCorrect={false} />
               )}
-              <Plate label={`Join ${club.tag}`} icon="add" roles={roles} loading={busy} disabled={way === 'password' && !password}
+              <Plate label={t('clubs.joinTag', { tag: club.tag })} icon="add" roles={roles} loading={busy} disabled={way === 'password' && !password}
                 onPress={() => run(() => joinClub(club.id, way === 'password' ? password : undefined))} />
             </View>
           )
       ) : me && myClub ? (
         // One club a player: say so wherever a second could be tried.
-        <KitText t="body" color={roles.textMuted}>You're in another club, and a player has one club at a time. Leave yours to join this one.</KitText>
+        <KitText t="body" color={roles.textMuted}>{t('clubs.otherClub')}</KitText>
       ) : null}
       {error && !editing ? <StripedNotice roles={roles} failed>{error}</StripedNotice> : null}
 
       {isOwner && (
         <>
-          <SectionTag roles={roles}>Your club</SectionTag>
+          <SectionTag roles={roles}>{t('clubs.yourClub')}</SectionTag>
           {editing ? (
             <>
-              <ClubForm roles={roles} initial={club} submitLabel="Save the club" error={error}
+              <ClubForm roles={roles} initial={club} submitLabel={t('clubs.saveClub')} error={error}
                 onSubmit={async input => { await run(() => updateClub(input, club), () => setEditing(false)) }} />
-              <Plate label="Stop editing" variant="quiet" roles={roles} onPress={() => { setEditing(false); setError(null) }} />
+              <Plate label={t('clubs.stopEditing')} variant="quiet" roles={roles} onPress={() => { setEditing(false); setError(null) }} />
 
               {way !== 'open' && (
                 <>
-                  <SectionTag roles={roles}>Invite</SectionTag>
+                  <SectionTag roles={roles}>{t('clubs.invite')}</SectionTag>
                   <InviteField onInvite={name => run(() => inviteToClub(name))} onTyping={() => setError(null)} busy={busy} />
                 </>
               )}
 
               {others.length > 0 && (
                 <>
-                  <SectionTag roles={roles}>Hand it over</SectionTag>
-                  <Chips<string> roles={roles} label="To" value={heirId ?? ''} onChange={setHeir}
-                    options={others.map(m => ({ id: m.user_id, label: m.username ?? 'Player' }))} />
-                  <Plate label={`Make ${heirName} the owner`} variant="secondary" roles={roles} onPress={() => openConfirm({
-                    question: `Hand ${club.name} to ${heirName}?`, consequence: 'They own it from now on; you stay in it as a member.',
-                    confirmLabel: 'Hand it over', stayLabel: 'Keep it', onConfirm: () => run(() => transferClub(heirId!), () => setEditing(false)),
+                  <SectionTag roles={roles}>{t('clubs.handOver')}</SectionTag>
+                  <Chips<string> roles={roles} label={t('clubs.handTo')} value={heirId ?? ''} onChange={setHeir}
+                    options={others.map(m => ({ id: m.user_id, label: m.username ?? t('clubs.player') }))} />
+                  <Plate label={t('clubs.makeOwner', { name: heirName })} variant="secondary" roles={roles} onPress={() => openConfirm({
+                    question: t('clubs.handQuestion', { club: club.name, name: heirName }), consequence: t('clubs.handConsequence'),
+                    confirmLabel: t('clubs.handOver'), stayLabel: t('clubs.keepIt'), onConfirm: () => run(() => transferClub(heirId!), () => setEditing(false)),
                   })} />
                 </>
               )}
 
-              <SectionTag roles={roles}>Close the club</SectionTag>
-              <ListRow roles={roles} icon="delete" label="Delete the club" danger onPress={() => openConfirm({
-                question: `Delete ${club.name}?`, consequence: "Everyone leaves it and loses its tag, and its chat goes. This can't be undone.",
-                confirmLabel: 'Delete the club', stayLabel: 'Keep it', onConfirm: () => run(() => deleteClub(), onLeft ?? (() => router.replace('/clubs'))),
+              <SectionTag roles={roles}>{t('clubs.closeClub')}</SectionTag>
+              <ListRow roles={roles} icon="delete" label={t('clubs.deleteClub')} danger onPress={() => openConfirm({
+                question: t('clubs.deleteQuestion', { club: club.name }), consequence: t('clubs.deleteConsequence'),
+                confirmLabel: t('clubs.deleteClub'), stayLabel: t('clubs.keepIt'), onConfirm: () => run(() => deleteClub(), onLeft ?? (() => router.replace('/clubs'))),
               })} />
             </>
           ) : (
-            <Plate label="Edit the club" icon="settings" variant="secondary" roles={roles} onPress={() => setEditing(true)} />
+            <Plate label={t('clubs.editClub')} icon="settings" variant="secondary" roles={roles} onPress={() => setEditing(true)} />
           )}
         </>
       )}
 
-      <SectionTag roles={roles}>{`Members · ${members.length}${club.member_limit ? ` of ${club.member_limit}` : ''}`}</SectionTag>
+      <SectionTag roles={roles}>{club.member_limit ? t('clubs.membersSectionOf', { count: members.length, limit: club.member_limit }) : t('clubs.membersSection', { count: members.length })}</SectionTag>
       {members.map(m => (
         <View key={m.user_id} style={styles.member}>
-          <PlayerName roles={roles} name={m.username ?? 'Player'} avatarPath={m.avatar_path} style={{ flex: 1 }}
+          <PlayerName roles={roles} name={m.username ?? t('clubs.player')} avatarPath={m.avatar_path} style={{ flex: 1 }}
             onPress={() => router.push({ pathname: '/u/[id]', params: { id: m.user_id } })} />
-          {m.role === 'owner' ? <Tag roles={roles} variant="selected">OWNER</Tag> : null}
+          {m.role === 'owner' ? <Tag roles={roles} variant="selected">{t('clubs.owner')}</Tag> : null}
           {isOwner && m.user_id !== me ? (
-            <Plate label="Remove" variant="quiet" roles={roles} onPress={() => openConfirm({
-              question: `Remove ${m.username ?? 'this player'}?`, consequence: 'They lose the club\'s tag and its chat. They can join again, if there\'s room.',
-              confirmLabel: 'Remove', stayLabel: 'Keep', onConfirm: () => run(() => removeFromClub(m.user_id)),
+            <Plate label={t('clubs.remove')} variant="quiet" roles={roles} onPress={() => openConfirm({
+              question: m.username ? t('clubs.removeQuestion', { name: m.username }) : t('clubs.removeThisPlayer'), consequence: t('clubs.removeConsequence'),
+              confirmLabel: t('clubs.remove'), stayLabel: t('clubs.keep'), onConfirm: () => run(() => removeFromClub(m.user_id)),
             })} />
           ) : null}
         </View>
@@ -173,7 +177,7 @@ export function ClubView({ id, onLeft }: {
 
       {/* P8.5-44: any club but your own can be reported, quietly, at the foot. */}
       {!isMember && me && (
-        <Plate label="Report this club" variant="quiet" roles={roles} style={styles.report}
+        <Plate label={t('moderation.reportClub')} variant="quiet" roles={roles} style={styles.report}
           onPress={() => router.push({ pathname: '/report', params: { type: 'club', id: club.id, name: club.name } })} />
       )}
     </>
@@ -190,27 +194,27 @@ function InviteField({ onInvite, onTyping, busy }: { onInvite: (username: string
     const q = text.trim()
     if (q.length < SUGGEST_AFTER) { setFound([]); return }
     let active = true
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       trackWork(searchPlayers(q)).then(r => { if (active) setFound(r.slice(0, 6)) }).catch(() => { if (active) setFound([]) })
     }, SUGGEST_MS)
-    return () => { active = false; clearTimeout(t) }
+    return () => { active = false; clearTimeout(timer) }
   }, [text])
   const invite = async (name: string) => { if (await onInvite(name)) { setSent(name); setText(''); setFound([]) } }
   return (
     <View style={styles.inviteWrap}>
       <View style={styles.invite}>
-        <Field roles={roles} label="A player's username" value={text} autoCapitalize="none" autoCorrect={false} style={{ flex: 1 }}
+        <Field roles={roles} label={t('clubs.playerUsername')} value={text} autoCapitalize="none" autoCorrect={false} style={{ flex: 1 }}
           onChangeText={v => { setText(v); setSent(null); onTyping() }} />
-        <Plate label="Invite" variant="secondary" roles={roles} disabled={!text.trim()} loading={busy} onPress={() => invite(text.trim())} />
+        <Plate label={t('clubs.invite')} variant="secondary" roles={roles} disabled={!text.trim()} loading={busy} onPress={() => invite(text.trim())} />
       </View>
       {found.map(p => (
-        <Pressable key={p.id} onPress={() => invite(p.username)} accessibilityRole="button" accessibilityLabel={`Invite ${p.username}`}
+        <Pressable key={p.id} onPress={() => invite(p.username)} accessibilityRole="button" accessibilityLabel={t('clubs.inviteA11y', { name: p.username })}
           style={({ pressed }) => [styles.suggestion, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
           <KitText t="body" color={roles.text} style={{ flex: 1 }}>{p.username}</KitText>
-          <KitText t="tag" color={roles.textMuted}>INVITE</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('clubs.inviteTag')}</KitText>
         </Pressable>
       ))}
-      {sent ? <KitText t="body" color={roles.textMuted}>{`Invited ${sent}.`}</KitText> : null}
+      {sent ? <KitText t="body" color={roles.textMuted}>{t('clubs.invited', { name: sent })}</KitText> : null}
     </View>
   )
 }

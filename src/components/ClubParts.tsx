@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
+import { t, num } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { type Roles, space, border, prim, POT_COLOURS } from '@/theme'
 import { KitText, Field, Chips, ColourField, Plate, StripedNotice, ListRow, Toggle } from '@/components/kit'
-import { ratio } from '@/lib/contrast'
+import { ratio, inkOn } from '@/lib/contrast'
 import { CLUB_LIMITS, MEMBER_LIMITS, cleanTag, type Club, type ClubInput, type ClubAccess } from '@/db/queries/clubs'
 
 // P8-181: a club, drawn the same way wherever it appears — its tag as a chip
@@ -10,9 +11,9 @@ import { CLUB_LIMITS, MEMBER_LIMITS, cleanTag, type Club, type ClubInput, type C
 
 /** The tag in the club's colour, its letters in whichever of ink or cotton reads on it. */
 export function ClubTag({ tag, colour, size = 'sm' }: { tag: string; colour: string; size?: 'sm' | 'lg' }) {
-  const ink = ratio(prim.ink, colour) >= ratio(prim.cotton, colour) ? prim.ink : prim.cotton
+  const ink = inkOn(colour, prim.ink, prim.cotton)
   return (
-    <View style={[styles.tag, size === 'lg' && styles.tagLg, { backgroundColor: colour, borderColor: prim.ink }]} accessible accessibilityLabel={`Club tag ${tag}`}>
+    <View style={[styles.tag, size === 'lg' && styles.tagLg, { backgroundColor: colour, borderColor: prim.ink }]} accessible accessibilityLabel={t('clubs.tagA11y', { tag })}>
       <KitText t={size === 'lg' ? 'superS' : 'tag'} color={ink}>{tag}</KitText>
     </View>
   )
@@ -33,12 +34,12 @@ export function ClubHeader({ roles, club, members, score }: {
         </View>
         {score ? (
           <View style={styles.score}>
-            <KitText t="figureL" color={roles.text}>{score.score.toLocaleString('en-US')}</KitText>
-            <KitText t="tag" color={roles.textMuted}>{`PTS · ${score.runs} RUN${score.runs === 1 ? '' : 'S'}`}</KitText>
+            <KitText t="figureL" color={roles.text}>{num(score.score)}</KitText>
+            <KitText t="tag" color={roles.textMuted}>{t('clubs.headerScore', { count: score.runs })}</KitText>
           </View>
         ) : null}
         <KitText t="tag" color={roles.textMuted}>
-          {`${members} MEMBER${members === 1 ? '' : 'S'}${club.member_limit ? ` OF ${club.member_limit}` : ' · NO LIMIT'}`}
+          {t('clubs.headerMembers', { count: members }) + (club.member_limit ? t('clubs.headerOf', { limit: club.member_limit }) : t('clubs.headerNoLimit'))}
         </KitText>
         {club.about ? <KitText t="body" color={roles.text}>{club.about}</KitText> : null}
       </View>
@@ -48,10 +49,10 @@ export function ClubHeader({ roles, club, members, score }: {
 
 // A few ready colours for a club, the palette's own; any other through the picker.
 const CLUB_COLOURS = [
-  { id: 'orange', label: 'Orange', hex: prim.orange }, { id: 'volt', label: 'Volt', hex: prim.volt },
-  { id: 'red', label: 'Red', hex: prim.misery }, { id: 'gold', label: 'Gold', hex: prim.gold },
-  { id: 'blue', label: 'Blue', hex: POT_COLOURS[4] }, { id: 'violet', label: 'Violet', hex: POT_COLOURS[2] },
-  { id: 'green', label: 'Green', hex: POT_COLOURS[3] }, { id: 'ink', label: 'Ink', hex: prim.ink },
+  { id: 'orange', label: t('clubs.orange'), hex: prim.orange }, { id: 'volt', label: t('clubs.volt'), hex: prim.volt },
+  { id: 'red', label: t('clubs.red'), hex: prim.misery }, { id: 'gold', label: t('clubs.gold'), hex: prim.gold },
+  { id: 'blue', label: t('clubs.blue'), hex: POT_COLOURS[4] }, { id: 'violet', label: t('clubs.violet'), hex: POT_COLOURS[2] },
+  { id: 'green', label: t('clubs.green'), hex: POT_COLOURS[3] }, { id: 'ink', label: t('clubs.ink'), hex: prim.ink },
 ]
 
 /** Creating a club, or its owner editing it: name, tag, colour, a line about it,
@@ -75,36 +76,36 @@ export function ClubForm({ roles, initial, submitLabel, onSubmit, error }: {
   const needsPassword = access === 'password' && initial?.access !== 'password'
   const [busy, setBusy] = useState(false)
   const cleanName = name.trim()
-  const t = cleanTag(tag)
-  const ok = cleanName.length >= CLUB_LIMITS.name[0] && cleanName.length <= CLUB_LIMITS.name[1] && t.length >= CLUB_LIMITS.tag[0]
+  const tagText = cleanTag(tag)
+  const ok = cleanName.length >= CLUB_LIMITS.name[0] && cleanName.length <= CLUB_LIMITS.name[1] && tagText.length >= CLUB_LIMITS.tag[0]
     && (!needsPassword || password.length >= 4) && (password.length === 0 || password.length >= 4)
   const submit = async () => {
     if (!ok || busy) return
     setBusy(true)
-    try { await onSubmit({ name: cleanName, tag: t, colour, about: about.trim(), limit: MEMBER_LIMITS.find(l => l.id === limit)?.value ?? null, access, password: password || undefined, cleanChat: clean }) }
+    try { await onSubmit({ name: cleanName, tag: tagText, colour, about: about.trim(), limit: MEMBER_LIMITS.find(l => l.id === limit)?.value ?? null, access, password: password || undefined, cleanChat: clean }) }
     finally { setBusy(false) }
   }
   return (
     <View style={styles.form}>
       <View style={styles.preview}>
-        <ClubTag tag={t || 'TAG'} colour={colour} size="lg" />
-        <KitText t="title" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{cleanName || 'Your club'}</KitText>
+        <ClubTag tag={tagText || t('clubs.tagPlaceholder')} colour={colour} size="lg" />
+        <KitText t="title" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{cleanName || t('clubs.yourClub')}</KitText>
       </View>
-      <Field roles={roles} label={`Name · ${CLUB_LIMITS.name[0]} to ${CLUB_LIMITS.name[1]} letters`} value={name} maxLength={CLUB_LIMITS.name[1]} onChangeText={setName} />
+      <Field roles={roles} label={t('clubs.nameLabel', { min: CLUB_LIMITS.name[0], max: CLUB_LIMITS.name[1] })} value={name} maxLength={CLUB_LIMITS.name[1]} onChangeText={setName} />
       {/* The field keeps what's typed (rewriting it under Android's keyboard doubled
           letters, P8-168); the tag it becomes is the preview's. */}
-      <Field roles={roles} label="Tag · 2 to 4 letters or digits" value={tag} maxLength={CLUB_LIMITS.tag[1]} autoCapitalize="characters" autoCorrect={false} onChangeText={setTag} />
-      <ColourField roles={roles} label="Colour" quick={CLUB_COLOURS} value={colour} onChange={setColour} />
-      <Field roles={roles} label={`About · ${about.length}/${CLUB_LIMITS.about}`} value={about} maxLength={CLUB_LIMITS.about} multiline onChangeText={setAbout} />
-      <Chips roles={roles} label="Members" options={MEMBER_LIMITS.map(l => ({ id: l.id, label: l.label }))} value={limit} onChange={setLimit} />
-      <Chips<ClubAccess> roles={roles} label="Who can join" value={access} onChange={setAccess}
-        options={[{ id: 'open', label: 'Anyone' }, { id: 'invite', label: 'Invite only' }, { id: 'password', label: 'Password' }]} />
+      <Field roles={roles} label={t('clubs.tagLabel')} value={tag} maxLength={CLUB_LIMITS.tag[1]} autoCapitalize="characters" autoCorrect={false} onChangeText={setTag} />
+      <ColourField roles={roles} label={t('clubs.colour')} quick={CLUB_COLOURS} value={colour} onChange={setColour} />
+      <Field roles={roles} label={t('clubs.aboutLabel', { used: about.length, max: CLUB_LIMITS.about })} value={about} maxLength={CLUB_LIMITS.about} multiline onChangeText={setAbout} />
+      <Chips roles={roles} label={t('clubs.members')} options={MEMBER_LIMITS.map(l => ({ id: l.id, label: l.label }))} value={limit} onChange={setLimit} />
+      <Chips<ClubAccess> roles={roles} label={t('clubs.whoCanJoin')} value={access} onChange={setAccess}
+        options={[{ id: 'open', label: t('clubs.anyone') }, { id: 'invite', label: t('clubs.inviteOnly') }, { id: 'password', label: t('clubs.password') }]} />
       {access === 'password' && (
-        <Field roles={roles} label={initial?.access === 'password' ? 'A new password (leave empty to keep it)' : 'Password · 4 to 64'}
+        <Field roles={roles} label={initial?.access === 'password' ? t('clubs.newPassword') : t('clubs.passwordRange')}
           value={password} onChangeText={setPassword} secure autoCapitalize="none" autoCorrect={false} maxLength={64} />
       )}
-      <ListRow roles={roles} label="Clean language in the chat" sub="Swearing is swapped for something politer. Turn it off for close friends."
-        trailing={<Toggle roles={roles} label="Clean language in the chat" value={clean} onChange={setClean} />} />
+      <ListRow roles={roles} label={t('clubs.cleanChat')} sub={t('clubs.cleanChatSub')}
+        trailing={<Toggle roles={roles} label={t('clubs.cleanChat')} value={clean} onChange={setClean} />} />
       {error ? <StripedNotice roles={roles} failed>{error}</StripedNotice> : null}
       <Plate label={submitLabel} icon="check" roles={roles} disabled={!ok} loading={busy} onPress={submit} />
     </View>

@@ -3,6 +3,7 @@
 // the palette, a shirt device and up to three letters. Or a picture instead.
 // Pure (no theme, no React Native), so the choices and their defaults can be
 // checked by a script; the kit maps each colour id to its palette colour.
+import { t } from '@/i18n'
 import { isHex } from './colour'
 
 // P8-175: more of each — shapes, devices and a trim — so a crest can look like
@@ -33,25 +34,25 @@ export function readColours(raw: unknown): SideColours | null {
 // The colours, from the palette (P8-74), never a free hex: kept by id, so a
 // palette change moves every crest with it (the hexes: `crestHex` in the kit).
 export const CREST_COLOURS: { id: string; label: string }[] = [
-  { id: 'ink', label: 'Ink' }, { id: 'cotton', label: 'Cotton' }, { id: 'orange', label: 'Orange' },
-  { id: 'volt', label: 'Volt' }, { id: 'red', label: 'Red' }, { id: 'gold', label: 'Gold' },
-  { id: 'pitch', label: 'Pitch' }, { id: 'amber', label: 'Amber' }, { id: 'violet', label: 'Violet' },
-  { id: 'green', label: 'Green' }, { id: 'blue', label: 'Blue' },
+  { id: 'ink', label: t('colours.ink') }, { id: 'cotton', label: t('colours.cotton') }, { id: 'orange', label: t('colours.orange') },
+  { id: 'volt', label: t('colours.volt') }, { id: 'red', label: t('colours.red') }, { id: 'gold', label: t('colours.gold') },
+  { id: 'pitch', label: t('colours.pitch') }, { id: 'amber', label: t('colours.amber') }, { id: 'violet', label: t('colours.violet') },
+  { id: 'green', label: t('colours.green') }, { id: 'blue', label: t('colours.blue') },
 ]
 
 export const CREST_SHAPES: { id: CrestShape; label: string }[] = [
-  { id: 'shield', label: 'Shield' }, { id: 'heater', label: 'Heater' }, { id: 'pennant', label: 'Pennant' },
-  { id: 'round', label: 'Round' }, { id: 'oval', label: 'Oval' }, { id: 'square', label: 'Square' },
-  { id: 'diamond', label: 'Diamond' }, { id: 'hexagon', label: 'Hexagon' }, { id: 'octagon', label: 'Octagon' },
+  { id: 'shield', label: t('crest.shape.shield') }, { id: 'heater', label: t('crest.shape.heater') }, { id: 'pennant', label: t('crest.shape.pennant') },
+  { id: 'round', label: t('crest.shape.round') }, { id: 'oval', label: t('crest.shape.oval') }, { id: 'square', label: t('crest.shape.square') },
+  { id: 'diamond', label: t('crest.shape.diamond') }, { id: 'hexagon', label: t('crest.shape.hexagon') }, { id: 'octagon', label: t('crest.shape.octagon') },
 ]
 export const CREST_DEVICES: { id: CrestDevice; label: string }[] = [
-  { id: 'none', label: 'Plain' }, { id: 'hoop', label: 'Hoop' }, { id: 'hoops', label: 'Hoops' }, { id: 'stripes', label: 'Stripes' },
-  { id: 'halves', label: 'Halves' }, { id: 'quarters', label: 'Quarters' }, { id: 'sash', label: 'Sash' },
-  { id: 'chevron', label: 'Chevron' }, { id: 'cross', label: 'Cross' }, { id: 'saltire', label: 'Saltire' },
-  { id: 'solid', label: 'Band' }, { id: 'star', label: 'Star' }, { id: 'ball', label: 'Ball' },
+  { id: 'none', label: t('crest.device.none') }, { id: 'hoop', label: t('crest.device.hoop') }, { id: 'hoops', label: t('crest.device.hoops') }, { id: 'stripes', label: t('crest.device.stripes') },
+  { id: 'halves', label: t('crest.device.halves') }, { id: 'quarters', label: t('crest.device.quarters') }, { id: 'sash', label: t('crest.device.sash') },
+  { id: 'chevron', label: t('crest.device.chevron') }, { id: 'cross', label: t('crest.device.cross') }, { id: 'saltire', label: t('crest.device.saltire') },
+  { id: 'solid', label: t('crest.device.solid') }, { id: 'star', label: t('crest.device.star') }, { id: 'ball', label: t('crest.device.ball') },
 ]
 export const CREST_TRIMS: { id: CrestTrim; label: string }[] = [
-  { id: 'ink', label: 'Ink' }, { id: 'thin', label: 'Thin' }, { id: 'double', label: 'Double' }, { id: 'gold', label: 'Gold' }, { id: 'none', label: 'None' },
+  { id: 'ink', label: t('crest.trim.ink') }, { id: 'thin', label: t('crest.trim.thin') }, { id: 'double', label: t('crest.trim.double') }, { id: 'gold', label: t('crest.trim.gold') }, { id: 'none', label: t('crest.trim.none') },
 ]
 
 export const MAX_INITIALS = 3
@@ -65,8 +66,8 @@ export function cleanInitials(raw: string): string {
  *  when you've chosen them (P8-142), else the kit's own. */
 export function defaultDesign(username?: string | null, colours?: SideColours | null): CrestDesign {
   const words = (username ?? '').split(/[\s_\-.]+/).filter(Boolean)
-  const initials = cleanInitials(words.length > 1 ? words.map(w => w[0]).join('') : words[0] ?? 'YOU')
-  return { shape: 'shield', primary: colours?.main ?? 'ink', secondary: colours?.second ?? 'orange', device: 'sash', initials: initials || 'YOU' }
+  const initials = cleanInitials(words.length > 1 ? words.map(w => w[0]).join('') : words[0] ?? t('parts.crestYou'))
+  return { shape: 'shield', primary: colours?.main ?? 'ink', secondary: colours?.second ?? 'orange', device: 'sash', initials: initials || t('parts.crestYou') }
 }
 
 /** A stored design, trusted no further than the choices exist (the row is the user's to write). */

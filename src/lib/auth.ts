@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { log } from '@/diag/log'
 import { checkName } from './moderation'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
@@ -30,7 +31,7 @@ export async function loginWithUsername(
   })
 
   if (error) {
-    console.warn('[auth] login failed:', error.status)
+    log.warn('auth', 'auth: login failed', error.status)
     throw new Error('INVALID_CREDENTIALS')
   }
 
@@ -67,7 +68,7 @@ export async function upgradeGuestAccount(params: {
   })
 
   if (updateError) {
-    console.warn('[auth] updateUser failed:', updateError.status)
+    log.warn('auth', 'auth: updateUser failed', updateError.status)
     throw updateError
   }
 
@@ -82,7 +83,7 @@ export async function upgradeGuestAccount(params: {
   await new Promise(resolve => setTimeout(resolve, 1500))
 
   await supabase.auth.signOut()
-  await AsyncStorage.clear()
+  await clearSession()
 
   await new Promise(resolve => setTimeout(resolve, 500))
 
@@ -95,7 +96,7 @@ export async function upgradeGuestAccount(params: {
   // quietly, so the register screen treated it as success and dropped the
   // player on Home with no session at all. Say so, and send them to sign in.
   if (signInError) {
-    console.warn('[auth] sign in after upgrade failed:', signInError.status)
+    log.warn('auth', 'auth: sign in after upgrade failed', signInError.status)
     throw new Error('SIGNIN_AFTER_UPGRADE')
   }
 
@@ -103,7 +104,17 @@ export async function upgradeGuestAccount(params: {
 
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut()
-  await AsyncStorage.clear()
+  await clearSession()
+}
+
+// Phase 9 (diagnostics D4): signing out used to call AsyncStorage.clear(),
+// which wipes every key the app has. On the web that's the same localStorage
+// the settings, the offline run queue (P8.5-24), the run keeper and the
+// diagnostics log live in, so a sign-out lost runs waiting to go up. Only the
+// session's own keys go now: Supabase keeps it under `sb-<project>-auth-token`.
+async function clearSession(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys()
+  await AsyncStorage.multiRemove(keys.filter(k => k.startsWith('sb-')))
 }
 /**
  * Delete the signed-in account and all its runs (Phase 6). The work happens in

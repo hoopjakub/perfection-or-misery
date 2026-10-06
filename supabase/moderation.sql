@@ -22,9 +22,11 @@
 --    fuuuck) is caught: a player who really wants to can still write around
 --    it, and an ordinary player never meets the filter.
 --
--- Plus: reports (any player or club, from its page), the inbox the
--- maintainer works through (profiles.is_admin, set by him in the SQL
--- editor), forced renames and bans.
+-- Plus: reports (any player or club, from its page), forced renames and bans.
+-- The inbox that works through the flags and reports belongs to the website
+-- (docs/website/02 §5a, the maintainer, 1 Oct 2026: not in the app). Until it
+-- exists, mod_inbox() and mod_act() run from the SQL editor only: no app
+-- account can call them, and there's no moderator role on profiles.
 
 create extension if not exists unaccent with schema extensions;
 
@@ -153,8 +155,11 @@ begin
   return out;
 end $$;
 
--- ── The inbox, reports and bans ───────────────────────────────────────────────
-alter table public.profiles add column if not exists is_admin    boolean not null default false;
+-- ── Reports, flags and bans ───────────────────────────────────────────────────
+-- A moderator role on profiles was here for a day; the website's admin
+-- (site_admins, with a second factor: docs/website/03 §3) replaces it.
+alter table public.profiles drop column if exists is_admin;
+drop function if exists public.is_moderator();
 alter table public.profiles add column if not exists banned_at   timestamptz;
 alter table public.profiles add column if not exists must_rename boolean not null default false;
 
@@ -219,18 +224,14 @@ begin
   perform mod_flag(p_type, p_id, shown, p_reason, 'report');
 end $$;
 
-create or replace function public.is_moderator() returns boolean
-language sql stable security definer set search_path = public
-as $$ select coalesce((select is_admin from profiles where id = auth.uid()), false) $$;
-
--- The inbox: what's open, most-reported first.
+-- The inbox: what's open, most-reported first. From the SQL editor:
+--   select * from mod_inbox();
 create or replace function public.mod_inbox()
 returns table (id bigint, target_type text, target_id text, text text, reason text, source text, reports integer, created_at timestamptz,
   details text[])
 language plpgsql stable security definer set search_path = public
 as $$
 begin
-  if not is_moderator() then raise exception 'NOT_ALLOWED'; end if;
   return query
     select f.id, f.target_type, f.target_id, f.text, f.reason, f.source, f.reports, f.created_at,
       array(select r.reason || coalesce(': ' || r.details, '') from mod_reports r where r.target_type = f.target_type and r.target_id = f.target_id order by r.created_at desc limit 10)
@@ -238,14 +239,14 @@ begin
     order by f.reports desc, f.created_at;
 end $$;
 
--- What the moderator does with an entry: let it be, make the player pick a
--- new name (the old one goes at once), ban the player, or close the club.
+-- What to do with an entry: let it be, make the player pick a new name (the
+-- old one goes at once), ban the player, or close the club. From the SQL editor:
+--   select mod_act(<id>, 'dismiss' | 'rename' | 'ban' | 'close');
 create or replace function public.mod_act(p_flag bigint, p_action text)
 returns void language plpgsql security definer set search_path = public
 as $$
 declare f mod_flags%rowtype;
 begin
-  if not is_moderator() then raise exception 'NOT_ALLOWED'; end if;
   select * into f from mod_flags where id = p_flag and status = 'open';
   if f.id is null then raise exception 'NO_SUCH_FLAG'; end if;
   if p_action = 'dismiss' then
@@ -381,7 +382,8 @@ language sql stable security definer set search_path = public
 as $$ select mod_check_name(p_text) $$;
 
 grant execute on function public.report(text, text, text, text) to authenticated;
-grant execute on function public.mod_inbox() to authenticated;
-grant execute on function public.mod_act(bigint, text) to authenticated;
-grant execute on function public.is_moderator() to authenticated;
+-- Closed to every app account: the SQL editor (and later the website's
+-- admin functions, which check site_is_admin() first) only.
+revoke all on function public.mod_inbox() from public, anon, authenticated;
+revoke all on function public.mod_act(bigint, text) from public, anon, authenticated;
 grant execute on function public.check_name(text) to anon, authenticated;

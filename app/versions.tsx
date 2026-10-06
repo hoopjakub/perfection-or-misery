@@ -1,9 +1,10 @@
+import { t } from '@/i18n'
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { KitScreen, KitText, BackControl, Tag } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { ROLES, space, border } from '@/theme'
-import { VERSION_HISTORY } from '@/data/versionHistory'
+import { VERSION_HISTORY, localEntry } from '@/data/versionHistory'
 import { APP_VERSION } from '@/components/VersionButton'
 import { EVERYDAY } from '@/lib/appearance'
 
@@ -14,23 +15,23 @@ const roles = ROLES[EVERYDAY]
 export default function VersionsScreen() {
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="Versions" description="Every version of Perfection or Misery and what changed." path="/versions" />
-      <BackControl roles={roles} title="VERSIONS" />
+      <PageMeta title={t('screens.versions')} description={t('screens.versionsDesc')} path="/versions" />
+      <BackControl roles={roles} title={t('screens.versionsCaps')} />
       <KitText t="body" color={roles.textMuted}>
-        The app was 0.0.1 until September 2026, so the versions before 0.8 are numbered after the fact, one per milestone.
+        {t('screens.versionsNote')}
       </KitText>
-      {VERSION_HISTORY.map(v => (
+      {VERSION_HISTORY.map(localEntry).map(v => (
         <View key={v.version} style={[styles.entry, { borderTopColor: roles.rule }]}>
           <View style={styles.head}>
             <KitText t="superS" color={roles.text}>{v.version}</KitText>
-            {v.version === APP_VERSION && <Tag roles={roles} variant="you">THIS VERSION</Tag>}
+            {v.version === APP_VERSION && <Tag roles={roles} variant="you">{t('screens.thisVersion')}</Tag>}
           </View>
           <KitText t="title" color={roles.text}>{v.title}</KitText>
           <KitText t="tag" color={roles.textMuted}>{v.when.toUpperCase()}</KitText>
           <View style={styles.list}>
             {v.changes.map((c, i) => <KitText key={i} t="body" color={roles.text}>{`• ${c}`}</KitText>)}
           </View>
-          <KitText t="tag" color={roles.textFaint}>{`From ${v.source}`}</KitText>
+          <KitText t="tag" color={roles.textFaint}>{t('screens.from', { source: v.source })}</KitText>
         </View>
       ))}
     </KitScreen>

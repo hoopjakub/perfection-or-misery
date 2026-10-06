@@ -1,10 +1,12 @@
 import React, { useEffect, useId, useState } from 'react'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
 import { router } from 'expo-router'
 import { View, Image, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { type Roles, space, border, prim } from '@/theme'
 import { KitText, TeamMark, Tape, Stripe, Rivets, Tag, Twinkle } from '@/components/kit'
-import { ratio } from '@/lib/contrast'
+import { inkOn } from '@/lib/contrast'
 import { BADGE_TIERS, seasonDates } from '@/data/seasons'
 import type { SeasonBadge } from '@/db/queries/leaderboard'
 import { ordinal } from '@/lib/format'
@@ -13,6 +15,7 @@ import { avatarUrl, fetchPublicProfile, type LookEffect, type PublicProfile, typ
 import { useUserStore } from '@/store/userStore'
 import { fetchClubOf } from '@/db/queries/clubs'
 import { crestInitials } from '@/lib/brand'
+import { ClubTag } from '@/components/ClubParts'
 
 // P8-88 / P8-89: how a player appears — their picture, their name and the
 // badge of the team they support — wherever a name is shown: the You tab, a
@@ -23,7 +26,7 @@ export function Avatar({ roles, path, name, size = 40 }: { roles: Roles; path?: 
   const uri = avatarUrl(path)
   return (
     <View style={[{ width: size, height: size, borderColor: roles.line, backgroundColor: roles.sunken }, styles.avatar]}
-      accessible accessibilityLabel={`${name}'s picture`}>
+      accessible accessibilityLabel={t('parts.picture', { name })}>
       {uri
         ? <Image source={{ uri }} style={{ width: size, height: size }} resizeMode="cover" accessibilityIgnoresInvertColors />
         : <KitText t="tag" color={roles.textMuted}>{crestInitials(name).slice(0, 2)}</KitText>}
@@ -53,7 +56,7 @@ export function PlayerName({ roles, name, avatarPath, badgeTeamId, badgeTeamName
     </>
   )
   return onPress
-    ? <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={`${name}, open profile`}
+    ? <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={t('parts.openProfile', { name })}
         style={({ pressed }) => [styles.name, style, pressed && { opacity: 0.7 }]}>{body}</Pressable>
     : <View style={[styles.name, style]}>{body}</View>
 }
@@ -67,7 +70,7 @@ export function FramedAvatar({ roles, path, name, size = 64, frame = 'none', acc
   const pad = frame === 'none' ? 0 : frame === 'double' ? 6 : 4
   const outer = size + pad * 2
   return (
-    <View style={{ width: outer, height: outer }} accessible accessibilityLabel={`${name}'s picture`}>
+    <View style={{ width: outer, height: outer }} accessible accessibilityLabel={t('parts.picture', { name })}>
       <View style={[StyleSheet.absoluteFill, frameStyle(frame, accent)]} />
       {frame === 'double' && <View style={[StyleSheet.absoluteFill, { margin: 3, borderWidth: 1.5, borderColor: accent }]} />}
       <View style={{ position: 'absolute', left: pad, top: pad }}>
@@ -117,7 +120,7 @@ export function ProfileCard({ roles, name, avatarPath, look, badgeTeamId, badgeT
   const theme = look.theme
   // The text colour: ink or cotton, whichever stands out against both ends of the theme.
   const onTheme = theme
-    ? Math.min(ratio(prim.ink, theme.primary), ratio(prim.ink, theme.accent)) >= Math.min(ratio(prim.cotton, theme.primary), ratio(prim.cotton, theme.accent)) ? prim.ink : prim.cotton
+    ? inkOn([theme.primary, theme.accent], prim.ink, prim.cotton)
     : roles.text
   const muted = theme ? onTheme : roles.textMuted
   const frameAccent = theme ? onTheme : roles.line
@@ -143,7 +146,7 @@ export function ProfileCard({ roles, name, avatarPath, look, badgeTeamId, badgeT
         {look.status ? <KitText t="body" color={onTheme} style={styles.cardStatus}>{look.status}</KitText> : null}
         {look.about ? (
           <View style={[styles.cardAbout, { borderTopColor: theme ? onTheme : roles.rule }]}>
-            <KitText t="tag" color={muted} style={{ opacity: 0.8 }}>ABOUT ME</KitText>
+            <KitText t="tag" color={muted} style={{ opacity: 0.8 }}>{t('parts.aboutMe')}</KitText>
             <KitText t="body" color={onTheme}>{look.about}</KitText>
           </View>
         ) : null}
@@ -155,16 +158,16 @@ export function ProfileCard({ roles, name, avatarPath, look, badgeTeamId, badgeT
 
 // The look's colours: tokens from the palette (P8-74), never a free hex.
 export const LOOK_COLOURS: { id: string; label: string; hex: string }[] = [
-  { id: 'ink', label: 'Ink', hex: prim.ink },
-  { id: 'pitch', label: 'Pitch', hex: prim.pitch },
-  { id: 'orange', label: 'Orange', hex: prim.orange },
-  { id: 'volt', label: 'Volt', hex: prim.volt },
-  { id: 'gold', label: 'Gold', hex: prim.gold },
-  { id: 'label', label: 'Label', hex: prim.label },
+  { id: 'ink', label: t('colours.ink'), hex: prim.ink },
+  { id: 'pitch', label: t('colours.pitch'), hex: prim.pitch },
+  { id: 'orange', label: t('colours.orange'), hex: prim.orange },
+  { id: 'volt', label: t('colours.volt'), hex: prim.volt },
+  { id: 'gold', label: t('colours.gold'), hex: prim.gold },
+  { id: 'label', label: t('colours.label'), hex: prim.label },
 ]
 export const LOOK_EFFECTS: { id: LookEffect; label: string }[] = [
-  { id: 'none', label: 'Plain' }, { id: 'tape', label: 'Tape' }, { id: 'stripe', label: 'Stripe' },
-  { id: 'rivets', label: 'Rivets' }, { id: 'stitch', label: 'Stitched' },
+  { id: 'none', label: t('profile.trimPlain') }, { id: 'tape', label: t('profile.trimTape') }, { id: 'stripe', label: t('profile.trimStripe') },
+  { id: 'rivets', label: t('profile.trimRivets') }, { id: 'stitch', label: t('profile.trimStitch') },
 ]
 
 /** The profile's backdrop: a band in the chosen colour, finished with one of
@@ -193,6 +196,7 @@ export function LookBand({ roles, colour, effect, banner, height = 72 }: { roles
 }
 
 const styles = StyleSheet.create({
+  shareOwner: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   nameTag: { borderWidth: 1, paddingHorizontal: 4 },
   frameTape: { position: 'absolute', left: 0, right: 0, bottom: -2 },
   starA: { position: 'absolute', top: -8, right: -8 },
@@ -232,7 +236,7 @@ export function useRunOwner(ownerId?: string | null): RunOwner | null {
   useEffect(() => {
     if (!id) return
     let active = true
-    fetchPublicProfile(id).then(r => { if (active) setP(r) }).catch(e => console.warn('[run owner] failed:', e))
+    fetchPublicProfile(id).then(r => { if (active) setP(r) }).catch(e => log.warn('net', 'run owner: failed', e))
     // P8.5-04: the club tag goes on the shared picture too.
     fetchClubOf(id).then(c => { if (active && c) setClub({ tag: c.tag, colour: c.colour }) }).catch(() => {})
     return () => { active = false }
@@ -240,18 +244,38 @@ export function useRunOwner(ownerId?: string | null): RunOwner | null {
   if (!id) return null
   return {
     id, yours: id === me,
-    name: p?.username ?? (id === me ? myName : null) ?? 'Player',
+    name: p?.username ?? (id === me ? myName : null) ?? t('profile.player'),
     avatarPath: p?.avatar_path, badgeTeamId: p?.badge_team_id, badgeTeamName: p?.badge_team_name,
     clubTag: club?.tag ?? null, clubColour: club?.colour ?? null,
   }
 }
+
+/**
+ * Whose run it is, on anything that gets shared (P8.5-04, N-18): their picture,
+ * name and club tag, and the team on their badge. One block for the verdict's
+ * card and the story's, so a picture passed on always says whose it was.
+ */
+export function ShareOwner({ roles, owner }: { roles: Roles; owner: RunOwner | null }) {
+  if (!owner) return null
+  return (
+    <View style={styles.shareOwner}>
+      <Avatar roles={roles} path={owner.avatarPath} name={owner.name} size={24} />
+      <KitText t="tag" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{t('verdict.runOf', { name: owner.name.toUpperCase() })}</KitText>
+      {owner.clubTag && owner.clubColour ? <ClubTag tag={owner.clubTag} colour={owner.clubColour} /> : null}
+      {owner.badgeTeamId && owner.badgeTeamName ? <TeamMark roles={roles} clubId={owner.badgeTeamId} name={owner.badgeTeamName} size={16} /> : null}
+    </View>
+  )
+}
+
+/** What a shared run's text starts with: "My run" or "Martin's run". */
+export const ownerPrefix = (owner: RunOwner | null) => (owner ? (owner.yours ? t('verdict.myRun') : t('verdict.theirRun', { name: owner.name })) : null)
 
 /** At the top of a run's page: whose run it is, a tap from their profile. */
 export function RunOwnerLine({ roles, owner }: { roles: Roles; owner: RunOwner | null }) {
   if (!owner) return null
   return (
     <View style={styles.owner}>
-      <Tag roles={roles} variant={owner.yours ? 'you' : 'data'}>{owner.yours ? 'YOUR RUN' : 'RUN BY'}</Tag>
+      <Tag roles={roles} variant={owner.yours ? 'you' : 'data'}>{owner.yours ? t('parts.yourRun') : t('parts.runBy')}</Tag>
       <PlayerName roles={roles} name={owner.name} avatarPath={owner.avatarPath} badgeTeamId={owner.badgeTeamId}
         badgeTeamName={owner.badgeTeamName} onPress={() => router.push({ pathname: '/u/[id]', params: { id: owner.id } })} style={{ flexShrink: 1 }} />
     </View>
@@ -286,12 +310,12 @@ export function SeasonBadgeCard({ roles, badge }: { roles: Roles; badge: SeasonB
         {badge.tier === 1 && <Twinkle />}
       </View>
       <KitText t="title" color={look.text} numberOfLines={2}>{season.name}</KitText>
-      <KitText t="tag" color={look.muted}>{`SEASON ${season.n}`}</KitText>
+      <KitText t="tag" color={look.muted}>{t('parts.seasonN', { n: season.n })}</KitText>
       <KitText t="tag" color={look.muted}>{seasonDates(season)}</KitText>
-      <KitText t="superM" color={look.text} style={badgeStyles.badgeTier}>{badge.tier ? `TOP ${badge.tier}` : 'TOOK PART'}</KitText>
+      <KitText t="superM" color={look.text} style={badgeStyles.badgeTier}>{badge.tier ? t('parts.topN', { n: badge.tier }) : t('parts.tookPart')}</KitText>
       <KitText t="figure" color={look.text}>{`#${badge.place}`}</KitText>
       {/* Plain text, not a Tag: a tag is drawn for the cotton ground and would vanish on the dark bands. */}
-      {badge.live && <KitText t="tag" color={look.muted} style={badgeStyles.badgeTag}>SO FAR · LIVE SEASON</KitText>}
+      {badge.live && <KitText t="tag" color={look.muted} style={badgeStyles.badgeTag}>{t('parts.soFarLive')}</KitText>}
     </View>
   )
 }

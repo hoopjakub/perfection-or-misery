@@ -30,6 +30,7 @@
 //    and on the scoreboard for the other team, and nowhere else.
 
 import type { RosterPlayer, MatchScorers, GoalEvent } from '@/types/stats'
+import { time } from '@/diag/perf'
 import type {
   MatchStats, TeamStatLine, PlayerMatchLine, MatchEvent, AddedTime, LineupShape,
 } from '@/types/match-stats'
@@ -752,6 +753,12 @@ function distributeSide(
 
 // ── Ratings ─────────────────────────────────────────────────────────────────
 const GOAL_RATING_W: Record<PosGroup, number> = { GK: 2.0, DEF: 1.35, MID: 1.1, ATT: 0.95 }
+/** How much of a defeat's rating penalty a scorer or assister still takes (G-L1).
+ *  0: none. Measured 3 Oct 2026 (verify-match-detail C-1): at 1 (before) a brace
+ *  in a defeat had median 7.8 and, as the match's outright top scorer, man of
+ *  the match 30% of the time; at 0.5, 7.9 and 30%; at 0, 8.0 and 44%. The
+ *  ordinary game (a goalless winner, 6.4) didn't move at any setting. */
+const INVOLVED_LOSS_SHARE = 0
 
 function rateSide(
   rng: Rng,
@@ -827,7 +834,13 @@ function rateSide(
       r -= goalsAgainst * minFrac * (g === 'DEF' ? 0.18 : 0.1)
     }
 
-    r += resultBump * minFrac
+    // G-L1 (Wave G audit, docs/audit-2026-10/02): a player who scored or set one
+    // up on a losing side carries less of the defeat. Without this, a brace in
+    // a 2–3 loss read as an ordinary game (median 7.7) and the losing side had
+    // the man of the match in 1.6% of matches. scripts/verify-match-detail.ts
+    // (C-1) holds the result to what a match report would say.
+    const involved = l.goals + l.assists > 0
+    r += resultBump * minFrac * (resultBump < 0 && involved ? INVOLVED_LOSS_SHARE : 1)
     r += (rng() - 0.5) * 0.3
     // P8-144, the maintainer: a hat-trick can't be a 9.5; it's a 10. Three or
     // more goals is the perfect match, unless he also gave one away (an own
@@ -976,7 +989,7 @@ function buildMomentum(rng: Rng, duration: number, homeDom: number, events: Matc
 }
 
 // ── Entry point ─────────────────────────────────────────────────────────────
-export function generateMatchDetail(input: MatchDetailInput): MatchStats | null {
+function generateMatchDetailNow(input: MatchDetailInput): MatchStats | null {
   const { seed, homeGoals, awayGoals } = input
   if (input.homePool.length === 0 || input.awayPool.length === 0) return null
 
@@ -1162,3 +1175,6 @@ function toShape(l: SelectedLineup | null): LineupShape | undefined {
     rotated: l.rotated,
   }
 }
+
+// Phase 9: timed for the Diagnostics screen (detail:generate, docs/diagnostics/03-BUDGETS.md).
+export const generateMatchDetail = (...a: Parameters<typeof generateMatchDetailNow>) => time('detail:generate', () => generateMatchDetailNow(...a))

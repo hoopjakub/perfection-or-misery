@@ -1,7 +1,7 @@
 # 05 · The screen and the report
 
 > Part of the diagnostics set. Start at [`00-README.md`](00-README.md).
-> Status: **plan.** Visual rules come from [`../ui-overhaul/05-STYLE-GUIDE.md`](../ui-overhaul/05-STYLE-GUIDE.md). If Diagnostics is built before the overhaul's Phase 1, it uses today's theme tokens with the same structure, and gets restyled with everything else.
+> Status: **as built 6 October 2026 (Diagnostics step 4)**, with the differences written in [06](06-IMPLEMENTATION.md) step 4 (FAIL in misery red, no haptic, the tester still on About until step 5). Visual rules come from [`../ui-overhaul/05-STYLE-GUIDE.md`](../ui-overhaul/05-STYLE-GUIDE.md). If Diagnostics is built before the overhaul's Phase 1, it uses today's theme tokens with the same structure, and gets restyled with everything else.
 
 ---
 

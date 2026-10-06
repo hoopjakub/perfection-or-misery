@@ -42,6 +42,24 @@ export function hashSeed(s: string): number {
 
 // ── Seeded distribution helpers ─────────────────────────────────────────────
 
+/**
+ * A shuffled copy, every order equally likely (Fisher–Yates), from the stream
+ * it's given (centralisation L-14 / N-11, phase two step 2). It replaced seven
+ * `sort(() => Math.random() - 0.5)` shuffles, which are biased (a sort assumes
+ * a consistent comparison, and early items stay near the front more often than
+ * chance), and five private copies of this same loop. Pass `Math.random` where
+ * a draw has no seed yet; pass a seeded stream where it does, so the same seed
+ * gives the same draw (the daily challenge's draws, idea I-6).
+ */
+export function shuffle<T>(rng: Rng, xs: readonly T[]): T[] {
+  const a = [...xs]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 export function rngInt(rng: Rng, lo: number, hi: number): number {
   return lo + Math.floor(rng() * (hi - lo + 1))
 }

@@ -1,5 +1,5 @@
 import { router } from 'expo-router'
-import type { MatchDetailRequest } from '@/components/MatchStatsParts'
+import type { MatchDetailRequest } from '@/engine/stages'
 
 // Big Fixes §10 promoted match stats from a modal to a real screen. The screen
 // needs a whole request object — clubs, scoreline, stored scorers, the deep-stat
@@ -14,12 +14,14 @@ import type { MatchDetailRequest } from '@/components/MatchStatsParts'
 let pending: MatchDetailRequest | null = null
 
 /**
- * Open the full match-stats screen for one finished match. `accent` is passed
- * separately because most call sites already have their mode's accent to hand
- * and build the request elsewhere (koLegDetailRequest and friends).
+ * Open the full match-stats screen for one finished match. Build the request
+ * with `matchRequest`, `tieRequest` or `cupTieRequest` (src/engine/stages.ts).
+ * It used to take the mode's accent as well; the sheet has drawn on cotton
+ * since P4-H and never read it (centralisation N-19), so it's gone.
  */
-export function openMatchStats(request: MatchDetailRequest, accent?: string) {
-  pending = accent ? { ...request, accent } : request
+export function openMatchStats(request: MatchDetailRequest | null) {
+  if (!request) return
+  pending = request
   router.push('/game/match-stats')
 }
 

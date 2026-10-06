@@ -97,7 +97,7 @@ About fifty `console.warn`/`console.error` calls exist in `app/` and `src/`. Eac
 
 The Dugout claims this and doesn't do it (gap G1). PoM:
 
-1. **Persist warnings and errors.** After a warn or error, a 2-second debounced write of the last 100 such entries to AsyncStorage under `pom.diag.log.v1`. Info and debug stay in memory.
+1. **Persist warnings and errors.** After a warn or error, a 2-second debounced write of the last 100 such entries to AsyncStorage under `pom.diag.log.v1`. Info and debug stay in memory. *(As built, 5 Oct: in MMKV through `settingsStorage`, not AsyncStorage, since its write is synchronous and lands even as a fatal error ends the session; see 06 step 1.)*
 2. **Catch fatal JS errors on Android.** `ErrorUtils.setGlobalHandler` wraps the existing handler: log the error with the route and context, write the persisted entries immediately, then call the original handler so the app still behaves as it does today.
 3. **Catch errors on web.** `window.addEventListener('error')` and `('unhandledrejection')`, same steps.
 4. **Catch render errors per route.** Export `ErrorBoundary` from `app/_layout.tsx` (expo-router supports this). It logs the error and shows a plain recovery screen with Try again and Diagnostics. That's the one place Diagnostics is offered to a user who didn't go looking.
@@ -154,6 +154,8 @@ Three routes, in order, and every one ends with something visible.
 | **Crash recovery screen** | The root `ErrorBoundary` | The one place it's offered unprompted |
 
 ### 7.1 The tester
+
+*(As built 6 October 2026: `app/diagnostics/tools.tsx`, a Tools row in developer builds, a redirect everywhere else.)*
 
 The Quick Sim Tester moves from About to `app/diagnostics/tools.tsx`. A Tools row appears on the Diagnostics screen only when `__DEV__` is true or the build sets `EXPO_PUBLIC_DEV_TOOLS=1` (for EAS preview builds the maintainer installs). In a public release the row doesn't exist, which closes audit findings BLD-3/BLD-4 without taking the tester away from its user. `quickSim: true` still guarantees nothing is saved.
 

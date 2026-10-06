@@ -1,8 +1,9 @@
-import { SimTeam, Fixture, SeasonResult, TeamStats, MatchResult } from '@/types/simulation'
+import { compareStandings, recordResult, updateForm } from './standings'
+import { SimTeam, Fixture, SeasonResult } from '@/types/simulation'
 import { LeagueSeason } from '@/types/game'
 import { generateFixtures } from './fixtures'
 import { simulateMatch } from './match'
-import { clamp } from '@/lib/math'
+
 import { assignTier } from './tier'
 import { zoneAt } from '@/data/qualification-bands'
 
@@ -26,9 +27,7 @@ export function simulateSeason(league: LeagueSeason): SeasonResult {
       const result = simulateMatch(fixture.home, fixture.away)
       fixture.result = result
 
-      updateStats(fixture.home.stats, fixture.away.stats, result)
-      updateForm(fixture.home, result.outcome === 'home' ? 'win' : result.outcome === 'draw' ? 'draw' : 'loss')
-      updateForm(fixture.away, result.outcome === 'away' ? 'win' : result.outcome === 'draw' ? 'draw' : 'loss')
+      recordResult(fixture.home, fixture.away, result)
 
       if (fixture.home.isPlayer || fixture.away.isPlayer) {
         const isPlayerHome = fixture.home.isPlayer
@@ -89,30 +88,13 @@ export function simulateSeason(league: LeagueSeason): SeasonResult {
   }
 }
 
-function updateStats(home: TeamStats, away: TeamStats, result: MatchResult) {
-  home.played++; away.played++
-  home.goalsFor      += result.homeGoals
-  home.goalsAgainst  += result.awayGoals
-  away.goalsFor      += result.awayGoals
-  away.goalsAgainst  += result.homeGoals
-
-  if      (result.outcome === 'home') { home.won++;   home.points  += 3; away.lost++ }
-  else if (result.outcome === 'away') { away.won++;   away.points  += 3; home.lost++ }
-  else                                { home.drawn++; home.points  += 1; away.drawn++; away.points += 1 }
-}
-
-export function updateForm(team: SimTeam, result: 'win' | 'draw' | 'loss') {
-  const delta = result === 'win' ? 0.15 : result === 'draw' ? 0 : -0.15
-  team.form   = clamp(team.form * 0.85 + delta, -1.0, 1.0)
-}
+// Form and the table row live in standings.ts now (step 4b); re-exported for
+// the importers that read them from here.
+export { updateForm }
 
 function sortTable(teams: SimTeam[]): SimTeam[] {
   return [...teams].sort((a, b) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-    const gdA = a.stats.goalsFor - a.stats.goalsAgainst
-    const gdB = b.stats.goalsFor - b.stats.goalsAgainst
-    if (gdB !== gdA) return gdB - gdA
-    return b.stats.goalsFor - a.stats.goalsFor
+    return compareStandings(a, b)
   })
 }
 

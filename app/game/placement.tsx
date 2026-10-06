@@ -1,3 +1,8 @@
+import { countryName } from '@/data/countries-sk'
+import { time } from '@/diag/perf'
+import { log } from '@/diag/log'
+import { getFlag } from '@/lib/flagMap'
+import { t } from '@/i18n'
 import { compOfMode, isClassicEurope, EUROPE } from '@/data/europe'
 import React, { useState, useEffect, useMemo } from 'react'
 import { Loader } from '@/components/kit'
@@ -24,7 +29,7 @@ import type { AssociationEntry } from '@/engine/cl-access'
 import type { LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 import type { SimTeam } from '@/types/simulation'
 import { useSimBackGuard } from '@/hooks/useSimBackGuard'
-import { ROLES, space, border, colourwayFor, prim, type Roles } from '@/theme'
+import { ROLES, space, border, colourwayFor, prim } from '@/theme'
 import {
   KitScreen, KitText, RunHeader, Plate, Tag, SectionTag, Rivets, StripedNotice, RoundFlag, VenueMark, Crest,} from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
@@ -65,8 +70,7 @@ function DrawScreen({ title, children, cta }: { title: string; children: React.R
   const { mode } = useGameStore()
   const wide = useSizeClass() === 'expanded'
   const header = (
-    <RunHeader roles={roles} stage={5} colourway={colourwayFor(mode)} title={title} back={false}
-      skipped={mode === 'chaos' || mode === 'cursed' ? [2] : []} />
+    <RunHeader roles={roles} stage={5} colourway={colourwayFor(mode)} title={title} back={false} />
   )
   // Expanded (10-ADAPT §2.2): the globe on the left, the reveal, rivals,
   // fixtures and the plate on the right. Before the spin there's no globe
@@ -115,14 +119,14 @@ function GlobePanel({ targetId, targetName, flag, spinMs, onLock, locked }: {
       onPress={() => setSkip(true)}
       disabled={locked}
       accessibilityRole="button"
-      accessibilityLabel={locked ? 'The draw has landed' : 'The globe is spinning. Tap to land it.'}
+      accessibilityLabel={locked ? t('draw.landed') : t('draw.spinningA11y')}
       // P8.5-12: no panel of its own. The globe is a dark sphere on either
       // ground; the nylon square behind it was the "black box" on a cotton page.
       style={styles.globePanel}
     >
       {/* Bigger in the wide layout's own pane; same path count, so no extra cost per frame. */}
       <GlobeReveal targetId={targetId} targetName={targetName} flag={flag} accent={prim.orange} spinMs={spinMs} onLock={onLock} skip={skip} size={wide ? 360 : 220} />
-      {!locked && <KitText t="tag" color={roles.textMuted}>TAP TO LAND IT</KitText>}
+      {!locked && <KitText t="tag" color={roles.textMuted}>{t('draw.tapToLand')}</KitText>}
     </Pressable>
   )
 }
@@ -138,7 +142,7 @@ function RevealLabel({ name, meta, flag, clubId, nation, replaces }: {
   name: string; meta: string; flag?: string; clubId?: string; nation?: boolean; replaces?: string
 }) {
   return (
-    <View style={styles.revealWrap} accessible accessibilityLiveRegion="polite" accessibilityLabel={`You're ${name}.${replaces ? ` In place of ${replaces}.` : ''} ${meta}`}>
+    <View style={styles.revealWrap} accessible accessibilityLiveRegion="polite" accessibilityLabel={`${t('draw.youreA11y', { name: countryName(name) })}${replaces ? t('draw.inPlaceA11y', { name: countryName(replaces) }) : ''} ${meta}`}>
       <View style={[styles.revealOffset, { backgroundColor: roles.offset }]} />
       <View style={[styles.reveal, { borderColor: roles.line, backgroundColor: roles.surface }]}>
         <Rivets color={roles.line} />
@@ -149,9 +153,9 @@ function RevealLabel({ name, meta, flag, clubId, nation, replaces }: {
             ? <RoundFlag roles={roles} emoji={flag} code={name} size={REVEAL_MARK} />
             : <Crest roles={roles} clubId={clubId} name={replaces ?? name} size={REVEAL_MARK} />}
           <View style={styles.revealWords}>
-            <KitText t="tag" color={roles.textMuted}>YOU'RE</KitText>
-            <KitText t="superM" color={roles.text}>{name.toUpperCase()}</KitText>
-            {replaces ? <KitText t="tag" color={roles.textMuted}>{`IN PLACE OF ${replaces.toUpperCase()}`}</KitText> : null}
+            <KitText t="tag" color={roles.textMuted}>{t('draw.youre')}</KitText>
+            <KitText t="superM" color={roles.text}>{countryName(name).toUpperCase()}</KitText>
+            {replaces ? <KitText t="tag" color={roles.textMuted}>{t('draw.inPlaceOf', { name: countryName(replaces).toUpperCase() })}</KitText> : null}
             <View style={styles.revealMeta}>
               {!nation && flag ? <RoundFlag roles={roles} emoji={flag} code={name} size={16} /> : null}
               <KitText t="tag" color={roles.text} style={{ flexShrink: 1 }}>{meta}</KitText>
@@ -169,16 +173,16 @@ function RevealLabel({ name, meta, flag, clubId, nation, replaces }: {
 function Rivals({ teams, teamOvr }: { teams: { clubName: string; ovr: number }[]; teamOvr: number }) {
   return (
     <View>
-      <SectionTag roles={roles}>{`The field, strongest first · ${teams.length}`}</SectionTag>
+      <SectionTag roles={roles}>{t('draw.field', { count: teams.length })}</SectionTag>
       <ScrollView style={styles.rivals} nestedScrollEnabled showsVerticalScrollIndicator={Platform.OS === 'web'}>
-      {teams.map(t => {
-        const gap = t.ovr - teamOvr
-        const words = gap > 0 ? `+${gap} ON YOU` : gap < 0 ? `${gap} ON YOU` : 'LEVEL'
+      {teams.map(team => {
+        const gap = team.ovr - teamOvr
+        const words = gap > 0 ? t('draw.onYou', { gap: `+${gap}` }) : gap < 0 ? t('draw.onYou', { gap: String(gap) }) : t('draw.level')
         return (
-          <View key={t.clubName} style={[styles.row, { borderBottomColor: roles.rule }]} accessible
-            accessibilityLabel={`${t.clubName}, rating ${t.ovr}, ${gap > 0 ? `${gap} better than you` : gap < 0 ? `${-gap} worse than you` : 'level with you'}`}>
-            <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{t.clubName}</KitText>
-            <KitText t="figure" color={roles.text}>{`OVR ${t.ovr}`}</KitText>
+          <View key={team.clubName} style={[styles.row, { borderBottomColor: roles.rule }]} accessible
+            accessibilityLabel={t('draw.rivalA11y', { name: team.clubName, ovr: team.ovr }) + (gap > 0 ? t('draw.better', { gap }) : gap < 0 ? t('draw.worse', { gap: -gap }) : t('draw.levelWithYou'))}>
+            <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{team.clubName}</KitText>
+            <KitText t="figure" color={roles.text}>{t('draw.ovr', { ovr: team.ovr })}</KitText>
             {gap > 0 ? <Tag roles={roles} variant="loss">{words}</Tag> : <Tag roles={roles}>{words}</Tag>}
           </View>
         )
@@ -191,16 +195,16 @@ function Rivals({ teams, teamOvr }: { teams: { clubName: string; ovr: number }[]
 function Fixtures({ items, more }: { items: { md: number; opponent: string; home: boolean }[]; more: number }) {
   return (
     <View>
-      <SectionTag roles={roles}>Your first fixtures</SectionTag>
+      <SectionTag roles={roles}>{t('draw.firstFixtures')}</SectionTag>
       {items.map(f => (
         <View key={f.md} style={[styles.row, { borderBottomColor: roles.rule }]} accessible
-          accessibilityLabel={`Matchday ${f.md}, ${f.home ? 'home to' : 'away at'} ${f.opponent}`}>
-          <KitText t="tag" color={roles.textMuted} style={styles.md}>{`MD${f.md}`}</KitText>
+          accessibilityLabel={f.home ? t('draw.fixtureA11yHome', { md: f.md, name: f.opponent }) : t('draw.fixtureA11yAway', { md: f.md, name: f.opponent })}>
+          <KitText t="tag" color={roles.textMuted} style={styles.md}>{t('draw.md', { md: f.md })}</KitText>
           <VenueMark roles={roles} home={f.home} />
           <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{f.opponent}</KitText>
         </View>
       ))}
-      {more > 0 && <KitText t="tag" color={roles.textMuted} style={styles.more}>{`${more} MORE MATCHDAYS`}</KitText>}
+      {more > 0 && <KitText t="tag" color={roles.textMuted} style={styles.more}>{t('draw.moreMatchdays', { count: more })}</KitText>}
     </View>
   )
 }
@@ -217,9 +221,9 @@ function Loading({ text }: { text: string }) {
 function Failed({ noSquad, message }: { noSquad: boolean; message: string }) {
   return (
     <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
-      <StripedNotice roles={roles} failed>{noSquad ? "There's no squad yet." : message}</StripedNotice>
+      <StripedNotice roles={roles} failed>{noSquad ? t('draw.noSquadYet') : message}</StripedNotice>
       <Plate
-        label={noSquad ? 'Back to the draft' : 'Change mode'}
+        label={noSquad ? t('draw.backToDraft') : t('draw.changeMode')}
         roles={roles}
         variant="secondary"
         onPress={() => router.replace(noSquad ? '/game/draft' : '/game/mode-select')}
@@ -268,7 +272,7 @@ function LeaguePlacement() {
       }
       setEligible(filterEligibleLeagues(teamOvr, [...seasons.values()], mode === 'chaos'))
     })
-      .catch(e => { console.warn('[draw] seasons failed:', e); setFailed(true) })
+      .catch(e => { log.warn('db', 'draw: seasons failed', e); setFailed(true) })
       .finally(() => setLoading(false))
   }, [])
 
@@ -287,7 +291,7 @@ function LeaguePlacement() {
   const { profile, isGuest } = useUserStore()   // P8-20: your side takes your name
   function spin() {
     if (eligible.length === 0) return
-    const season = buildLeagueSeason(spinPlacement(eligible), teamOvr, sideName(isGuest ? null : profile?.username))
+    const season = time('placement:build', () => buildLeagueSeason(spinPlacement(eligible), teamOvr, sideName(isGuest ? null : profile?.username)))
     setPlaced(season)
     // P8-132: your crest on the side you field (the league modes always).
     activateCrestFor(season.teams.find(t => t.isPlayer)?.clubId, useGameStore.getState().mode)
@@ -304,26 +308,26 @@ function LeaguePlacement() {
     toPundits()
   }
 
-  if (loading) return <Loading text="Checking where you can land…" />
+  if (loading) return <Loading text={t('draw.checking')} />
   if (!formation || draftedPlayers.length === 0) return <Failed noSquad message="" />
-  if (failed || eligible.length === 0) return <Failed noSquad={false} message="No league-season matches this squad. Try another mode." />
+  if (failed || eligible.length === 0) return <Failed noSquad={false} message={t('draw.noMatch')} />
 
   return (
     <DrawScreen
-      title="The draw"
+      title={t('draw.theDraw')}
       cta={phase === 'ready'
-        ? <Plate label="Spin the globe" icon="again" roles={roles} onPress={spin} />
+        ? <Plate label={t('draw.spinGlobe')} icon="again" roles={roles} onPress={spin} />
         : phase === 'revealed'
-          ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={next} />
+          ? <Plate label={t('draw.pundits')} icon="forward" roles={roles} onPress={next} />
           : null}
     >
       {phase === 'ready' ? (
         <View style={styles.ready}>
           {/* P8-169: Chaos and Cursed announce themselves from the draw on. */}
           <ModeBanner roles={roles} mode={mode} />
-          <KitText t="superS" color={roles.text}>WHERE ARE YOU GOING?</KitText>
-          <Tag roles={roles}>{`${eligible.length} LEAGUE-SEASON${eligible.length === 1 ? '' : 'S'} IN THE DRAW`}</Tag>
-          <KitText t="body" color={roles.textMuted}>{`Your squad rates ${teamOvr}. You'll replace a real club in a real season.`}</KitText>
+          <KitText t="superS" color={roles.text}>{t('draw.whereGoing')}</KitText>
+          <Tag roles={roles}>{t('draw.inTheDraw', { count: eligible.length })}</Tag>
+          <KitText t="body" color={roles.textMuted}>{t('draw.squadRates', { ovr: teamOvr })}</KitText>
         </View>
       ) : placed && (
         <>
@@ -345,7 +349,7 @@ function LeaguePlacement() {
                 clubId={placed.teams.find(t => t.isPlayer)?.clubId}
                 name={placed.teams.find(t => t.isPlayer)?.clubName ?? placed.replacedTeamName}
                 replaces={placed.replacedTeamName}
-                meta={`${season(placed.yearStart)} · ${placed.teams.length} CLUBS`.toUpperCase()}
+                meta={t('draw.clubsMeta', { season: season(placed.yearStart), count: placed.teams.length }).toUpperCase()}
               />
               <Rivals teamOvr={teamOvr} teams={placed.teams.filter(t => !t.isPlayer).sort((a, b) => b.ovr - a.ovr)} />
               {fixtures && <Fixtures items={fixtures.first} more={fixtures.more} />}
@@ -402,16 +406,16 @@ function CLPlacement() {
       })
       setLoading(false)
     }
-    init().catch(e => { console.warn('[draw] ucl failed:', e); setLoading(false) })
+    init().catch(e => { log.warn('db', 'draw: ucl failed', e); setLoading(false) })
   }, [])
 
-  if (loading) return <Loading text={`Drawing the ${comp.name}…`} />
+  if (loading) return <Loading text={t('draw.drawingComp', { comp: comp.name })} />
   if (!formation || draftedPlayers.length === 0) return <Failed noSquad message="" />
-  if (!info) return <Failed noSquad={false} message={count > 0 ? 'Not enough clubs loaded to play this competition.' : "This competition's data didn't load."} />
+  if (!info) return <Failed noSquad={false} message={count > 0 ? t('draw.notEnoughClubs') : t('draw.compFailed')} />
 
   return (
-    <DrawScreen title="The draw"
-      cta={revealed ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={toPundits} /> : null}>
+    <DrawScreen title={t('draw.theDraw')}
+      cta={revealed ? <Plate label={t('draw.pundits')} icon="forward" roles={roles} onPress={toPundits} /> : null}>
       <GlobePanel targetId={isoForCountryName(info.country)} targetName={info.country} flag={flagForCountry(info.country)} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
@@ -420,12 +424,11 @@ function CLPlacement() {
             name={info.name}
             clubId={info.clubId}
             flag={flagForCountry(info.country) || undefined}
-            meta={`${comp.name.toUpperCase()} · ${season(info.year)} · POT ${info.pot} · ${info.count} CLUBS`}
+            meta={t('draw.compMeta', { comp: comp.name.toUpperCase(), season: season(info.year), pot: info.pot, count: info.count })}
           />
           <KitText t="body" color={roles.textMuted}>
             {comp.perPot === 1
-              ? 'Six league-phase games, one against each pot. The top eight go straight to the round of 16; ninth to 24th play off.'
-              : 'Eight league-phase games. The top eight go straight to the round of 16; ninth to 24th play off.'}
+              ? t('draw.sixGames') : t('draw.eightGames')}
           </KitText>
           <Rivals teamOvr={info.ovr} teams={info.rivals} />
         </>
@@ -477,7 +480,7 @@ function CustomCLPlacement() {
       setLeagueSize(pick.assoc.clubs.length)
       setLoading(false)
     }
-    init().catch(e => { console.warn('[draw] custom ucl failed:', e); setLoading(false) })
+    init().catch(e => { log.warn('db', 'draw: custom ucl failed', e); setLoading(false) })
   }, [])
 
   function start() {
@@ -488,13 +491,13 @@ function CustomCLPlacement() {
     router.push('/game/custom-ucl-simulation')
   }
 
-  if (loading) return <Loading text="Drawing your league…" />
+  if (loading) return <Loading text={t('draw.drawingLeague')} />
   if (!formation || draftedPlayers.length === 0) return <Failed noSquad message="" />
-  if (!chosen) return <Failed noSquad={false} message="This competition's data didn't load." />
+  if (!chosen) return <Failed noSquad={false} message={t('draw.compFailed')} />
 
   return (
-    <DrawScreen title="The draw"
-      cta={revealed ? <Plate label="Start your league season" icon="forward" roles={roles} onPress={start} /> : null}>
+    <DrawScreen title={t('draw.theDraw')}
+      cta={revealed ? <Plate label={t('draw.startLeague')} icon="forward" roles={roles} onPress={start} /> : null}>
       <GlobePanel targetId={isoForCountryName(chosen.country)} flag={flagForCountry(chosen.country)} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
@@ -504,23 +507,23 @@ function CustomCLPlacement() {
             replaces={chosen.clubName}
             clubId={chosen.clubId}
             flag={flagForCountry(chosen.country) || undefined}
-            meta={`${chosen.leagueName} · ${leagueSize} CLUBS · ASSOCIATION #${chosen.leagueRank}`.toUpperCase()}
+            meta={t('draw.assocMeta', { league: chosen.leagueName, count: leagueSize, rank: chosen.leagueRank }).toUpperCase()}
           />
           {/* P8.5-21: a hunting run says so wherever it shows, so it's never taken for a normal one. */}
           {hunting ? (
             <>
-              <Tag roles={roles} variant="selected">{`HUNTING · ${hunting.toUpperCase()}`}</Tag>
+              <Tag roles={roles} variant="selected">{t('draw.hunting', { comp: hunting.toUpperCase() })}</Tag>
               <KitText t="body" color={roles.textMuted}>
-                {`You're hunting the ${hunting}: the draw favoured the leagues where a season most often ends there. Your season plays as any other. End it in the ${hunting} and the run counts as a hunt; miss it and it's a normal run.`}
+                {t('draw.huntingNote', { comp: hunting })}
               </KitText>
             </>
           ) : (
             <KitText t="body" color={roles.textMuted}>
-              First you play your domestic season. Where you finish (or the cup) decides where you go: the Champions League, the Europa League or the Conference League. Finish too low and there's no Europe at all.
+              {t('draw.domesticFirst')}
             </KitText>
           )}
           <View style={styles.stakesHead}>
-            <SectionTag roles={roles}>What each finish earns</SectionTag>
+            <SectionTag roles={roles}>{t('draw.eachFinish')}</SectionTag>
             <InfoBubble topic="entry_point" accent={roles.text} size={15} />
           </View>
           <PositionStakes roles={roles} rank={chosen.leagueRank} />
@@ -567,28 +570,28 @@ function WCPlacement() {
       })
       setLoading(false)
     }
-    init().catch(e => { console.warn('[draw] wc failed:', e); setLoading(false) })
+    init().catch(e => { log.warn('db', 'draw: wc failed', e); setLoading(false) })
   }, [])
 
-  if (loading) return <Loading text="Drawing the World Cup…" />
+  if (loading) return <Loading text={t('draw.drawingWc')} />
   if (!formation || draftedPlayers.length === 0) return <Failed noSquad message="" />
-  if (!info) return <Failed noSquad={false} message={count > 0 ? 'Not enough nations loaded to play the World Cup.' : "The World Cup data didn't load."} />
+  if (!info) return <Failed noSquad={false} message={count > 0 ? t('draw.notEnoughNations') : t('draw.wcFailed')} />
 
   return (
-    <DrawScreen title="The draw"
-      cta={revealed ? <Plate label="What the pundits think" icon="forward" roles={roles} onPress={toPundits} /> : null}>
-      <GlobePanel targetId={isoForNationId(info.id)} flag={flagForCountry(info.name)} spinMs={spinMs}
+    <DrawScreen title={t('draw.theDraw')}
+      cta={revealed ? <Plate label={t('draw.pundits')} icon="forward" roles={roles} onPress={toPundits} /> : null}>
+      <GlobePanel targetId={isoForNationId(info.id)} flag={getFlag(info.id) ?? ''} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
         <>
           <RevealLabel
             nation
             name={info.name}
-            flag={flagForCountry(info.name) || undefined}
-            meta={`WORLD CUP · ${info.year} · 48 NATIONS · 12 GROUPS`}
+            flag={getFlag(info.id) ?? undefined}
+            meta={t('draw.wcMeta', { year: info.year })}
           />
           <KitText t="body" color={roles.textMuted}>
-            Three group games. The top two in each group and the eight best third-placed teams reach the round of 32. Groups are drawn when the tournament starts.
+            {t('draw.wcFormat')}
           </KitText>
           <Rivals teamOvr={info.ovr} teams={info.rivals} />
         </>

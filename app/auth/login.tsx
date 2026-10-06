@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
+import { t } from '@/i18n'
 import { USERNAME_MAX } from '@/lib/auth'
 import { PageMeta } from '@/components/PageMeta'
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { loginWithUsername } from '@/lib/auth'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space } from '@/theme'
-import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl } from '@/components/kit'
+import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl, KeyboardSafe } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
 import { useOnline } from '@/lib/online'
 
@@ -35,7 +36,7 @@ export default function LoginScreen() {
       await loginWithUsername(username.trim(), password)
       // don't navigate here — useEffect above handles it
     } catch {
-      setError('Wrong username or password.')
+      setError(t('auth.wrongLogin'))
       setLoading(false)
     }
   }
@@ -43,44 +44,44 @@ export default function LoginScreen() {
   // The plate names the missing step instead of silently doing nothing.
   // P8.5-24: offline, signing in can't work, and the plate says why.
   const online = useOnline()
-  const missing = !online ? "You're offline" : !username.trim() ? 'Enter your username' : !password ? 'Enter your password' : undefined
+  const missing = !online ? t('auth.offline') : !username.trim() ? t('auth.enterYourUsername') : !password ? t('auth.enterYourPassword') : undefined
 
   return (
     // Both platforms lift the form over the keyboard (the old layout only
     // adjusted on iOS, so Android hid the button).
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardSafe>
       <KitScreen ground={EVERYDAY} keyboardShouldPersistTaps="handled">
-        <PageMeta title="Sign in" path="/auth/login" />
+        <PageMeta title={t('auth.signInTitle')} path="/auth/login" />
         <BackControl roles={roles} />
-        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>WELCOME BACK.</KitText>
-        <KitText t="bodyL" color={roles.textMuted}>Sign in with your username.</KitText>
+        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{t('auth.welcomeBack')}</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('auth.signInLead')}</KitText>
 
         <View style={styles.form}>
           <Field
-            label="Username" roles={roles} value={username} onChangeText={setUsername}
-            placeholder="your_username" autoCapitalize="none" autoCorrect={false}
+            label={t('auth.username')} roles={roles} value={username} onChangeText={setUsername}
+            placeholder={t('auth.usernamePlaceholder')} autoCapitalize="none" autoCorrect={false}
             autoComplete="username" textContentType="username" maxLength={USERNAME_MAX}
           />
           <Field
-            label="Password" roles={roles} value={password} onChangeText={setPassword}
+            label={t('auth.password')} roles={roles} value={password} onChangeText={setPassword}
             secure autoComplete="password" textContentType="password"
             error={error} onSubmitEditing={() => { if (!missing) handleLogin() }}
           />
           <StripedNotice roles={roles}>
-            There's no password recovery. Forget your password and the account is gone.
+            {t('auth.noRecoverySignIn')}
           </StripedNotice>
 
           <Plate
-            label="No account? Create one" variant="quiet" roles={roles}
+            label={t('auth.noAccount')} variant="quiet" roles={roles}
             onPress={() => router.replace('/auth/register')} style={styles.switch}
           />
           <Plate
-            label="Sign in" icon="signIn" roles={roles} onPress={handleLogin}
+            label={t('auth.signIn')} icon="signIn" roles={roles} onPress={handleLogin}
             disabled={!!missing} missingStep={missing} loading={loading}
           />
         </View>
       </KitScreen>
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   )
 }
 

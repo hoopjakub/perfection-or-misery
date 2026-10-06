@@ -17,9 +17,10 @@
  *                        relegation round (Greece/Denmark/Cyprus/Czechia/…).
  * The championship group always finishes above the rest (the split "locks").
  */
+import { compareStandings } from './standings'
 import type { SimTeam, TeamStats, MatchResult } from '@/types/simulation'
 import { simulateMatch } from './match'
-import { updateForm } from './simulation'
+import { recordResult } from './standings'
 
 export type LeagueClub = { clubId: string; clubName: string; ovr: number }
 
@@ -66,15 +67,6 @@ function blankStats(): TeamStats {
   return { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }
 }
 
-function applyResult(home: TeamStats, away: TeamStats, r: MatchResult) {
-  home.played++; away.played++
-  home.goalsFor += r.homeGoals; home.goalsAgainst += r.awayGoals
-  away.goalsFor += r.awayGoals; away.goalsAgainst += r.homeGoals
-  if      (r.outcome === 'home') { home.won++;   home.points += 3; away.lost++ }
-  else if (r.outcome === 'away') { away.won++;   away.points += 3; home.lost++ }
-  else                           { home.drawn++; home.points += 1; away.drawn++; away.points += 1 }
-}
-
 const BYE = '__bye__'
 
 // One single round-robin as an array of matchdays (circle method). Matchdays let
@@ -111,9 +103,7 @@ function playPhase(teams: SimTeam[], rounds: number) {
         const home = rep % 2 === 0 ? x : y
         const away = rep % 2 === 0 ? y : x
         const r = simulateMatch(home, away)
-        applyResult(home.stats, away.stats, r)
-        updateForm(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-        updateForm(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+        recordResult(home, away, r)
       }
     }
   }
@@ -121,11 +111,7 @@ function playPhase(teams: SimTeam[], rounds: number) {
 
 function sortTable(teams: SimTeam[]): SimTeam[] {
   return [...teams].sort((a, b) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-    const gdA = a.stats.goalsFor - a.stats.goalsAgainst
-    const gdB = b.stats.goalsFor - b.stats.goalsAgainst
-    if (gdB !== gdA) return gdB - gdA
-    return b.stats.goalsFor - a.stats.goalsFor
+    return compareStandings(a, b)
   })
 }
 
@@ -210,9 +196,7 @@ export function lockedFinalTable(teams: SimTeam[], championshipIds: Set<string> 
 /** One live match: simulate, apply stats + form (shared with the headless path). */
 export function playLiveMatch(home: SimTeam, away: SimTeam): MatchResult {
   const r = simulateMatch(home, away)
-  applyResult(home.stats, away.stats, r)
-  updateForm(home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-  updateForm(away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+  recordResult(home, away, r)
   return r
 }
 

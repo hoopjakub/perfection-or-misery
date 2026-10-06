@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { Tabs } from 'expo-router'
 import { Platform, useWindowDimensions } from 'react-native'
 import { useEffect } from 'react'
@@ -42,7 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="runs" />
       <Tabs.Screen name="leaderboard" />
       <Tabs.Screen name="clubs" />
-      <Tabs.Screen name="profile" options={{ title: username ?? 'You', tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined }} />
+      <Tabs.Screen name="profile" options={{ title: username ?? t('ranks.you_'), tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined }} />
     </Tabs>
   )
 }

@@ -1,4 +1,5 @@
 import { router } from 'expo-router'
+import { mark } from '@/diag/perf'
 
 // One tap, one screen (the maintainer, 23 Sept: "you can double tap on stuff to
 // open it more than one times"). A second tap before the first screen arrived
@@ -68,6 +69,7 @@ export function installNavGuard() {
     const original = router[method].bind(router) as (...args: unknown[]) => void
     ;(router as unknown as Record<string, unknown>)[method] = (...args: unknown[]) => {
       setNavBusy(true)
+      mark('nav')
       original(...args)
     }
   }
@@ -79,6 +81,8 @@ export function installNavGuard() {
       if (last && last.key === key && now - last.at < DUPLICATE_MS) return
       last = { key, at: now }
       setNavBusy(true)
+      // Phase 9: ui:navigate runs from here to the new screen's first frame (the root layout).
+      mark('nav')
       original(...args)
     }
   }

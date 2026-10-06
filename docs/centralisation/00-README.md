@@ -2,6 +2,8 @@
 
 **Date:** 24 September 2026; **re-audited 29 September 2026**, after Phase 8. **Status:** research complete, re-audited. Phase two (the changes) is planned in [10](10-PHASE-TWO-REVISED.md), which supersedes 07's order, and is not started.
 
+> **2 October 2026, the second re-audit (Wave G).** After Phase 8.5's Waves A–E: of 90 items, 16 closed, 21 partly, 42 open, 5 worse, 2 wrong ([11](11-RE-AUDIT-2.md)). Step P is done; the final order, with Wave F as step 6, is [12](12-PHASE-TWO-FINAL.md), which supersedes 10's.
+
 > **29 September 2026, the re-audit.** Of the 72 items, 10 are closed (the one team mark and the one bracket did most of it), 16 partly, 36 still open, 4 worse and 2 still wrong; 18 new items came with Phase 8 ([08](08-RE-AUDIT.md), [09](09-NEW-ITEMS.md)). The maintainer's playtest notes of that day go first ([10](10-PHASE-TWO-REVISED.md) §2).
 
 ## What this is

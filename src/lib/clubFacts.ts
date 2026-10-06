@@ -9,6 +9,9 @@ import { BRAND_MODE } from './brand'
 // nothing can slip through.
 const FACTS: Record<string, string[]> = BRAND_MODE === 'real' ? factsData : {}
 
+/** How many clubs have facts in this build (Diagnostics' data check; 0 in the legal build, on purpose). */
+export const clubFactCount = () => Object.keys(FACTS).length
+
 export function getRandomFact(clubId: string): string | null {
   const clubFacts = FACTS[clubId]
   if (!clubFacts || clubFacts.length === 0) return null

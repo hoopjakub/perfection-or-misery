@@ -20,6 +20,8 @@
 // dropping the confetti and still delivering the outcome (R5's accessibility
 // note) — the trophy, the colour and the words carry it on their own.
 
+import { t } from '@/i18n'
+import { useFrameSampler } from '@/diag/frames'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions } from 'react-native'
 import Svg, { Path, Circle, Rect, Ellipse, G, Defs, LinearGradient, Stop } from 'react-native-svg'
@@ -187,6 +189,7 @@ export function Ceremony({ won, kind, title, subtitle, accent, onContinue }: {
   onContinue: () => void
 }) {
   const [reduceMotion, setReduceMotion] = useState(false)
+  useFrameSampler('frame:ceremony')   // Phase 9: the trophy lift's frames, while it's on screen
   useEffect(() => {
     let alive = true
     AccessibilityInfo.isReduceMotionEnabled()
@@ -243,12 +246,12 @@ export function Ceremony({ won, kind, title, subtitle, accent, onContinue }: {
 
         {!won && (
           <KitText t="body" color={roles.textMuted} style={[styles.centre, styles.consolation]}>
-            One match away. The medal round your neck is the one nobody wants.
+            {t('parts.oneMatchAway')}
           </KitText>
         )}
       </Animated.View>
 
-      <Plate label="On to awards night" icon="forward" roles={roles} onPress={onContinue} style={styles.cta} />
+      <Plate label={t('parts.toAwards')} icon="forward" roles={roles} onPress={onContinue} style={styles.cta} />
 
       {won && (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: prim.cotton, opacity: flash }]} />

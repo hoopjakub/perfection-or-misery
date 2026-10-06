@@ -1,7 +1,7 @@
 # 03 · Budgets and where each is measured
 
 > Part of the diagnostics set. Start at [`00-README.md`](00-README.md).
-> Status: **plan, numbers provisional.** Every target here is a starting position. The first release build on a mid-range Android phone replaces them with measured ones, each change written beside the number with its reason, the way The Dugout's `budgets.ts` does.
+> Status: **as built 5 October 2026 (every runtime budget has its site), numbers still provisional.** §2.3's keys were re-cut to today's screens; see the note there. Line numbers below are 15 September's and stale; `scripts/verify-budgets.ts` is the live list of sites. Every target here is a starting position. The first release build on a mid-range Android phone replaces them with measured ones, each change written beside the number with its reason, the way The Dugout's `budgets.ts` does.
 
 ---
 
@@ -67,7 +67,22 @@ The simulation runs on the JS thread in the screen component. Each key ends at t
 | `sim:customUcl:qualifying` | 1500 / 4000 | every association's domestic table plus the qualifying ladder | `custom-ucl-simulation.tsx` around 395–405 |
 | `sim:customUcl:skip` | 1000 / 2500 | league phase and knockouts of the full UCL route | `custom-ucl-simulation.tsx` 350, 620, 692 |
 
-**Expected first finding.** `sim:customUcl:qualifying` simulates a domestic season for every UEFA association in one synchronous block. If anything in PoM breaks the 50 ms stall line on a phone, it's this. The stall record will name it.
+**As built (5 October 2026).** The screens these keys were written for have changed: centralisation phase two put the league season and the full path's domestic season on one loop, the two league phases likewise, and the knockouts into `KnockoutStage` with the bracket simulated by two engine functions. So the keys follow the work, each from at most two places, timed with `timeToFrame` (to the first frame after the state lands):
+
+| Key | Target / fail | Recorded in |
+|---|---|---|
+| `sim:matchday:league` | 60 / 150 | `LeagueSeason.tsx` `tick`, `custom-ucl-simulation.tsx` `playDomesticMD` |
+| `sim:skip:league` | 800 / 2000 | `LeagueSeason.tsx` `skipToEnd`, `custom-ucl-simulation.tsx` `skipDomesticSeason` |
+| `sim:matchday:ucl` | 60 / 150 | `simulateNextMD` in `simulation.tsx` (classic) and `custom-ucl-simulation.tsx` |
+| `sim:skip:ucl` | 1000 / 2500 | `skipAll` (classic), `skipUclLeaguePhase` (full path): the league phase only now |
+| `sim:matchday:wc` | 60 / 150 | `simulation.tsx` World Cup `playMatchday` (new) |
+| `sim:skip:wc` | 800 / 2000 | `simulation.tsx` World Cup `skipAll` (the groups; was `sim:wc`) |
+| `sim:knockouts` | 300 / 1000 | inside `simulateCLKnockoutsOnly` and `simulateWCKnockoutsOnly` (new; also counts the rest of Europe's brackets) |
+| `sim:europe` | 1500 / 4000 | `custom-ucl-simulation.tsx` `resolveWorld` (was `sim:customUcl:qualifying`) |
+
+`sim:customUcl:skip` is gone: the full path's league-phase skip is `sim:skip:ucl`. Runtime keys: 31. The stats keys are recorded inside `computeLeague/CL/WCRunStats` (`run-stats.ts`) rather than at the three result screens, which are one now; `detail:generate` inside `generateMatchDetail`. Both engine wrappers are a renamed function and a timed `const` of the old name.
+
+**Expected first finding** (written for the old key, which is now `sim:europe`). `sim:customUcl:qualifying` simulates a domestic season for every UEFA association in one synchronous block. If anything in PoM breaks the 50 ms stall line on a phone, it's this. The stall record will name it.
 
 ### 2.4 Match detail, Deep Match and stats
 
@@ -157,7 +172,7 @@ Never written by the game. Shown in their own section with the time the test ran
 
 | Kind | Keys |
 |---|---|
-| Runtime | 30 |
+| Runtime | 35 (30 in the plan; 31 after step 2's re-cut; then `ui:tab`, `screen:result`, `pundits:build` and `query:rosters` with Phase 9's own work) |
 | Planned | 3 |
 | Build-time | 4 |
 | Self-test | 7 |

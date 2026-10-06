@@ -1,3 +1,4 @@
+import { shuffle } from '../lib/rng'
 import { SimTeam, Fixture } from '@/types/simulation'
 
 export function generateFixtures(teams: SimTeam[]): Fixture[] {
@@ -28,7 +29,7 @@ function shuffleWithinMatchdays(fixtures: Fixture[], totalMatchdays: number): Fi
   const result: Fixture[] = []
   for (let md = 1; md <= totalMatchdays; md++) {
     const day = fixtures.filter(f => f.matchday === md)
-    result.push(...day.sort(() => Math.random() - 0.5))
+    result.push(...shuffle(Math.random, day))
   }
   return result
 }

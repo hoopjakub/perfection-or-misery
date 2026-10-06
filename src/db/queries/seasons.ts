@@ -1,4 +1,5 @@
 import { getDb } from '../setup'
+import { timeAsync } from '@/diag/perf'
 import type { LeagueSeasonWithTeams } from '@/types/game'
 import type { RosterPlayer } from '@/types/stats'
 
@@ -49,12 +50,36 @@ type RosterRow = {
   player_id: string; player_name: string; primary_position: string
   birth_year: number | null; attack: number | null; ovr: number
 }
+// Phase 9 ("SQLite roster loads repeated per screen"): five callers (the run's
+// stats, the live screens' pools, the pundits, the sheets) asked for the same
+// club-seasons again and again. The database is read-only, so a club-season's
+// roster can't change within a session: each is read once and kept. Callers get
+// copies, so nothing they do to a list or a player reaches the cache.
+// ponytail: an unbounded session cache; a session touches a few hundred
+// club-seasons at most (a full path's Europe), a few MB. Cap it if a reading says so.
+const rosterCache = new Map<string, RosterPlayer[]>()
+const rosterKey = (clubId: string, yearStart: number) => `${clubId}@${yearStart}`
+
 export async function getRostersForClubs(
   clubIds: string[],
   yearStart: number,
 ): Promise<Map<string, RosterPlayer[]>> {
   const map = new Map<string, RosterPlayer[]>()
   if (clubIds.length === 0) return map
+  const missing = [...new Set(clubIds)].filter(id => !rosterCache.has(rosterKey(id, yearStart)))
+  if (missing.length) {
+    const fresh = await timeAsync('query:rosters', () => readRosters(missing, yearStart))
+    for (const id of missing) rosterCache.set(rosterKey(id, yearStart), fresh.get(id) ?? [])
+  }
+  for (const id of clubIds) {
+    const kept = rosterCache.get(rosterKey(id, yearStart))
+    if (kept && kept.length) map.set(id, kept.map(p => ({ ...p })))
+  }
+  return map
+}
+
+async function readRosters(clubIds: string[], yearStart: number): Promise<Map<string, RosterPlayer[]>> {
+  const map = new Map<string, RosterPlayer[]>()
   const db = await getDb()
   const placeholders = clubIds.map(() => '?').join(',')
   const rows = await db.getAllAsync<RosterRow>(
@@ -203,7 +228,7 @@ export async function getTopKickers(clubId: string, limit = 11): Promise<string[
 
 // mode-aware pool - CL/WC get their own competition pools,
 // regular modes exclude CL/WC to avoid Vinicius Jr popping up in league mode
-export async function getClubSeasonsForMode(
+async function getClubSeasonsForModeNow(
   mode: string,
   leagueId?: string | null
 ): Promise<ClubSeasonRow[]> {
@@ -271,3 +296,6 @@ export async function getClubColours(ids: string[]): Promise<Map<string, { prima
   }
   return out
 }
+
+// Phase 9: timed for the Diagnostics screen (query:pool, docs/diagnostics/03-BUDGETS.md).
+export const getClubSeasonsForMode = (...a: Parameters<typeof getClubSeasonsForModeNow>) => timeAsync('query:pool', () => getClubSeasonsForModeNow(...a))

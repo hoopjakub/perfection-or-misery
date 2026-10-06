@@ -29,7 +29,7 @@ export type DeepMatchRequest = {
    * goes straight from the ceremony to `resultRoute`.
    */
   onFinished: () => void
-  /** Where the run ends up: '/game/cl-result', '/game/wc-result', … */
+  /** Where the run ends up (Awards Night, then '/game/result'). */
   resultRoute: string
 }
 

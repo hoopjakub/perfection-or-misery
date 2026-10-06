@@ -1,5 +1,7 @@
 // src/db/setup.ts
 import * as SQLite from 'expo-sqlite'
+import { log } from '@/diag/log'
+import { timeAsync } from '@/diag/perf'
 import { Asset } from 'expo-asset'
 import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -9,7 +11,7 @@ import DB_ASSET from './dbAsset'
 
 // Increment this whenever the bundled players_v5.db changes.
 // This forces the device to re-copy the fresh DB on next launch.
-const DB_VERSION = 20
+export const DB_VERSION = 22   // exported for the Diagnostics data check
 
 let _db: SQLite.SQLiteDatabase | null = null
 
@@ -46,12 +48,16 @@ async function initDb(): Promise<SQLite.SQLiteDatabase> {
 // since we never write to this database.
 async function initBundledDbWeb(): Promise<void> {
   if (_db) return
-  const asset = Asset.fromModule(DB_ASSET)
-  await asset.downloadAsync()
-  const uri = asset.localUri ?? asset.uri
-  const res = await fetch(uri)
-  const bytes = new Uint8Array(await res.arrayBuffer())
-  _db = await SQLite.deserializeDatabaseAsync(bytes)
+  // Phase 9: the web's biggest boot cost (a ~11 MB download), timed apart from opening it.
+  const bytes = await timeAsync('db:fetch', async () => {
+    const asset = Asset.fromModule(DB_ASSET)
+    await asset.downloadAsync()
+    const uri = asset.localUri ?? asset.uri
+    const res = await fetch(uri)
+    return new Uint8Array(await res.arrayBuffer())
+  })
+  _db = await timeAsync('db:open', () => SQLite.deserializeDatabaseAsync(bytes))
+  log.info('db', `ready (web, ${(bytes.length / 1048576).toFixed(1)} MB)`)
 }
 
 // Public entry point some callers (RootLayout's boot effect) use explicitly.
@@ -78,7 +84,8 @@ async function initBundledDbNative(): Promise<void> {
 
   const dbInfo = await FileSystem.getInfoAsync(dbPath)
 
-  if (!dbInfo.exists || existingVersion < DB_VERSION) {
+  if (!dbInfo.exists || existingVersion < DB_VERSION) await timeAsync('db:install', async () => {
+    log.info('db', `installing version ${DB_VERSION} (had ${existingVersion || 'none'})`)
     // Reset singleton connection in JS if it exists
     _db = null
 
@@ -102,10 +109,13 @@ async function initBundledDbNative(): Promise<void> {
     } else {
       throw new Error('[db] asset has no localUri')
     }
-  }
+  })
 
   // Open the database connection
-  _db = await SQLite.openDatabaseAsync('pom.db')
-  await _db.execAsync('PRAGMA journal_mode = WAL;')
-  await _db.execAsync('PRAGMA foreign_keys = ON;')
+  _db = await timeAsync('db:open', async () => {
+    const db = await SQLite.openDatabaseAsync('pom.db')
+    await db.execAsync('PRAGMA journal_mode = WAL;')
+    await db.execAsync('PRAGMA foreign_keys = ON;')
+    return db
+  })
 }

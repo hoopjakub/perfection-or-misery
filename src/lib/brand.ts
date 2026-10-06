@@ -50,6 +50,9 @@ export function shortCrestInitials(name: string): string {
 export type Crest =
   | { kind: 'image'; source: number }
   | { kind: 'drawn'; device: CrestDevice; initials: string }
+  /** A competition with a mark of our own, drawn in the kit (A-11: the World
+   *  Cup, whose real mark isn't ours to use in either brand mode). */
+  | { kind: 'mark'; mark: 'world_cup' }
 
 /** The mark for one club: a real crest only in `real` mode and only when one is
  *  bundled; otherwise ours, drawn. */
@@ -74,9 +77,11 @@ export function markColoursOf(clubId?: string | null, flag?: string | null): [st
 }
 
 /** The same for a competition (P8-12): the Champions League's and each league's
- *  own mark are real images, scraped beside the crests. The World Cup has no
- *  Transfermarkt mark yet, so it wears the drawn one until one exists. */
+ *  own mark are real images, scraped beside the crests. The World Cup has a
+ *  mark of its own, drawn in the kit (A-11): the real one isn't licensable
+ *  (the maturita licensing notes), so it's the same in both brand modes. */
 export function competitionCrestFor(competitionId: string | null | undefined, name: string): Crest {
+  if (competitionId === 'world_cup') return { kind: 'mark', mark: 'world_cup' }
   if (BRAND_MODE === 'real') {
     const source = getCompetitionLogo(competitionId)
     if (source != null) return { kind: 'image', source }

@@ -1,10 +1,12 @@
 // Kit Drop labels: the Tag (small facts), garment Labels (a whole outcome),
 // the Wordmark, the ID tag, and the typographic stand-ins for crests and flags.
+import { countryName } from '@/data/countries-sk'
+import { t } from '@/i18n'
 import { flagImageOf } from '@/lib/flags'
 import { useCrestStore } from '@/store/crestStore'
 import { getFlag } from '@/lib/flagMap'
 import { clubCode } from '@/data/club-codes'
-import { ratio } from '@/lib/contrast'
+import { ratio, inkOn } from '@/lib/contrast'
 import React from 'react'
 import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle, Image } from 'react-native'
 import { type Roles, space, border, OFFSET, prim } from '@/theme'
@@ -57,7 +59,7 @@ export function Tag({ children, roles, variant = 'data', style }: {
 // plane away, outlined. The word stays as its accessibility label.
 export function VenueMark({ roles, home, style }: { roles: Roles; home: boolean; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[styles.tagWrap, style]} accessible accessibilityLabel={home ? 'Home' : 'Away'}>
+    <View style={[styles.tagWrap, style]} accessible accessibilityLabel={home ? t('common.home') : t('common.away')}>
       <View style={[styles.tag, styles.venue, { borderColor: roles.line, backgroundColor: home ? roles.line : 'transparent' }]}>
         <Icon name={home ? 'home' : 'away'} size={16} color={home ? roles.bg : roles.text} />
       </View>
@@ -82,7 +84,7 @@ export function TeamMark({ roles, clubId, name, size = 20 }: {
   const yours = useCrestStore(st => (clubId && st.active?.clubId === clubId && (st.active.choice.design || st.active.choice.imagePath) ? st.active.choice : null))
   if (yours) return <YourCrest choice={yours} size={size} name={name} />
   return flag
-    ? <RoundFlag roles={roles} emoji={flag} code={clubCode(name)} size={size} />
+    ? <RoundFlag roles={roles} emoji={flag} code={name} size={size} />
     : <Crest roles={roles} clubId={clubId} name={name} size={size} />
 }
 
@@ -108,7 +110,7 @@ export function ClubName({ roles, clubId, name, flag, size = 20, t = 'body', col
       {flag
         ? <RoundFlag roles={roles} emoji={flag} code={name} size={size} />
         : <TeamMark roles={roles} clubId={clubId} name={name} size={size} />}
-      <KitText t={t} color={color ?? roles.text} numberOfLines={numberOfLines} style={styles.clubNameText}>{name}</KitText>
+      <KitText t={t} color={color ?? roles.text} numberOfLines={numberOfLines} style={styles.clubNameText}>{countryName(name)}</KitText>
     </View>
   )
 }
@@ -170,7 +172,7 @@ export function RunLabel({ roles, colourway, title, meta, score, verdict = 'midd
 export function RunLabelSkeleton({ roles }: { roles: Roles }) {
   return (
     <View style={[styles.label, styles.skeleton, { borderColor: roles.rule, backgroundColor: roles.sunken }]}
-      accessibilityLabel="Loading" />
+      accessibilityLabel={t('common.loading')} />
   )
 }
 
@@ -206,7 +208,7 @@ export function IdTag({ roles, name, state, detail, mark, badge, pin, tag }: {
   /** P8-181: your club's tag. No club, no tag (there's no REG any more). */
   tag?: { text: string; colour: string } | null
 }) {
-  const tagInk = tag ? (ratio(prim.ink, tag.colour) >= ratio(prim.cotton, tag.colour) ? prim.ink : prim.cotton) : prim.ink
+  const tagInk = tag ? inkOn(tag.colour, prim.ink, prim.cotton) : prim.ink
   return (
     <View style={[styles.idTag, { borderColor: roles.line, backgroundColor: roles.surface }]}
       accessible accessibilityLabel={`${name}, ${state === 'REG' ? 'registered' : 'guest'}${detail ? `, ${detail}` : ''}`}>
@@ -220,7 +222,7 @@ export function IdTag({ roles, name, state, detail, mark, badge, pin, tag }: {
           <KitText t="tag" color={roles.textMuted}>ID</KitText>
           <KitText t="title" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{name}</KitText>
           {badge}
-          {state === 'GUEST' ? <Tag roles={roles}>GUEST</Tag>
+          {state === 'GUEST' ? <Tag roles={roles}>{t('parts.guestTag')}</Tag>
             : tag ? <View style={[styles.idClub, { backgroundColor: tag.colour, borderColor: roles.line }]}><KitText t="tag" color={tagInk}>{tag.text}</KitText></View>
             : null}
         </View>
@@ -235,6 +237,12 @@ export function IdTag({ roles, name, state, detail, mark, badge, pin, tag }: {
 // A nation as a round flag. The flag is the existing emoji, cropped to a
 // circle (the style guide's round flag assets are a later swap behind this
 // same component). No flag → a neutral circle with the code.
+//
+// `code` is the side's or country's NAME, whole (centralisation A-13, step 1):
+// it's what a screen reader says, and the three letters in an empty circle are
+// made from it here with `clubCode`, the same code the club tags use. Callers
+// used to cut it themselves five different ways, and a cut name ("Bra") was
+// what the screen reader said.
 export function RoundFlag({ emoji, code, size = 20, roles }: {
   emoji?: string | null
   code?: string
@@ -245,8 +253,8 @@ export function RoundFlag({ emoji, code, size = 20, roles }: {
   if (!emoji) {
     return (
       <View style={[circle, styles.flagEmpty, { borderColor: roles.rule, backgroundColor: roles.sunken }]}
-        accessibilityLabel={code}>
-        <Text style={{ fontSize: size * 0.32, color: roles.textMuted }}>{code?.slice(0, 3)}</Text>
+        accessibilityLabel={code ? countryName(code) : undefined}>
+        <Text style={{ fontSize: size * 0.32, color: roles.textMuted }}>{code ? clubCode(code).slice(0, 3) : ''}</Text>
       </View>
     )
   }
@@ -254,7 +262,7 @@ export function RoundFlag({ emoji, code, size = 20, roles }: {
   // no bundled flag for it (src/lib/flags.ts).
   const image = flagImageOf(emoji)
   return (
-    <View style={[circle, styles.flag, { borderColor: roles.rule }]} accessibilityLabel={code}>
+    <View style={[circle, styles.flag, { borderColor: roles.rule }]} accessibilityLabel={code ? countryName(code) : undefined}>
       {image
         ? <Image source={image} resizeMode="cover" style={{ width: size * 1.5, height: size, alignSelf: 'center' }} accessibilityIgnoresInvertColors />
         : <Text style={{ fontSize: size * 1.25, lineHeight: size * 1.4, textAlign: 'center' }} allowFontScaling={false}>{emoji}</Text>}

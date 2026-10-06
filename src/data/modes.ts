@@ -1,6 +1,7 @@
 // The modes a run can start in, and what setup needs to know about each.
 // One list, read by "Where you play" (app/game/mode-select.tsx), "How hard"
 // and Home's AGAIN plate — it used to live inside mode-select only.
+import { t, dec } from '@/i18n'
 import type { GameMode } from '@/types/game'
 import { MODE_LABELS } from '@/theme'
 
@@ -32,43 +33,43 @@ export type ModeInfo = {
 }
 
 export const MODE_GROUPS: { id: ModeGroup; label: string }[] = [
-  { id: 'leagues',   label: 'Leagues' },
-  { id: 'europe',    label: 'Europe' },
-  { id: 'world_cup', label: 'World Cup' },
+  { id: 'leagues',   label: t('modes.groupLeagues') },
+  { id: 'europe',    label: t('modes.groupEurope') },
+  { id: 'world_cup', label: t('modes.groupWorldCup') },
 ]
 
 export const MODES: ModeInfo[] = [
-  { id: 'all_time', icon: 'modeAllTime', group: 'leagues', title: 'All Time', line: 'Any club, any season, any league.',
+  { id: 'all_time', icon: 'modeAllTime', group: 'leagues', title: t('modes.allTime'), line: t('modes.allTimeLine'),
     hasDifficulty: true, legacyAccent: '#10B981' },
-  { id: 'league', icon: 'modeLeague', group: 'leagues', title: 'League', line: 'Pick a league. Every spin and your placement come from it, across every season we have.',
+  { id: 'league', icon: 'modeLeague', group: 'leagues', title: t('modes.league'), line: t('modes.leagueLine'),
     hasDifficulty: true, legacyAccent: '#3B82F6' },
-  { id: 'chaos', icon: 'modeChaos', group: 'leagues', title: 'Chaos', line: 'You could be placed anywhere, and so could your players: you pick them, chaos picks where they play.',
-    rules: ['NO REROLLS', 'RATINGS HIDDEN', 'RANDOM POSITIONS'], hasDifficulty: false, hazard: true, legacyAccent: '#FF3B30' },
-  { id: 'cursed', icon: 'modeCursed', group: 'leagues', title: 'Cursed', line: "The names won't stay still, and now and then the curse makes the pick for you.",
-    rules: ['NO REROLLS', 'RATINGS HIDDEN', 'NAMES CHANGE', 'THE CURSE PICKS'], hasDifficulty: false, hazard: true, legacyAccent: '#A855F7' },
+  { id: 'chaos', icon: 'modeChaos', group: 'leagues', title: t('modes.chaos'), line: t('modes.chaosLine'),
+    rules: [t('modes.noRerolls'), t('modes.ratingsHidden'), t('modes.randomPositions')], hasDifficulty: false, hazard: true, legacyAccent: '#FF3B30' },
+  { id: 'cursed', icon: 'modeCursed', group: 'leagues', title: t('modes.cursed'), line: t('modes.cursedLine'),
+    rules: [t('modes.noRerolls'), t('modes.ratingsHidden'), t('modes.namesChange'), t('modes.cursePicks')], hasDifficulty: false, hazard: true, legacyAccent: '#A855F7' },
   { id: 'champions_league_custom', icon: 'modeClPath', group: 'europe', title: MODE_LABELS.champions_league_custom,
-    line: 'Every league and cup played. Your season puts you in the Champions, Europa or Conference League; lose in qualifying and you drop.',
+    line: t('modes.europePathLine'),
     hasDifficulty: true, competitionId: 'champions_league', legacyAccent: '#00088E' },
-  { id: 'champions_league', icon: 'modeClFinals', group: 'europe', title: `${MODE_LABELS.champions_league} · Finals`,
-    line: 'The 36-club league phase and the knockouts. No qualifying.',
+  { id: 'champions_league', icon: 'modeClFinals', group: 'europe', title: t('modes.finals', { comp: MODE_LABELS.champions_league }),
+    line: t('modes.uclLine'),
     hasDifficulty: true, competitionId: 'champions_league', legacyAccent: '#4FA9FF' },
   // P8-172: the other two, each on its real 2025–26 field and pots.
-  { id: 'europa_league', icon: 'modeElFinals', group: 'europe', title: `${MODE_LABELS.europa_league} · 25/26`,
-    line: 'The real 2025–26 field and pots: 36 clubs, eight league-phase games, then the knockouts.',
+  { id: 'europa_league', icon: 'modeElFinals', group: 'europe', title: t('modes.season2526', { comp: MODE_LABELS.europa_league }),
+    line: t('modes.uelLine'),
     hasDifficulty: true, competitionId: 'europa_league', legacyAccent: '#F26722' },
-  { id: 'conference_league', icon: 'modeEclFinals', group: 'europe', title: `${MODE_LABELS.conference_league} · 25/26`,
-    line: 'The real 2025–26 field: six pots, one opponent from each, then the knockouts.',
+  { id: 'conference_league', icon: 'modeEclFinals', group: 'europe', title: t('modes.season2526', { comp: MODE_LABELS.conference_league }),
+    line: t('modes.ueclLine'),
     hasDifficulty: true, competitionId: 'conference_league', legacyAccent: '#1DB954' },
-  { id: 'world_cup', icon: 'modeWorldCup', group: 'world_cup', title: `${MODE_LABELS.world_cup} · Finals`,
-    line: '48 national teams. Draft a squad and take over a country.',
+  { id: 'world_cup', icon: 'modeWorldCup', group: 'world_cup', title: t('modes.finals', { comp: MODE_LABELS.world_cup }),
+    line: t('modes.wcLine'),
     hasDifficulty: true, competitionId: 'world_cup', legacyAccent: '#F5C518' },
-  { id: 'world_cup_full', icon: 'modeWorldCup', group: 'world_cup', title: `${MODE_LABELS.world_cup} · Full route`,
-    line: 'Your confederation\'s qualifiers, the play-offs, then the tournament.',
+  { id: 'world_cup_full', icon: 'modeWorldCup', group: 'world_cup', title: t('modes.fullRoute', { comp: MODE_LABELS.world_cup }),
+    line: t('modes.wcFullLine'),
     hasDifficulty: false, comingSoon: true, competitionId: 'world_cup', legacyAccent: '#F5C518' },
 ]
 
 /** A score multiplier as the difficulty labels print it: ×1.37 */
-export const multiplierText = (m: number) => `×${m.toFixed(2)}`
+export const multiplierText = (m: number) => `×${dec(m, 2)}`
 
 export function modeInfo(id: string | null | undefined): ModeInfo | undefined {
   return MODES.find(m => m.id === id)

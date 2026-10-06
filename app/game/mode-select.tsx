@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+import { log } from '@/diag/log'
 import React, { useEffect, useState } from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -35,7 +37,7 @@ export default function WhereYouPlayScreen() {
     let active = true
     getAvailableLeagues()
       .then(d => { if (active) setLeagues(d) })
-      .catch(e => { console.warn('[where] leagues failed:', e); if (active) setLeaguesFailed(true) })
+      .catch(e => { log.warn('db', 'where: leagues failed', e); if (active) setLeaguesFailed(true) })
     return () => { active = false }
   }, [pickingLeague, leagues])
 
@@ -54,16 +56,16 @@ export default function WhereYouPlayScreen() {
   if (pickingLeague) {
     return (
       <KitScreen ground={EVERYDAY} width="wide">
-        <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title="Which league" onBack={() => setPickingLeague(false)} />
+        <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title={t('setup.whichLeague')} onBack={() => setPickingLeague(false)} />
         <KitText t="bodyL" color={roles.textMuted} style={styles.lead}>
-          Every spin and your placement come from this league, across every season we have.
+          {t('setup.leagueLead')}
         </KitText>
         {leaguesFailed ? (
-          <InlineError roles={roles} message="The leagues didn't load." onRetry={() => { setLeaguesFailed(false); setLeagues(null) }} />
+          <InlineError roles={roles} message={t('setup.leaguesFailed')} onRetry={() => { setLeaguesFailed(false); setLeagues(null) }} />
         ) : !leagues ? (
-          <KitText t="tag" color={roles.textMuted}>Loading leagues…</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('setup.loadingLeagues')}</KitText>
         ) : leagues.length === 0 ? (
-          <StripedNotice roles={roles}>No leagues are available in this build.</StripedNotice>
+          <StripedNotice roles={roles}>{t('setup.noLeagues')}</StripedNotice>
         ) : (
           <Grid medium={2} expanded={3} gap={space[2]}>
             {leagues.map(l => (
@@ -78,7 +80,7 @@ export default function WhereYouPlayScreen() {
                   store.selectedLeague === l.id && { borderWidth: border.plate },
                 ]}
               >
-                <RoundFlag roles={roles} emoji={flagForLeague(l.id)} code={l.id.slice(0, 3).toUpperCase()} size={24} />
+                <RoundFlag roles={roles} emoji={flagForLeague(l.id)} code={l.name} size={24} />
                 <KitText t="body" color={roles.text} style={{ flex: 1 }}>{l.name}</KitText>
                 <Icon name="chevron" size={16} color={roles.textMuted} />
               </Pressable>
@@ -91,7 +93,7 @@ export default function WhereYouPlayScreen() {
 
   return (
     <KitScreen ground={EVERYDAY} width="wide">
-      <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title="Where you play" />
+      <RunHeader roles={roles} stage={1} colourway={[prim.ink]} title={t('setup.whereYouPlay')} />
       {MODE_GROUPS.map(group => (
         <View key={group.id}>
           <SectionTag roles={roles}>{group.label}</SectionTag>

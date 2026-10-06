@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
 import { isBadWord, refusalLine } from '@/lib/moderation'
 import { USERNAME_MAX } from '@/lib/auth'
 import { PageMeta } from '@/components/PageMeta'
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { upgradeGuestAccount } from '@/lib/auth'
 import { ROLES, space } from '@/theme'
-import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl } from '@/components/kit'
+import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl, KeyboardSafe } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
 import { useOnline } from '@/lib/online'
 
@@ -26,11 +28,11 @@ export default function RegisterScreen() {
 
   function validate(): Errors {
     const name = username.trim()
-    if (name.length < 3) return { username: 'Usernames need at least 3 characters.' }
-    if (name.length > USERNAME_MAX) return { username: `Usernames are ${USERNAME_MAX} characters at most.` }
-    if (!/^[a-zA-Z0-9_]+$/.test(name)) return { username: 'Letters, numbers and underscores only.' }
-    if (password.length < 6) return { password: 'Passwords need at least 6 characters.' }
-    if (password !== confirm) return { confirm: "The passwords don't match." }
+    if (name.length < 3) return { username: t('auth.tooShort') }
+    if (name.length > USERNAME_MAX) return { username: t('auth.tooLong', { max: USERNAME_MAX }) }
+    if (!/^[a-zA-Z0-9_]+$/.test(name)) return { username: t('auth.badCharacters') }
+    if (password.length < 6) return { password: t('auth.passwordShort') }
+    if (password !== confirm) return { confirm: t('auth.noMatch') }
     return {}
   }
 
@@ -48,7 +50,7 @@ export default function RegisterScreen() {
       // ever set, never cleared — so the button looked busy and couldn't be
       // pressed again. Raw backend messages were shown too; they mean nothing
       // to a player, so only the cases we can explain get their own line.
-      console.warn('[register] failed:', e)
+      log.warn('auth', 'register: failed', e)
       setLoading(false)
       if (e?.message === 'SIGNIN_AFTER_UPGRADE') {
         // The account was made; only the automatic sign-in failed.
@@ -56,10 +58,10 @@ export default function RegisterScreen() {
         return
       }
       setErrors(e?.message === 'USERNAME_TAKEN'
-        ? { username: "That username's taken." }
+        ? { username: t('auth.taken') }
         // P8.5-44: a name the moderation refuses gets one of its own lines.
         : isBadWord(e) ? { username: refusalLine() }
-        : { form: "That didn't work. Check your connection and try again." })
+        : { form: t('auth.failed') })
     }
   }
 
@@ -67,65 +69,65 @@ export default function RegisterScreen() {
   // P8.5-24: offline, making an account can't work, and the plate says why.
   const online = useOnline()
   const missing =
-    !online ? "You're offline"
-    : !username.trim() ? 'Enter a username'
-    : !password ? 'Enter a password'
-    : !confirm ? 'Repeat the password'
-    : !accepted ? 'Tick the box above'
+    !online ? t('auth.offline')
+    : !username.trim() ? t('auth.enterUsername')
+    : !password ? t('auth.enterPassword')
+    : !confirm ? t('auth.repeatThePassword')
+    : !accepted ? t('auth.tickTheBox')
     : undefined
 
   return (
     // Both platforms lift the form over the keyboard (the old layout only
     // adjusted on iOS, so Android hid the button).
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardSafe>
       <KitScreen ground={EVERYDAY} keyboardShouldPersistTaps="handled">
-        <PageMeta title="Create an account" path="/auth/register" />
+        <PageMeta title={t('auth.registerTitle')} path="/auth/register" />
         <BackControl roles={roles} />
-        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>KEEP YOUR RUNS</KitText>
+        <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{t('auth.keepYourRuns')}</KitText>
         {/* Was "Your guest runs stay." — false: guest runs are never saved. */}
-        <KitText t="bodyL" color={roles.textMuted}>Pick a username and a password.</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('auth.registerLead')}</KitText>
 
         <View style={styles.form}>
           <Field
-            label="Username" roles={roles} value={username} onChangeText={setUsername}
-            placeholder="your_username" autoCapitalize="none" autoCorrect={false}
+            label={t('auth.username')} roles={roles} value={username} onChangeText={setUsername}
+            placeholder={t('auth.usernamePlaceholder')} autoCapitalize="none" autoCorrect={false}
             autoComplete="username-new" textContentType="username" error={errors.username} maxLength={USERNAME_MAX}
           />
           <Field
-            label="Password" roles={roles} value={password} onChangeText={setPassword}
+            label={t('auth.password')} roles={roles} value={password} onChangeText={setPassword}
             secure autoComplete="password-new" textContentType="newPassword" error={errors.password}
           />
           <Field
-            label="Repeat password" roles={roles} value={confirm} onChangeText={setConfirm}
+            label={t('auth.repeatPassword')} roles={roles} value={confirm} onChangeText={setConfirm}
             secure autoComplete="password-new" textContentType="newPassword" error={errors.confirm}
           />
 
           <StripedNotice roles={roles}>
-            There's no password recovery. Lose the password and the account goes with it.
+            {t('auth.noRecoveryRegister')}
           </StripedNotice>
-          <Checkbox checked={accepted} onChange={setAccepted} roles={roles}>I'll remember it</Checkbox>
+          <Checkbox checked={accepted} onChange={setAccepted} roles={roles}>{t('auth.remember')}</Checkbox>
 
           {errors.form ? <StripedNotice roles={roles} failed>{errors.form}</StripedNotice> : null}
 
           <Plate
-            label="Already have one? Sign in" variant="quiet" roles={roles}
+            label={t('auth.haveOne')} variant="quiet" roles={roles}
             onPress={() => router.replace('/auth/login')} style={styles.switch}
           />
           <Plate
-            label="Create account" icon="keep" roles={roles} onPress={handleRegister}
+            label={t('auth.create')} icon="keep" roles={roles} onPress={handleRegister}
             disabled={!!missing} missingStep={missing} loading={loading}
           />
           {/* Store policy: the terms and privacy are one tap from sign-up. */}
           <KitText t="body" color={roles.textMuted}>
-            {'Creating an account means you accept the '}
-            <KitText t="body" color={roles.text} style={styles.link} accessibilityRole="link" onPress={() => router.push('/terms')}>Terms</KitText>
-            {' and the '}
-            <KitText t="body" color={roles.text} style={styles.link} accessibilityRole="link" onPress={() => router.push('/privacy')}>Privacy</KitText>
-            {' page.'}
+            {t('auth.acceptBefore')}
+            <KitText t="body" color={roles.text} style={styles.link} accessibilityRole="link" onPress={() => router.push('/terms')}>{t('auth.acceptTerms')}</KitText>
+            {t('auth.acceptBetween')}
+            <KitText t="body" color={roles.text} style={styles.link} accessibilityRole="link" onPress={() => router.push('/privacy')}>{t('auth.acceptPrivacy')}</KitText>
+            {t('auth.acceptAfter')}
           </KitText>
         </View>
       </KitScreen>
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   )
 }
 

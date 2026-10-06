@@ -1,6 +1,7 @@
 // Kit Drop controls. States built are the "states in use" from
 // docs/ui-overhaul/08-COMPONENTS.md §2; anything else in that document waits
 // for a screen that needs it.
+import { t } from '@/i18n'
 import { pulseTap } from '@/lib/navGuard'
 import React, { useEffect, useRef, useState } from 'react'
 import { View, Pressable, TextInput, Animated, Easing, StyleSheet, type StyleProp, type ViewStyle, type TextInputProps } from 'react-native'
@@ -10,6 +11,7 @@ import { KitText, Rivets, Stripe, Icon, H2, type IconName } from './primitives'
 import { useModeLook, tiltOf, GlitchText } from './modeLook'
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { hexToHsv, hsvToHex, readHex, isHex, type HSV } from '@/lib/colour'
+import { log } from '@/diag/log'
 
 // ── Plate ────────────────────────────────────────────────────────────────────
 // The one control that commits to an action. Primary = orange, one per screen.
@@ -24,12 +26,19 @@ type PlateVariant = 'primary' | 'secondary' | 'quiet' | 'destructive'
 // action runs a frame later: a continue that starts heavy work (simulating a
 // season, building the draw) used to freeze the thread before the press could
 // even paint, which read as a dead button. A promise holds WAITING until it
-// settles; a plain action holds it for HOLD_MS, long enough to cover the
-// screen change it usually starts. While waiting, the plate takes no second tap.
-const HOLD_MS = 700
+// settles. While held or waiting, the plate takes no second tap.
+//
+// Phase 9 (the maintainer, 1 Oct: the waiting look "looks a little bad" on taps
+// that have nothing to wait for): the HELD look (pressed in, darker) is still
+// immediate, but the words "Waiting…" and the bar only come once an action has
+// been running for WAITING_AFTER_MS. Most taps finish well inside that and
+// never show them. A synchronous action is held for a short beat and let go;
+// it freezes the thread while it runs, so no words could paint during it anyway.
+const WAITING_AFTER_MS = 100
+const SYNC_HOLD_MS = 150
 
 export function Plate({
-  label, onPress, roles, variant = 'primary', icon, disabled, missingStep, loading, style, accessibilityHint, waitingLabel = 'Waiting…',
+  label, onPress, roles, variant = 'primary', icon, disabled, missingStep, loading, style, accessibilityHint, waitingLabel = t('common.waiting'),
 }: {
   label: string
   onPress: () => unknown
@@ -44,26 +53,32 @@ export function Plate({
   style?: StyleProp<ViewStyle>
   accessibilityHint?: string
 }) {
-  const [waiting, setWaiting] = useState(false)
+  const [held, setHeld] = useState(false)        // pressed in: immediate
+  const [waiting, setWaiting] = useState(false)  // "Waiting…" and the bar: only if it takes a while
   const alive = useRef(true)
   useEffect(() => () => { alive.current = false }, [])
   const busy = waiting || !!loading
-  const inactive = disabled || busy
+  const inactive = disabled || busy || held
   const face = FACE[variant](roles, !!disabled)
   const hasOffset = variant === 'primary' && !disabled
   const shown = disabled && missingStep ? missingStep : busy ? waitingLabel : label
   const press = () => {
     if (inactive) return
     pulseTap()
-    setWaiting(true)
-    // A frame for the waiting look to paint, then the action.
+    log.info('ui', `tap "${label}"`)   // Phase 9: every action in the log
+    setHeld(true)
+    const release = () => { if (alive.current) { setHeld(false); setWaiting(false) } }
+    // A frame for the held look to paint, then the action.
     requestAnimationFrame(() => setTimeout(() => {
       let result: unknown
-      try { result = onPress() } catch (e) { if (alive.current) setWaiting(false); throw e }
+      try { result = onPress() } catch (e) { release(); throw e }
       if (result && typeof (result as Promise<unknown>).then === 'function') {
-        (result as Promise<unknown>).finally(() => { if (alive.current) setWaiting(false) })
+        const slow = setTimeout(() => { if (alive.current) setWaiting(true) }, WAITING_AFTER_MS)
+        ;(result as Promise<unknown>).finally(() => { clearTimeout(slow); release() })
       } else {
-        setTimeout(() => { if (alive.current) setWaiting(false) }, HOLD_MS)
+        // A second tap meanwhile is blocked by the held look here, and while a
+        // screen it opened arrives, by NavGuard's layer (src/lib/navGuard.ts).
+        setTimeout(release, SYNC_HOLD_MS)
       }
     }, 0))
   }
@@ -84,11 +99,11 @@ export function Plate({
           styles.plate,
           variant === 'quiet' ? styles.quiet : null,
           { backgroundColor: face.bg, borderColor: face.border, borderWidth: face.borderWidth },
-          (pressed || busy) && !disabled && (hasOffset
+          (pressed || busy || held) && !disabled && (hasOffset
             ? { transform: [{ translateX: OFFSET }, { translateY: OFFSET }] }
             : { backgroundColor: face.pressedBg }),
           // Waiting reads as held: pressed in, and a little darker.
-          busy && !disabled && styles.waiting,
+          (busy || held) && !disabled && styles.waiting,
         ]}
       >
         {({ pressed }) => (
@@ -167,7 +182,7 @@ export function Loader({ color, wide, label, width }: { color: string; wide?: bo
     return () => loop.stop()
   }, [x])
   return (
-    <View style={styles.loaderWrap} accessibilityRole="progressbar" accessibilityLabel={label ?? 'Loading'}>
+    <View style={styles.loaderWrap} accessibilityRole="progressbar" accessibilityLabel={label ?? t('common.loading')}>
       <View style={[styles.loaderTrack, { width: w, backgroundColor: withAlpha(color, 20) }]}>
         <Animated.View style={{ width: block, height: 3, backgroundColor: color,
           transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-block, w] }) }] }} />
@@ -201,7 +216,7 @@ export function BackControl({ roles, onPress, title }: {
       onPress={() => { pulseTap(); (onPress ?? (() => (router.canGoBack() ? router.back() : router.replace('/'))))() }}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel="Back"
+      accessibilityLabel={t('common.back')}
       style={({ pressed }) => [styles.back, pressed && { backgroundColor: roles.sunken }]}
     >
       <Icon name="back" size={24} color={roles.text} />
@@ -240,7 +255,7 @@ export function Swatches({ roles, label, options, value, onChange }: {
   roles: Roles; label: string; options: { id: string; label: string; hex: string }[]; value: string; onChange: (id: string) => void
 }) {
   return (
-    <View style={styles.swatchRow} accessibilityRole="radiogroup" accessibilityLabel={`${label} colour`}>
+    <View style={styles.swatchRow} accessibilityRole="radiogroup" accessibilityLabel={t('common.colourGroup', { label })}>
       <KitText t="tag" color={roles.textMuted} style={styles.swatchLabel}>{label}</KitText>
       {options.map(c => (
         <Pressable key={c.id} onPress={() => onChange(c.id)} accessibilityRole="radio" accessibilityState={{ selected: value === c.id }} accessibilityLabel={c.label}
@@ -284,7 +299,8 @@ export function ListRow({ label, sub, roles, onPress, value, icon, tier = 't2', 
   ]
   return onPress ? (
     <Pressable
-      onPress={() => { pulseTap(); onPress() }}
+      // A row's label can be a person's name (a friend, a player), so the log says a row was tapped, not which.
+      onPress={() => { pulseTap(); log.info('ui', 'tap a row'); onPress() }}
       accessibilityRole="button"
       accessibilityLabel={[label, sub, value].filter(Boolean).join(', ')}
       style={({ pressed }) => [rowStyle, pressed && { backgroundColor: roles.sunken }]}
@@ -317,7 +333,7 @@ export function Toggle({ value, onChange, roles, label }: {
         pressed && { opacity: 0.8 },
       ]}
     >
-      <KitText t="tag" color={value ? roles.bg : roles.text}>{value ? 'ON' : 'OFF'}</KitText>
+      <KitText t="tag" color={value ? roles.bg : roles.text}>{value ? t('parts.on') : t('parts.off')}</KitText>
     </Pressable>
   )
 }
@@ -346,7 +362,7 @@ export function ColourField({ roles, label, value, onChange, quick }: {
   const [open, setOpen] = useState(false)
   return (
     <View style={styles.colourField}>
-      <View style={styles.swatchRow} accessibilityRole="radiogroup" accessibilityLabel={`${label} colour`}>
+      <View style={styles.swatchRow} accessibilityRole="radiogroup" accessibilityLabel={t('common.colourGroup', { label })}>
         <KitText t="tag" color={roles.textMuted} style={styles.swatchLabel}>{label}</KitText>
         {quick.map(c => {
           const on = c.hex.toLowerCase() === hex
@@ -357,7 +373,7 @@ export function ColourField({ roles, label, value, onChange, quick }: {
         })}
         {/* Any colour: shows the chosen one when it isn't the palette's. */}
         <Pressable onPress={() => setOpen(o => !o)} accessibilityRole="button" accessibilityState={{ expanded: open, selected: custom }}
-          accessibilityLabel={custom ? `Your own colour, ${hex}. Change it` : 'Any colour'}
+          accessibilityLabel={custom ? t('common.ownColour', { hex }) : t('common.anyColour')}
           style={[styles.swatch, styles.anySwatch, { backgroundColor: custom ? hex : roles.surface, borderColor: roles.line, borderWidth: custom ? border.tape : border.thin }]}>
           {!custom && <Icon name="add" size={16} color={roles.text} />}
         </Pressable>
@@ -400,7 +416,7 @@ function ColourPicker({ roles, hex, onChange }: { roles: Roles; hex: string; onC
   return (
     <View style={[styles.picker, { borderColor: roles.line, backgroundColor: roles.surface }]}>
       <View style={styles.square} onLayout={e => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-        accessibilityLabel="Saturation and brightness" {...drag(onSquare)}>
+        accessibilityLabel={t('common.saturation')} {...drag(onSquare)}>
         <Svg width="100%" height="100%" pointerEvents="none">
           <Defs>
             <LinearGradient id="pickWhite" x1="0" y1="0" x2="1" y2="0">
@@ -418,7 +434,7 @@ function ColourPicker({ roles, hex, onChange }: { roles: Roles; hex: string; onC
         </Svg>
         <View pointerEvents="none" style={[styles.thumb, { left: hsv.s * box.w - 9, top: (1 - hsv.v) * box.h - 9, borderColor: hsv.v > 0.5 ? '#000000' : '#ffffff', backgroundColor: hex }]} />
       </View>
-      <View style={styles.hueBar} onLayout={e => setBar(e.nativeEvent.layout.width)} accessibilityLabel="Hue" {...drag(onBar)}>
+      <View style={styles.hueBar} onLayout={e => setBar(e.nativeEvent.layout.width)} accessibilityLabel={t('common.hue')} {...drag(onBar)}>
         <Svg width="100%" height="100%" pointerEvents="none">
           <Defs>
             <LinearGradient id="pickHue" x1="0" y1="0" x2="1" y2="0">
@@ -432,7 +448,7 @@ function ColourPicker({ roles, hex, onChange }: { roles: Roles; hex: string; onC
       <View style={styles.hexRow}>
         <View style={[styles.hexSwatch, { backgroundColor: hex, borderColor: roles.line }]} />
         <TextInput value={typed} onChangeText={t => { setTyped(t); const h = readHex(t); if (h) { setHsv(hexToHsv(h)); onChange(h) } }}
-          autoCapitalize="none" autoCorrect={false} maxLength={7} accessibilityLabel="Hex colour"
+          autoCapitalize="none" autoCorrect={false} maxLength={7} accessibilityLabel={t('common.hexColour')}
           style={[styles.hexInput, { color: roles.text, borderColor: roles.line, fontFamily: font.tag }]} />
       </View>
     </View>
@@ -459,7 +475,7 @@ export function Field({ label, roles, error, secure, style, ...input }: TextInpu
             accessibilityRole="button"
             accessibilityLabel={shown ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
           >
-            <KitText t="tag" color={roles.text}>{shown ? 'HIDE' : 'SHOW'}</KitText>
+            <KitText t="tag" color={roles.text}>{shown ? t('parts.hide') : t('parts.show')}</KitText>
           </Pressable>
         )}
       </View>

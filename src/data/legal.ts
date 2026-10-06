@@ -6,9 +6,8 @@
 // supabase/*.sql, supabase/functions), so a change there means a change here,
 // and a new UPDATED date.
 //
-// Each language is written, not translated line by line. English is here;
-// Slovak (`sk`) is written in Wave E with the rest of the Slovak (P8.5-28):
-// until then a Slovak reader gets the English, and the page says so.
+// Each language is written, not translated line by line: English, and since
+// Wave E (P8.5-28) Slovak, which must always say the same things.
 //
 // Plain text only (no markup), so the app and the site can both lay it out.
 
@@ -17,7 +16,11 @@ export type LegalDoc = { title: string; intro: string; sections: LegalSection[] 
 export type LegalLang = 'en' | 'sk'
 export type LegalPageId = 'privacy' | 'terms'
 
-export const UPDATED = '1 October 2026'
+/** When the text last changed, as a date (the app and the site each write it
+ *  out in their language: updatedOn below). */
+export const UPDATED = '2026-10-01'
+export const updatedOn = (lang: LegalLang) =>
+  new Date(`${UPDATED}T12:00:00`).toLocaleDateString(lang === 'sk' ? 'sk-SK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 /** The project's address for anything outward (never anyone's personal one). */
 export const CONTACT = process.env.EXPO_PUBLIC_CONTACT_EMAIL || 'perfectionormisery@gmail.com'
 
@@ -150,9 +153,137 @@ const TERMS_EN: LegalDoc = {
   ],
 }
 
+// The Slovak (P8.5-28, Wave E): the same sections in the same order, saying
+// the same things, written for a Slovak reader (informal, like the app). A
+// change to the English is a change here too.
+const PRIVACY_SK: LegalDoc = {
+  title: 'Súkromie',
+  intro: 'Perfection or Misery si nechá čo najmenej: tvoje meno a tvoje hry. Žiadne reklamy, žiadne cookies, žiadne sledovanie na iných stránkach a nič sa nepredáva.',
+  sections: [
+    {
+      heading: 'Čo si pamätá účet',
+      body: [
+        'Tvoje meno a heslo. Heslo sa nikdy neukladá ako čitateľný text; prihlasovacia služba (Supabase) si drží iba jeho hash.',
+        'Účet nemá e-mailovú adresu. Z mena sa v pozadí stane interná adresa, na ktorú nechodí žiadna pošta, a preto sa zabudnuté heslo nedá obnoviť.',
+        'Každá dohraná hra: zostava z draftu, rozostavenie, obťažnosť, výsledky, body a štatistiky sezóny. Z toho sa skladajú Hry, Rebríček, Úspechy aj Kariéra.',
+        'Priatelia, žiadosti o priateľstvo, výzvy na súboj a upozornenia k nim, ak ich používaš.',
+      ],
+    },
+    {
+      heading: 'Kluby',
+      body: [
+        'Ak sa pridáš do klubu alebo ho založíš: v ktorom klube si, aká je tvoja úloha v ňom, a názov, značka, farba a popis klubu. Klub aj jeho členovia sú verejní, rovnako ako profil.',
+        'Chat klubu: každá správa, kto ju napísal a kedy. Čítať ho môžu iba členovia klubu. Ak má klub zapnutý slušný jazyk, nadávky sa pri ukladaní správy vymenia za slušnejšie slová, takže uložená je už upravená správa.',
+        'Klub s heslom si drží iba jednosmerný hash hesla, z ktorého ho nikto nevyčíta, ani majiteľ klubu. Pozvánka do klubu sa drží, kým ju niekto nepoužije alebo neodmietne.',
+      ],
+    },
+    {
+      heading: 'Slušné mená a nahlásenia',
+      body: [
+        'Mená používateľov, názvy, značky a popisy klubov a to, čo napíšeš do profilu, sa pri ukladaní kontrolujú priamo v databáze podľa zoznamu nadávok a urážok; čo na zozname je, sa neuloží. Zoznam vychádza z verejných zoznamov slov (LDNOOBW pod licenciou CC BY 4.0 a cuss pod licenciou MIT) a z nášho vlastného.',
+        'Meno, pri ktorom si kontrola nie je istá, sa uloží a zároveň ho dostane moderátor, spolu s účtom, ku ktorému patrí.',
+        'Keď nahlásiš hráča alebo klub, nahlásenie si pamätá, kto ho poslal, koho alebo čoho sa týka, dôvod a čokoľvek, čo dopíšeš. Vidí ho iba moderátor; nahlásený sa nikdy nedozvie, kto ho nahlásil. Nahlásenia sa držia, kým ich moderátor nevybaví.',
+        'Moderátor môže vziať meno (vyberieš si nové) alebo zablokovať účet. Zablokovaný účet si nechá svoje hry, ale nové neuloží, nepíše v chate a nenahlasuje.',
+      ],
+    },
+    {
+      heading: 'Hra ako hosť',
+      body: [
+        'Keď otvoríš appku, začne sa anonymná relácia hosťa, aby hra fungovala hneď. Hry hosťa sa neukladajú. Nič z toho ťa neidentifikuje ako osobu.',
+      ],
+    },
+    {
+      heading: 'Čo ostáva v tvojom zariadení',
+      body: [
+        'Prihlásenie, aby ťa appka neodhlasovala, nastavenia a herné údaje, s ktorými appka prichádza (hráči, kluby a sezóny).',
+        'Hra, ktorú práve draftuješ, ostáva v zariadení, kým sa nezačne, takže zatvorením appky o ňu neprídeš. Keď sa už hrá, žije v pamäti, kým neskončí.',
+        'Dohraná hra, ktorá sa nemohla uložiť, lebo zariadenie bolo offline, počká v zariadení, odošle sa, keď budeš znova online, a potom sa zo zariadenia vymaže.',
+        'Ktoré úspechy ti už appka ukázala, aby ohlasovala iba nové.',
+      ],
+    },
+    {
+      heading: 'Aktualizácie',
+      body: [
+        'Pri spustení appka hľadá aktualizácie na dvoch miestach: menšie aktualizácie prichádzajú od Expo (služby, na ktorej je appka postavená) a appka si prečíta krátky súbor na webe hry, či nevyšla nová verzia. Ak vyšla a rozhodneš sa aktualizovať, nová verzia sa stiahne zo stránky s vydaniami hry na GitHube. Pri žiadnej z kontrol sa o tebe nič neposiela.',
+      ],
+    },
+    {
+      heading: 'Skutoční futbalisti v hre',
+      body: [
+        'Hra obsahuje skutočných profesionálnych futbalistov: ich mená, posty, národnosti, roky narodenia, kluby a štarty a góly v lige, prevzaté z Wikipédie a Wikidát. O nikom sa neukladá nič súkromné: žiadne zmluvy, prestupové sumy, adresy ani nič, čo už nie je verejné.',
+        'Hodnotenie každého hráča si hra vypočíta z týchto faktov (postavenie jeho klubu v lige, ako často hrával, jeho góly, jeho vek). Je to vlastné číslo hry, nie niekoho posudok o hráčovi.',
+        'Ak si hráčom v hre a chceš, aby tvoje meno zmizlo, napíš na kontaktnú adresu na tejto stránke a v ďalšej aktualizácii bude odstránené.',
+      ],
+    },
+    {
+      heading: 'Čo meria web',
+      body: [
+        'Iba na webe Vercel (ktorý ho hostí) počíta návštevy a zobrazenia stránok a meria, ako rýchlo sa stránky načítajú skutočným návštevníkom, aby sme videli, ktoré stránky sa používajú, a opravili tie pomalé. Nepoužíva cookies a nezaznamenáva žiadne osobné identifikátory: každý údaj je anonymný a to, čím sa jedna návšteva líši od druhej, sa po 24 hodinách zahodí.',
+        'Zaznamená sa: stránka (bez všetkého za „?“ a so stránkami hráčov a hier počítanými ako jedna stránka), stránka, z ktorej návšteva prišla, tvoja krajina a región a tvoj prehliadač, systém a typ zariadenia. Appka v telefóne neposiela nič z toho.',
+      ],
+    },
+    {
+      heading: 'Kto čo vidí',
+      body: [
+        'Rebríček ukazuje každému tvoje meno pri tvojich najlepších hrách. Priatelia vidia tvoje hry a môžu ťa vyzvať.',
+        'Tvoj profil je verejný a ukazuje, čo naň dáš: obrázok, banner, farby a rámik, status, zámená a text o tebe, erb a odznaky sezón. Obľúbené, pripnuté hry, trofeje a odohraný čas môžeš ukázať alebo skryť. Nič iné o tebe sa nikomu neukazuje.',
+        'Údaje sú uložené v Supabase, hostenej databáze, na ktorej appka beží. S nikým iným sa nezdieľajú a nič, čo napíšeš, sa neposiela na kontrolu žiadnej inej službe.',
+      ],
+    },
+    {
+      heading: 'Vymazanie všetkého',
+      body: [
+        'Ty → Vymazať účet natrvalo odstráni tvoj účet, všetky hry, kariéru, priateľov, členstvo v klube a miesto v rebríčku. Stane sa to hneď a nedá sa to vrátiť.',
+      ],
+    },
+  ],
+}
+
+const TERMS_SK: LegalDoc = {
+  title: 'Podmienky',
+  intro: 'Perfection or Misery je bezplatná futbalová hra, ktorú robí jeden človek. Hraním prijímaš týchto pár pravidiel.',
+  sections: [
+    {
+      heading: 'Hra',
+      body: [
+        'Každý výsledok je simulovaný. Body, úrovne a poradie sú len pre zábavu: nič sa za ne nevyhráva a nemajú žiadnu hodnotu.',
+        'Hru dostávaš takú, aká je. Keď služba nebeží, hry sa môžu stratiť. Funkcie sa môžu zmeniť alebo zmiznúť.',
+      ],
+    },
+    {
+      heading: 'Tvoj účet',
+      body: [
+        'Vyber si meno, ktoré nie je urážlivé a nevydáva sa za niekoho iného. Účet, ktorý to poruší, môže prísť o meno alebo byť odstránený.',
+        'Zabudnuté heslo sa nedá obnoviť, tak si ho ulož niekam do bezpečia.',
+        'Neskúšaj posielať výsledky, ktoré hra nevytvorila, ani sa dostať k údajom iných hráčov. Účty, ktoré to robia, môžu byť z rebríčka odstránené.',
+      ],
+    },
+    {
+      heading: 'Kluby a chat',
+      body: [
+        'Pre názov, značku a popis klubu platí to isté ako pre meno: nič urážlivé a nikto sa nevydáva za iného.',
+        'V chate sa správaj slušne. Majiteľ klubu môže odobrať členov a mazať správy a kluby alebo hráči, ktorí obťažujú iných, môžu byť odstránení.',
+        'Hráča alebo klub môže ktokoľvek nahlásiť z jeho stránky. Nahlásenia číta moderátor, ktorý môže zmeniť meno, zrušiť klub alebo zablokovať účet. Nahlasovať niekoho len preto, aby sa mu uškodilo, je samo osebe proti týmto pravidlám.',
+      ],
+    },
+    {
+      heading: 'Skutočné mená',
+      body: [
+        'Mená hráčov, klubov, líg a súťaží sa používajú iba na označenie skutočnej futbalovej histórie. Perfection or Misery nie je spojená so žiadnym hráčom, klubom, ligou ani riadiacim orgánom, nikto z nich ju nepodporuje a nemá s ňou nič spoločné.',
+      ],
+    },
+    {
+      heading: 'Odchod',
+      body: [
+        'Účet môžeš kedykoľvek vymazať v časti Ty → Vymazať účet. Čo sa tým odstráni, nájdeš v časti Súkromie.',
+      ],
+    },
+  ],
+}
+
 export const LEGAL: Record<LegalPageId, Record<LegalLang, LegalDoc | null>> = {
-  privacy: { en: PRIVACY_EN, sk: null },
-  terms: { en: TERMS_EN, sk: null },
+  privacy: { en: PRIVACY_EN, sk: PRIVACY_SK },
+  terms: { en: TERMS_EN, sk: TERMS_SK },
 }
 
 /** A page in a language, or the English while that language isn't written yet. */

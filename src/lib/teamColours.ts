@@ -11,6 +11,7 @@
 // (3:1, the bar for graphics), and the away side steps to its other colour, then to a neutral, when the two
 // would be too alike to tell apart.
 import { createContext, useContext, useEffect, useState } from 'react'
+import { log } from '@/diag/log'
 import { prim, choiceHex } from '@/theme'
 import { useCrestStore } from '@/store/crestStore'
 import { ratio } from '@/lib/contrast'
@@ -72,7 +73,7 @@ export function useTeamColours(homeId?: string, awayId?: string): { home: string
         const kit = (id: string) => (yourKit && yours?.clubId === id ? yourKit : m.get(id))
         setPair(readablePair(kit(homeId), kit(awayId)))
       })
-      .catch(e => console.warn('[team colours] load failed:', e))
+      .catch(e => log.warn('db', 'team colours: load failed', e))
     return () => { alive = false }
   }, [homeId, awayId, yourKit?.primary, yourKit?.secondary, yours?.clubId])
   return pair

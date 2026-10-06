@@ -21,6 +21,8 @@
 //    three windows, then the rounds on their real days.
 // Times are local to where the match is played.
 
+import { LANGUAGE } from '@/i18n'
+
 export type Kickoff = {
   /** 'YYYY-MM-DD' */
   date: string
@@ -34,8 +36,14 @@ export type Kickoff = {
   short: string
 }
 
-const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// P8.5-28: the day and month in the app's language ("Sat 23 Aug" / "So 23. aug").
+const SK = LANGUAGE === 'sk'
+const WEEKDAY = SK ? ['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTH = SK
+  ? ['jan', 'feb', 'mar', 'apr', 'máj', 'jún', 'júl', 'aug', 'sep', 'okt', 'nov', 'dec']
+  : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+/** "Sat 23 Aug" in English, "So 23. aug" in Slovak (a day number takes a dot). */
+const dayMonth = (d: Date) => `${WEEKDAY[d.getUTCDay()]} ${d.getUTCDate()}${SK ? '.' : ''} ${MONTH[d.getUTCMonth()]}`
 const DAY = 86400_000
 
 // All dates are calendar days held as UTC midnights, so no time zone moves them.
@@ -60,13 +68,13 @@ function pick<T>(seed: number, salt: number, items: T[]): T {
 
 function kickoff(t: number, time: string): Kickoff {
   const d = new Date(t)
-  const day = `${WEEKDAY[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+  const day = `${dayMonth(d)} ${d.getUTCFullYear()}`
   return {
     date: d.toISOString().slice(0, 10),
     time,
     day,
-    tag: `${WEEKDAY[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH[d.getUTCMonth()]} · ${time}`.toUpperCase(),
-    short: `${WEEKDAY[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH[d.getUTCMonth()]}`.toUpperCase(),
+    tag: `${dayMonth(d)} · ${time}`.toUpperCase(),
+    short: dayMonth(d).toUpperCase(),
   }
 }
 

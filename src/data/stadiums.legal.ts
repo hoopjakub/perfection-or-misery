@@ -149,7 +149,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Slobozia",
     "country": "Romania"
   },
-  "Sweden Black": {
+  "Stockholm Black": {
     "name": "Solna Municipality Stadium",
     "capacity": 54329,
     "city": "Solna Municipality",
@@ -227,7 +227,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Chloraka",
     "country": "Cyprus"
   },
-  "Turkey Orange": {
+  "Alanya Orange": {
     "name": "Alanya Stadium",
     "city": "Alanya",
     "country": "Turkey"
@@ -256,7 +256,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Larnaca",
     "country": "Cyprus"
   },
-  "Turkey Black": {
+  "Antalya Red": {
     "name": "Antalya Stadium",
     "capacity": 7100,
     "city": "Antalya",
@@ -268,7 +268,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Kolossi",
     "country": "Cyprus"
   },
-  "Azerbaijan Red": {
+  "Nakchivan Red": {
     "name": "Nakhchivan Stadium",
     "capacity": 12800,
     "city": "Nakhchivan",
@@ -310,7 +310,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Barysaŭ District",
     "country": "Belarus"
   },
-  "England Red": {
+  "London Red": {
     "name": "London Borough of Islington Stadium",
     "capacity": 60338,
     "city": "London Borough of Islington",
@@ -320,8 +320,8 @@ export const STADIUMS: Record<string, Stadium> = {
     "name": "Tivat Blue Ground",
     "country": "Montenegro"
   },
-  "North Macedonia Yellow": {
-    "name": "North Macedonia Yellow Ground",
+  "Čegrane Yellow": {
+    "name": "Čegrane Yellow Ground",
     "capacity": 4000
   },
   "Aktor Yellow": {
@@ -440,8 +440,8 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Başakşehir",
     "country": "Turkey"
   },
-  "North Macedonia Black": {
-    "name": "North Macedonia Black Ground",
+  "Kumanovo Black": {
+    "name": "Kumanovo Black Ground",
     "capacity": 3000,
     "country": "North Macedonia"
   },
@@ -469,7 +469,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Benevento",
     "country": "Italy"
   },
-  "Bulgaria Green": {
+  "Stara Zagora Green": {
     "name": "Stara Zagora Stadium",
     "capacity": 12128,
     "city": "Stara Zagora",
@@ -635,11 +635,11 @@ export const STADIUMS: Record<string, Stadium> = {
     "name": "Selemet Red Ground",
     "capacity": 150
   },
-  "Bulgaria Red": {
-    "name": "Bulgaria Red Ground",
+  "Sofia Red": {
+    "name": "Sofia Red Ground",
     "country": "Bulgaria"
   },
-  "Sofia Red": {
+  "Sofia Yellow": {
     "name": "Stolichna Municipality Stadium",
     "capacity": 22015,
     "city": "Stolichna Municipality",
@@ -687,7 +687,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Vigo",
     "country": "Spain"
   },
-  "Scotland Navy": {
+  "Glasgow Green": {
     "name": "Vigo Stadium",
     "capacity": 24870,
     "city": "Vigo",
@@ -767,7 +767,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Turners Cross",
     "country": "Ireland"
   },
-  "Poland Black": {
+  "Kraków Black": {
     "name": "Kraków Stadium",
     "capacity": 15016,
     "city": "Kraków",
@@ -866,7 +866,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Stockholm Municipality",
     "country": "Sweden"
   },
-  "Bulgaria Yellow": {
+  "Dobrich Yellow": {
     "name": "Dobrich Stadium",
     "capacity": 12500,
     "city": "Dobrich",
@@ -914,7 +914,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Guingamp",
     "country": "France"
   },
-  "Faroe Islands Black": {
+  "Streymnes-Eiði Black": {
     "name": "Sunda Municipality Stadium",
     "capacity": 1500,
     "city": "Sunda Municipality",
@@ -986,8 +986,8 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Rotterdam",
     "country": "Netherlands"
   },
-  "Turkey Yellow": {
-    "name": "Turkey Yellow Ground",
+  " Eyüpsultan Yellow": {
+    "name": " Eyüpsultan Yellow Ground",
     "capacity": 14234
   },
   "Dudelange Yellow": {
@@ -1131,13 +1131,13 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Gori",
     "country": "Georgia"
   },
-  "Romania Red": {
+  "Bucharest Red": {
     "name": "Sector 2 Stadium",
     "capacity": 55634,
     "city": "Sector 2",
     "country": "Romania"
   },
-  "Albania Sky": {
+  "Tirana Sky": {
     "name": "Tirana Stadium",
     "capacity": 12500,
     "city": "Tirana",
@@ -1622,7 +1622,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Tallinn",
     "country": "Estonia"
   },
-  "Romania Blue": {
+  " Bucharest Blue": {
     "name": "Hamburg-Mitte Stadium",
     "capacity": 29546,
     "city": "Hamburg-Mitte",
@@ -1951,7 +1951,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Başakşehir",
     "country": "Turkey"
   },
-  "Turkey Yellow & Navy": {
+  " Istanbul Yellow & Navy": {
     "name": "Kadıköy Stadium",
     "capacity": 50530,
     "city": "Kadıköy",
@@ -2027,7 +2027,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Fulham",
     "country": "United Kingdom"
   },
-  "Sweden Black & White": {
+  "Gothenburg Black & White": {
     "name": "Gothenburg Municipality Stadium",
     "capacity": 18416,
     "city": "Gothenburg Municipality",
@@ -2051,7 +2051,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Sector 2",
     "country": "Romania"
   },
-  "Turkey Navy": {
+  "Istanbul Navy": {
     "name": "Sarıyer Stadium",
     "capacity": 52652,
     "city": "Sarıyer",
@@ -2080,7 +2080,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Eryaman",
     "country": "Turkey"
   },
-  "Italy Navy": {
+  " Genoa Navy": {
     "name": "Genoa Stadium",
     "capacity": 33205,
     "city": "Genoa",
@@ -2158,7 +2158,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Zabrze",
     "country": "Poland"
   },
-  "Turkey Yellow & Red": {
+  "Göztepe-Güzelyalı Yellow & Red": {
     "name": "Konak Stadium",
     "capacity": 70000,
     "city": "Konak",
@@ -2214,7 +2214,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "name": "Halmstads Blue Ground",
     "capacity": 10873
   },
-  "Norway Green": {
+  "Hamar Green": {
     "name": "Hamar Municipality Stadium",
     "capacity": 7600,
     "city": "Hamar Municipality",
@@ -2464,7 +2464,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Esch-sur-Alzette",
     "country": "Luxembourg"
   },
-  "Italy Black": {
+  "Turin Black": {
     "name": "Turin Stadium",
     "capacity": 41689,
     "city": "Turin",
@@ -2584,7 +2584,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Yevlakh",
     "country": "Azerbaijan"
   },
-  "Turkey Blue": {
+  "Kasımpaşa Blue": {
     "name": "Kasımpaşa Stadium",
     "capacity": 14234,
     "city": "Kasımpaşa",
@@ -2596,7 +2596,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Kyzylorda",
     "country": "Kazakhstan"
   },
-  "Turkey Red": {
+  "Kayseri Red": {
     "name": "Kayseri Stadium",
     "capacity": 32864,
     "city": "Kayseri",
@@ -2612,7 +2612,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "name": "Kisvárda Red Ground",
     "capacity": 2750
   },
-  "Turkey Green": {
+  "İzmit Green": {
     "name": "İzmit Stadium",
     "city": "İzmit",
     "country": "Turkey"
@@ -2622,7 +2622,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Kovalivka",
     "country": "Ukraine"
   },
-  "Turkey Green & White": {
+  "Konya Green & White": {
     "name": "Selçuklu Stadium",
     "capacity": 42276,
     "city": "Selçuklu",
@@ -2666,7 +2666,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "capacity": 3000,
     "country": "Faroe Islands"
   },
-  "Austria Yellow": {
+  "Linz Black & White": {
     "name": "Linz Stadium",
     "capacity": 18000,
     "city": "Linz",
@@ -2729,7 +2729,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "City of Leicester",
     "country": "United Kingdom"
   },
-  "Greece Navy": {
+  "Livadeia Navy": {
     "name": "Livadia Municipality Stadium",
     "capacity": 5915,
     "city": "Livadia Municipality",
@@ -2922,7 +2922,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Gibraltar",
     "country": "United Kingdom"
   },
-  "Bulgaria Blue": {
+  "Montana Blue": {
     "name": "Montana Stadium",
     "capacity": 8000,
     "city": "Montana",
@@ -3230,19 +3230,19 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Paks",
     "country": "Hungary"
   },
-  "Greece Green": {
+  "Athens Green": {
     "name": "Athens Municipality Stadium",
     "capacity": 16003,
     "city": "Athens Municipality",
     "country": "Greece"
   },
-  "Greece Yellow": {
+  " Agrinio Yellow": {
     "name": "Agrinio municipality Stadium",
     "capacity": 7500,
     "city": "Agrinio municipality",
     "country": "Greece"
   },
-  "Greece Red": {
+  "Serres Red": {
     "name": "Serres Municipality Stadium",
     "capacity": 9500,
     "city": "Serres Municipality",
@@ -3373,7 +3373,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Palma",
     "country": "Spain"
   },
-  "Belgium Purple": {
+  "Anderlecht Purple": {
     "name": "Anderlecht Stadium",
     "capacity": 21500,
     "city": "Anderlecht",
@@ -3403,7 +3403,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Randers Municipality",
     "country": "Denmark"
   },
-  "Scotland Blue": {
+  "Glasgow Blue": {
     "name": "Angers Stadium",
     "capacity": 18000,
     "city": "Angers",
@@ -3623,7 +3623,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "San Marino",
     "country": "San Marino"
   },
-  "Italy Blue": {
+  "Ferrara Blue": {
     "name": "Ferrara Stadium",
     "capacity": 16134,
     "city": "Ferrara",
@@ -3694,7 +3694,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Masazır",
     "country": "Azerbaijan"
   },
-  "Turkey Red & White": {
+  "Samsun Red & White": {
     "name": "Tekkeköy district Stadium",
     "capacity": 33919,
     "city": "Tekkeköy district",
@@ -3979,7 +3979,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Kostanay",
     "country": "Kazakhstan"
   },
-  "Italy Claret": {
+  "Turin Claret": {
     "name": "Turin Stadium",
     "capacity": 28177,
     "city": "Turin",
@@ -4003,7 +4003,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Tottenham",
     "country": "United Kingdom"
   },
-  "Turkey Claret": {
+  "Trabzon Claret": {
     "name": "Trabzon Stadium",
     "capacity": 41500,
     "city": "Trabzon",
@@ -4161,8 +4161,8 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Venice",
     "country": "Italy"
   },
-  "Iceland Navy": {
-    "name": "Iceland Navy Ground",
+  "Ísafjarðarbær Navy": {
+    "name": "Ísafjarðarbær Navy Ground",
     "capacity": 1596
   },
   "Stuttgart Red": {
@@ -4195,7 +4195,7 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Stavanger",
     "country": "Norway"
   },
-  "Spain Yellow": {
+  "Villarreal Yellow": {
     "name": "Villarreal Stadium",
     "capacity": 24891,
     "city": "Villarreal",
@@ -4350,8 +4350,8 @@ export const STADIUMS: Record<string, Stadium> = {
     "city": "Vestmannaeyjar",
     "country": "Iceland"
   },
-  "Sweden Red": {
-    "name": "Sweden Red Ground",
+  "Växjö Red": {
+    "name": "Växjö Red Ground",
     "capacity": 12000
   },
   "Újpest Purple": {

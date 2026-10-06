@@ -1,6 +1,8 @@
 // Kit Drop feedback and the screen frame.
+import { t } from '@/i18n'
+import { log } from '@/diag/log'
 import React, { useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Platform, type StyleProp, type ViewStyle, type ScrollViewProps } from 'react-native'
+import { View, ScrollView, StyleSheet, Platform, Animated, AccessibilityInfo, type StyleProp, type ViewStyle, type ScrollViewProps } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { setStatusBarStyle } from 'expo-status-bar'
@@ -112,7 +114,7 @@ export function StripedNotice({ roles, children, actionLabel, onAction, failed }
 // A fetch that failed. Never falls through to the empty state, which would
 // tell the player something false ("No runs yet").
 export function InlineError({ roles, message, onRetry }: { roles: Roles; message: string; onRetry: () => void }) {
-  return <StripedNotice roles={roles} failed actionLabel="Retry" onAction={onRetry}>{message}</StripedNotice>
+  return <StripedNotice roles={roles} failed actionLabel={t('common.retry')} onAction={onRetry}>{message}</StripedNotice>
 }
 
 // ── EmptyState ───────────────────────────────────────────────────────────────
@@ -151,6 +153,46 @@ const styles = StyleSheet.create({
 export class SafeSection extends React.Component<{ name: string; children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch(e: unknown) { console.warn(`[${this.props.name}] failed to render:`, e) }
+  componentDidCatch(e: unknown) { log.error('ui', `${this.props.name}: failed to render`, e) }
   render() { return this.state.failed ? null : this.props.children }
 }
+
+// ── GhostRows ────────────────────────────────────────────────────────────────
+// Phase 9 (the maintainer, 1 Oct: "loading you can see, YouTube's way"): while
+// a list loads, the outlines of the rows that are coming, breathing slowly, so
+// a load reads as progress and not a blank (the friends list showed nothing at
+// all). The shape of a list row: a line and a shorter one under it. Still,
+// not breathing, when the phone asks for less motion.
+export function GhostRows({ roles, count = 4 }: { roles: Roles; count?: number }) {
+  const reduced = useReducedMotionSafe()
+  const fade = React.useRef(new Animated.Value(1)).current
+  React.useEffect(() => {
+    if (reduced) return
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(fade, { toValue: 0.45, duration: 700, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fade, { toValue: 1, duration: 700, useNativeDriver: Platform.OS !== 'web' }),
+    ]))
+    loop.start()
+    return () => loop.stop()
+  }, [reduced])
+  return (
+    <Animated.View style={{ opacity: fade }} accessible accessibilityLabel={t('common.loading')} accessibilityRole="progressbar">
+      {Array.from({ length: count }, (_, i) => (
+        <View key={i} style={[ghost.row, { borderBottomColor: roles.rule }]}>
+          <View style={[ghost.line, { width: `${72 - (i % 3) * 14}%`, backgroundColor: roles.sunken }]} />
+          <View style={[ghost.sub, { backgroundColor: roles.sunken }]} />
+        </View>
+      ))}
+    </Animated.View>
+  )
+}
+function useReducedMotionSafe() {
+  const [on, setOn] = React.useState(false)
+  React.useEffect(() => { AccessibilityInfo.isReduceMotionEnabled().then(setOn).catch(() => {}) }, [])
+  return on
+}
+const ghost = StyleSheet.create({
+  row: { minHeight: 56, justifyContent: 'center', gap: space[2], borderBottomWidth: 1 },
+  line: { height: 12 },
+  sub: { height: 9, width: '34%' },
+})

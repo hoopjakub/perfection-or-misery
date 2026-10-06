@@ -11,6 +11,8 @@ The verdict stands on nylon. Once it's delivered, everything goes back to cotton
 
 ## D1 · The verdict (every mode)
 
+> *As built, 3 October 2026 (Wave F):* every mode's result is one screen, `app/game/result.tsx` → `ResultShell`: the verdict, one row of figures, the story (1–3 rows) and doors into the run hub (D2). The per-mode result layouts below are history; the shape is [`08-RESULT-PAGES.md`](../audit-2026-10/08-RESULT-PAGES.md) §3 and §10.
+
 `app/game/result.tsx`, `cl-result.tsx`, `wc-result.tsx`, `custom-ucl-result.tsx` (the top of each)
 
 **Today**

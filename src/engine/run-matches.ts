@@ -28,7 +28,9 @@ export type RunMatch = {
   // each picked from four teams, so "Picked 4 times in 42").
   round?:       string
   // P8-116: the full path's qualifying rounds, whose awards are their own.
-  stage?:       'qualifying'
+  // F-20: the full path's domestic season, counted in the stats but not in
+  // the European awards (P8-116's rule: those are the tournament's own).
+  stage?:       'qualifying' | 'domestic'
   // P8-70: the shape each side actually played, read off the regenerated sheet
   // when the run's stats are computed (P8-68 made it change match to match).
   homeFormation?: string
@@ -75,6 +77,9 @@ const CL_ROUND_LABEL: Record<string, string> = {
 // matchday (and its own team of the week), so only the label is needed here.
 export function clRunMatches(result: CLSeasonResult, qualTies?: QualTie[] | null): RunMatch[] {
   const matches: RunMatch[] = []
+  // The full path's domestic season comes first, as it was played (F-20).
+  for (const m of result.domesticMatchdays ?? [])
+    matches.push({ homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName, homeGoals: m.homeGoals, awayGoals: m.awayGoals, scorers: m.scorers, seed: m.seed, label: `Domestic Season · Matchday ${m.matchday}`, homeRotation: m.homeRotation, awayRotation: m.awayRotation, absent: m.absent, standIns: m.standIns, stage: 'domestic' })
   // Qualifying ties (both legs + ET, same folding as the knockout legs below).
   for (const t of qualTies ?? []) {
     if (!t.teamB || !t.legs) continue

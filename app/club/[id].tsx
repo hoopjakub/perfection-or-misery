@@ -1,4 +1,5 @@
 import React from 'react'
+import { t } from '@/i18n'
 import { useLocalSearchParams } from 'expo-router'
 import { KitScreen, BackControl } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
@@ -15,7 +16,7 @@ export default function ClubScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="Club" path={`/club/${id}`} />
+      <PageMeta title={t('clubs.pageTitleOne')} path={`/club/${id}`} />
       <BackControl roles={roles} />
       <ClubView id={id} />
     </KitScreen>

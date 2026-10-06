@@ -13,142 +13,32 @@
 // shell is gone, the pieces below are exported, and the layout lives in the
 // route. Nothing here knows about navigation.
 
+import { t } from '@/i18n'
+import { log } from '@/diag/log'
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 // P8-123: text on the kit's families and scale until this screen is rebuilt on KitText.
 import { ScaleText as Text } from '@/components/kit'
 import { PressCard } from '@/components/ui'
-import { colors, spacing, typography, radius, ratingColor, ratingInk, prim, font } from '@/theme'
+// C-18: the kit's colours: a missed penalty and a red are misery red (DESIGN.md §2.2), a card the referee's yellow.
+import { type, prim, font } from '@/theme'
 import { useGameStore } from '@/store/gameStore'
 import { loadLeaguePools } from '@/engine/run-stats'
 import { generateMatchDetail } from '@/engine/match-detail'
 import { hashSeed } from '@/lib/rng'
-import { flagForCountry } from '@/data/geo-iso'
-import type { MatchScorers } from '@/types/stats'
+import { countryName } from '@/data/countries-sk'
 import type { MatchStats, PlayerMatchLine, MatchEvent, AddedTime } from '@/types/match-stats'
-import type { ContextMatch } from '@/engine/match-context'
-import { clTieShootout } from '@/engine/match-context'
 import { useTeamColourPair } from '@/lib/teamColours'
-import { Ionicons } from '@expo/vector-icons'
-import { Crest, RatingSquare, EventMark, Tag, KitText } from '@/components/kit'
+import { Crest, RatingSquare, EventMark, Tag, KitText, TeamMark } from '@/components/kit'
 import { ROLES, space, formatRating, type Roles } from '@/theme'
 import { SENT_OFF, type CommentaryLine } from '@/engine/commentary'
 
-// ── Request: everything needed to (re)generate one match's detail ───────────
-export type MatchDetailRequest = {
-  /** Opened from a finished run's pages: names link to the player and club
-   *  pages. Off mid-season, where a player page would show results still to come. */
-  linkPages?: boolean
-  homeClubId: string
-  homeName:   string
-  awayClubId: string
-  awayName:   string
-  homeGoals:  number
-  awayGoals:  number
-  extraTime?: boolean
-  pensNote?:  string          // e.g. "Penalties 4–2 · City advance"
-  /** P8-81: the shootout itself, from THIS match's home/away point of view.
-   *  Raw make/miss always; names when the reveal already attached them. */
-  shootout?: import('@/engine/match-context').ShootoutView
-  /** P8-101: both legs of a two-legged tie, in order, so the sheet can switch
-   *  between them. Only needed where there's no timeline to find the other leg
-   *  in (the run hub); with `contextMatches` the sheet finds it itself. */
-  legs?: MatchDetailRequest[]
-  scorers?:   MatchScorers
-  seed?:      number          // missing on legacy saves → stable hash fallback
-  yearStart:  number          // roster season to load
-  competitionLabel?: string   // "Matchday 12" / "Quarter-final · Leg 2"
-  playerClubId?: string       // the club YOUR drafted squad replaced (if in this match)
-  drafted?:   import('@/types/game').DraftedPlayer[]  // squad override (history loads — store is empty)
-  accent?:    string          // mode accent, carried so the screen matches where you came from
-  /** YOUR formation, so the pitch view can place your drafted XI. Your eleven
-   *  is never re-picked from it — see lineupsForMatch. */
-  playerFormation?: import('@/types/game').Formation
-  // §10 R6/R7 "context at the moment of the match". Optional: knockout ties
-  // have no table to snapshot, so the screen just drops the section. When
-  // present, `matchday` is the matchday THIS match was played on and
-  // `contextMatches` is every result in the competition (the screen filters).
-  matchday?:       number
-  contextMatches?: ContextMatch[]
-  // §10.5 — the rotation the sim applied. Without it the sheet would select a
-  // different eleven than the one that actually played.
-  homeRotation?:   number
-  awayRotation?:   number
-  // §10.5 phase 4 — injured/suspended players in this match, plus the stand-ins
-  // that covered your side. Travel with the match for the same reason rotation
-  // does: without them the sheet fields somebody who wasn't available.
-  absent?:   string[]
-  standIns?: import('@/types/stats').RosterPlayer[]
-}
-
-// ── Shared request builder for CL-shaped knockout ties ──────────────────────
-// Leg 2 folds its extra time in (one physical match), mirroring stats totals.
-// Works for classic CL, custom UCL and qualifying ties (via qualTieToKoMatch).
-type KoLegOpts = {
-  label: string; yearStart: number; playerClubId?: string; drafted?: import('@/types/game').DraftedPlayer[]
-  /** P8-31: your shape, so the lineup tab draws your eleven in it. The
-   *  knockout legs were the one route into the sheet that never carried it. */
-  playerFormation?: import('@/types/game').Formation
-}
-
-/**
- * A knockout tie's sheet. P8.5-50: a two-legged tie carries both legs
- * (`legs`), so the sheet can always switch to the other one. Opened from a
- * result's bracket it only had the leg it opened on: the sheet's own search
- * for the other leg goes through the screen's matches, which a result's
- * bracket doesn't always pass in the shape it looks for.
- */
-export function koLegDetailRequest(m: import('@/engine/cl-sim').CLKnockoutMatch, leg: 1 | 2, opts: KoLegOpts): MatchDetailRequest | null {
-  const one = koLegOnly(m, leg, opts)
-  if (!one || !m.leg1 || !m.leg2) return one
-  const l1 = leg === 1 ? one : koLegOnly(m, 1, opts), l2 = leg === 2 ? one : koLegOnly(m, 2, opts)
-  return l1 && l2 ? { ...one, legs: [l1, l2] } : one
-}
-
-function koLegOnly(m: import('@/engine/cl-sim').CLKnockoutMatch, leg: 1 | 2, opts: KoLegOpts): MatchDetailRequest | null {
-  if (!m.leg1) {
-    // single match (a final)
-    return {
-      homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
-      awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
-      homeGoals: m.aGoals, awayGoals: m.bGoals,
-      extraTime: m.extraTime, ...clTieShootout(m, true),
-      scorers: m.leg1Scorers, seed: m.leg1Seed,
-      absent: m.leg1Absent, standIns: m.leg1StandIns,
-      yearStart: opts.yearStart, competitionLabel: opts.label,
-      playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation,
-    }
-  }
-  if (leg === 1) {
-    return {
-      homeClubId: m.teamA.clubId, homeName: m.teamA.clubName,
-      awayClubId: m.teamB.clubId, awayName: m.teamB.clubName,
-      homeGoals: m.leg1.aGoals, awayGoals: m.leg1.bGoals,
-      scorers: m.leg1Scorers, seed: m.leg1Seed,
-      absent: m.leg1Absent, standIns: m.leg1StandIns,
-      yearStart: opts.yearStart, competitionLabel: `${opts.label} · Leg 1`,
-      playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation,
-    }
-  }
-  if (!m.leg2) return null
-  const et = m.leg2ExtraTime
-  const merged = et
-    ? { home: [...(m.leg2Scorers?.home ?? []), ...(m.leg2ExtraTimeScorers?.home ?? [])], away: [...(m.leg2Scorers?.away ?? []), ...(m.leg2ExtraTimeScorers?.away ?? [])] }
-    : m.leg2Scorers
-  return {
-    homeClubId: m.teamB.clubId, homeName: m.teamB.clubName,
-    awayClubId: m.teamA.clubId, awayName: m.teamA.clubName,
-    homeGoals: m.leg2.bGoals + (et?.bGoals ?? 0), awayGoals: m.leg2.aGoals + (et?.aGoals ?? 0),
-    // Leg 2 is at teamB's ground: the shootout is told from B's side.
-    extraTime: !!et || m.extraTime, ...clTieShootout(m, false),
-    scorers: merged, seed: m.leg2Seed,
-    // §10.5 phase 4 — leg 2 is its own matchday, so it has its own absences: a
-    // leg-1 red card means he isn't in this eleven.
-    absent: m.leg2Absent, standIns: m.leg2StandIns,
-    yearStart: opts.yearStart, competitionLabel: `${opts.label} · Leg 2`,
-    playerClubId: opts.playerClubId, drafted: opts.drafted, playerFormation: opts.playerFormation,
-  }
-}
+// ── Request ─────────────────────────────────────────────────────────────────
+// The request type and the one builder that writes it live in the engine
+// (src/engine/stages.ts, centralisation step 3), so a request can't be
+// hand-built with a field left out. Re-exported for the screens that import it here.
+import type { MatchDetailRequest } from '@/engine/stages'
+export type { MatchDetailRequest }
 
 const GROUP_ORDER: Record<string, number> = {
   GK: 0, CB: 1, LB: 2, RB: 3, LWB: 4, RWB: 5,
@@ -182,8 +72,8 @@ export function ManOfTheMatch({ roles, req }: { roles: Roles; req: MatchDetailRe
   const best = detail?.players.find(p => p.motm)
   if (!best) return null
   return (
-    <View style={styles.motm} accessible accessibilityLabel={`Man of the match: ${best.name}, rated ${formatRating(best.rating)}`}>
-      <Tag roles={roles} variant="selected">MAN OF THE MATCH</Tag>
+    <View style={styles.motm} accessible accessibilityLabel={t('match.motmA11y', { name: best.name, rating: formatRating(best.rating) })}>
+      <Tag roles={roles} variant="selected">{t('match.motmTag')}</Tag>
       <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{best.name}</KitText>
       <RatingSquare value={best.rating} size="sm" />
     </View>
@@ -232,7 +122,7 @@ export function useMatchDetail(req: MatchDetailRequest | null): { detail: MatchS
       setDetail(d)
       setLoading(false)
     }).catch(e => {
-      console.warn('[match-detail] pool load failed:', e)
+      log.warn('db', 'match-detail: pool load failed', e)
       if (active) setLoading(false)
     })
     return () => { active = false }
@@ -246,27 +136,45 @@ export function useMatchDetail(req: MatchDetailRequest | null): { detail: MatchS
 // (maintainer feedback: the stat grid was unreadable). One header row above the
 // block names both sides in the same left/right order every bar uses, with the
 // accent dot tying home to the colour the bars fill in.
-export function StatSideHeader({ homeName, awayName, accent }: {
-  homeName: string; awayName: string; accent: string
+export function StatSideHeader({ homeName, awayName, homeClubId, awayClubId, accent }: {
+  homeName: string; awayName: string; homeClubId?: string; awayClubId?: string; accent: string
 }) {
   return (
     <View style={styles.sideHeader}>
       <View style={styles.sideChip}>
         <View style={[styles.sideDot, { backgroundColor: accent }]} />
-        <Text style={styles.sideName} numberOfLines={1}>{withCountryFlag(homeName)}</Text>
+        <MarkedName clubId={homeClubId} name={homeName} style={styles.sideName} />
       </View>
       <View style={[styles.sideChip, { justifyContent: 'flex-end' }]}>
-        <Text style={[styles.sideName, { textAlign: 'right' }]} numberOfLines={1}>{withCountryFlag(awayName)}</Text>
+        <MarkedName clubId={awayClubId} name={awayName} style={styles.sideName} align="right" />
         <View style={[styles.sideDot, { backgroundColor: prim.cottonMuted }]} />
       </View>
     </View>
   )
 }
 
-/** National sides read far faster with their flag; clubs have no crest to show. */
-export function withCountryFlag(name: string) {
-  const f = flagForCountry(name)
-  return f ? `${f} ${name}` : name
+/**
+ * A team's mark beside its name, on the match sheet's floodlit ground (centralisation
+ * A-07, step 1). The mark comes from the team's id through `TeamMark`: a nation's
+ * flag, a club's crest, or your own crest on your side. It replaced `withFlag` and
+ * `withCountryFlag`, which put the flag inside the text as an emoji and found it by
+ * the team's NAME, so a club got no mark at all and a renamed side lost its flag.
+ * The mark sits on the outer side: before the name on the left, after it on the right.
+ */
+export function MarkedName({ clubId, name, style, align = 'left', textAlign, numberOfLines = 1, size = 16, onPress, accessibilityRole }: {
+  clubId?: string | null; name: string; style?: any; align?: 'left' | 'right'
+  /** The text's own alignment when it differs from the mark's side (the header hugs the score). */
+  textAlign?: 'left' | 'right'
+  numberOfLines?: number; size?: 16 | 20 | 24
+  onPress?: () => void; accessibilityRole?: 'link'
+}) {
+  return (
+    <View style={[styles.marked, align === 'right' && styles.markedRight]}>
+      <TeamMark roles={ROLES.nylon} clubId={clubId} name={name} size={size} />
+      <Text style={[style, styles.markedText, { textAlign: textAlign ?? align }]} numberOfLines={numberOfLines}
+        onPress={onPress} accessibilityRole={accessibilityRole}>{countryName(name)}</Text>
+    </View>
+  )
 }
 
 // ── One side's goals, as they appear under a scoreline ──────────────────────
@@ -355,54 +263,54 @@ function kv(label: string, value: string | number): [string, string] {
 // Exported: the stats page's player game log renders the same sheet.
 export function playerSheet(l: PlayerMatchLine): [string, string][] {
   const rows: [string, string][] = [
-    ...(l.injured ? [kv('Injured', `off ${l.subOffMinute}' · out ${l.matchdaysOut} match${l.matchdaysOut === 1 ? '' : 'es'}`)] : []),
-    kv('Minutes played', l.minutes + (l.subOnMinute !== undefined ? ` (on ${l.subOnMinute}')` : l.subOffMinute !== undefined ? ` (off ${l.subOffMinute}')` : '')),
+    ...(l.injured ? [kv(t('match.sheet.injured'), t('match.sheet.injuredValue', { min: l.subOffMinute, count: l.matchdaysOut ?? 0 }))] : []),
+    kv(t('match.sheet.minutes'), l.minutes + (l.subOnMinute !== undefined ? t('match.sheet.onAt', { min: l.subOnMinute }) : l.subOffMinute !== undefined ? t('match.sheet.offAt', { min: l.subOffMinute }) : '')),
   ]
-  if (l.goals) rows.push(kv('Goals', l.penaltyGoals ? `${l.goals} (${l.penaltyGoals} pen)` : l.goals))
-  if (l.assists) rows.push(kv('Assists', l.assists))
+  if (l.goals) rows.push(kv(t('match.sheet.goals'), l.penaltyGoals ? t('match.sheet.goalsPen', { goals: l.goals, pens: l.penaltyGoals }) : l.goals))
+  if (l.assists) rows.push(kv(t('match.sheet.assists'), l.assists))
   // §9 — surfaced right under the headline numbers, because an own goal or an
   // error that led to a goal is the story of that player's match.
-  if (l.penaltiesMissed) rows.push(kv('Penalties missed', l.penaltiesMissed))
-  if (l.ownGoals) rows.push(kv('Own goals', l.ownGoals))
-  if (l.penaltiesWon) rows.push(kv('Penalties won', l.penaltiesWon))
-  if (l.errorsLeadingToGoal) rows.push(kv('Errors led to goal', l.errorsLeadingToGoal))
+  if (l.penaltiesMissed) rows.push(kv(t('match.sheet.pensMissed'), l.penaltiesMissed))
+  if (l.ownGoals) rows.push(kv(t('match.sheet.ownGoals'), l.ownGoals))
+  if (l.penaltiesWon) rows.push(kv(t('match.sheet.pensWon'), l.penaltiesWon))
+  if (l.errorsLeadingToGoal) rows.push(kv(t('match.sheet.errors'), l.errorsLeadingToGoal))
   if (l.gk) {
     rows.push(
-      kv('Saves', l.gk.saves),
-      ...(l.gk.penaltiesSaved ? [kv('Penalties saved', l.gk.penaltiesSaved)] : []),
-      kv('Goals conceded', l.gk.goalsConceded),
-      kv('Save percentage', `${l.gk.savePct}%`),
-      kv('Punches', l.gk.punches),
-      kv('High claims', l.gk.highClaims),
-      kv('Sweeper actions', l.gk.sweeperActions),
+      kv(t('match.sheet.saves'), l.gk.saves),
+      ...(l.gk.penaltiesSaved ? [kv(t('match.sheet.pensSaved'), l.gk.penaltiesSaved)] : []),
+      kv(t('match.sheet.conceded'), l.gk.goalsConceded),
+      kv(t('match.sheet.savePct'), `${l.gk.savePct}%`),
+      kv(t('match.sheet.punches'), l.gk.punches),
+      kv(t('match.sheet.highClaims'), l.gk.highClaims),
+      kv(t('match.sheet.sweeper'), l.gk.sweeperActions),
     )
   } else {
     rows.push(
-      kv('Shots (on target)', `${l.shots} (${l.shotsOnTarget})`),
-      kv('Key passes', l.keyPasses),
-      kv('Big chances created', l.bigChancesCreated),
+      kv(t('match.sheet.shotsOn'), `${l.shots} (${l.shotsOnTarget})`),
+      kv(t('match.sheet.keyPasses'), l.keyPasses),
+      kv(t('match.stat.bigCreated'), l.bigChancesCreated),
     )
-    if (l.bigChancesMissed) rows.push(kv('Big chances missed', l.bigChancesMissed))
-    rows.push(kv('Touches in opp. box', l.touchesInOppBox))
-    if (l.offsides) rows.push(kv('Offsides', l.offsides))
+    if (l.bigChancesMissed) rows.push(kv(t('match.stat.bigChancesMissed'), l.bigChancesMissed))
+    rows.push(kv(t('match.stat.touchesInOppBox'), l.touchesInOppBox))
+    if (l.offsides) rows.push(kv(t('match.stat.offsides'), l.offsides))
   }
   rows.push(
-    kv('Touches', l.touches),
-    kv('Passes (accurate)', `${l.passes} (${l.accuratePasses})`),
-    kv('Pass accuracy', `${l.passAccuracy}%`),
+    kv(t('match.stat.touches'), l.touches),
+    kv(t('match.sheet.passesAcc'), `${l.passes} (${l.accuratePasses})`),
+    kv(t('match.stat.passAccuracy'), `${l.passAccuracy}%`),
   )
-  if (l.crosses) rows.push(kv('Accurate crosses', l.crosses))
-  if (l.longBalls) rows.push(kv('Accurate long balls', l.longBalls))
+  if (l.crosses) rows.push(kv(t('match.stat.crosses'), l.crosses))
+  if (l.longBalls) rows.push(kv(t('match.stat.longBalls'), l.longBalls))
   rows.push(
-    kv('Dribbles', l.dribbles),
-    kv('Duels won (ground/aerial)', `${l.groundDuelsWon}/${l.aerialDuelsWon}`),
-    kv('Possession lost', l.possessionLost),
-    kv('Tackles won', l.tacklesWon),
-    kv('Interceptions', l.interceptions),
-    kv('Clearances', l.clearances),
+    kv(t('match.stat.dribblesShort'), l.dribbles),
+    kv(t('match.sheet.duels'), `${l.groundDuelsWon}/${l.aerialDuelsWon}`),
+    kv(t('match.stat.possessionLost'), l.possessionLost),
+    kv(t('match.stat.tacklesWon'), l.tacklesWon),
+    kv(t('match.stat.interceptions'), l.interceptions),
+    kv(t('match.stat.clearances'), l.clearances),
   )
-  if (l.blocks) rows.push(kv('Blocked shots', l.blocks))
-  rows.push(kv('Fouls (won)', `${l.foulsCommitted} (${l.foulsWon})`))
+  if (l.blocks) rows.push(kv(t('match.stat.shotsBlocked'), l.blocks))
+  rows.push(kv(t('match.sheet.foulsWon'), `${l.foulsCommitted} (${l.foulsWon})`))
   return rows
 }
 
@@ -428,10 +336,10 @@ export function PlayerRow({ l, accent, expanded, onPress }: {
           {l.subOnMinute !== undefined && <View style={styles.markMin}><EventMark kind="subOn" size={11} /><Text style={styles.subOn}>{l.subOnMinute}'</Text></View>}
           {l.subOffMinute !== undefined && <View style={styles.markMin}><EventMark kind="subOff" size={11} /><Text style={styles.subOff}>{l.subOffMinute}'</Text></View>}
           {/* §10.5 phase 4 — came off injured, and for how long. */}
-          {l.injured && <View style={styles.markMin}><EventMark kind="injury" size={11} /><Text style={styles.injuredTag}>out {l.matchdaysOut}</Text></View>}
+          {l.injured && <View style={styles.markMin}><EventMark kind="injury" size={11} /><Text style={styles.injuredTag}>{t('match.outN', { n: l.matchdaysOut })}</Text></View>}
         </View>
         {unused
-          ? <Text style={styles.unusedTag}>unused</Text>
+          ? <Text style={styles.unusedTag}>{t('match.unused')}</Text>
           : <RatingSquare value={l.rating} />}
       </PressCard>
       {expanded && !unused && (
@@ -457,19 +365,19 @@ export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
     // shout that it's an own goal: different icon, red name, explicit label.
     // Without all three it reads as an opposition player scoring for us.
     icon = <EventMark kind={e.ownGoal ? 'ownGoal' : 'goal'} size={16} />
-    const tag = e.ownGoal ? 'Own goal' : e.penalty ? 'Penalty' : null
+    const tag = e.ownGoal ? t('match.ownGoal') : e.penalty ? t('match.penalty') : null
     // A penalty has no assist — the equivalent credit is who won it.
-    const credit = e.penWonName ? `won by ${e.penWonName}` : e.assistName ? `assist: ${e.assistName}` : null
+    const credit = e.penWonName ? t('match.wonBy', { name: e.penWonName }) : e.assistName ? t('match.assistBy', { name: e.assistName }) : null
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
-          <Text style={{ fontFamily: font.bodyBold, color: e.ownGoal ? colors.danger : prim.cotton }}>{e.playerName}</Text>
-          {tag ? <Text style={[styles.evTag, e.ownGoal && { color: colors.danger }]}>  {tag}</Text> : null}
+          <Text style={{ fontFamily: font.bodyBold, color: e.ownGoal ? prim.misery : prim.cotton }}>{e.playerName}</Text>
+          {tag ? <Text style={[styles.evTag, e.ownGoal && { color: prim.misery }]}>  {tag}</Text> : null}
         </Text>
         {/* The score this goal made, so the timeline reads as the match went. */}
         {score ? <View style={styles.evScore}><Text style={styles.evScoreText}>{score}</Text></View> : null}
         {credit ? <Text style={styles.evAssist} numberOfLines={1}>{credit}</Text> : null}
-        {e.errorByName ? <Text style={styles.evError} numberOfLines={1}>error led to goal · {e.errorByName}</Text> : null}
+        {e.errorByName ? <Text style={styles.evError} numberOfLines={1}>{t('match.errorBy', { name: e.errorByName })}</Text> : null}
       </>
     )
   } else if (e.type === 'penMissed') {
@@ -480,9 +388,9 @@ export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
       <>
         <Text style={styles.evText} numberOfLines={2}>
           <Text style={{ fontFamily: font.bodyBold, color: prim.cotton }}>{e.playerName}</Text>
-          <Text style={[styles.evTag, { color: colors.warning }]}>  {e.saved ? 'Penalty saved' : 'Penalty missed'}</Text>
+          <Text style={[styles.evTag, { color: prim.misery }]}>  {e.saved ? t('match.penSaved') : t('match.penMissedTag')}</Text>
         </Text>
-        {e.saved && e.keeperName ? <Text style={styles.evAssist} numberOfLines={1}>saved by {e.keeperName}</Text> : null}
+        {e.saved && e.keeperName ? <Text style={styles.evAssist} numberOfLines={1}>{t('match.savedBy', { name: e.keeperName })}</Text> : null}
       </>
     )
   } else if (e.type === 'injury') {
@@ -490,15 +398,15 @@ export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
     // change it forced: a manager losing a player is a different event from a
     // manager choosing to make a substitution, and the timeline should say so.
     icon = <EventMark kind="injury" size={15} />
-    const out = e.matchdaysOut === 1 ? 'out for the next match' : `out for ${e.matchdaysOut} matches`
+    const out = e.matchdaysOut === 1 ? t('match.outNext') : t('match.outFor', { count: e.matchdaysOut ?? 0 })
     body = (
       <>
         <Text style={styles.evText} numberOfLines={2}>
           <Text style={{ fontFamily: font.bodyBold, color: prim.cotton }}>{e.playerName}</Text>
-          <Text style={[styles.evTag, { color: colors.danger }]}>  Injured</Text>
+          <Text style={[styles.evTag, { color: prim.misery }]}>{'  ' + t('match.injuredTag')}</Text>
         </Text>
         <Text style={styles.evAssist} numberOfLines={1}>
-          {out}{e.replaced === false ? ' · no bench left, played on short' : ''}
+          {out}{e.replaced === false ? t('match.playedShort') : ''}
         </Text>
       </>
     )
@@ -511,12 +419,12 @@ export function EventRow({ e, score }: { e: MatchEvent; score?: string }) {
       <>
         <Text style={styles.evText} numberOfLines={2}>
           <Text style={{ color: prim.volt }}>{e.playerName}</Text>
-          <Text style={{ color: prim.cottonMuted }}>  for {e.offPlayerName}</Text>
+          <Text style={{ color: prim.cottonMuted }}>{t('match.forPlayer', { name: e.offPlayerName })}</Text>
         </Text>
         {/* §10.5 — a change at the interval and a change forced by an injury both
             read differently from a tactical one, so both say what they are. */}
-        {e.halfTime ? <Text style={styles.evTag}>at half-time</Text> : null}
-        {e.forced ? <Text style={[styles.evTag, { color: colors.danger }]}>forced · injury</Text> : null}
+        {e.halfTime ? <Text style={styles.evTag}>{t('match.atHalfTime')}</Text> : null}
+        {e.forced ? <Text style={[styles.evTag, { color: prim.misery }]}>{t('match.forcedInjury')}</Text> : null}
       </>
     )
   }
@@ -548,14 +456,14 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
 }) {
   const breaks = duration > 90
     ? [
-        { at: 45,  label: 'Half-time',  plus: addedTime.firstHalf },
-        { at: 90,  label: 'After 90', plus: addedTime.secondHalf },
-        { at: 105, label: 'Extra-time break', plus: addedTime.firstET ?? 0 },
-        { at: 120, label: 'After extra time', plus: addedTime.secondET ?? 0 },
+        { at: 45,  label: t('match.brHalfTime'),  plus: addedTime.firstHalf },
+        { at: 90,  label: t('match.brAfter90'), plus: addedTime.secondHalf },
+        { at: 105, label: t('match.brEtBreak'), plus: addedTime.firstET ?? 0 },
+        { at: 120, label: t('match.brAfterEt'), plus: addedTime.secondET ?? 0 },
       ]
     : [
-        { at: 45, label: 'Half-time', plus: addedTime.firstHalf },
-        { at: 90, label: 'Full time', plus: addedTime.secondHalf },
+        { at: 45, label: t('match.brHalfTime'), plus: addedTime.firstHalf },
+        { at: 90, label: t('match.brFullTime'), plus: addedTime.secondHalf },
       ]
 
   const out: React.ReactNode[] = []
@@ -567,7 +475,7 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
   const announce = (at: number, plus: number) => {
     if (plus <= 0 || announced.has(at)) return
     announced.add(at)
-    out.push(<Text key={`plus${at}`} style={styles.addedText}>Board up · +{plus}</Text>)
+    out.push(<Text key={`plus${at}`} style={styles.addedText}>{t('match.boardUp', { n: plus })}</Text>)
   }
   const flushBreaksBefore = (minute: number) => {
     // A 90+3 goal belongs BEFORE the full-time line, so compare on the whole
@@ -601,7 +509,7 @@ export function Timeline({ events, addedTime, duration, revealUpTo, varCalls = [
           <View style={styles.evIcon}><EventMark kind="var" size={15} /></View>
           <View style={{ flex: 1, alignItems: v.isHome ? 'flex-start' : 'flex-end' }}>
             <Text style={styles.evText} numberOfLines={1}><Text style={{ fontFamily: font.bodyBold, color: prim.cotton }}>{v.playerName}</Text></Text>
-            <Text style={[styles.evTag, { color: colors.warning }]} numberOfLines={1}>VAR · {v.reason}</Text>
+            <Text style={[styles.evTag, { color: prim.cardYellow }]} numberOfLines={1}>VAR · {v.reason}</Text>
           </View>
         </View>,
       )
@@ -686,7 +594,10 @@ export function splitLineup(players: PlayerMatchLine[], isHome: boolean) {
 const styles = StyleSheet.create({
   motm: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingTop: space[2] },
 
-  sideHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  marked: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 },
+  markedRight: { flexDirection: 'row-reverse' },
+  markedText: { flex: 1, flexShrink: 1 },
+  sideHeader: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[2] },
   sideChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
   sideDot: { width: 8, height: 8, borderRadius: 4 },
   sideName: { flex: 1, fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -694,14 +605,14 @@ const styles = StyleSheet.create({
   scorerLine: { fontSize: 10, color: prim.cottonMuted },
   scorerMark: { color: prim.cottonMuted, fontFamily: font.bodyBold },
 
-  statRow: { marginBottom: spacing.sm },
+  statRow: { marginBottom: space[2] },
   statNums: { flexDirection: 'row', alignItems: 'center' },
   statVal: { width: 52, fontSize: 12, color: prim.cottonMuted },
   statLabel: { flex: 1, fontSize: 11, color: prim.cottonMuted, textAlign: 'center' },
   statBarTrack: { flexDirection: 'row', gap: 2, marginTop: 3 },
   statBarHalf: { flex: 1, backgroundColor: prim.nylonSunken, height: 6, overflow: 'hidden' },
 
-  evRow: { alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
+  evRow: { alignItems: 'center', gap: space[2], paddingVertical: 3 },
   evMinute: { width: 38, fontSize: 10, fontFamily: font.bodyBlack, color: prim.cottonMuted, textAlign: 'center' },
   evIcon: { width: 18, alignItems: 'center', justifyContent: 'center' },
   evScore: { alignSelf: 'flex-start', backgroundColor: prim.nylonSunken, paddingHorizontal: 5, paddingVertical: 1, marginTop: 2 },
@@ -711,42 +622,42 @@ const styles = StyleSheet.create({
   // §9 markers. The tag carries weight as well as colour so "Own goal" still
   // reads as exceptional without relying on hue alone.
   evTag: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  evError: { fontSize: 10, color: colors.danger, },
-  breakRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: prim.nylonSunken, borderLeftWidth: 4, borderLeftColor: prim.cotton, paddingHorizontal: spacing.sm, paddingVertical: 4, marginVertical: spacing.xs },
+  evError: { fontSize: 10, color: prim.misery, },
+  breakRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: prim.nylonSunken, borderLeftWidth: 4, borderLeftColor: prim.cotton, paddingHorizontal: space[2], paddingVertical: 4, marginVertical: space[1] },
   breakText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.cotton, textTransform: 'uppercase', letterSpacing: 0.5 },
-  addedText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.volt, letterSpacing: 0.4, paddingVertical: 2, paddingLeft: spacing.sm },
-  feedMarker: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, backgroundColor: prim.nylonSunken, marginVertical: 4 },
+  addedText: { fontSize: 10, fontFamily: font.bodyBlack, color: prim.volt, letterSpacing: 0.4, paddingVertical: 2, paddingLeft: space[2] },
+  feedMarker: { flexDirection: 'row', gap: space[2], paddingVertical: space[2], paddingHorizontal: space[2], backgroundColor: prim.nylonSunken, marginVertical: 4 },
   feedMarkerMin: { width: 40, fontSize: 11, fontFamily: font.bodyBlack, color: prim.cotton },
-  feedPlain: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: prim.ruleNylon },
+  feedPlain: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2], paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: prim.ruleNylon },
   feedMin: { width: 40, fontSize: 11, fontFamily: font.bodyBlack, color: prim.cottonMuted },
   feedDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
-  feedText: { flex: 1, fontSize: typography.sm, color: prim.cottonMuted, lineHeight: 19 },
-  feedCard: { backgroundColor: prim.nylonRaised, borderLeftWidth: 4, padding: spacing.sm, gap: 6, marginVertical: 4 },
-  feedCardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  feedText: { flex: 1, fontSize: type.body.fontSize, color: prim.cottonMuted, lineHeight: 19 },
+  feedCard: { backgroundColor: prim.nylonRaised, borderLeftWidth: 4, padding: space[2], gap: 6, marginVertical: 4 },
+  feedCardHead: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   feedBadge: { backgroundColor: prim.cotton, paddingHorizontal: 6, paddingVertical: 2, minWidth: 34, alignItems: 'center' },
   feedBadgeText: { fontSize: 11, fontFamily: font.bodyBlack, color: prim.nylon },
-  feedTitle: { flex: 1, fontSize: typography.sm, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  feedPlayer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  feedPlayerName: { flex: 1, fontSize: typography.sm, fontFamily: font.bodyBold, color: prim.cotton },
+  feedTitle: { flex: 1, fontSize: type.body.fontSize, fontFamily: font.bodyBlack, color: prim.cottonMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  feedPlayer: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  feedPlayerName: { flex: 1, fontSize: type.body.fontSize, fontFamily: font.bodyBold, color: prim.cotton },
 
-  playerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
+  playerRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: prim.ruleNylon },
   playerRowMotm: { backgroundColor: prim.volt + '22', borderWidth: 1, borderColor: prim.volt, borderRadius: 0, paddingHorizontal: 4 },
   playerPos: { width: 32, fontSize: 9, fontFamily: font.bodyBlack, color: prim.cottonMuted },
-  playerName: { fontSize: typography.sm, color: prim.cotton, flexShrink: 1 },
+  playerName: { fontSize: type.body.fontSize, color: prim.cotton, flexShrink: 1 },
   playerNameMotm: { color: prim.volt, fontFamily: font.bodyBlack },
   motmChip: { backgroundColor: prim.volt, borderRadius: 0, paddingHorizontal: 5, paddingVertical: 1 },
   motmChipText: { fontSize: 9, fontFamily: font.bodyBlack, color: prim.nylon, letterSpacing: 0.5 },
   playerBadge: { fontSize: 10 },
   playerBadgeMuted: { fontSize: 9, color: prim.cottonMuted, fontFamily: font.bodyBold },
-  cardYellow: { width: 8, height: 11, borderRadius: 1, backgroundColor: colors.warning },
-  cardRed: { width: 8, height: 11, borderRadius: 1, backgroundColor: colors.danger },
+  cardYellow: { width: 8, height: 11, borderRadius: 1, backgroundColor: prim.cardYellow },
+  cardRed: { width: 8, height: 11, borderRadius: 1, backgroundColor: prim.misery },
   markMin: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   subOn: { fontSize: 9, color: prim.volt, fontFamily: font.bodyBold },
-  subOff: { fontSize: 9, color: colors.danger, fontFamily: font.bodyBold },
+  subOff: { fontSize: 9, color: prim.misery, fontFamily: font.bodyBold },
   unusedTag: { fontSize: 9, color: prim.cottonMuted, },
-  injuredTag: { fontSize: 9, color: colors.danger, fontFamily: font.bodyBold },
+  injuredTag: { fontSize: 9, color: prim.misery, fontFamily: font.bodyBold },
 
-  sheet: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: spacing.sm, marginVertical: spacing.xs },
+  sheet: { backgroundColor: prim.nylonSunken, borderRadius: 0, padding: space[2], marginVertical: space[1] },
   sheetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   sheetKey: { fontSize: 11, color: prim.cottonMuted },
   sheetVal: { fontSize: 11, fontFamily: font.bodyBold },

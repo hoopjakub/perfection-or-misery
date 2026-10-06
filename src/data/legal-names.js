@@ -18,6 +18,18 @@ const RENAMES = [
   ['UEFA Conference League', 'Conference Cup'],
   ['UEFA Super Cup', 'European Super Cup'],
   ['FIFA World Cup', 'World Cup'],
+  // P8.5-28: the Slovak names (docs/release/08-SLOVAK-TERMS.md §2), before the
+  // bare UEFA/FIFA lines below so "Liga majstrov UEFA" goes whole. The Slovak
+  // text keeps a competition's name in the nominative ("v súťaži Liga
+  // majstrov") and never agrees with it by gender, so this one form is enough
+  // even though the legal name's gender differs (liga → pohár).
+  ['Liga majstrov UEFA', 'Pohár majstrov'],
+  ['Európska liga UEFA', 'Európsky pohár'],
+  ['Konferenčná liga UEFA', 'Konferenčný pohár'],
+  ['Majstrovstvá sveta FIFA', 'Majstrovstvá sveta'],
+  ['Liga majstrov', 'Pohár majstrov'],
+  ['Európska liga', 'Európsky pohár'],
+  ['Konferenčná liga', 'Konferenčný pohár'],
   // Plurals are the mark too ("European Cups/Champions Leagues").
   ['Champions Leagues', 'European Cups'],
   ['Europa Leagues', 'Europa Cups'],

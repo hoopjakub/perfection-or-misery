@@ -3,13 +3,15 @@
 // matchday history — NO UI — so you land straight on the result/stats screens.
 // Nothing here is persisted to the DB; it's purely a tester.
 
+import { shuffle } from '../lib/rng'
+import { compareStandings } from './standings'
 import type { Formation, DraftedPlayer, LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
 import type { SimTeam, Fixture, SeasonResult, MatchdaySnapshot } from '@/types/simulation'
 import { getSlotsForFormation } from './formations'
 import { calcTeamOvr } from './rating'
 import { generateFixtures } from './fixtures'
 import { simulateMatch, setMatchTilt } from './match'
-import { updateForm } from './simulation'
+import { recordResult } from './standings'
 import { assignTier } from './tier'
 import { zoneAt } from '@/data/qualification-bands'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason } from './placement'
@@ -17,41 +19,24 @@ import { loadLeaguePools, lineupCtxOf, attributeFixtureScorers, attributeCLResul
 import { getClubSeasonsForMode, getAllClubSeasons } from '@/db/queries/seasons'
 import { getPlayersForClubSeason, type PlayerRow } from '@/db/queries/players'
 import {
-  buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly,
-  type CLTeam, type CLSeasonResult, type CLLeagueMatch,
+  buildCLTeams, drawCLLeaguePhase, simulateCLKnockoutsOnly, type CLTeam, type CLSeasonResult, type CLLeagueMatch,
 } from './cl-sim'
 import {
-  buildWCTeams, assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly,
-  type WCTeam, type WCGroup, type WCSeasonResult, type WCGroupMatch, type WCKnockoutMatch,
+  buildWCTeams, assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly, type WCTeam, type WCGroup, type WCSeasonResult, type WCGroupMatch, type WCKnockoutMatch,
 } from './world-cup-sim'
 import type { KnockoutResult } from './knockout-match'
 import { simulateKnockout } from './knockout-match'
-import type { MatchResult } from '@/types/simulation'
+
 import { buildCustomUclSeason, getEuropeHolders } from '@/db/queries/custom-ucl'
 import { countryForClClub } from '@/data/geo-iso'
 import type { QualifyingResult } from './cl-qualifying'
-import { playEveryCup, europaAndConferenceEntrants, simulateEurope } from './europe-path'
+import { playEuropeanSeason } from './europe-path'
 import { EUROPE } from '@/data/europe'
 import type { SimLeagueTable } from './cl-league-sim'
 
-// Mutates both teams' stats + form from a match result (shared by CL/WC quick-sim).
-function applyMatchResult(home: { stats: any; form: number }, away: { stats: any; form: number }, r: MatchResult) {
-  home.stats.played++; away.stats.played++
-  home.stats.goalsFor += r.homeGoals; home.stats.goalsAgainst += r.awayGoals
-  away.stats.goalsFor += r.awayGoals; away.stats.goalsAgainst += r.homeGoals
-  if (r.outcome === 'home')      { home.stats.won++;   home.stats.points += 3; away.stats.lost++ }
-  else if (r.outcome === 'away') { away.stats.won++;   away.stats.points += 3; home.stats.lost++ }
-  else                           { home.stats.drawn++; home.stats.points++;    away.stats.drawn++; away.stats.points++ }
-  updateForm(home as any, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-  updateForm(away as any, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-}
-
 function sortCompTeams<T extends { stats: any }>(teams: T[]): T[] {
   return [...teams].sort((a, b) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-    const gdA = a.stats.goalsFor - a.stats.goalsAgainst, gdB = b.stats.goalsFor - b.stats.goalsAgainst
-    if (gdB !== gdA) return gdB - gdA
-    return b.stats.goalsFor - a.stats.goalsFor
+    return compareStandings(a, b)
   })
 }
 
@@ -173,14 +158,7 @@ function runLeagueWithHistory(league: LeagueSeason, pools?: LeaguePools): Season
     for (const f of dayFixtures) {
       const r = simulateMatch(f.home, f.away); f.result = r
       if (pools) f.scorers = attributeFixtureScorers(pools.poolByClub, f.home.clubId, f.away.clubId, r.homeGoals, r.awayGoals)
-      f.home.stats.played++; f.away.stats.played++
-      f.home.stats.goalsFor += r.homeGoals; f.home.stats.goalsAgainst += r.awayGoals
-      f.away.stats.goalsFor += r.awayGoals; f.away.stats.goalsAgainst += r.homeGoals
-      if (r.outcome === 'home')      { f.home.stats.won++;   f.home.stats.points += 3; f.away.stats.lost++ }
-      else if (r.outcome === 'away') { f.away.stats.won++;   f.away.stats.points += 3; f.home.stats.lost++ }
-      else                           { f.home.stats.drawn++; f.home.stats.points++;    f.away.stats.drawn++; f.away.stats.points++ }
-      updateForm(f.home, r.outcome === 'home' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
-      updateForm(f.away, r.outcome === 'away' ? 'win' : r.outcome === 'draw' ? 'draw' : 'loss')
+      recordResult(f.home, f.away, r)
 
       if (f.home.isPlayer || f.away.isPlayer) {
         const ph = f.home.isPlayer
@@ -231,11 +209,7 @@ function runLeagueWithHistory(league: LeagueSeason, pools?: LeaguePools): Season
 
 function sortTable(teams: SimTeam[]): SimTeam[] {
   return [...teams].sort((a, b) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-    const gdA = a.stats.goalsFor - a.stats.goalsAgainst
-    const gdB = b.stats.goalsFor - b.stats.goalsAgainst
-    if (gdB !== gdA) return gdB - gdA
-    return b.stats.goalsFor - a.stats.goalsFor
+    return compareStandings(a, b)
   })
 }
 
@@ -272,7 +246,7 @@ export async function quickSimCL(): Promise<QuickCLRun> {
     for (const fx of fixtures.filter(f => f.matchday === md)) {
       const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
       const r = simulateMatch(home, away)
-      applyMatchResult(home, away, r)
+      recordResult(home, away, r)
       leagueMatchdays.push({ matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
     }
   }
@@ -305,10 +279,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   // Europa and Conference Leagues' league phases too.
   const assocs = tables.map(t => ({ rank: t.rank, name: t.name, country: t.country, format: t.format, clubs: t.standings.map(r => ({ clubId: r.clubId, clubName: r.clubName, ovr: r.ovr })) }))
   const held = await getEuropeHolders()
-  const cups = playEveryCup(assocs, null, Math.floor(Math.random() * 2 ** 31))
-  const euro = europaAndConferenceEntrants(access, assocs, cups, held.uecl)
-  const qual = simulateEurope(access, euro, cups,
-    (['ucl', 'uel', 'uecl'] as const).flatMap(c => (held[c] ? [{ comp: c, clubId: held[c]!.clubId, clubName: held[c]!.clubName }] : [])))
+  const qual = playEuropeanSeason(access, assocs, held, { seed: Math.floor(Math.random() * 2 ** 31) })
   const compPick = pick<'ucl' | 'uel' | 'uecl'>(['ucl', 'uel', 'uecl'])
   const comp = EUROPE[compPick]
   const field = qual.europe!.fields[compPick]
@@ -334,7 +305,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
     for (const fx of fixtures.filter(f => f.matchday === md)) {
       const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
       const r = simulateMatch(home, away)
-      applyMatchResult(home, away, r)
+      recordResult(home, away, r)
       leagueMatchdays.push({ matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
     }
   }
@@ -383,7 +354,7 @@ export async function quickSimWC(): Promise<QuickWCRun> {
     for (const fx of fixtures.filter(f => f.matchday === md)) {
       const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
       const r = simulateMatch(home, away)
-      applyMatchResult(home, away, r)
+      recordResult(home, away, r)
       groupMatchdays.push({ groupId: home.groupId, matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
     }
   }
@@ -430,10 +401,7 @@ export function forcedKnockoutResult(homeWins: boolean): KnockoutResult {
 // (including the final) is simulated normally, same as a real run.
 export function simulateWCKnockoutsForceToFinal(groups: WCGroup[], allTeams: WCTeam[]): Omit<WCSeasonResult, 'groups'> {
   const byStats = (a: WCTeam, b: WCTeam) => {
-    if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points
-    const gdA = a.stats.goalsFor - a.stats.goalsAgainst, gdB = b.stats.goalsFor - b.stats.goalsAgainst
-    if (gdB !== gdA) return gdB - gdA
-    return b.stats.goalsFor - a.stats.goalsFor
+    return compareStandings(a, b)
   }
   for (const group of groups) group.teams.sort(byStats)
 
@@ -451,7 +419,7 @@ export function simulateWCKnockoutsForceToFinal(groups: WCGroup[], allTeams: WCT
   // Seed the player into the bracket first so they always have a spot, then
   // shuffle the rest — the forced results mean the SHAPE of the bracket
   // doesn't matter, only that the player's slot exists.
-  let current = [...r32Teams].sort(() => Math.random() - 0.5)
+  let current = shuffle(Math.random, r32Teams)
   let sfLosers: WCTeam[] = []
 
   for (const round of roundNames) {

@@ -1,3 +1,6 @@
+import { label } from '@/i18n/labels'
+import { countryName } from '@/data/countries-sk'
+import { t, num } from '@/i18n'
 import React, { useMemo } from 'react'
 import { View, StyleSheet } from 'react-native'
 import Svg, { Path, Circle } from 'react-native-svg'
@@ -29,7 +32,7 @@ export function VenueMap({ roles, played = [] }: { roles: Roles; played?: string
   }), [])
   const playedIds = new Set(played)
   return (
-    <View style={styles.wrap} accessible accessibilityLabel={`The ${WC_VENUES.length} World Cup grounds, in the United States, Mexico and Canada`}>
+    <View style={styles.wrap} accessible accessibilityLabel={t('parts.groundsA11y', { n: WC_VENUES.length })}>
       <View style={[styles.map, { borderColor: roles.rule, backgroundColor: roles.sunken }]}>
         <View style={{ width: '100%', aspectRatio: W / H }}>
         <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
@@ -49,7 +52,7 @@ export function VenueMap({ roles, played = [] }: { roles: Roles; played?: string
             is the map's own shape, so a percentage of it is a map position. */}
         {WC_VENUES.filter(v => v.hosts.includes('Final')).map(v => (
           <View key={v.id} pointerEvents="none" style={[styles.trophy, { left: `${(px(v.lon) / W) * 100}%`, top: `${(py(v.lat) / H) * 100}%` }]}>
-            <Icon name="trophy" size={TROPHY} color={roles.text} label="The final" />
+            <Icon name="trophy" size={TROPHY} color={roles.text} label={t('parts.theFinal')} />
           </View>
         ))}
         </View>
@@ -61,10 +64,10 @@ export function VenueMap({ roles, played = [] }: { roles: Roles; played?: string
           <View style={styles.nameLine}>
             {playedIds.has(v.id) && <View style={[styles.dot, { backgroundColor: prim.orange }]} />}
             <KitText t="body" color={roles.text} style={{ flexShrink: 1 }}>{v.name}</KitText>
-            {playedIds.has(v.id) && <Tag roles={roles} variant="you">YOU PLAYED HERE</Tag>}
+            {playedIds.has(v.id) && <Tag roles={roles} variant="you">{t('parts.playedHere')}</Tag>}
           </View>
-          <KitText t="tag" color={roles.textMuted}>{`${v.city.toUpperCase()} · ${v.country.toUpperCase()}${v.capacity ? ` · ${v.capacity.toLocaleString('en-US')}` : ''}`}</KitText>
-          <KitText t="tag" color={roles.textMuted}>{['GROUPS', ...v.hosts.filter(h => h !== 'Group').map(h => h.toUpperCase())].join(' · ')}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{`${v.city.toUpperCase()} · ${countryName(v.country).toUpperCase()}${v.capacity ? ` · ${num(v.capacity)}` : ''}`}</KitText>
+          <KitText t="tag" color={roles.textMuted}>{[t('parts.groups'), ...v.hosts.filter(h => h !== 'Group').map(h => label(h).toUpperCase())].join(' · ')}</KitText>
         </View>
       ))}
     </View>

@@ -26,7 +26,7 @@
 import type { CLSeasonResult } from './cl-sim'
 import type { WCSeasonResult } from './world-cup-sim'
 import type { PredictionTeam } from './predictions'
-import { mulberry32, deriveSeed } from '@/lib/rng'
+import { mulberry32, deriveSeed, shuffle } from '@/lib/rng'
 
 // Each cup's ladder, best first; `step` is the index, so a lower step is further.
 const CL_LADDER = ['winner', 'finalist', 'sf_exit', 'qf_exit', 'r16_exit', 'playoff_exit', 'league_exit']
@@ -110,11 +110,6 @@ function play(rng: Rng, ra: number, rb: number, draws: boolean): [number, number
 }
 
 /** A seeded shuffle (Fisher–Yates on the tournament's own stream). */
-function shuffled<T>(rng: Rng, xs: T[]): T[] {
-  const a = [...xs]
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
-  return a
-}
 
 type Tally = PunditSide & { played: number; gf: number; ga: number; points: number }
 const side = (t: { clubId: string; clubName: string; isPlayer?: boolean }): PunditSide => ({ clubId: t.clubId, clubName: t.clubName, isPlayer: !!t.isPlayer })
@@ -154,7 +149,7 @@ const rowsOf = (tally: Tally[]): PunditTableRow[] =>
 function pots(rng: Rng, field: PredictionTeam[], rating: Map<string, number>, count = 4): PunditSide[][] {
   const ranked = [...field].sort((a, b) => (rating.get(b.clubId) ?? b.ovr) - (rating.get(a.clubId) ?? a.ovr) || a.clubId.localeCompare(b.clubId)).map(side)
   const size = Math.ceil(ranked.length / count)
-  return Array.from({ length: count }, (_, p) => shuffled(rng, ranked.slice(p * size, (p + 1) * size)))
+  return Array.from({ length: count }, (_, p) => shuffle(rng, ranked.slice(p * size, (p + 1) * size)))
 }
 
 function score(qualifiers: PunditSide[], reachedKnockouts: (id: string) => boolean, rounds: PunditRound[], champion: PunditSide, realChampion: string,
@@ -191,7 +186,7 @@ export function worldCupPunditTournament(field: PredictionTeam[], rating: Map<st
   const thirds = tallies.map(g => g.tally[2]).filter(Boolean).sort((x, y) => y.points - x.points || (y.gf - y.ga) - (x.gf - x.ga)
     || (rating.get(y.clubId) ?? 0) - (rating.get(x.clubId) ?? 0))
   const qualifiers = [...tallies.flatMap(g => g.tally.slice(0, 2)), ...thirds.slice(0, 8)].map(side)
-  let alive: PunditSide[] = shuffled(rng, qualifiers)
+  let alive: PunditSide[] = shuffle(rng, qualifiers)
   const rounds: PunditRound[] = []
   for (const [key, label] of [['r32', 'Round of 32'], ['r16', 'Round of 16'], ['qf', 'Quarter-finals'], ['sf', 'Semi-finals'], ['final', 'Final']]) {
     if (alive.length < 2) break
@@ -249,8 +244,8 @@ export function championsLeaguePunditTournament(field: PredictionTeam[], rating:
   // The knockouts the game's way: 9th–24th drawn into the play-off, 1st–8th
   // drawn against its winners, then a fixed tree.
   const ranked = tally.map(side)
-  const po = knockout(rng, rating, 'playoff', 'Knockout play-off', shuffled(rng, ranked.slice(8, 24)), real)
-  const direct = shuffled(rng, ranked.slice(0, 8))
+  const po = knockout(rng, rating, 'playoff', 'Knockout play-off', shuffle(rng, ranked.slice(8, 24)), real)
+  const direct = shuffle(rng, ranked.slice(0, 8))
   const rounds: PunditRound[] = [po.round]
   let alive = po.winners.flatMap((w, i) => (direct[i] ? [direct[i], w] : [w]))
   for (const [key, label] of [['r16', 'Round of 16'], ['qf', 'Quarter-finals'], ['sf', 'Semi-finals'], ['final', 'Final']]) {

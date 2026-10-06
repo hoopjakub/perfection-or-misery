@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { log } from '@/diag/log'
 import { BackHandler, Platform } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { askAbandon } from '@/components/season/RunChrome'
@@ -64,7 +65,7 @@ export function useSimBackGuard(active: boolean) {
       arm()
       const onPopState = () => {
         const settling = Date.now() - armedAt < SETTLE_MS
-        if (__DEV__) console.log(`[back-guard] popstate ${Date.now() - armedAt} ms after arming: ${settling ? 'a return, ignored' : 'a back press'}`)
+        log.debug('ui', `back-guard: popstate ${Date.now() - armedAt} ms after arming: ${settling ? 'a return, ignored' : 'a back press'}`)
         arm()
         if (!settling) ask()
       }

@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+import { label } from '@/i18n/labels'
 import React from 'react'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,7 +20,7 @@ export type PreviewTie = { teamA: TieTeam; teamB: TieTeam }
 export type RoadRound = { label: string; count: number }   // a round AFTER the first, with its REAL tie count
 
 export function BracketPreview({
-  firstLabel, firstTies, road, onStart, title = 'The bracket', startLabel,
+  firstLabel, firstTies, road, onStart, title = t('parts.theBracket'), startLabel,
 }: {
   firstLabel: string
   firstTies: PreviewTie[]
@@ -55,7 +57,7 @@ export function BracketPreview({
         <View style={[styles.yourTieCard, { borderColor: roles.line, backgroundColor: roles.surface }]}>
           <KitText t="tag" color={roles.textMuted}>{`Your ${firstLabel}`}</KitText>
           <View style={styles.yourTieRow}>
-            <Tag roles={roles} variant="you">YOU</Tag>
+            <Tag roles={roles} variant="you">{t('parts.you')}</Tag>
             <KitText t="tag" color={roles.textMuted}>V</KitText>
             {/* A club wears its crest, a nation its flag — the kit's ClubName does both. */}
             <ClubName roles={roles} clubId={opponent.clubId} name={opponent.clubName} size={20} t="title" style={{ flex: 1 }} />
@@ -69,7 +71,7 @@ export function BracketPreview({
 
       <BracketTree columns={columns} playerClubId={you?.clubId} />
 
-      <Plate label={startLabel ?? (opponent ? `Watch your ${firstLabel.toLowerCase()} tie` : 'Watch it play out')}
+      <Plate label={startLabel ?? (opponent ? t('parts.watchTie', { round: label(firstLabel).toLowerCase() }) : t('parts.watchIt'))}
         icon="play" roles={roles} onPress={onStart} />
     </ScrollView>
   )

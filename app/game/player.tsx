@@ -1,5 +1,8 @@
+import { t, dec } from '@/i18n'
+import { label } from '@/i18n/labels'
+import { ordinal } from '@/lib/format'
 import React, { useMemo, useRef, useState } from 'react'
-import { forCompetition } from '@/data/modes'
+import { isTournament } from '@/data/competition'
 import { LineGraph, ComparePicker, type GraphSeries } from '@/components/season/SeasonParts'
 import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet, ScrollView } from 'react-native'
@@ -33,10 +36,6 @@ const ROWS_BY_LINE: Record<string, StatKey[]> = {
   FWD: ['goals', 'assists', 'shots', 'shotsOnTarget', 'chancesCreated', 'bigChancesCreated', 'dribbles', 'duelsWon'],
 }
 
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
-}
 
 export default function PlayerScreen() {
   const { id, runId, ceremony } = useLocalSearchParams<{ id: string; runId?: string; ceremony?: string }>()
@@ -80,9 +79,9 @@ export default function PlayerScreen() {
       const ru = a.runnersUp.findIndex(c => c.playerId === p.playerId)
       if (ru >= 0) out.push(`${a.title.toUpperCase()} · ${ordinal(ru + 2)}`)
     }
-    if (night.teamOfTheSeason?.xi.some(x => x.player.id === p.playerId)) out.push(forCompetition('TEAM OF THE SEASON', data?.mode))
+    if (night.teamOfTheSeason?.xi.some(x => x.player.id === p.playerId)) out.push(t(isTournament(data?.mode) ? 'hub.totsTournament' : 'hub.totsSeason'))
     const totm = night.teamsOfTheRound.filter(r => r.team.xi.some(x => x.player.id === p.playerId)).length
-    if (totm) out.push(`TEAM OF THE MATCHDAY ×${totm}`)
+    if (totm) out.push(t('hub.totmTimes', { n: totm }))
     return out
   }, [data, p, ceremony])
 
@@ -101,7 +100,7 @@ export default function PlayerScreen() {
     return (
       <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
-        <KitText t="bodyL" color={roles.textMuted}>Reading the run.</KitText>
+        <KitText t="bodyL" color={roles.textMuted}>{t('hub.reading')}</KitText>
       </KitScreen>
     )
   }
@@ -109,7 +108,7 @@ export default function PlayerScreen() {
     return (
       <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
-        <InlineError roles={roles} message="This run's numbers couldn't be read." onRetry={retry} />
+        <InlineError roles={roles} message={t('hub.readFailed')} onRetry={retry} />
       </KitScreen>
     )
   }
@@ -117,7 +116,7 @@ export default function PlayerScreen() {
     return (
       <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
-        <EmptyState roles={roles} title="Not in this run" body="This player didn't feature in the competition." />
+        <EmptyState roles={roles} title={t('hub.notInRun')} body={t('hub.playerNotIn')} />
       </KitScreen>
     )
   }
@@ -125,7 +124,7 @@ export default function PlayerScreen() {
   const played = (p.matchesRated ?? 0) > 0
   return (
     <KitScreen ground={EVERYDAY} scrollRef={scrollRef}>
-      <PageMeta title={p.name} description={forCompetition(`${p.name}'s season in a Perfection or Misery run.`, data.mode)} />
+      <PageMeta title={p.name} description={t(isTournament(data.mode) ? 'hub.clubDescTournament' : 'hub.clubDescSeason', { name: p.name })} />
       <BackControl roles={roles} />
 
       {/* The player as a tag. */}
@@ -139,7 +138,7 @@ export default function PlayerScreen() {
             <KitText t="tag" color={roles.text} style={styles.link}>{p.clubName}</KitText>
           </Pressable>
           <KitText t="tag" color={roles.textMuted}>{p.seasonLabel}</KitText>
-          {p.isPlayerClub && <Tag roles={roles} variant="you">DRAFTED BY YOU</Tag>}
+          {p.isPlayerClub && <Tag roles={roles} variant="you">{t('hub.draftedByYou')}</Tag>}
         </View>
       </View>
 
@@ -147,38 +146,38 @@ export default function PlayerScreen() {
       <View style={styles.bigRow}>
         <View style={styles.big}>
           {p.avgRating != null ? <RatingSquare value={p.avgRating} decimals={2} /> : <KitText t="figureL" color={roles.text}>–</KitText>}
-          <KitText t="tag" color={roles.textMuted}>Average rating</KitText>
+          <KitText t="tag" color={roles.textMuted}>{t('hub.avgRating')}</KitText>
         </View>
-        <Big label="Man of the match" value={String(p.potm ?? 0)} />
-        <Big label="Minutes" value={String(p.minutes ?? '–')} />
-        <Big label="Matches" value={String(p.matchesRated ?? 0)} />
+        <Big label={t('hub.motm')} value={String(p.potm ?? 0)} />
+        <Big label={t('hub.minutes')} value={String(p.minutes ?? '–')} />
+        <Big label={t('hub.matches')} value={String(p.matchesRated ?? 0)} />
       </View>
 
       {honours.length > 0 && (
         <View style={styles.section}>
-          <SectionTag roles={roles}>Honours this run</SectionTag>
+          <SectionTag roles={roles}>{t('hub.honours')}</SectionTag>
           <View style={styles.tags}>{honours.map(h => <Tag key={h} roles={roles} variant="win">{h}</Tag>)}</View>
         </View>
       )}
 
       {!played ? (
-        <EmptyState roles={roles} title="Didn't play" body={log.length ? 'He was named but never came on.' : 'He never featured in a match this run.'} />
+        <EmptyState roles={roles} title={t('hub.didntPlay')} body={log.length ? t('hub.namedNeverOn') : t('hub.neverFeatured')} />
       ) : (
         <>
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <SectionTag roles={roles}>{forCompetition('Season', data.mode)}</SectionTag>
+              <SectionTag roles={roles}>{isTournament(data.mode) ? t('hub.tabTournament') : t('hub.tabSeason')}</SectionTag>
               <View style={{ flex: 1 }} />
               <Chips<'total' | 'per90'> roles={roles} value={mode} onChange={setMode}
-                options={[{ id: 'total', label: 'Total' }, { id: 'per90', label: 'Per 90' }]} />
+                options={[{ id: 'total', label: t('hub.total') }, { id: 'per90', label: t('hub.per90') }]} />
             </View>
             {mode === 'per90' && (
-              <KitText t="body" color={roles.textMuted}>{`Per 90 counts once a player has ${PER90_MIN_MINUTES} minutes.`}</KitText>
+              <KitText t="body" color={roles.textMuted}>{t('hub.per90Note', { min: PER90_MIN_MINUTES })}</KitText>
             )}
             <View style={[styles.row, styles.rowHead, { borderBottomColor: roles.line }]}>
-              <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>Stat</KitText>
-              <KitText t="tag" color={roles.textMuted} style={styles.num}>{mode === 'total' ? 'Total' : 'Per 90'}</KitText>
-              <KitText t="tag" color={roles.textMuted} style={styles.rank}>{`Rank · ${line}`}</KitText>
+              <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{t('hub.colStat')}</KitText>
+              <KitText t="tag" color={roles.textMuted} style={styles.num}>{mode === 'total' ? t('hub.total') : t('hub.per90')}</KitText>
+              <KitText t="tag" color={roles.textMuted} style={styles.rank}>{t('hub.rankLine', { line })}</KitText>
             </View>
             {keys.map(k => {
               const v = mode === 'per90' ? (canPer90(k) ? per90(p, k) : null) : value(p, k)
@@ -191,7 +190,7 @@ export default function PlayerScreen() {
                     {top ? <KitText t="tag" color={roles.perfectionText ?? roles.text}>{top}</KitText> : null}
                   </View>
                   <KitText t="figure" color={roles.text} style={styles.num}>{v == null ? '–' : String(v)}</KitText>
-                  <KitText t="figure" color={roles.textMuted} style={styles.rank}>{r ? `${ordinal(r.rank)} of ${r.of}` : '–'}</KitText>
+                  <KitText t="figure" color={roles.textMuted} style={styles.rank}>{r ? t('hub.rankOf', { rank: ordinal(r.rank), of: r.of }) : '–'}</KitText>
                 </View>
               )
             })}
@@ -199,7 +198,7 @@ export default function PlayerScreen() {
 
           {log.length > 1 && (
             <View style={styles.section}>
-              <SectionTag roles={roles}>Rating, match by match</SectionTag>
+              <SectionTag roles={roles}>{t('hub.ratingByMatch')}</SectionTag>
               <Trend values={log.map(e => e.line.rating)} onPoint={slideTo} selected={openRow} compare={compare} />
               {/* P8-95: other players' ratings beside his, teammates first. */}
               <ComparePicker roles={roles} selected={picked} onChange={setPicked} options={compareOptions} />
@@ -209,11 +208,11 @@ export default function PlayerScreen() {
       )}
 
       <View style={styles.section} onLayout={e => { matchesY.current = e.nativeEvent.layout.y }}>
-        <SectionTag roles={roles}>Matches</SectionTag>
-        {data.missing.includes('match-by-match detail') ? (
-          <KitText t="body" color={roles.textMuted}>{forCompetition("Saved runs don't keep match-by-match detail. The season totals above are complete.", data.mode)}</KitText>
+        <SectionTag roles={roles}>{t('hub.matches')}</SectionTag>
+        {data.missing.includes(t('hub.missMatch')) ? (
+          <KitText t="body" color={roles.textMuted}>{t(isTournament(data.mode) ? 'hub.savedNoDetailTournament' : 'hub.savedNoDetailSeason')}</KitText>
         ) : log.length === 0 ? (
-          <KitText t="body" color={roles.textMuted}>No matches.</KitText>
+          <KitText t="body" color={roles.textMuted}>{t('hub.noMatches')}</KitText>
         ) : log.map((e, i) => {
           const m = data.matches?.find(x => x.label === e.label && (e.isHome ? x.awayClubName : x.homeClubName) === e.opponentName)
           const res = e.goalsFor > e.goalsAgainst ? 'W' : e.goalsFor < e.goalsAgainst ? 'L' : 'D'
@@ -222,10 +221,10 @@ export default function PlayerScreen() {
             <View key={i} onLayout={ev => { rowY.current[i] = ev.nativeEvent.layout.y }}>
             <Pressable onPress={() => setOpenRow(o => (o === i ? null : i))} accessibilityRole="button"
               accessibilityState={{ expanded: openRow === i }}
-              accessibilityLabel={`${e.label}, ${e.isHome ? 'v' : 'at'} ${e.opponentName}, ${e.goalsFor}–${e.goalsAgainst}, rating ${l.rating}`}
+              accessibilityLabel={t('hub.logA11y', { label: label(e.label), where: e.isHome ? t('hub.vShort') : t('hub.atShort'), opp: e.opponentName, gf: e.goalsFor, ga: e.goalsAgainst, rating: formatRating(l.rating) })}
               style={({ pressed }) => [styles.match, { borderBottomColor: roles.rule }, openRow === i && { backgroundColor: roles.surface, borderLeftColor: roles.you, borderLeftWidth: 3 }, pressed && { backgroundColor: roles.sunken }]}>
               <View style={{ flex: 1 }}>
-                <KitText t="tag" color={roles.textMuted}>{e.label}</KitText>
+                <KitText t="tag" color={roles.textMuted}>{label(e.label)}</KitText>
                 {/* P8-134: home or away as the mark, the opponent's name beside it. */}
                 <View style={styles.opp}>
                   <VenueMark roles={roles} home={e.isHome} />
@@ -241,7 +240,7 @@ export default function PlayerScreen() {
                   {l.motm && <EventMark kind="motm" size={12} />}
                 </View>
               </View>
-              <Tag roles={roles} variant={res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'}>{`${res} ${e.goalsFor}–${e.goalsAgainst}`}</Tag>
+              <Tag roles={roles} variant={res === 'W' ? 'win' : res === 'D' ? 'draw' : 'loss'}>{t('hub.result', { res: t(`match.outcome${res}`), us: e.goalsFor, them: e.goalsAgainst })}</Tag>
               {l.minutes > 0 && (
                 <RatingSquare value={l.rating} />
               )}
@@ -251,14 +250,14 @@ export default function PlayerScreen() {
             {openRow === i && (
               <View style={[styles.opened, { borderBottomColor: roles.rule, borderLeftColor: roles.you }]}>
                 <View style={styles.openedFigures}>
-                  {([['Minutes', `${l.minutes}'`], ['Goals', l.goals], ['Assists', l.assists], ['Shots', l.shots], ['Chances created', l.keyPasses], ['Tackles won', l.tacklesWon], ['Rating', formatRating(l.rating)]] as [string, string | number][]).map(([k, v]) => (
+                  {([[t('hub.minutes'), `${l.minutes}'`], [t('hub.goals'), l.goals], [t('hub.assists'), l.assists], [t('hub.shots'), l.shots], [t('hub.chancesCreated'), l.keyPasses], [t('hub.tacklesWon'), l.tacklesWon], [t('hub.rating'), formatRating(l.rating)]] as [string, string | number][]).map(([k, v]) => (
                     <View key={k} style={styles.openedFig}>
                       <KitText t="figure" color={roles.text}>{String(v ?? 0)}</KitText>
                       <KitText t="tag" color={roles.textMuted}>{k}</KitText>
                     </View>
                   ))}
                 </View>
-                {m ? <Plate label="Open the match" icon="forward" variant="secondary" roles={roles} onPress={() => openRunMatch(data, m)} /> : null}
+                {m ? <Plate label={t('hub.openMatch')} icon="forward" variant="secondary" roles={roles} onPress={() => openRunMatch(data, m)} /> : null}
               </View>
             )}
             </View>
@@ -284,9 +283,9 @@ function Big({ label, value, tint }: { label: string; value: string; tint?: stri
 function Trend({ values, onPoint, selected, compare }: { values: number[]; onPoint: (i: number) => void; selected: number | null; compare?: GraphSeries[] }) {
   const avg = values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)
   return (
-    <LineGraph roles={roles} values={values} min={3} max={10} fmt={v => formatRating(v)} dot={ratingColor} xLabel="Match"
+    <LineGraph roles={roles} values={values} min={3} max={10} fmt={v => formatRating(v)} dot={ratingColor} xLabel={t('hub.graphX')}
       onPoint={onPoint} selected={selected} compare={compare}
-      legend={`Match rating, match by match · average ${avg.toFixed(2)} · latest ${formatRating(values[values.length - 1])}`} />
+      legend={t('hub.graphLegend', { avg: dec(avg, 2), last: formatRating(values[values.length - 1]) })} />
   )
 }
 

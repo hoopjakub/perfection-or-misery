@@ -6,7 +6,7 @@
 //  - hardness hits its 0..11 endpoints and the score multiplier is monotonic
 // Run: npx tsx scripts/verify-difficulty.ts
 
-import { simulateMatch, setMatchTilt } from '../src/engine/match'
+import { simulateMatch, setMatchTilt, RATING_STRETCH } from '../src/engine/match'
 import {
   tiltForLevel, resolveDifficulty, hardnessOf, scoreMultiplierFor, type CustomDifficulty,
 } from '../src/engine/difficulty'
@@ -98,6 +98,26 @@ check(winByLevel[4] < winByLevel[2] && winByLevel[6] < winByLevel[4], 'medium mu
 const aiLow = aiWinRate(1), aiHigh = aiWinRate(10)
 console.log(`AI-vs-AI at L1 ${pct(aiLow)} vs L10 ${pct(aiHigh)} (must be ~equal)`)
 check(Math.abs(aiLow - aiHigh) < 0.02, 'AI-vs-AI win-rate must not move with the difficulty tilt')
+
+// ── C-6 · the upset still happens (Wave G audit, docs/audit-2026-10/02) ────
+// G-L3 put clubs on your XI's scale (3 Oct 2026), which narrows the gaps
+// between clubs, and match.ts stretches every rating by RATING_STRETCH to keep
+// them biting. This guards that the upset survives: a side 6 below on the old
+// club scale (6 / RATING_STRETCH on today's) wins often enough to make a match
+// worth playing and rarely enough that strength counts: the 20–30% band in
+// 02 §8, measured at 21.8% before the change.
+{
+  const n = 30000, gap = 6 / RATING_STRETCH
+  let upsets = 0
+  for (let i = 0; i < n; i++) {
+    const home = i % 2 === 0
+    const weak = team(85 - gap, false), strong = team(85, false)
+    const r = home ? simulateMatch(weak, strong) : simulateMatch(strong, weak)
+    if (home ? r.outcome === 'home' : r.outcome === 'away') upsets++
+  }
+  console.log(`C-6 · a side ${gap.toFixed(1)} below (6 on the old scale) wins ${pct(upsets / n)} (want 20–30%)`)
+  check(upsets / n >= 0.20 && upsets / n <= 0.30, `C-6: a side 6 below wins ${pct(upsets / n)}, outside 20–30%`)
+}
 
 // ── 4) WC title rate: strong side across easy/medium/hard ───────────────────
 const koBaby = knockoutTitleRate(1), koEasy = knockoutTitleRate(2), koMed = knockoutTitleRate(4), koHard = knockoutTitleRate(6)

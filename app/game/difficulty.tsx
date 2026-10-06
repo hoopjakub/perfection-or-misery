@@ -1,3 +1,4 @@
+import { t, dec } from '@/i18n'
 import React from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -18,9 +19,9 @@ import { EVERYDAY } from '@/lib/appearance'
 const roles = ROLES[EVERYDAY]
 
 const PRESETS: { id: Exclude<Difficulty, 'custom'>; title: string; tilt: string }[] = [
-  { id: 'easy',   title: 'Easy',   tilt: 'YOUR MATCHES TILT YOUR WAY' },
-  { id: 'medium', title: 'Medium', tilt: 'MATCHES PLAY IT STRAIGHT' },
-  { id: 'hard',   title: 'Hard',   tilt: 'THE AI LEANS AGAINST YOU' },
+  { id: 'easy',   title: t('difficulty.easy'),   tilt: t('setup.tiltEasy') },
+  { id: 'medium', title: t('difficulty.medium'), tilt: t('setup.tiltMedium') },
+  { id: 'hard',   title: t('difficulty.hard'),   tilt: t('setup.tiltHard') },
 ]
 
 export default function HowHardScreen() {
@@ -41,9 +42,9 @@ export default function HowHardScreen() {
 
   return (
     <KitScreen ground={EVERYDAY} width="wide">
-      <RunHeader roles={roles} stage={2} colourway={colourwayFor(mode)} title="How hard" />
+      <RunHeader roles={roles} stage={2} colourway={colourwayFor(mode)} title={t('setup.howHard')} />
       <KitText t="bodyL" color={roles.textMuted} style={styles.lead}>
-        Difficulty only touches your own matches and your draft. Everyone else plays it straight.
+        {t('setup.howHardLead')}
       </KitText>
       <Grid medium={2} expanded={4}>
         {PRESETS.map(p => {
@@ -55,38 +56,36 @@ export default function HowHardScreen() {
               title={p.title}
               trailing={multiplierText(r.scoreMultiplier)}
               lines={[
-                `REROLLS ${r.rerolls} · RATINGS ${r.ratingsShown ? 'SHOWN' : 'HIDDEN'}`,
+                t('setup.rerollsRatings', { n: r.rerolls, shown: r.ratingsShown ? t('setup.shown') : t('setup.hidden') }),
                 p.tilt,
-                useSubstitutes ? 'BENCH ON' : 'NO BENCH',
-                ...(mode === 'champions_league_custom' ? [`WEIGHTED PICKS ${r.weightedPicksEffective ? 'ON' : 'OFF'}`] : []),
+                useSubstitutes ? t('setup.benchOn') : t('setup.noBench'),
+                ...(mode === 'champions_league_custom' ? [t('setup.weightedPicks', { state: r.weightedPicksEffective ? t('setup.on') : t('setup.off') })] : []),
               ]}
               lastTime={last === p.id}
               onPress={() => choose(p.id)}
-              accessibilityHint={`Score multiplier ${r.scoreMultiplier.toFixed(2)}`}
+              accessibilityHint={t('setup.multiplierHint', { m: dec(r.scoreMultiplier, 2) })}
             />
           )
         })}
         <ChoiceLabel
           roles={roles}
-          title="Custom"
+          title={t('difficulty.custom')}
           trailing={multiplierText(custom.scoreMultiplier)}
-          note="Set your own rerolls, ratings, bench and how hard the AI leans on you."
+          note={t('setup.customNote')}
           lastTime={last === 'custom'}
           onPress={() => router.push('/game/difficulty-custom')}
         />
       </Grid>
       {/* P8-01: the bench, for every difficulty (it was only on Custom). The
           same setting Custom's switch changes, so the two always agree. */}
-      <SectionTag roles={roles} style={styles.bench}>The bench</SectionTag>
+      <SectionTag roles={roles} style={styles.bench}>{t('setup.theBench')}</SectionTag>
       <ListRow
         roles={roles}
-        label={useSubstitutes
-          ? 'Play with a bench. Subs come on in the second half, for every club.'
-          : 'No bench, for you and every other club.'}
-        trailing={<Toggle roles={roles} label="Play with a bench" value={useSubstitutes} onChange={setUseSubstitutes} />}
+        label={useSubstitutes ? t('setup.benchOnLine') : t('setup.benchOffLine')}
+        trailing={<Toggle roles={roles} label={t('setup.playWithBench')} value={useSubstitutes} onChange={setUseSubstitutes} />}
       />
       <KitText t="body" color={roles.textMuted} style={styles.foot}>
-        Harder settings score more. The multiplier is applied to your final score.
+        {t('setup.harderScores')}
       </KitText>
       {/* P8-73: the version on every menu before a run starts. */}
       <VersionButton roles={roles} style={{ marginTop: space[4] }} />

@@ -44,40 +44,13 @@ export const TIER_RANK: Record<string, number> = {
 // said "Perfection" / "UCL Qualification"), and a UCL winner was labelled
 // "WC Champion". Cup labels don't name the competition; the mode is shown
 // beside them wherever a run is listed.
-export const TIER_LABEL: Record<string, string> = {
-  // league
-  perfection:            'Perfection',
-  almost_perfection:     'Almost Perfection',
-  champions:             'Champions',
-  title_contender:       'Title Contenders',
-  champions_league:      'Champions League',
-  europa_glory:          'Europa Glory',
-  almost_matters:        'Almost Matters',
-  respectful_mediocrity: 'Respectable Mediocrity',
-  absolute_misery:       'Absolute Misery',
-  // cups (World Cup and Champions League share the knockout names)
-  winner:                'Champions',
-  final:                 'Runners-up',
-  finalist:              'Runners-up',
-  third:                 'Third Place',
-  fourth:                'Fourth',
-  sf:                    'Semi-finalists',
-  sf_exit:               'Semi-finalists',
-  qf:                    'Quarter-finalists',
-  qf_exit:               'Quarter-finalists',
-  r16:                   'Round of 16',
-  r16_exit:              'Round of 16',
-  r32:                   'Round of 32',
-  playoff_exit:          'Knockout Play-off',
-  league_exit:           'League Phase',
-  groups:                'Group Stage',
-  // the full Champions League path's qualifying exits
-  quali_playoff_exit:    'Out in the Play-off',
-  q3_exit:               'Out in Q3',
-  q2_exit:               'Out in Q2',
-  q1_exit:               'Out in Q1',
-  not_qualified:         "Didn't Qualify",
-}
+export const TIER_LABEL: Record<string, string> = Object.fromEntries(
+  // P8.5-28: the names are tiers.* in src/i18n, one per tier id.
+  ['perfection', 'almost_perfection', 'champions', 'title_contender', 'champions_league', 'europa_glory', 'almost_matters',
+    'respectful_mediocrity', 'absolute_misery', 'winner', 'final', 'finalist', 'third', 'fourth', 'sf', 'sf_exit', 'qf', 'qf_exit',
+    'r16', 'r16_exit', 'r32', 'playoff_exit', 'league_exit', 'groups', 'quali_playoff_exit', 'q3_exit', 'q2_exit', 'q1_exit', 'not_qualified',
+  ].map(id => [id, t(`tiers.${id}` as 'tiers.perfection')]),
+)
 
 // P8-52: the full path's other two competitions. A run that ends in the
 // Europa or Conference League is tiered on the same knockout names, prefixed
@@ -85,18 +58,18 @@ export const TIER_LABEL: Record<string, string> = {
 // the same weights its score uses; going out in the Conference League's
 // qualifying (the only competition nobody drops out of into another) sits just
 // above not qualifying at all.
-export const EURO_TIER_COMPS = { uel: { name: 'Europa League', weight: 0.8 }, uecl: { name: 'Conference League', weight: 0.65 } } as const
+export const EURO_TIER_COMPS = { uel: { name: t('comp.uelShort'), weight: COMP_WEIGHT.uel }, uecl: { name: t('comp.ueclShort'), weight: COMP_WEIGHT.uecl } } as const
 const EURO_KNOCKOUT_TIERS = ['winner', 'finalist', 'sf_exit', 'qf_exit', 'r16_exit', 'playoff_exit', 'league_exit'] as const
 for (const [p, c] of Object.entries(EURO_TIER_COMPS)) {
   for (const k of EURO_KNOCKOUT_TIERS) {
     TIER_RANK[`${p}_${k}`] = Math.round(TIER_RANK[k] * c.weight)
-    TIER_LABEL[`${p}_${k}`] = k === 'winner' ? `${c.name} winners` : `${c.name} ${TIER_LABEL[k].toLowerCase()}`
+    TIER_LABEL[`${p}_${k}`] = k === 'winner' ? t('tiers.euroWinners', { comp: c.name }) : t('tiers.euroTier', { comp: c.name, tier: TIER_LABEL[k].toLowerCase() })
   }
 }
-const UECL_QUAL: [string, string, number][] = [['q1_exit', 'Q1', 10.2], ['q2_exit', 'Q2', 10.4], ['q3_exit', 'Q3', 10.6], ['quali_playoff_exit', 'the play-off', 10.8]]
-for (const [k, round, rank] of UECL_QUAL) {
+const UECL_QUAL: [string, string, number][] = [['q1_exit', t('tiers.ueclQ1'), 10.2], ['q2_exit', t('tiers.ueclQ2'), 10.4], ['q3_exit', t('tiers.ueclQ3'), 10.6], ['quali_playoff_exit', t('tiers.ueclPlayoff'), 10.8]]
+for (const [k, label, rank] of UECL_QUAL) {
   TIER_RANK[`uecl_${k}`] = rank
-  TIER_LABEL[`uecl_${k}`] = `Out in Conference League ${round}`
+  TIER_LABEL[`uecl_${k}`] = label
 }
 
 // The highest-ranked tier among a set of run tiers (null if none recognised).
@@ -128,9 +101,9 @@ export function verdictOf(tier: string | null | undefined): 'perfection' | 'mise
 
 // Short mode names for tags ("ALL TIME · HARD").
 export const MODE_TAG: Record<string, string> = {
-  all_time: 'All Time', league: 'League', era: 'Era', chaos: 'Chaos', cursed: 'Cursed',
-  champions_league: 'UCL', champions_league_custom: 'Europe', world_cup: 'World Cup',
-  europa_league: 'UEL', conference_league: 'UECL',
+  all_time: t('tiers.tagAllTime'), league: t('tiers.tagLeague'), era: t('tiers.tagEra'), chaos: t('tiers.tagChaos'), cursed: t('tiers.tagCursed'),
+  champions_league: t('tiers.tagUcl'), champions_league_custom: t('tiers.tagEurope'), world_cup: t('tiers.tagWc'),
+  europa_league: t('tiers.tagUel'), conference_league: t('tiers.tagUecl'),
 }
 
 export function formatTier(tier: string | null | undefined): string {
@@ -146,7 +119,9 @@ export function runMeta(run: { league_name: string; year_start?: number | null; 
   const mode = MODE_TAG[run.mode] ?? run.mode
   // P8-75: a custom run says what it was played on (the 0–11 hardness), as the old DifficultyBadge did.
   const h = run.difficulty_meta?.hardness
-  const diff = run.difficulty && PRESET_DIFFICULTIES.has(run.difficulty) ? ` · ${run.difficulty}`
-    : run.difficulty === 'custom' ? (typeof h === 'number' ? ` · custom ${h.toFixed(1)}/11` : ' · custom') : ''
+  const diff = run.difficulty && PRESET_DIFFICULTIES.has(run.difficulty) ? ` · ${t(`difficulty.${run.difficulty}` as 'difficulty.easy')}`
+    : run.difficulty === 'custom' ? ` · ${typeof h === 'number' ? t('tiers.metaCustomH', { h: dec(h) }) : t('tiers.metaCustom')}` : ''
   return `${run.league_name}${season} · ${mode}${diff}`.toUpperCase()
 }
+import { COMP_WEIGHT } from '../../supabase/functions/_shared/score'
+import { t, dec } from '@/i18n'

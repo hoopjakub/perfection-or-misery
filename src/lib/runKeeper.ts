@@ -12,6 +12,7 @@
 // drawn into its competition is kept only as a note that it was interrupted,
 // which Home says once, plainly, and lets go.
 import { useGameStore } from '@/store/gameStore'
+import { log } from '@/diag/log'
 import { settingsStorage } from '@/lib/mmkv'
 import type { GameMode, Formation, DraftedPlayer } from '@/types/game'
 import type { Difficulty, CustomDifficulty } from '@/engine/difficulty'
@@ -47,7 +48,7 @@ function write(k: KeptRun | null) {
   const same = k ? JSON.stringify({ ...k, savedAt: 0 }) : ''
   if (same === last) return
   last = same
-  settingsStorage.setItem(KEY, k ? JSON.stringify(k) : '').catch(e => console.warn('[run keeper] save failed:', e))
+  settingsStorage.setItem(KEY, k ? JSON.stringify(k) : '').catch(e => log.warn('save', 'run keeper: save failed', e))
 }
 
 /** Starts keeping the run: once, from the root layout. */

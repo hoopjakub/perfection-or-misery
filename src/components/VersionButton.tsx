@@ -1,4 +1,5 @@
 import React from 'react'
+import { t } from '@/i18n'
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
@@ -13,7 +14,7 @@ export const APP_VERSION = Constants.expoConfig?.version ?? '—'
 export function VersionButton({ roles, style }: { roles: Roles; style?: StyleProp<ViewStyle> }) {
   return (
     <Pressable onPress={() => router.push('/versions')} accessibilityRole="button"
-      accessibilityLabel={`Version ${APP_VERSION}. What's new`}
+      accessibilityLabel={t('you.versionA11y', { version: APP_VERSION })}
       style={({ pressed }) => [styles.button, { borderColor: roles.rule }, pressed && { backgroundColor: roles.sunken }, style]}>
       <KitText t="tag" color={roles.textMuted}>{`V${APP_VERSION}`}</KitText>
       <Icon name="chevron" size={16} color={roles.textMuted} />

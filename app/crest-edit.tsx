@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import React, { useEffect, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
@@ -56,7 +57,7 @@ export default function CrestEditScreen() {
     return (
       <KitScreen ground={EVERYDAY}>
         <BackControl roles={roles} />
-        <EmptyState roles={roles} icon="lock" title="Sign in for a crest" body="Your crest is kept with your account, so a guest can't have one." />
+        <EmptyState roles={roles} icon="lock" title={t('crest.signIn')} body={t('crest.guestBody')} />
       </KitScreen>
     )
   }
@@ -81,66 +82,66 @@ export default function CrestEditScreen() {
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="Your crest" path="/crest-edit" />
-      <BackControl roles={roles} title="YOUR CREST" />
+      <PageMeta title={t('crest.pageTitle')} path="/crest-edit" />
+      <BackControl roles={roles} title={t('crest.heading')} />
 
       <View style={styles.preview}>
-        <YourCrest choice={choice} size={128} name="Your crest" />
+        <YourCrest choice={choice} size={128} name={t('crest.pageTitle')} />
         <View style={{ gap: space[2], flex: 1 }}>
           {/* How it reads in a table row, not just large. */}
           <View style={styles.small}>
             <YourCrest choice={choice} size={20} />
-            <KitText t="body" color={roles.text} numberOfLines={1}>{profile?.username ? `${profile.username} XI` : 'Your XI'}</KitText>
+            <KitText t="body" color={roles.text} numberOfLines={1}>{profile?.username ? t('crest.yourXi', { name: profile.username }) : t('crest.yourXiPlain')}</KitText>
           </View>
           <KitText t="body" color={roles.textMuted}>
-            {everywhere ? 'On your side in every mode.' : 'On the side you field in the league modes.'}
+            {everywhere ? t('crest.everywhereOn') : t('crest.leagueOnly')}
           </KitText>
         </View>
       </View>
 
       {/* Your profile picture, or a drawn crest. */}
-      <SectionTag roles={roles}>Your picture</SectionTag>
+      <SectionTag roles={roles}>{t('crest.yourPicture')}</SectionTag>
       {avatarPath ? (
-        <ListRow roles={roles} label="Use your profile picture as your crest" sub="It follows your picture when you change it"
-          trailing={<Toggle roles={roles} label="Your picture as your crest" value={avatar} onChange={v => { setAvatar(v); if (v) setOldPicture(null) }} />} />
+        <ListRow roles={roles} label={t('crest.useAvatar')} sub={t('crest.useAvatarSub')}
+          trailing={<Toggle roles={roles} label={t('crest.avatarToggle')} value={avatar} onChange={v => { setAvatar(v); if (v) setOldPicture(null) }} />} />
       ) : (
-        <KitText t="body" color={roles.textMuted}>Give yourself a profile picture in the profile editor, and it can be your crest too.</KitText>
+        <KitText t="body" color={roles.textMuted}>{t('crest.noAvatar')}</KitText>
       )}
       {oldPicture && !avatar ? (
         <>
-          <KitText t="body" color={roles.textMuted}>A picture you uploaded before is your crest. Remove it to draw one instead.</KitText>
-          <Plate label="Remove the picture" variant="quiet" roles={roles} onPress={() => setOldPicture(null)} />
+          <KitText t="body" color={roles.textMuted}>{t('crest.oldPicture')}</KitText>
+          <Plate label={t('crest.removePicture')} variant="quiet" roles={roles} onPress={() => setOldPicture(null)} />
         </>
       ) : null}
 
       {!avatar && !oldPicture && (
         <>
-          <SectionTag roles={roles}>Shape</SectionTag>
+          <SectionTag roles={roles}>{t('crest.shapeTitle')}</SectionTag>
           <Chips<CrestShape> roles={roles} options={CREST_SHAPES} value={design.shape} onChange={v => set('shape', v)} />
-          <SectionTag roles={roles}>Colours</SectionTag>
-          <ColourField roles={roles} label="Main" quick={SWATCHES} value={design.primary} onChange={v => set('primary', v)} />
-          <ColourField roles={roles} label="Second" quick={SWATCHES} value={design.secondary} onChange={v => set('secondary', v)} />
-          <SectionTag roles={roles}>Device</SectionTag>
+          <SectionTag roles={roles}>{t('crest.colours')}</SectionTag>
+          <ColourField roles={roles} label={t('crest.main')} quick={SWATCHES} value={design.primary} onChange={v => set('primary', v)} />
+          <ColourField roles={roles} label={t('crest.second')} quick={SWATCHES} value={design.secondary} onChange={v => set('secondary', v)} />
+          <SectionTag roles={roles}>{t('crest.deviceTitle')}</SectionTag>
           <Chips<CrestDevice> roles={roles} options={CREST_DEVICES} value={design.device} onChange={v => set('device', v)} />
-          <SectionTag roles={roles}>Trim</SectionTag>
+          <SectionTag roles={roles}>{t('crest.trimTitle')}</SectionTag>
           <Chips<CrestTrim> roles={roles} options={CREST_TRIMS} value={design.trim ?? 'ink'} onChange={v => set('trim', v)} />
-          <Field roles={roles} label={`Letters · up to ${MAX_INITIALS}`} value={design.initials} autoCapitalize="characters"
-            maxLength={MAX_INITIALS} onChangeText={t => set('initials', cleanInitials(t))} />
+          <Field roles={roles} label={t('crest.letters', { n: MAX_INITIALS })} value={design.initials} autoCapitalize="characters"
+            maxLength={MAX_INITIALS} onChangeText={v => set('initials', cleanInitials(v))} />
         </>
       )}
 
-      <SectionTag roles={roles}>Where it shows</SectionTag>
-      <ListRow roles={roles} label="Everywhere, the Champions League and the World Cup too"
-        trailing={<Toggle roles={roles} label="Your crest everywhere" value={everywhere} onChange={setEverywhere} />} />
+      <SectionTag roles={roles}>{t('crest.whereShows')}</SectionTag>
+      <ListRow roles={roles} label={t('crest.everywhere')}
+        trailing={<Toggle roles={roles} label={t('crest.everywhereToggle')} value={everywhere} onChange={setEverywhere} />} />
 
       {state === 'needs-db' && (
-        <StripedNotice roles={roles}>The database hasn't been set up for crests yet: run supabase/crest.sql in the Supabase SQL editor, then save again.</StripedNotice>
+        <StripedNotice roles={roles}>{t('crest.noSql')}</StripedNotice>
       )}
       {state === 'needs-plus' && (
-        <StripedNotice roles={roles}>Everything else is saved. Your picture as your crest needs supabase/profile-plus.sql run first, then save again.</StripedNotice>
+        <StripedNotice roles={roles}>{t('crest.noPlusSql')}</StripedNotice>
       )}
-      {state === 'failed' && <StripedNotice roles={roles} failed>Your crest couldn't be saved. Try again.</StripedNotice>}
-      <Plate label="Save your crest" icon="check" roles={roles} onPress={save} loading={state === 'saving'} style={styles.save} />
+      {state === 'failed' && <StripedNotice roles={roles} failed>{t('crest.failed')}</StripedNotice>}
+      <Plate label={t('crest.save')} icon="check" roles={roles} onPress={save} loading={state === 'saving'} style={styles.save} />
     </KitScreen>
   )
 }

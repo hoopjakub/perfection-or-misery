@@ -2,6 +2,9 @@
 // appear: Awards Night, where they're read out one at a time at the end of a
 // live run, and the verdict and history, where they're a plain section with no
 // ceremony. A winner is always tappable and opens that player's season.
+import { surname } from '@/lib/format'
+import { t, dec } from '@/i18n'
+import { label } from '@/i18n/labels'
 import type { LineAwardKey } from '@/types/stats'
 import React, { useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
@@ -18,9 +21,9 @@ export type OpenPlayer = (playerId: string) => void
 // Rows run from the attack at the top to the keeper at the bottom, the way the
 // formation reads out loud ("four-two-three-one"), with the bench beneath.
 /** How the team of the season is picked (P8-170), said on both awards screens. */
-export const TEAM_HOW = 'Picked by the scoring model, in the shape that suits the best players. In goal, the golden glove winner.'
+export const TEAM_HOW = t('awards.teamHow')
 
-export function FormationPitch({ roles, team, onPlayer, showScores, caption = 'The shape the best players fit.', benchLabel = 'Honourable mentions', benchScores, scoreText }: {
+export function FormationPitch({ roles, team, onPlayer, showScores, caption = t('awards.shapeCaption'), benchLabel = t('awards.honourable'), benchScores, scoreText }: {
   roles: Roles
   team: PickedTeam
   onPlayer?: OpenPlayer
@@ -95,7 +98,6 @@ export function FormationPitch({ roles, team, onPlayer, showScores, caption = 'T
   )
 }
 
-const surname = (name: string) => name.split(' ').slice(-1)[0]
 
 // ── One award ────────────────────────────────────────────────────────────────
 export function PlayerAwardCard({ roles, award, onPlayer, big, said }: {
@@ -116,7 +118,7 @@ export function PlayerAwardCard({ roles, award, onPlayer, big, said }: {
     <View style={styles.award}>
       <SectionTag roles={roles}>{award.title}</SectionTag>
       <Pressable disabled={!onPlayer} onPress={() => onPlayer?.(w.playerId)} accessibilityRole="button"
-        accessibilityLabel={`${award.title}: ${w.name}, ${w.clubName}. ${award.headline(w)}`} accessibilityHint="Opens their page"
+        accessibilityLabel={t('awards.winnerA11y', { title: award.title, name: w.name, club: w.clubName, headline: award.headline(w) })} accessibilityHint={t('awards.opensPage')}
         style={({ pressed }) => [styles.winner, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
         <View style={styles.winnerTop}>
           <KitText t={big ? 'superL' : 'superM'} color={roles.text} numberOfLines={2} style={{ flex: 1 }}>{w.name.toUpperCase()}</KitText>
@@ -124,7 +126,7 @@ export function PlayerAwardCard({ roles, award, onPlayer, big, said }: {
         </View>
         <View style={styles.winnerMeta}>
           <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{`${w.clubName} · ${award.headline(w)}`}</KitText>
-          {w.isPlayerClub && <Tag roles={roles} variant="you">YOURS</Tag>}
+          {w.isPlayerClub && <Tag roles={roles} variant="you">{t('awards.yours')}</Tag>}
           {/* His season's average as the rating square, on the winner and every
               runner-up, so who was better reads from the colour (23 Sept). */}
           {w.avgRating != null && <RatingSquare value={w.avgRating} decimals={2} />}
@@ -133,26 +135,26 @@ export function PlayerAwardCard({ roles, award, onPlayer, big, said }: {
           <View style={[styles.breakdown, { borderTopColor: roles.rule }]}>
             {/* P8-36: the right-hand column was unlabelled and read as noise. */}
             <View style={styles.partRow}>
-              <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>His season</KitText>
-              <KitText t="tag" color={roles.textMuted}>Number</KitText>
-              <KitText t="tag" color={roles.textMuted} style={styles.partPts}>Award pts</KitText>
+              <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }}>{t('awards.hisSeason')}</KitText>
+              <KitText t="tag" color={roles.textMuted}>{t('awards.number')}</KitText>
+              <KitText t="tag" color={roles.textMuted} style={styles.partPts}>{t('awards.awardPts')}</KitText>
             </View>
             {parts.slice(0, 5).map(p => (
               <View key={p.label} style={styles.partRow}>
-                <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{p.label}</KitText>
-                <KitText t="figure" color={roles.textMuted}>{Number.isInteger(p.value) ? String(p.value) : p.value.toFixed(2)}</KitText>
+                <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{label(p.label)}</KitText>
+                <KitText t="figure" color={roles.textMuted}>{Number.isInteger(p.value) ? String(p.value) : dec(p.value, 2)}</KitText>
                 <KitText t="figure" color={p.points < 0 ? roles.textMuted : roles.text} style={styles.partPts}>
                   {`${p.points > 0 ? '+' : ''}${p.points}`}
                 </KitText>
               </View>
             ))}
-            <KitText t="body" color={roles.textMuted}>Award points: what each part of his season adds to the score this award is decided on, carried by how hard his club had it.</KitText>
+            <KitText t="body" color={roles.textMuted}>{t('awards.awardPtsNote')}</KitText>
           </View>
         )}
       </Pressable>
       {said ? (
         <KitText t="title" color={roles.text}>
-          {said.playerId === w.playerId ? `The pundits called it: ${said.name}.` : `They said ${said.name}. It was ${w.name}.`}
+          {said.playerId === w.playerId ? t('awards.calledIt', { name: said.name }) : t('awards.theySaid', { said: said.name, name: w.name })}
         </KitText>
       ) : null}
       <KitText t="body" color={roles.textMuted}>{award.how}</KitText>
@@ -176,7 +178,7 @@ function RunnerUp({ roles, place, c, line, onPlayer }: { roles: Roles; place: nu
         <KitText t="body" color={roles.text} numberOfLines={1}>{c.name}</KitText>
         <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${c.clubName} · ${line}`}</KitText>
       </View>
-      {c.isPlayerClub && <Tag roles={roles} variant="you">YOURS</Tag>}
+      {c.isPlayerClub && <Tag roles={roles} variant="you">{t('awards.yours')}</Tag>}
       {c.avgRating != null && <RatingSquare value={c.avgRating} decimals={2} size="sm" />}
     </Pressable>
   )
@@ -187,13 +189,13 @@ export function ClubAwardCard({ roles, award }: { roles: Roles; award: ClubAward
     <View style={styles.award}>
       <SectionTag roles={roles}>{award.title}</SectionTag>
       <View style={[styles.winner, { borderColor: roles.line, backgroundColor: roles.surface }]}
-        accessible accessibilityLabel={`${award.title}: ${award.winner.clubName}. ${award.winner.headline}`}>
+        accessible accessibilityLabel={t('awards.clubA11y', { title: award.title, club: award.winner.clubName, headline: award.winner.headline })}>
         {/* P8-37: you're your club's manager, so the award names you. */}
         <KitText t="superM" color={roles.text} numberOfLines={2}>{(award.winner.manager ?? award.winner.clubName).toUpperCase()}</KitText>
         {award.winner.manager ? <KitText t="body" color={roles.text}>{award.winner.clubName}</KitText> : null}
         <View style={styles.winnerMeta}>
           <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{award.winner.headline}</KitText>
-          {award.winner.isPlayerClub && <Tag roles={roles} variant="you">YOURS</Tag>}
+          {award.winner.isPlayerClub && <Tag roles={roles} variant="you">{t('awards.yours')}</Tag>}
         </View>
       </View>
       <KitText t="body" color={roles.textMuted}>{award.how}</KitText>
@@ -221,9 +223,9 @@ export function QualifyingAwards({ roles, night, onPlayer }: { roles: Roles; nig
   if (!q || (!q.player && !q.team)) return null
   return (
     <View style={styles.award}>
-      <SectionTag roles={roles}>Qualifying</SectionTag>
+      <SectionTag roles={roles}>{t('awards.qualifying')}</SectionTag>
       {q.player && <PlayerAwardCard roles={roles} award={q.player} onPlayer={onPlayer} />}
-      {q.team && <FormationPitch roles={roles} team={q.team} onPlayer={onPlayer} caption="The team of qualifying: the shape its best players fit." />}
+      {q.team && <FormationPitch roles={roles} team={q.team} onPlayer={onPlayer} caption={t('awards.qualTeamCaption')} />}
     </View>
   )
 }
@@ -234,11 +236,11 @@ export function AwardsSection({ roles, night, onPlayer }: { roles: Roles; night:
   const r = night.teamsOfTheRound[round]
   return (
     <View style={styles.section}>
-      <KitText t="superM" color={roles.text} accessibilityRole="header">THE AWARDS</KitText>
+      <KitText t="superM" color={roles.text} accessibilityRole="header">{t('awards.theAwards')}</KitText>
       {night.playerOfTheSeason && <PlayerAwardCard roles={roles} award={night.playerOfTheSeason} onPlayer={onPlayer} />}
       {night.teamOfTheSeason && (
         <View style={styles.award}>
-          <SectionTag roles={roles}>{`Team of the ${night.word ?? 'season'}`}</SectionTag>
+          <SectionTag roles={roles}>{night.word === 'tournament' ? t('awards.teamOfTournament') : t('awards.teamOfSeason')}</SectionTag>
           <KitText t="body" color={roles.textMuted}>{TEAM_HOW}</KitText>
           <FormationPitch roles={roles} team={night.teamOfTheSeason} onPlayer={onPlayer} />
         </View>
@@ -249,15 +251,15 @@ export function AwardsSection({ roles, night, onPlayer }: { roles: Roles; night:
       <QualifyingAwards roles={roles} night={night} onPlayer={onPlayer} />
       {r && (
         <View style={styles.award}>
-          <SectionTag roles={roles}>Team of the matchday</SectionTag>
+          <SectionTag roles={roles}>{t('awards.teamOfMatchday')}</SectionTag>
           <View style={styles.roundPick}>
-            <Pressable disabled={round <= 0} onPress={() => setRound(x => Math.max(0, x - 1))} accessibilityRole="button" accessibilityLabel="Previous matchday"
+            <Pressable disabled={round <= 0} onPress={() => setRound(x => Math.max(0, x - 1))} accessibilityRole="button" accessibilityLabel={t('awards.prevMd')}
               style={({ pressed }) => [styles.roundBtn, { borderColor: round <= 0 ? roles.rule : roles.line }, pressed && { backgroundColor: roles.sunken }]}>
               <Icon name="back" size={20} color={round <= 0 ? roles.textFaint : roles.text} />
             </Pressable>
-            <KitText t="tag" color={roles.text} style={{ flex: 1, textAlign: 'center' }}>{r.label}</KitText>
+            <KitText t="tag" color={roles.text} style={{ flex: 1, textAlign: 'center' }}>{label(r.label)}</KitText>
             <Pressable disabled={round >= night.teamsOfTheRound.length - 1} onPress={() => setRound(x => Math.min(night.teamsOfTheRound.length - 1, x + 1))}
-              accessibilityRole="button" accessibilityLabel="Next matchday"
+              accessibilityRole="button" accessibilityLabel={t('awards.nextMd')}
               style={({ pressed }) => [styles.roundBtn, { borderColor: round >= night.teamsOfTheRound.length - 1 ? roles.rule : roles.line }, pressed && { backgroundColor: roles.sunken }]}>
               <Icon name="chevron" size={20} color={round >= night.teamsOfTheRound.length - 1 ? roles.textFaint : roles.text} />
             </Pressable>

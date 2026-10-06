@@ -1,0 +1,84 @@
+{
+  "updated": "2026-10-01",
+  "contact": "perfectionormisery@gmail.com",
+  "title": "Súkromie",
+  "intro": "Perfection or Misery si nechá čo najmenej: tvoje meno a tvoje hry. Žiadne reklamy, žiadne cookies, žiadne sledovanie na iných stránkach a nič sa nepredáva.",
+  "sections": [
+    {
+      "heading": "Čo si pamätá účet",
+      "body": [
+        "Tvoje meno a heslo. Heslo sa nikdy neukladá ako čitateľný text; prihlasovacia služba (Supabase) si drží iba jeho hash.",
+        "Účet nemá e-mailovú adresu. Z mena sa v pozadí stane interná adresa, na ktorú nechodí žiadna pošta, a preto sa zabudnuté heslo nedá obnoviť.",
+        "Každá dohraná hra: zostava z draftu, rozostavenie, obťažnosť, výsledky, body a štatistiky sezóny. Z toho sa skladajú Hry, Rebríček, Úspechy aj Kariéra.",
+        "Priatelia, žiadosti o priateľstvo, výzvy na súboj a upozornenia k nim, ak ich používaš."
+      ]
+    },
+    {
+      "heading": "Kluby",
+      "body": [
+        "Ak sa pridáš do klubu alebo ho založíš: v ktorom klube si, aká je tvoja úloha v ňom, a názov, značka, farba a popis klubu. Klub aj jeho členovia sú verejní, rovnako ako profil.",
+        "Chat klubu: každá správa, kto ju napísal a kedy. Čítať ho môžu iba členovia klubu. Ak má klub zapnutý slušný jazyk, nadávky sa pri ukladaní správy vymenia za slušnejšie slová, takže uložená je už upravená správa.",
+        "Klub s heslom si drží iba jednosmerný hash hesla, z ktorého ho nikto nevyčíta, ani majiteľ klubu. Pozvánka do klubu sa drží, kým ju niekto nepoužije alebo neodmietne."
+      ]
+    },
+    {
+      "heading": "Slušné mená a nahlásenia",
+      "body": [
+        "Mená používateľov, názvy, značky a popisy klubov a to, čo napíšeš do profilu, sa pri ukladaní kontrolujú priamo v databáze podľa zoznamu nadávok a urážok; čo na zozname je, sa neuloží. Zoznam vychádza z verejných zoznamov slov (LDNOOBW pod licenciou CC BY 4.0 a cuss pod licenciou MIT) a z nášho vlastného.",
+        "Meno, pri ktorom si kontrola nie je istá, sa uloží a zároveň ho dostane moderátor, spolu s účtom, ku ktorému patrí.",
+        "Keď nahlásiš hráča alebo klub, nahlásenie si pamätá, kto ho poslal, koho alebo čoho sa týka, dôvod a čokoľvek, čo dopíšeš. Vidí ho iba moderátor; nahlásený sa nikdy nedozvie, kto ho nahlásil. Nahlásenia sa držia, kým ich moderátor nevybaví.",
+        "Moderátor môže vziať meno (vyberieš si nové) alebo zablokovať účet. Zablokovaný účet si nechá svoje hry, ale nové neuloží, nepíše v chate a nenahlasuje."
+      ]
+    },
+    {
+      "heading": "Hra ako hosť",
+      "body": [
+        "Keď otvoríš appku, začne sa anonymná relácia hosťa, aby hra fungovala hneď. Hry hosťa sa neukladajú. Nič z toho ťa neidentifikuje ako osobu."
+      ]
+    },
+    {
+      "heading": "Čo ostáva v tvojom zariadení",
+      "body": [
+        "Prihlásenie, aby ťa appka neodhlasovala, nastavenia a herné údaje, s ktorými appka prichádza (hráči, kluby a sezóny).",
+        "Hra, ktorú práve draftuješ, ostáva v zariadení, kým sa nezačne, takže zatvorením appky o ňu neprídeš. Keď sa už hrá, žije v pamäti, kým neskončí.",
+        "Dohraná hra, ktorá sa nemohla uložiť, lebo zariadenie bolo offline, počká v zariadení, odošle sa, keď budeš znova online, a potom sa zo zariadenia vymaže.",
+        "Ktoré úspechy ti už appka ukázala, aby ohlasovala iba nové."
+      ]
+    },
+    {
+      "heading": "Aktualizácie",
+      "body": [
+        "Pri spustení appka hľadá aktualizácie na dvoch miestach: menšie aktualizácie prichádzajú od Expo (služby, na ktorej je appka postavená) a appka si prečíta krátky súbor na webe hry, či nevyšla nová verzia. Ak vyšla a rozhodneš sa aktualizovať, nová verzia sa stiahne zo stránky s vydaniami hry na GitHube. Pri žiadnej z kontrol sa o tebe nič neposiela."
+      ]
+    },
+    {
+      "heading": "Skutoční futbalisti v hre",
+      "body": [
+        "Hra obsahuje skutočných profesionálnych futbalistov: ich mená, posty, národnosti, roky narodenia, kluby a štarty a góly v lige, prevzaté z Wikipédie a Wikidát. O nikom sa neukladá nič súkromné: žiadne zmluvy, prestupové sumy, adresy ani nič, čo už nie je verejné.",
+        "Hodnotenie každého hráča si hra vypočíta z týchto faktov (postavenie jeho klubu v lige, ako často hrával, jeho góly, jeho vek). Je to vlastné číslo hry, nie niekoho posudok o hráčovi.",
+        "Ak si hráčom v hre a chceš, aby tvoje meno zmizlo, napíš na kontaktnú adresu na tejto stránke a v ďalšej aktualizácii bude odstránené."
+      ]
+    },
+    {
+      "heading": "Čo meria web",
+      "body": [
+        "Iba na webe Vercel (ktorý ho hostí) počíta návštevy a zobrazenia stránok a meria, ako rýchlo sa stránky načítajú skutočným návštevníkom, aby sme videli, ktoré stránky sa používajú, a opravili tie pomalé. Nepoužíva cookies a nezaznamenáva žiadne osobné identifikátory: každý údaj je anonymný a to, čím sa jedna návšteva líši od druhej, sa po 24 hodinách zahodí.",
+        "Zaznamená sa: stránka (bez všetkého za „?“ a so stránkami hráčov a hier počítanými ako jedna stránka), stránka, z ktorej návšteva prišla, tvoja krajina a región a tvoj prehliadač, systém a typ zariadenia. Appka v telefóne neposiela nič z toho."
+      ]
+    },
+    {
+      "heading": "Kto čo vidí",
+      "body": [
+        "Rebríček ukazuje každému tvoje meno pri tvojich najlepších hrách. Priatelia vidia tvoje hry a môžu ťa vyzvať.",
+        "Tvoj profil je verejný a ukazuje, čo naň dáš: obrázok, banner, farby a rámik, status, zámená a text o tebe, erb a odznaky sezón. Obľúbené, pripnuté hry, trofeje a odohraný čas môžeš ukázať alebo skryť. Nič iné o tebe sa nikomu neukazuje.",
+        "Údaje sú uložené v Supabase, hostenej databáze, na ktorej appka beží. S nikým iným sa nezdieľajú a nič, čo napíšeš, sa neposiela na kontrolu žiadnej inej službe."
+      ]
+    },
+    {
+      "heading": "Vymazanie všetkého",
+      "body": [
+        "Ty → Vymazať účet natrvalo odstráni tvoj účet, všetky hry, kariéru, priateľov, členstvo v klube a miesto v rebríčku. Stane sa to hneď a nedá sa to vrátiť."
+      ]
+    }
+  ]
+}

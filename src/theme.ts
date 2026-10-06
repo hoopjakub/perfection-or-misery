@@ -155,6 +155,14 @@ export { MODE_LABELS } from './data/mode-labels'
 
 // Resolve the active palette: mode-specific theme, else the league accent (or
 // the default blue) wrapped in a neutral ModeTheme so callers are uniform.
+/** The theme of one European competition: the full path runs in any of the three
+ *  (P8.5-21), and the Europa and Conference League modes share the Champions
+ *  League's screens, so a screen asks by competition, never assumes the UCL's
+ *  blue (centralisation N-01). */
+export function themeForComp(comp: 'ucl' | 'uel' | 'uecl' | null | undefined): ModeTheme {
+  return MODE_THEMES[comp === 'uel' ? 'europa_league' : comp === 'uecl' ? 'conference_league' : 'champions_league']
+}
+
 export function getModeTheme(mode: string | null | undefined, leagueAccent?: string | null): ModeTheme {
   if (mode && MODE_THEMES[mode]) return MODE_THEMES[mode]
   const accent = leagueAccent ?? colors.accent
@@ -222,7 +230,7 @@ export function towardInk(hex: string, amount: number): string {
 }
 
 // Match-rating 0–10 → band color. Was implemented identically in both
-// SquadSummary.tsx and MatchStatsParts.tsx — single source now.
+// two components — single source now.
 // Match ratings on PoM's own scale (P8.5-33, replacing P8-44's copy of
 // SofaScore's published colours: "nothing is actually from the app", the
 // maintainer, 29 Sept 2026). The bands and colours are his (1 Oct 2026): the

@@ -1,4 +1,7 @@
 import React, { useCallback, useState } from 'react'
+import { log } from '@/diag/log'
+import { t } from '@/i18n'
+import { en } from '@/i18n/en'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, Pressable } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
@@ -25,38 +28,13 @@ import { EVERYDAY } from '@/lib/appearance'
 // preferences live on their own Settings screen (P8-45).
 const roles = ROLES[EVERYDAY]
 
-// Said when you open the tab, one at random. {name} is your username.
-const GREETINGS = [
-  'Welcome back, {name}.',
-  'The gaffer is back: {name}.',
-  '{name}, the dressing room is waiting.',
-  'Back for more, {name}?',
-  '{name} is in the building.',
-  'The kit is washed, {name}. Ready?',
-  'Another season, {name}?',
-  '{name}: perfection or misery today?',
-  'The draw is open, {name}.',
-  'Good to see you, {name}.',
-  'They are singing your name, {name}.',
-  'Boots on, {name}.',
-  '{name}, the pundits have their doubts.',
-  'Here we go again, {name}.',
-  'The tunnel is yours, {name}.',
-  '{name}, one more run?',
-  'Floodlights on for {name}.',
-  '{name} returns to the dugout.',
-  'Clipboard ready, {name}?',
-  'The whistle is about to go, {name}.',
-  '{name}, the press want a word.',
-  'Chase perfection, {name}.',
-  'Misery can wait, {name}.',
-  'The board still believes in you, {name}.',
-]
-const GUEST_GREETINGS = ['Welcome, guest.', 'Pull up a seat, guest.', 'First time in the dugout?']
-const pickGreeting = (name: string | null) => {
-  const pool = name ? GREETINGS : GUEST_GREETINGS
-  return pool[Math.floor(Math.random() * pool.length)].replace('{name}', name ?? '')
-}
+// Said when you open the tab, one at random, from you.greetings (src/i18n:
+// each language its own lines). A guest gets one of the guest lines.
+const GREETINGS = Object.keys(en.you.greetings) as (keyof typeof en.you.greetings)[]
+const GUEST_GREETINGS = Object.keys(en.you.guestGreetings) as (keyof typeof en.you.guestGreetings)[]
+const pick = <K,>(keys: K[]) => keys[Math.floor(Math.random() * keys.length)]
+const pickGreeting = (name: string | null) =>
+  name ? t(`you.greetings.${pick(GREETINGS)}`, { name }) : t(`you.guestGreetings.${pick(GUEST_GREETINGS)}`)
 
 // P8.5-47: one greeting for the whole launch. It used to change each time the
 // tab came back into view; now it's picked once and kept until the app closes
@@ -75,14 +53,14 @@ export default function YouScreen() {
   const pin = useCrestStore(st => st.pin)
   // P8-181: your club's tag, in your pin's colour (the club's own colour is on its page).
   const clubTag = profile?.club_tag ? { text: profile.club_tag, colour: pin?.hex ?? '#ff5a00' } : null
-  const name = isGuest ? 'Guest' : profile?.username ?? '—'
+  const name = isGuest ? t('you.guest') : profile?.username ?? '—'
   const greeting = launchGreeting(isGuest ? null : profile?.username ?? null)
   const unread = useNoticeStore(st => st.unread)
 
   useFocusEffect(useCallback(() => {
     let active = true
     if (user && !isGuest) {
-      fetchUserStats(user.id).then(s => { if (active) setStats(s) }).catch(e => console.warn('[you] stats failed:', e))
+      fetchUserStats(user.id).then(s => { if (active) setStats(s) }).catch(e => log.warn('net', 'you: stats failed', e))
       fetchMyPlace(user.id, {}).then(p => { if (active) setPlace(p?.place ?? null) }).catch(() => {})
       fetchPublicProfile(user.id).then(p => { if (active) setPub(p) }).catch(() => {})
     }
@@ -91,10 +69,10 @@ export default function YouScreen() {
 
   function confirmSignOut() {
     openConfirm({
-      question: 'Sign out?',
-      consequence: "There's no password recovery. If you've forgotten your password, you won't get this account back.",
-      confirmLabel: 'Sign out',
-      stayLabel: 'Stay signed in',
+      question: t('you.signOutQuestion'),
+      consequence: t('you.signOutConsequence'),
+      confirmLabel: t('you.signOut'),
+      stayLabel: t('you.staySignedIn'),
       onConfirm: signOut,
       thenRoute: '/(tabs)',
     })
@@ -102,10 +80,10 @@ export default function YouScreen() {
 
   function confirmDelete() {
     openConfirm({
-      question: 'Delete your account?',
-      consequence: 'Your account, every run, your career and your place in the ranks are deleted for good. This cannot be undone.',
-      confirmLabel: 'Delete my account',
-      stayLabel: 'Keep my account',
+      question: t('you.deleteQuestion'),
+      consequence: t('you.deleteConsequence'),
+      confirmLabel: t('you.deleteConfirm'),
+      stayLabel: t('you.keepAccount'),
       onConfirm: deleteAccount,
       thenRoute: '/(tabs)',
     })
@@ -113,16 +91,16 @@ export default function YouScreen() {
 
   const runs = stats?.totalRuns ?? 0
   const facts: [string, string][] = isGuest ? [] : [
-    ['Runs', String(runs)],
-    ['Best', stats?.bestTier ? formatTier(stats.bestTier) : '—'],
-    ['World', place ? ordinal(place) : '—'],
-    ...(pub?.playtime_seconds ? [['Played', formatPlaytime(pub.playtime_seconds)] as [string, string]] : []),
+    [t('you.factRuns'), String(runs)],
+    [t('you.factBest'), stats?.bestTier ? formatTier(stats.bestTier) : '—'],
+    [t('you.factWorld'), place ? ordinal(place) : '—'],
+    ...(pub?.playtime_seconds ? [[t('you.factPlayed'), formatPlaytime(pub.playtime_seconds)] as [string, string]] : []),
   ]
   const badgeId = profile?.badge_team_id, badgeName = profile?.badge_team_name
 
   return (
     <KitScreen ground={EVERYDAY}>
-      <PageMeta title="You" path="/profile" />
+      <PageMeta title={t('you.pageTitle')} path="/profile" />
       <KitText t="superM" color={roles.text} accessibilityRole="header" style={styles.title}>{greeting.toUpperCase()}</KitText>
 
       {/* P8.5-02: your card is the one others see on your page (app/u/[id].tsx):
@@ -130,9 +108,9 @@ export default function YouScreen() {
           badges you set in the editor. Only the look's colour band showed here
           before. A guest has no profile, so keeps the ID tag. */}
       {isGuest ? (
-        <IdTag roles={roles} name={name} state="GUEST" detail="Runs are not kept" pin={pin ?? undefined} />
+        <IdTag roles={roles} name={name} state="GUEST" detail={t('you.runsNotKept')} pin={pin ?? undefined} />
       ) : (
-        <Pressable onPress={() => router.push('/profile-edit')} accessibilityRole="button" accessibilityHint="Edit your profile">
+        <Pressable onPress={() => router.push('/profile-edit')} accessibilityRole="button" accessibilityHint={t('you.editHint')}>
           <ProfileCard roles={roles} name={name} avatarPath={profile?.avatar_path} look={readLook(pub)}
             badgeTeamId={badgeId} badgeTeamName={badgeName} tag={profile?.club_tag} />
         </Pressable>
@@ -152,58 +130,52 @@ export default function YouScreen() {
       {isGuest && (
         <View style={styles.guest}>
           <KitText t="body" color={roles.textMuted}>
-            Make an account to keep your runs, climb the ranks, make friends and build a career.
+            {t('you.guestPitch')}
           </KitText>
-          <Plate label="Keep my runs" icon="keep" roles={roles} onPress={() => router.push('/auth/register')} />
-          <Plate label="I have an account" variant="secondary" roles={roles} onPress={() => router.push('/auth/login')} />
+          <Plate label={t('you.keepMyRuns')} icon="keep" roles={roles} onPress={() => router.push('/auth/register')} />
+          <Plate label={t('you.haveAccount')} variant="secondary" roles={roles} onPress={() => router.push('/auth/login')} />
         </View>
       )}
 
       {/* P8.5-44: the moderator took the name away (or banned the account). */}
       {!isGuest && profile?.banned_at ? (
-        <StripedNotice roles={roles} failed>This account has been banned. It can't save runs, chat or report.</StripedNotice>
+        <StripedNotice roles={roles} failed>{t('moderation.bannedNotice')}</StripedNotice>
       ) : !isGuest && profile?.must_rename ? (
-        <StripedNotice roles={roles} actionLabel="Pick a name" onAction={() => router.push('/rename')}>
-          Your name broke the rules, so the moderator took it away. Pick a new one.
+        <StripedNotice roles={roles} actionLabel={t('moderation.pickAName')} onAction={() => router.push('/rename')}>
+          {t('moderation.renameNotice')}
         </StripedNotice>
       ) : null}
 
       {!isGuest && (
         <>
           <View style={styles.actions}>
-            <Plate label="Your profile" icon="you" variant="secondary" roles={roles} style={styles.action}
+            <Plate label={t('you.yourProfile')} icon="you" variant="secondary" roles={roles} style={styles.action}
               onPress={() => user && router.push({ pathname: '/u/[id]', params: { id: user.id } })} />
-            <Plate label="Edit" icon="settings" variant="secondary" roles={roles} style={styles.action} onPress={() => router.push('/profile-edit')} />
+            <Plate label={t('you.edit')} icon="settings" variant="secondary" roles={roles} style={styles.action} onPress={() => router.push('/profile-edit')} />
           </View>
-          <SectionTag roles={roles}>People</SectionTag>
-          <ListRow roles={roles} icon="keep" label="Friends" sub="Requests, your friends, finding players"
-            value={unread > 0 ? `${unread} NEW` : undefined} onPress={() => router.push('/friends')} />
+          <SectionTag roles={roles}>{t('you.people')}</SectionTag>
+          <ListRow roles={roles} icon="keep" label={t('you.friends')} sub={t('you.friendsSub')}
+            value={unread > 0 ? t('you.newCount', { count: unread }) : undefined} onPress={() => router.push('/friends')} />
           {/* P8.5-07: Clubs moved to the tab bar; it was a row here. */}
-          <SectionTag roles={roles}>Your record</SectionTag>
-          <ListRow roles={roles} icon="achievements" label="Achievements" onPress={() => router.push('/game/achievements')} />
-          <ListRow roles={roles} icon="stats" label="Career" onPress={() => router.push('/game/career')} />
-          {profile?.is_admin ? (
-            <>
-              <SectionTag roles={roles}>Moderation</SectionTag>
-              <ListRow roles={roles} icon="privacy" label="Inbox" sub="Unsure names and reports" onPress={() => router.push('/moderation')} />
-            </>
-          ) : null}
+          <SectionTag roles={roles}>{t('you.yourRecord')}</SectionTag>
+          <ListRow roles={roles} icon="achievements" label={t('you.achievements')} onPress={() => router.push('/game/achievements')} />
+          <ListRow roles={roles} icon="stats" label={t('you.career')} onPress={() => router.push('/game/career')} />
         </>
       )}
 
-      <SectionTag roles={roles}>The game</SectionTag>
-      <ListRow roles={roles} icon="settings" label="Settings" onPress={() => router.push('/settings')} />
-      <ListRow roles={roles} icon="guide" label="Guide" onPress={() => router.push('/guide')} />
-      <ListRow roles={roles} icon="about" label="About" onPress={() => router.push('/about')} />
-      <ListRow roles={roles} icon="privacy" label="Privacy" onPress={() => router.push('/privacy')} />
-      <ListRow roles={roles} icon="terms" label="Terms" onPress={() => router.push('/terms')} />
+      <SectionTag roles={roles}>{t('you.theGame')}</SectionTag>
+      <ListRow roles={roles} icon="settings" label={t('you.settings')} onPress={() => router.push('/settings')} />
+      <ListRow roles={roles} icon="guide" label={t('you.guide')} onPress={() => router.push('/guide')} />
+      <ListRow roles={roles} icon="about" label={t('you.about')} onPress={() => router.push('/about')} />
+      <ListRow roles={roles} icon="privacy" label={t('you.privacy')} onPress={() => router.push('/privacy')} />
+      <ListRow roles={roles} icon="terms" label={t('you.terms')} onPress={() => router.push('/terms')} />
       <VersionButton roles={roles} style={styles.version} />
 
       {!isGuest && (
         <>
-          <SectionTag roles={roles}>Account</SectionTag>
-          <ListRow roles={roles} icon="signOut" label="Sign out" onPress={confirmSignOut} />
-          <ListRow roles={roles} icon="delete" label="Delete account" danger onPress={confirmDelete} />
+          <SectionTag roles={roles}>{t('you.account')}</SectionTag>
+          <ListRow roles={roles} icon="signOut" label={t('you.signOut')} onPress={confirmSignOut} />
+          <ListRow roles={roles} icon="delete" label={t('you.deleteAccount')} danger onPress={confirmDelete} />
         </>
       )}
     </KitScreen>
