@@ -1,0 +1,43 @@
+---
+// The admin's address (docs/website/03 §4). The path is ADMIN_ROUTE, a
+// Vercel environment variable (not PUBLIC_: it never reaches a browser
+// bundle), 32 or more random characters kept in the maintainer's password
+// manager. Without it, no admin page is built at all.
+//
+// The address is a convenience, not a lock: every admin action is checked in
+// the database (site_is_admin(): the admin row and the second factor). This
+// page is a plain shell: a sign-in box, no header, no footer, no analytics,
+// no link to it anywhere, noindex. The admin screens' code is fetched only
+// after the database says this session is the admin's at the second factor
+// (scripts/admin-shell.ts), so a stranger who finds the page downloads none
+// of it.
+import '../styles/global.css'
+
+export function getStaticPaths() {
+  const route = process.env.ADMIN_ROUTE ?? ''
+  if (!route) return []
+  if (!/^[A-Za-z0-9_-]{32,}$/.test(route)) throw new Error('ADMIN_ROUTE must be 32 or more letters, digits, - or _ (docs/website/03 §4)')
+  return [{ params: { route } }]
+}
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Perfection or Misery</title>
+  </head>
+  <body>
+    <main class="admin" data-admin>
+      <h1 class="super admin-title">Sign in</h1>
+      <div data-admin-body></div>
+      <noscript><p>This page needs JavaScript.</p></noscript>
+    </main>
+    <script>
+      import '../scripts/admin-shell'
+    </script>
+  </body>
+</html>

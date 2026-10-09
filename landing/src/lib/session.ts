@@ -8,7 +8,11 @@ const KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined
 export const configured = !!(URL_ && KEY)
 
 type Session = { access_token: string; refresh_token: string; expires_at: number; user_id: string; username: string }
-const STORE = 'pom-site-session'
+let STORE = 'pom-site-session'
+/** A separate session under another key: the admin page's (step 5), so the
+ *  admin account's session never signs the community pages in as the admin.
+ *  Called before anything reads the session. */
+export function scope(key: string) { STORE = key; memory = null }
 
 // Storage can be blocked (a private window, cleared site data): then you're
 // signed in for this page only, never broken.
@@ -32,7 +36,7 @@ async function auth(path: string, body: object, token?: string) {
   })
 }
 
-type TokenReply = { access_token: string; refresh_token: string; expires_at?: number; expires_in: number; user: { id: string } }
+export type TokenReply = { access_token: string; refresh_token: string; expires_at?: number; expires_in: number; user: { id: string } }
 const toSession = (j: TokenReply, name: string): Session => ({
   access_token: j.access_token, refresh_token: j.refresh_token,
   expires_at: j.expires_at ?? Math.floor(Date.now() / 1000) + j.expires_in,
@@ -79,6 +83,27 @@ async function refresh(): Promise<boolean> {
   })()
   return refreshing
 }
+
+/** The signed-in token's claims (the server decides everything; this only
+ *  picks the admin page's next step: `aal` says whether the second factor is in). */
+export function claims(): { aal?: string } {
+  const t = read()?.access_token
+  if (!t) return {}
+  try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) } catch { return {} }
+}
+
+/** A call to Supabase Auth as the signed-in account (the factors: list,
+ *  enrol, challenge, verify). */
+export async function authCall(path: string, method: 'GET' | 'POST' | 'DELETE' = 'POST', body?: object) {
+  return fetch(`${URL_}/auth/v1/${path}`, {
+    method,
+    headers: { apikey: KEY!, Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
+/** Keep the session a factor's verify hands back (now at the second level). */
+export function adopt(j: TokenReply) { const s = read(); write(toSession(j, s?.username ?? '')) }
 
 async function token(): Promise<string> {
   const s = read()

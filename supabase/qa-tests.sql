@@ -106,12 +106,14 @@ begin
   -- ── T6 · B isn't the admin; neither is C without the second factor ────────
   begin perform qa_admin_inbox(); raise exception 'TEST FAILED: T6 a player read the inbox';
   exception when others then if sqlerrm not like 'NOT_ADMIN%' then raise; end if; end;
+  if site_is_admin_account() then raise exception 'TEST FAILED: T6 a player''s account reads as the admin''s'; end if;
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', c, 'role', 'authenticated', 'is_anonymous', false, 'aal', 'aal1')::text, true);
   set local role authenticated;
   begin perform qa_admin_inbox(); raise exception 'TEST FAILED: T6 the admin without the second factor read the inbox';
   exception when others then if sqlerrm not like 'NOT_ADMIN%' then raise; end if; end;
   if site_is_admin() then raise exception 'TEST FAILED: T6 site_is_admin() is true at aal1'; end if;
+  if not site_is_admin_account() then raise exception 'TEST FAILED: T6 the admin''s account doesn''t read as the admin''s'; end if;
   reset role;
 
   -- ── T7 · The admin at the second factor: inbox, open (seen), answer, notice ──

@@ -84,13 +84,16 @@ a { color: inherit; }
 .lang img[src$="/sk.png"] { object-position: 30% 50%; }
 
 /* The two tabs, the tape under the one you're on (as the community's). */
-.tabs { display: flex; gap: 20px; margin-left: 16px; }
+/* margin-right: auto holds them beside the logo. Before, the bar's
+   space-between centred them while the account corner was still empty, and
+   they jumped left once the script filled it (a flash on every page load). */
+.tabs { display: flex; gap: 20px; margin-left: 16px; margin-right: auto; }
 .tabs a { font: 500 13px/1 var(--tag); text-transform: uppercase; letter-spacing: .04em; text-decoration: none; color: var(--muted);
   padding: 14px 0 10px; border-bottom: 4px solid transparent; }
 .tabs a[aria-current] { color: var(--text); border-bottom-color: var(--orange); }
 @media (hover: hover) { .tabs a:hover { color: var(--text); } }
 /* Sign in, or who's signed in, pushed right beside the flag. */
-.who { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.who { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .who:empty { display: none; }
 .signin-dialog { width: min(440px, calc(100vw - 32px)); box-sizing: border-box; padding: 20px; border: 2px solid var(--line);
   background: var(--bg); color: var(--text); box-shadow: 4px 4px 0 var(--offset); }
@@ -147,6 +150,19 @@ textarea.field { resize: vertical; }
 .c-conv { display: grid; gap: 10px; margin-top: 28px; padding-top: 16px; border-top: 2px solid var(--line); }
 .c-msg { padding: 10px 12px; border-left: 4px solid var(--rule); }
 .c-msg.from-admin { border-left-color: var(--orange); }
+
+/* ── The admin page (step 5): the community's parts, a wider column ───── */
+.admin { max-width: 880px; margin: 0 auto; padding: 24px var(--gutter) 64px; }
+.admin-title { font-size: 40px; margin: 0 0 16px; }
+.admin-box { display: grid; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.admin-box.danger { border-top-color: var(--red); }
+.admin-filters { margin: 0 0 8px; }
+.admin-filters .field { width: auto; flex: 1; }
+.admin-question { font-size: 17px; }
+.admin-log { padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.admin-enrol { display: grid; gap: 10px; justify-items: start; margin-bottom: 16px; }
+.admin-qr { background: #fff; padding: 8px; }     /* a QR needs a light quiet zone on either ground */
+.admin-secret { font: 500 14px var(--tag); word-break: break-all; user-select: all; }
 
 main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
 

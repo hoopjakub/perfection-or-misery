@@ -37,7 +37,7 @@ for (const f of pages) {
   const h1 = (html.match(/<h1[\s>]/g) ?? []).length
   if (h1 !== 1) fail(`${name}: ${h1} h1s`)
   if (!/<html lang="(en|sk)"/.test(html)) fail(`${name}: no lang on <html>`)
-  const noindex = /<meta name="robots" content="noindex"/.test(html)
+  const noindex = /<meta name="robots" content="noindex/.test(html)
   if (!noindex) {
     if (!/<link rel="canonical"/.test(html)) fail(`${name}: no canonical`)
     if (!/hreflang="en"/.test(html) || !/hreflang="sk"/.test(html) || !/hreflang="x-default"/.test(html)) fail(`${name}: the language pair is incomplete`)
@@ -67,6 +67,37 @@ for (const f of walk(path.join(process.cwd(), 'src'))) {
     const ups = (m[1].match(/\.\.\//g) ?? []).length
     if (ups > depth + 1) fail(`${path.relative(process.cwd(), f)} imports ${m[1]}, outside landing/`)
   }
+}
+
+// 2c · The admin page (step 5, 10 §3.4–3.5): its address is in nothing else
+// the build makes (no sitemap, robots, link, script), and the admin screens'
+// code is reachable from no public page, not even the admin page's own first
+// download (it's fetched only after the database says yes).
+const ADMIN = process.env.ADMIN_ROUTE ?? ''
+const adminPage = ADMIN ? path.join(DIST, ADMIN, 'index.html') : ''
+if (ADMIN) {
+  if (!fs.existsSync(adminPage)) fail(`ADMIN_ROUTE is set but the build has no page at it`)
+  for (const f of files) if (f !== adminPage && !f.includes(`${path.sep}${ADMIN}${path.sep}`) && fs.readFileSync(f, 'utf8').includes(ADMIN)) fail(`${rel(f)} mentions the admin address`)
+}
+const ADMIN_UI = /qa_admin_inbox/   // a name only the admin screens' code calls
+const chunk = f => fs.readFileSync(path.join(DIST, f), 'utf8')
+function reach(start, dynamic) {
+  const seen = new Set(), todo = [...start]
+  while (todo.length) {
+    const f = todo.pop()
+    if (seen.has(f) || !fs.existsSync(path.join(DIST, f))) continue
+    seen.add(f)
+    const code = chunk(f)
+    const re = dynamic ? /(?:from|import)\s*\(?\s*["']\.\/([^"']+\.js)["']/g : /(?:from|import)\s*["']\.\/([^"']+\.js)["']/g
+    for (const m of code.matchAll(re)) todo.push(`/_astro/${m[1]}`)
+  }
+  return seen
+}
+for (const f of pages) {
+  const isAdmin = f === adminPage
+  const scripts = [...fs.readFileSync(f, 'utf8').matchAll(/<script[^>]*\bsrc="(\/_astro\/[^"]+\.js)"/g)].map(m => m[1])
+  // Public pages: nothing they could ever load; the admin page: nothing it loads before the check.
+  for (const s of reach(scripts, !isAdmin)) if (ADMIN_UI.test(chunk(s))) fail(`${rel(f)} ${isAdmin ? 'loads the admin screens before sign-in' : 'can reach the admin screens'} (${s})`)
 }
 
 // 3 · The weight (09 §1, roadmap Phase 10: under 100 KB before images): the

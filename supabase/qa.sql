@@ -36,6 +36,17 @@ language sql stable security definer set search_path = public as $$
      and coalesce(auth.jwt() ->> 'aal', '') = 'aal2'
 $$;
 
+-- Is the caller's account the admin's, at any assurance level? Only ever
+-- about yourself (auth.uid()), so it tells a player nothing but "no". The
+-- admin page asks it before the second factor (step 5): a player who finds
+-- the address is told nothing, and isn't walked into enrolling an
+-- authenticator on their own account. It grants nothing: every admin
+-- function still checks site_is_admin(), the second factor included.
+create or replace function public.site_is_admin_account() returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null and exists (select 1 from site_admins where user_id = auth.uid())
+$$;
+
 -- ── The limits (02 §2): one row, changed in the SQL editor, no deploy ───────
 create table if not exists public.qa_settings (
   id                    boolean primary key default true check (id),
@@ -522,7 +533,7 @@ end $$;
 do $$ declare f record; begin
   -- Close everything first, then open what each audience needs.
   for f in select p.oid::regprocedure as sig from pg_proc p
-           where p.pronamespace = 'public'::regnamespace and (p.proname like 'qa\_%' or p.proname like 'site\_is\_admin')
+           where p.pronamespace = 'public'::regnamespace and (p.proname like 'qa\_%' or p.proname like 'site\_is\_admin%')
   loop
     execute format('revoke all on function %s from public, anon, authenticated', f.sig);
   end loop;
@@ -531,7 +542,7 @@ end $$;
 grant execute on function public.qa_published(int, int), public.qa_published_one(uuid), public.qa_search(text), public.qa_updates_list(int, int), public.site_is_admin() to anon, authenticated;
 -- Players.
 grant execute on function public.qa_ask(text, boolean), public.qa_edit(uuid, text), public.qa_withdraw(uuid), public.qa_mine(),
-  public.qa_open_mine(uuid), public.qa_reply(uuid, text), public.qa_can_ask() to authenticated;
+  public.qa_open_mine(uuid), public.qa_reply(uuid, text), public.qa_can_ask(), public.site_is_admin_account() to authenticated;
 -- The admin's functions gate themselves; granted to authenticated so the admin can call them at all.
 grant execute on function public.qa_admin_inbox(text, boolean), public.qa_admin_open(uuid), public.qa_admin_decide(uuid, text, text, uuid),
   public.qa_admin_set_private(uuid, boolean, text), public.qa_admin_conversation(uuid, boolean), public.qa_admin_message(uuid, text),

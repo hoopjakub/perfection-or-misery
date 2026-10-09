@@ -509,3 +509,15 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 | 975-60 | **Search**: answer a public question from the SQL editor (`qa_admin_decide` needs the admin, step 5; or update the row by hand), find it with a sentence on `/community/questions`; a search with no match offers to ask with the text filled in | web | unchecked |
 | 975-61 | **Slovak**: the same pages under `/sk/community`, the flag switches between them | web | unchecked |
 | 975-62 | **Tabs and sign-in everywhere**: the top bar has *Home · Community* (orange tape under the one you're on); *Sign in* opens a box over the page you're on, and after signing in the same page shows your name and *Sign out*; on a phone the tabs sit on their own row | web | unchecked |
+
+## Phase 10 · Step 5, the admin (9 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-63 | **`qa.sql` again, then `qa-tests.sql`**: one more function (`site_is_admin_account`) and its test; still `ALL QA TESTS PASSED` | Supabase | unchecked |
+| 975-64 | **The admin account**: a new account made in the game (not your play account, a 16+ character password from a password manager), then the commented `insert into site_admins …` line at the end of `qa.sql` with its username, in the SQL editor | game + Supabase | unchecked |
+| 975-65 | **The route**: generate it (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`), keep it in the password manager, add it on Vercel as `ADMIN_ROUTE` (not `PUBLIC_`), redeploy | Vercel | unchecked |
+| 975-66 | **First sign-in**: at the route, sign in, scan the QR into the authenticator, enter a code; the admin screens appear. Sign out and in again: only a code is asked now | web | unchecked |
+| 975-67 | **A stranger**: the route with a normal player account says *Nothing here* and signs out, and never offers an authenticator | web | unchecked |
+| 975-68 | **The inbox works end to end**: answer a public question from the admin; the player gets a notice in the game (badge on You), sees it on `/community/mine` marked *New*, and it appears on `/community/questions` and in search; make it private and it's gone from there | web + game | unchecked |
+| 975-69 | **Moderation**: the open flags show (or *No open flags*); *Let it be* on one closes it; the word check answers for a word you know is listed | web | unchecked |
