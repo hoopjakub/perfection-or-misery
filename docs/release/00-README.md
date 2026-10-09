@@ -29,6 +29,7 @@ The maintainer's rule since 29 September: **1.0.0 is Phases 8.5, 9 and 10 plus f
 | 05 | [Updates and the APK](05-UPDATES-AND-THE-APK.md) | Silent update checks, over-the-air updates, and the website download |
 | 06 | [Data of our own](06-OUR-OWN-DATA.md) | Which free sources are usable (Wikidata, openfootball: public domain), and a rating model built from facts instead of market values |
 | 07 | [Asking Transfermarkt](07-ASKING-TRANSFERMARKT.md) | The permission email, who to send it to, what each answer changes |
+| 09 | [Guests, rethought](09-GUESTS.md) | What a guest costs today (an account per browser, the 30-an-hour limit, "Keep my runs" that keeps nothing) and three options; **decided: C** (no session until sign-up, the guest's runs kept on the phone), built in Phase 10.5 (9 Oct 2026) |
 
 ## Decisions taken (by the maintainer, 29 September)
 

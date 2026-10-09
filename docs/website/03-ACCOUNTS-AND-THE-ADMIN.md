@@ -4,9 +4,9 @@
 
 ## 1 · One login for the app and the site
 
-**Today (read 29 September).** A player picks a username and a password. The app turns the username into an internal address, `<username>@pom.internal`, and signs in with Supabase's email-and-password call (`src/lib/auth.ts:24-27`, `:44-60`). Usernames are letters, digits and underscores, up to 38 characters, passwords six or more. There's no real email, so **no verification and no password recovery**, and the sign-up screen says so and asks the player to confirm. A guest is an anonymous Supabase session (`signInAnonymously`, `auth.ts:15`); its account isn't kept, and the database can tell it apart (`is_anonymous` in the JWT, used by `pom_is_member()` in `supabase/friends.sql`).
+**Today (read 29 September, line numbers re-read 9 October).** A player picks a username and a password. The app turns the username into an internal address, `<username>@pom.internal`, and signs in with Supabase's email-and-password call (`src/lib/auth.ts:26`, `:47`). **An account is a guest upgraded in place** (`upgradeGuestAccount`, `auth.ts:40-80`): the guest session's email and password are set, the name is checked for taken and for moderation, and the profile's `is_guest` turns false. Usernames are letters, digits and underscores, up to 38 characters, passwords six or more. There's no real email, so **no verification and no password recovery**, and the sign-up screen says so and asks the player to confirm. A guest is an anonymous Supabase session (`signInAnonymously`, `auth.ts:15`); its account isn't kept, and the database can tell it apart (`is_anonymous` in the JWT, used by `pom_is_member()` in `supabase/friends.sql`).
 
-**On the site.** The same call, the same rule: type your username and password. The website's sign-in form does what the app's does and nothing more (no "sign in with Google", no magic link, no email field). It's the same account, the same profile and the same runs.
+**On the site.** The same call, the same rule: type your username and password. The website's sign-in form does what the app's does and nothing more (no "sign in with Google", no magic link, no email field). It's the same account, the same profile and the same runs. **The site has sign-in only** (decided 9 Oct, [08](08-HOLES.md) H21): *Make an account* opens the game's sign-up, because making one is the upgrade above and a second copy would drift. The username-to-address rule lives in one module both import ([08](08-HOLES.md) H14).
 
 Two things follow that the maintainer should know:
 
@@ -47,7 +47,7 @@ Supabase's own recommendation for roles is a table of roles plus a *custom acces
 ### 3.3 The second factor
 Supabase's TOTP multi-factor is free and on by default for every project ([TOTP guide](https://supabase.com/docs/guides/auth/auth-mfa/totp)): the account enrols an authenticator app once (enroll, challenge, verify), and afterwards its sessions can reach the second assurance level. `site_is_admin()` requires it: the caller's token must carry `aal2`. So a stolen password gives an attacker a session that can't do anything as the admin.
 
-**Couldn't verify:** the exact claim name and the dashboard's enrolment screen. The guide describes the two assurance levels (`aal1` after the password, `aal2` after the code) but gives no policy example; the claim in the token is `aal`, and the first build checks it with a real login before anything relies on it.
+**Verified 9 Oct** ([07](07-FACT-CHECK.md) F11): Supabase's MFA guide gives the check as `(select auth.jwt()->>'aal') = 'aal2'`, in a restrictive policy; `site_is_admin()` uses the same expression. TOTP is free and on by default. Still to do once: enrol the admin account and decode a real token. **The project limits AAL1 sessions to 15 minutes** for any account with a factor (07 D8): the admin signs in and enters the code straight away, or the session ends.
 
 **Lost-authenticator plan.** The maintainer owns the Supabase project, so the recovery is from the dashboard: remove the factor for the account, or delete the `site_admins` row and re-point it at a new account. Write this down where he'll find it.
 
@@ -66,7 +66,7 @@ Decided 29 Sept (Q17): **the maintainer generates the username and the password 
 In order, once:
 
 1. **Choose a username** for the admin account that isn't his play name, and a password of at least 16 random characters from a password manager.
-2. **Create the account** through the site's or the app's sign-up.
+2. **Create the account** in the game (the site has no sign-up, §1).
 3. **In Supabase's SQL editor**, run the one statement the build provides, which looks up that username's id and inserts it into `site_admins` (the build's `qa.sql` will carry it as a commented line with the username left to fill in). It's safe to run twice.
 4. **Sign in** at the admin address (§4), **enrol the authenticator**, and sign in again to reach the second level.
 5. **Check:** open the admin address from a second, normal account. It must show nothing.

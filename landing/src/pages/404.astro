@@ -1,0 +1,16 @@
+---
+// The branded 404 (09 §7, 11 §5), both languages on one page: a 404 can't
+// know which language the visitor came from. Served with a real 404 status.
+import Base from '../layouts/Base.astro'
+import { T, GAME_URL } from '../i18n'
+---
+<Base lang="en" title="404 · Perfection or Misery" noindex>
+  <section class="notfound">
+    <p class="super notfound-code">404</p>
+    <h1 class="super">{T.en.notFoundTitle}</h1>
+    <p>{T.en.notFoundLine}</p>
+    <p lang="sk" class="muted">{T.sk.notFoundTitle} {T.sk.notFoundLine}</p>
+    <a class="plate primary" href={GAME_URL}>{T.en.play}<span aria-hidden="true">→</span></a>
+    <p><a href="/">{T.en.home}</a> · <a href="/sk" lang="sk">{T.sk.home}</a></p>
+  </section>
+</Base>

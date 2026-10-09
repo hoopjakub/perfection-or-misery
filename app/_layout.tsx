@@ -25,6 +25,8 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { Asset } from 'expo-asset'
 import { getDb } from '@/db/setup'
 import { initAuthListener } from '@/store/userStore'
+import { markBootReady } from '@/lib/bootReady'
+import { LogoIntro } from '@/components/brand/LogoIntro'
 import { ensureGuestSession } from '@/lib/auth'
 import { useFonts } from 'expo-font'
 import { PageMeta } from '@/components/PageMeta'
@@ -188,6 +190,10 @@ export default function RootLayout() {
       // queries it; the first screen that does (Where you play) opens it then.
       initAuthListener()
       if (Platform.OS !== 'web') await getDb()
+      // Phase 10 (step 1a): the opening logo loops until this (src/lib/bootReady.ts).
+      // Before the guest session on purpose: Home doesn't need it, and on a dead
+      // network it can hang.
+      markBootReady()
       await ensureGuestSession()
 
       if (Platform.OS === 'web') {
@@ -198,7 +204,8 @@ export default function RootLayout() {
         installFlagFont().catch(e => log.warn('boot', 'the flag font failed', e))
       }
     }
-    boot().catch(e => log.error('boot', 'start-up failed', e))
+    // A start-up that throws still lets the opening logo clear.
+    boot().catch(e => log.error('boot', 'start-up failed', e)).finally(markBootReady)
   }, [])
 
   // Phase 6 (docs/ui-overhaul/10-ADAPT-OPTIMIZE-A11Y.md §2): no frame cap at
@@ -245,6 +252,9 @@ export default function RootLayout() {
           <AchievementToast />
         </View>
       </View>
+      {/* Phase 10 (step 1a): the opening logo, the app's loading zone: it opens from the
+          splash's compact mark at least once, and loops until start-up is ready (phone only). */}
+      <LogoIntro />
     </GestureHandlerRootView>
   )
 }

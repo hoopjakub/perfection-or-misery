@@ -453,16 +453,38 @@ A new `preview-personal` build (EAS Update can't carry the 1,448 assets). Databa
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| 975-31 | **Whole flags on the spin** (P9.75-31): a World Cup draft's reel shows each nation's whole flag, filling a flag-shaped card, as the player tags do | phone | unchecked |
-| 975-32 | **The draw before the pundits** (P9.75-32): World Cup, a Champions/Europa/Conference League: after the globe, *See the draw* shows your group or league phase; *What the pundits think* opens them; *Prove them wrong* comes back and the stage starts. A league goes straight to the pundits as before | phone | unchecked |
-| 975-33 | **The share card in Slovak** (P9.75-33): a World Cup run's card says *Uruguaj XI*, not URUGUAY XI | phone, sk | unchecked |
+| 975-31 | **Whole flags on the spin** (P9.75-31): a World Cup draft's reel shows each nation's whole flag, filling a flag-shaped card, as the player tags do | phone | works (9 Oct) |
+| 975-32 | **The draw before the pundits** (P9.75-32): World Cup, a Champions/Europa/Conference League: after the globe, *See the draw* shows your group or league phase; *What the pundits think* opens them; *Prove them wrong* comes back and the stage starts. A league goes straight to the pundits as before | phone | works (9 Oct) |
+| 975-33 | **The share card in Slovak** (P9.75-33): a World Cup run's card says *Uruguaj XI*, not URUGUAY XI | phone, sk | works (9 Oct) |
 | 975-34 | **The fingerprint** (P9.75-34): Diagnostics → Run self-test: *Engine fingerprint* says MATCH (engine 3) | phone | works (9 Oct): MATCH, engine 3 |
-| 975-35 | **Club and nation facts** (P9.75-35): a club card's fact names titles, famous players or the ground's opening year; a World Cup nation has one too; both languages | phone, en + sk | unchecked |
-| 975-36 | **Achievements on a dead network** (P9.75-36): start online, turn the connection off mid-run, win; the achievement pops at once, and not again when the connection returns | phone | unchecked |
+| 975-35 | **Club and nation facts** (P9.75-35): a club card's fact names titles, famous players or the ground's opening year; a World Cup nation has one too; both languages | phone, en + sk | works (9 Oct) |
+| 975-36 | **Achievements on a dead network** (P9.75-36): start online, turn the connection off mid-run, win; the achievement pops at once, and not again when the connection returns | phone | works (9 Oct) |
 | 975-37 | **The limit test** (P9.75-37): Run self-test; the *Limit test* row lists each budget with its number, and what needs a screen; share the report | phone | works (9 Oct): 12 of 36 run; stats:league 2,915 ms FAIL, stats:ucl and :wc WARN, see 975-43 |
-| 975-38 | **Screens that keep what they showed** (P9.75-38): open Runs, You, Ranks, leave, come back, and after restarting the app: everything is there at once (sort chips, numbers, the banner's colours), then refreshes in place | phone | unchecked |
-| 975-39 | **Kept everywhere, and a finished run already there** (P9.75-39): finish a run and go home: Home shows the run at once in its recent runs, with the totals counted; Runs and You too; then open Clubs, Friends, Achievements, Career, a player's profile, a club, its chat, twice each: the second time opens whole at once | phone | unchecked |
-| 975-40 | **EAS Update works again**: after installing this build, `eas update --channel preview-personal --message "…"` publishes (no 1,000-asset error) and the phone picks it up on its next start | phone + PC | unchecked |
-| 975-41 | **Player of the Tournament** (P9.75-40): a World Cup or European run's award goes to a standout (goals, assists, rating), and the runners-up aren't in alphabetical order; the breakdown's rating line reads *Hodnotenie 6,60 v 4 zápasoch* in Slovak | phone, sk | unchecked |
-| 975-42 | **A saved run's card** (P9.75-41): open a saved run from Runs; the verdict card shows above the share buttons (it was a blank space) | phone | unchecked |
-| 975-43 | **The maths probe** (P9.75-42): Run self-test, read *bench:pmath* beside *detail* in the first row and send both | phone | unchecked |
+| 975-38 | **Screens that keep what they showed** (P9.75-38): open Runs, You, Ranks, leave, come back, and after restarting the app: everything is there at once (sort chips, numbers, the banner's colours), then refreshes in place | phone | works (9 Oct) |
+| 975-39 | **Kept everywhere, and a finished run already there** (P9.75-39): finish a run and go home: Home shows the run at once in its recent runs, with the totals counted; Runs and You too; then open Clubs, Friends, Achievements, Career, a player's profile, a club, its chat, twice each: the second time opens whole at once | phone | works (9 Oct) |
+| 975-40 | **EAS Update works again**: after installing this build, `eas update --channel preview-personal --message "…"` publishes (no 1,000-asset error) and the phone picks it up on its next start | phone + PC | works (9 Oct) |
+| 975-41 | **Player of the Tournament** (P9.75-40): a World Cup or European run's award goes to a standout (goals, assists, rating), and the runners-up aren't in alphabetical order; the breakdown's rating line reads *Hodnotenie 6,60 v 4 zápasoch* in Slovak | phone, sk | works (9 Oct) |
+| 975-42 | **A saved run's card** (P9.75-41): open a saved run from Runs; the verdict card shows above the share buttons (it was a blank space) | phone | works (9 Oct) |
+| 975-43 | **The maths probe** (P9.75-42): Run self-test, read *bench:pmath* beside *detail* in the first row and send both | phone | works (9 Oct): pmath 1.4 ms of a 5.1 ms sheet |
+
+## Phase 10 · Step 1a, the new logo (9 October 2026)
+
+A new build (the icons and the splash are native). Made by `scripts/brand-logo.cjs` from `assets/Group 3.svg`; [`website/05-OPEN-QUESTIONS.md`](website/05-OPEN-QUESTIONS.md) step 1a.
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-44 | **The icons**: the launcher icon and the adaptive icon (round and squircle masks) show the compact mark on nylon, nothing cut off; with themed icons on (Android 13+), the one-colour mark with the pin's hole | phone | unchecked |
+| 975-45 | **The opening, the loading zone**: every cold start shows the compact mark on the splash, then it opens into the full logo without a jump (same size, same place). It always plays once (no skipping); if the app is ready by the end of that, it clears to Home (about 1.3 s in all); if not (a first start, while the database is copied), it folds back and opens again until it is, and clears the moment it's ready. Never longer than 10 s. With *Less motion* on: the full logo, still, until ready | phone | unchecked |
+| 975-46 | **The link preview and the favicon**: paste the web game's address into WhatsApp and Discord: the 1200 × 630 card (logo, *Draft an XI from real club-seasons*); the browser tab shows the compact mark on light and dark | web, after the next deploy | unchecked |
+
+## Phase 10 · Step 2, the landing page (9 October 2026)
+
+The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/06-VERCEL-SETUP.md) §2; the page as shaped in [`website/09-LANDING-SHAPE.md`](website/09-LANDING-SHAPE.md).
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-47 | **The counter's SQL**: run `supabase/site-counters.sql`; `select public.site_counters();` gives the runs and no users figure (under 100 accounts) | Supabase | unchecked |
+| 975-48 | **The site's project**: a new Vercel project from the repo, Root Directory `landing`, Astro, Node 24.x, *Skip deployments* when `landing/` didn't change, env `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `PUBLIC_SITE_URL` (public values only, no integration), Analytics and Speed Insights enabled, previews protected | Vercel | unchecked |
+| 975-49 | **The page on a phone and a computer, both languages, light and dark**: the reel spins once and lands, *Spin again* works; the counter shows (and flips when a run is saved); the Android plate says *coming soon*; the FAQ opens; the footer's *Copy* copies; `/sk` is Slovak throughout; a wrong address shows the 404 | web | unchecked |
+| 975-50 | **Lighthouse** (throttled mobile) 95+ in every category on the deployed page; a pasted link shows the card in WhatsApp and Discord | web | unchecked |
+| 975-51 | **The screenshots**: the seven of 09 §5 from the legal build, as `landing/public/shots/en/s1.webp`…`s7.webp` (and `sk/`), 390 × 844 or the phone's own size; the tiles turn into them on the next build | maintainer | unchecked |

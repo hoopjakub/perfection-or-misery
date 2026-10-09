@@ -56,7 +56,10 @@ const PATTERNS = RENAMES.map(([from, to]) => [new RegExp(`(^|[^\\p{L}\\p{N}])${e
 
 /** A piece of text with every real competition name swapped for its legal one. */
 function renameText(text) {
-  if (typeof text !== 'string' || !/UEFA|FIFA|League|Liga|Serie A|Bundesliga|Ligue 1/.test(text)) return text
+  // The quick test before the table. "liga" in lower case too: the Slovak names
+  // write it so ("Európska liga", "Konferenčná liga"), and with "Liga" only
+  // those two shipped unrenamed in the legal build (found 9 Oct 2026).
+  if (typeof text !== 'string' || !/UEFA|FIFA|League|[Ll]iga|Serie A|Bundesliga|Ligue 1/.test(text)) return text
   let out = text
   for (const [re, to] of PATTERNS) out = out.replace(re, (_m, before) => before + to)
   return out

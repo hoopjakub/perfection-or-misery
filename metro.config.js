@@ -9,6 +9,11 @@ const { getDefaultConfig } = require('expo/metro-config')
 const config = getDefaultConfig(__dirname)
 
 config.resolver.assetExts.push('wasm', 'woff2')
+// Phase 10: the landing page is its own Astro project in landing/, with its own
+// node_modules; the app never imports it, so Metro doesn't crawl it.
+const landingDir = require('path').join(__dirname, 'landing')
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+config.resolver.blockList = [...[].concat(config.resolver.blockList ?? []), new RegExp(`^${escapeRe(landingDir)}[\\\\/].*`)]
 
 // P8.5-30: the two build flavours. Anything but EXPO_PUBLIC_BRAND_MODE=real is
 // the LEGAL build, and in it two imports resolve to their legal twins, so what

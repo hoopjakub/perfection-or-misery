@@ -119,7 +119,7 @@ Run it through `impeccable` (colorize, bolder) with a critique before and after,
 
 **Decided 29 Sept:** **one volt and one red, the logo's.** `#D5FF3F` replaces `#4FFF3F` and `#E1141F` replaces `#FF2E4D` across the app and the site. The red's 3.79:1 on nylon is **accepted as the one exception** to the contrast rule; every text use of the misery red is still listed during the swap so the maintainer sees where it lands (and where a larger size or a tag behind it helps). The wordmark on cotton is tinted to ink by the build (website Q10).
 **Sibling check** ([04](04-DIRECTION.md) §2.8): Become a Legend's world uses shirt devices, and chevrons are one of them. The two triangles are arrowheads (up is Perfection, down is Misery), not a chevron band across a surface, so they don't break rule 1. Keep them as a mark and never repeat them as a pattern on screens.
-**Deliverables** (as [05](05-STYLE-GUIDE.md) §9 listed): launcher icon, adaptive foreground, background and monochrome layers, splash, favicon, apple-touch icon, web manifest icons, and a 1200 × 630 link preview.
+**Deliverables** (as [05](05-STYLE-GUIDE.md) §9 listed): launcher icon, adaptive foreground, background and monochrome layers, splash, favicon, apple-touch icon, web manifest icons, and a 1200 × 630 link preview. *(Made 9 Oct 2026 by `scripts/brand-logo.cjs` from the re-exported SVG; small sizes use the compact mark, the wordmark out and the gap closed, decided by the maintainer; an opening animation goes from that mark to the full logo. [`../website/05-OPEN-QUESTIONS.md`](../website/05-OPEN-QUESTIONS.md) step 1a.)*
 
 ---
 
@@ -130,7 +130,7 @@ The roadmap's Phase 10 now says the `vibecode-audit` skill is upgraded before it
 - **Rate limits on writes**, since Supabase has none on the database by default, only on sign-in and sign-up (per IP).
 - **Storage bucket policies** (avatars, banners), which this audit's first run marked N/A.
 - **An admin area:** a real role check on the server, the admin route kept out of analytics, sitemaps and robots, and no reliance on the URL being secret.
-- **Shared-project hygiene:** the Supabase project also holds The Dugout's and Become a Legend's tables; a policy or function added for the site must never touch theirs.
+- **Shared-project hygiene:** the Supabase project also holds Become a Legend's tables (and later The Gaffer's; The Dugout has none, corrected 9 Oct 2026); a policy or function added for the site must never touch theirs.
 - **Forms:** input limits enforced in the database, not only in the page.
 
 ## 5 · Documents to update

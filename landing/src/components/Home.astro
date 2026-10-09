@@ -1,0 +1,189 @@
+---
+// The landing page, top to bottom (docs/website/09-LANDING-SHAPE.md §3): the
+// poster with the live spin and the counter, how a run goes, the verdicts, the
+// modes, the proof, this week's top five, the questions. "What's new" is left
+// out until the updates channel exists (08 H16): never shown empty.
+import fs from 'node:fs'
+import path from 'node:path'
+import { T, GAME_URL, dateIn, type Lang } from '../i18n'
+import copy from '../data/copy.json'
+import reel from '../data/reel.json'
+import version from '../data/version.json'
+import { readCounters } from '../lib/live'
+
+interface Props { lang: Lang }
+const { lang } = Astro.props
+const t = T[lang]
+const words = copy[lang]
+
+// The numbers as of this build, dated (H17): the live read in the browser
+// replaces them; a failed read leaves them, never a 0 or a dash.
+const counters = await readCounters()
+const builtOn = dateIn(lang, new Date())
+const fmt = (n: number) => n.toLocaleString(lang === 'sk' ? 'sk-SK' : 'en-GB').replace(/\s/g, ' ')
+
+// The spin's resting tag: a real one, chosen at build (09 §4.2).
+const landed = reel[Math.floor(Math.random() * reel.length)]
+const around = Array.from({ length: 7 }, (_, i) => reel[(reel.indexOf(landed) + i - 3 + reel.length) % reel.length])
+
+// The Android plate: only a link once a release exists (the game's
+// latest.json, 07 F3); before that it says so and links nowhere.
+let apk: string | null = null
+try {
+  const res = await fetch(`${GAME_URL}/latest.json`)
+  if (res.ok) { const j = await res.json(); apk = typeof j.apkUrl === 'string' ? j.apkUrl : typeof j.url === 'string' ? j.url : null }
+} catch { apk = null }
+
+// A screenshot if the maintainer has supplied it (09 §5: public/shots/<lang>/sN.webp);
+// otherwise an honest tile with the step's number. Never a mock-up.
+const shot = (n: number) => {
+  for (const l of [lang]) {
+    const rel = `shots/${l}/s${n}.webp`
+    if (fs.existsSync(path.join(process.cwd(), 'public', rel))) return `/${rel}`
+  }
+  return null
+}
+
+const TAPES: Record<string, string[]> = {
+  league: [], all_time: [], chaos: ['#E0301E', '#F3F3F0', '#141416'], cursed: ['#7234F0', '#B98CFF', '#141416'],
+  europe_path: ['#2F4BFF', '#F3F3F0', '#0B1650'], ucl: ['#2F4BFF', '#F3F3F0', '#0B1650'],
+  uel: ['#F26722', '#F3F3F0', '#141416'], uecl: ['#1DB954', '#F3F3F0', '#0B3D2E'], world_cup: ['#3CAC3B', '#2A398D', '#E61D25'],
+}
+const tape = (key: string) => (TAPES[key]?.length ? `linear-gradient(90deg, ${TAPES[key].map((c, i, a) => `${c} ${(i / a.length) * 100}% ${((i + 1) / a.length) * 100}%`).join(', ')})` : 'var(--line)')
+---
+<section class="poster" aria-labelledby="promise">
+  <div class="reel" data-reel data-landed={landed.name} role="img" aria-label={t.reelLabel}>
+    <div class="reel-edge top" aria-hidden="true"></div>
+    <div class="reel-track" aria-hidden="true">
+      {around.map((c, i) => (
+        <div class={`reel-tag${i === 3 ? ' is-landed' : ''}`} style={`--a:${c.a};--b:${c.b}`}>
+          <span class="reel-name">{c.name}</span><span class="reel-season">{c.season}</span>
+        </div>
+      ))}
+    </div>
+    <div class="reel-edge bottom" aria-hidden="true"></div>
+    <div class="reel-marker" aria-hidden="true"><span class="flapper"></span></div>
+  </div>
+  <div class="landed-row">
+    <p class="tag landed" aria-live="polite"><span>{t.landed}</span> · <span data-landed-name>{landed.name}</span> · <span data-landed-season>{landed.season}</span></p>
+    <button type="button" class="plate quiet spin-again" data-spin hidden>{t.spinAgain}</button>
+  </div>
+  <script type="application/json" id="reel-data" set:html={JSON.stringify(reel)} />
+
+  <div class="poster-body">
+    <div class="poster-words">
+      <h1 id="promise" class="super">
+        {t.promise.map(line => <span class="line">{line}</span>)}
+      </h1>
+      <p class="ends super"><span class="volt-word">{t.ends[0]}</span> {t.ends[1]} <span class="red-word">{t.ends[2]}</span></p>
+    </div>
+    <div class="poster-actions">
+      <a class="plate primary" href={GAME_URL}>{t.play}<span aria-hidden="true">→</span></a>
+      <p class="plate-line">{t.playLine}</p>
+      {apk
+        ? <a class="plate secondary" href={apk}>{t.android}<span aria-hidden="true">→</span></a>
+        : <span class="plate secondary is-disabled" aria-disabled="true">{t.androidSoon}</span>}
+      <p class="tag muted">{t.playStore}</p>
+    </div>
+  </div>
+
+  <div class="counter-strip">
+    {counters && (
+      <div class="counter" data-counter data-lang={lang}>
+        <span class="flaps" data-flaps aria-hidden="true">
+          {[...fmt(counters.runs)].map(ch => (/\d/.test(ch) ? <span class="flap">{ch}</span> : <span class="sep">{ch}</span>))}
+        </span>
+        <span class="sr-only" data-counter-text>{`${fmt(counters.runs)} ${t.runsPlayed}`}</span>
+        <span class="tag counter-label">{t.runsPlayed}</span>
+        <span class="tag muted" data-as-of>{t.asOf(builtOn)}</span>
+        {counters.users != null && <span class="tag muted">{fmt(counters.users)} {t.playersLabel}</span>}
+      </div>
+    )}
+    <p class="tag early">{t.early(version.version)}</p>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="how">
+  <h2 id="how" class="super section-title">{t.howTitle}</h2>
+  <ol class="frames">
+    {t.steps.map(([name, line], i) => {
+      const src = shot(i + 1)
+      return (
+        <li class="frame">
+          <p class="tag">{i + 1} · {name}</p>
+          {src ? <img class="shot" src={src} alt="" width="390" height="844" loading="lazy" decoding="async" /> : <div class="shot tile" aria-hidden="true"><span class="super">{i + 1}</span></div>}
+          <p>{line}</p>
+        </li>
+      )
+    })}
+  </ol>
+</section>
+
+<div class="two">
+  <section class="band" aria-labelledby="verdicts">
+    <h2 id="verdicts" class="super section-title">{t.verdictsTitle}</h2>
+    <p class="muted">{t.verdictsLine}</p>
+    <ol class="ladder">
+      {words.ladder.map(r => (
+        <li class={`rung ${r.key === 'perfection' ? 'is-perfection' : r.key === 'absolute_misery' ? 'is-misery' : ''}`}>
+          <span class="rung-name super">{r.name}</span>
+          <span class="rung-line">{r.line}</span>
+        </li>
+      ))}
+    </ol>
+    <p class="muted small">{t.cupLadder}</p>
+  </section>
+
+  <section class="band" aria-labelledby="modes">
+    <h2 id="modes" class="super section-title">{t.modesTitle}</h2>
+    <ul class="modes">
+      {words.modes.map(m => (
+        <li class={`mode${m.hazard ? ' is-hazard' : ''}`}>
+          <span class="mode-tape" style={`--tape:${tape(m.key)}`} aria-hidden="true"></span>
+          <span class="mode-name">{m.name}</span>
+          <span class="mode-line">{m.line}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+</div>
+
+<section class="band" aria-labelledby="proof">
+  <h2 id="proof" class="super section-title">{t.proofTitle}</h2>
+  <ul class="proofs">
+    {t.proofs.map(([name, line], i) => {
+      const src = shot(i + 5)
+      return (
+        <li class="frame">
+          {src ? <img class="shot" src={src} alt="" width="390" height="844" loading="lazy" decoding="async" /> : <div class="shot tile" aria-hidden="true"><span class="super">{name}</span></div>}
+          <p class="tag">{name}</p>
+          <p>{line}</p>
+        </li>
+      )
+    })}
+  </ul>
+</section>
+
+<section class="band" aria-labelledby="top" data-top hidden>
+  <h2 id="top" class="super section-title">{t.topTitle}</h2>
+  <p class="muted">{t.topLine}</p>
+  <ol class="top" data-top-list></ol>
+  <script type="application/json" id="tier-names" set:html={JSON.stringify(words.tiers)} />
+</section>
+
+<section class="band" aria-labelledby="faq">
+  <h2 id="faq" class="super section-title">{t.faqTitle}</h2>
+  <div class="faq">
+    {t.faq.map(([q, a]) => (
+      <details>
+        <summary>{q}</summary>
+        <p>{a}</p>
+      </details>
+    ))}
+  </div>
+</section>
+
+<script>
+  import './../scripts/home'
+</script>
+<span hidden data-points={t.points}></span>

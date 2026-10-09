@@ -1,6 +1,6 @@
 # Web Analytics & Speed Insights
 
-> Status: **as built** for the app's web build (P8-179, 27 September 2026); **plan** for the Phase 8.5 audit (§4) and the Phase 10 landing page (§5).
+> Status: **built in code** for the app's web build (P8-179, 27 September 2026), **but not enabled in the dashboard** (read 9 October 2026: both tabs show *Get started* and 0 events; `docs/website/07-FACT-CHECK.md` V7). Press *Enable* on both and redeploy; **plan** for the Phase 8.5 audit (§4) and the Phase 10 landing page (§5).
 > Vercel's own pages were read on 27 September 2026 for every limit and command below; they change, so check them again before relying on a number.
 
 ## 1 · What's on, and where

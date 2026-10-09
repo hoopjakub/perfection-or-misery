@@ -9,7 +9,7 @@
 | # | Question | Answer (29 Sept) | What it changed |
 |---|---|---|---|
 | Q1 | The domain | `vercel.app` for now | Nothing to buy; the vibecode "vercel.app" tell is accepted |
-| Q2 | Where the game lives | Game and run links on a *play* address, the landing page on the main one | **Research:** Vercel doesn't allow a nested name like `play.perfectionormisery.vercel.app` on its free addresses (third-level names under a project's `vercel.app` aren't supported; nesting needs a custom domain; Vercel community answers, 29 Sept). And App Links are verified for `perfection-or-misery.vercel.app` (`app.json:26`, `public/.well-known/assetlinks.json`). **So: the game stays at `perfection-or-misery.vercel.app`, where run links already open the app, and the landing page takes a new project name such as `perfectionormisery.vercel.app`** ([06](06-VERCEL-SETUP.md) §1). Moving the game would need a new App Links setup and a new build |
+| Q2 | Where the game lives | Game and run links on a *play* address, the landing page on the main one | **Research:** Vercel doesn't allow a nested name like `play.perfectionormisery.vercel.app` on its free addresses (third-level names under a project's `vercel.app` aren't supported; nesting needs a custom domain; Vercel community answers, 29 Sept). And App Links are verified for `perfection-or-misery.vercel.app` (`app.json:29`, `public/.well-known/assetlinks.json`). **So: the game stays at `perfection-or-misery.vercel.app`, where run links already open the app, and the landing page takes a new project name such as `perfectionormisery.vercel.app`** ([06](06-VERCEL-SETUP.md) §1). Moving the game would need a new App Links setup and a new build |
 | Q3 | Astro or Next.js | **Astro** | [01](01-THE-SITE.md) §5 settled |
 | Q4 | Repo layout | A `landing/` folder in this repo, its own Vercel project | [06](06-VERCEL-SETUP.md) |
 | Q5 | "Get it on Android" | Play Store: "coming soon"; plus an official APK download on the site, with a silent update check in the app | **Research and plan:** [`../release/05-UPDATES-AND-THE-APK.md`](../release/05-UPDATES-AND-THE-APK.md) (over-the-air updates for JavaScript, a "new build" check and installer hand-off for the APK, hosted on GitHub Releases) |
@@ -57,7 +57,7 @@
 | # | Question | Answer |
 |---|---|---|
 | Q29 | Analytics | As decided |
-| Q30 | Launch vs version | 1.0.0 = Phases 8.5, 9, 10 and finishing |
+| Q30 | Launch vs version | ~~1.0.0 = Phases 8.5, 9, 10 and finishing~~ **Changed 9 Oct: 1.0.0 comes after Phase 11** (the phase order now has 10.5 and 11 after 10). The site launches with the game in 0.9.x and says *early access*; the welcome update and the football release name (Q13) wait for 1.0.0 |
 | Q31 | Play Store listing | Separate |
 
 ## 2 · An address people can write to
@@ -79,17 +79,23 @@ The maintainer wants a way for people (a would-be translator, for example) to re
 
 ## 3 · The build order
 
-### Step 0 · Upgrade the `vibecode-audit` skill
-Build to [04](04-SECURITY-AND-ABUSE.md) §9, in the dedicated security session (Q21).
-**Done when.** The skill's security part lists the additions and its checks can fail.
+### Step 0 · The audit's additions
+~~Upgrade the `vibecode-audit` skill.~~ Never done, and the skill is plugin-managed (9 Oct, [07](07-FACT-CHECK.md) F8). The additions are [`10-AUDIT-ADDENDUM.md`](10-AUDIT-ADDENDUM.md) instead; the audit runs the skill, then the addendum.
+**Done when.** (Done 9 Oct as a document.) Each of its checks says how it fails.
+
+### Step 1a · The new logo, everywhere (added 9 Oct, [08](08-HOLES.md) H8)
+`assets/Group 3.svg` is in (re-exported 9 Oct, [07](07-FACT-CHECK.md) F1); every deliverable of [`../ui-overhaul/13-CARRY-FORWARD.md`](../ui-overhaul/13-CARRY-FORWARD.md) §3.3 is made from it: the app's launcher icon and adaptive layers, the splash, the favicon, the apple-touch and manifest icons, the ink wordmark for cotton and the 1200 × 630 link preview.
+**Done when.** The app and the site show the same mark, and the preview shows in WhatsApp and Discord.
+*(Built 9 Oct 2026: `scripts/brand-logo.cjs` writes the icon, the adaptive and monochrome layers, the splash, the favicon, the touch and manifest icons (maskable) and `public/og.png` from `assets/Group 3.svg`; small sizes use the compact mark, the gap closed (the maintainer's choice); the app opens from that mark to the full logo (`src/components/brand/LogoIntro.tsx`, on the phone); the web build's preview is now the 1200 × 630 card (`PageMeta`). `verify-brand` checks the parts and the splash width. The phone and a pasted link are the maintainer's checks: checklist 975-44 to -46.)*
 
 ### Step 1 · The design direction
 `impeccable` **critique first** (the app as it is, with the maintainer's existing feedback), then shape, then Claude Design from the brief's prompt with the new modes, the logo and the two counters.
 **Done when.** The maintainer has picked a direction and the rejected ones are written down.
 
 ### Step 2 · The static poster
-Astro, the sections of [01](01-THE-SITE.md) §2, the counters, the logo (tinted on light), real screenshots, dark and light.
-**Done when.** Lighthouse 95+ on every category on a throttled mobile profile, under 100 KB before images, both counters real.
+Astro (Node 22), the page of [09](09-LANDING-SHAPE.md): the live spin from `reel.json`, the counter (the `site_counters` migration of [08](08-HOLES.md) §2 comes with this step), the four frames and the three proofs from the named screenshots (09 §5), the logo (ink on light), dark and light, `/` and `/sk/`, the metadata of 09 §7, the 404 of [11](11-PAGES-COMMUNITY-DOWNLOAD.md) §5.
+**Done when.** Lighthouse 95+ on every category on a throttled mobile profile; under 100 KB before images; the counter real and its failure state seen (block Supabase: the built number stays, dated); no real name in the built HTML (10 §2.9).
+*(Built 9 Oct 2026, waiting on the maintainer for three things: the screenshots, `supabase/site-counters.sql` run once, and the Vercel project. In `landing/`: Astro **5.18.2** (Astro 7 needs Node 22.12+, this machine has 20.17; one version bump once it has Node 24), `/` and `/sk`, the 404, `robots.txt`, `sitemap.xml` with the language pair, `llms.txt`, the CSP and the other headers in `landing/vercel.json`. The page's data is made in the repo by `node scripts/build-landing-data.cjs`: the reel (221 club-seasons from the legal database), the ladder, the modes and every tier name from the game's own i18n through the rename table, the version, the icons and the fonts (subset WOFF). `npm run check` in `landing/` (after `npm run build`): no real competition name in anything a visitor reads, one h1, lang, canonical and the language pair on every page, no inline script, links that resolve, the weight; it failed on the first build (Vite had inlined the scripts, rename table and all) and passes: the front page is 12.1 KB gzipped, the fonts 116 KB. Found on the way and fixed in the app: the legal rename skipped "Európska liga" and "Konferenčná liga" (`verify-legal-build` now checks); the full path's English line now names the three cups in full. Not yet: the screenshots (each frame shows an honest numbered tile until `landing/public/shots/<en|sk>/s1–s7.webp` exist), the counter (absent until the SQL is run and the site has the public Supabase values), Lighthouse (the maintainer's, on the deployed site).)*
 
 ### Step 3 · The database
 `qa.sql` and its test file ([04](04-SECURITY-AND-ABUSE.md) §11), including private conversations and public/private questions.

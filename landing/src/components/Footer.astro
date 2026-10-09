@@ -1,0 +1,38 @@
+---
+// The footer (09 §3.9, 08 H9): the legal pages (the game's, one shared text),
+// the language, where it's made, the year, the disclaimer, and the contact
+// address with a copy button. Community and Download join it when they exist
+// (steps 4 and 6): a link to a page that isn't there is a dead link.
+import { T, GAME_URL, CONTACT, other, pathFor, type Lang } from '../i18n'
+interface Props { lang: Lang }
+const { lang } = Astro.props
+const t = T[lang]
+const year = new Date().getFullYear()
+---
+<footer class="foot">
+  <nav class="foot-links" aria-label="Footer">
+    <a href={`${GAME_URL}/privacy`}>{t.privacy}</a>
+    <a href={`${GAME_URL}/terms`}>{t.terms}</a>
+    <a href={pathFor(other(lang))} hreflang={other(lang)} lang={other(lang)}>{t.switchTo}</a>
+  </nav>
+  <p class="tag">{t.madeIn} · {year}</p>
+  <p class="foot-small">{t.disclaimer}</p>
+  <p class="foot-contact">
+    <span class="tag">{t.contact}</span>
+    <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
+    <button type="button" class="plate quiet copy" data-copy={CONTACT} data-done={t.copied}>{t.copy}</button>
+  </p>
+</footer>
+<script>
+  // Copy the contact address (on every page, so it lives with the footer).
+  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(b.dataset.copy ?? '')
+        const was = b.textContent
+        b.textContent = b.dataset.done ?? 'Copied'
+        setTimeout(() => (b.textContent = was), 1600)
+      } catch { /* the address is right beside it, as a link */ }
+    })
+  }
+</script>

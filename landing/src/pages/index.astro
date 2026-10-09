@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro'
+import Home from '../components/Home.astro'
+import { GAME_JSON_LD } from '../lib/seo'
+---
+<Base lang="en" jsonLd={GAME_JSON_LD('en')}>
+  <Home lang="en" />
+</Base>

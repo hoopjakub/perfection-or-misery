@@ -15,7 +15,7 @@ A run is a kickabout that becomes a final. Setup happens in the stockroom on **w
 | Components | `src/components/kit/` (import from `@/components/kit`) |
 | Fonts | registered in `app/_layout.tsx` (`KIT_FONTS`) |
 | Web page CSS | `src/lib/webChrome.ts` |
-| Brand assets | `scripts/brand-assets.py` → `assets/icon.png`, adaptive icon layers, `favicon.png`, `splash-icon.png` |
+| Brand assets | `assets/Group 3.svg` (the logo) → `node scripts/brand-logo.cjs` → the icon, adaptive and monochrome layers, splash, favicon, web icons, the 1200 × 630 link preview, and `src/components/brand/logoParts.ts` for the opening (`LogoIntro`). Small sizes use the compact mark (wordmark out, gap closed); `verify-brand` keeps the splash and the opening in step (Phase 10, 9 Oct 2026) |
 | Club codes | `src/data/club-codes.ts`, checked by `scripts/verify-club-codes.ts` |
 | Tier names, verdict ends, mode tags | `src/data/tiers.ts` |
 
@@ -102,7 +102,7 @@ Every figure is computed (`src/lib/contrast.ts`, the same formula as the deep-au
 - **Density** T1 rows 56 (Home, setup, stories) · T2 48 (lists) · T3 36 visual / 48 hit (tables).
 - **Radius is 0.** The only round things: rivets, round flags, the zip tag's head.
 - **Borders** hairline between rows · 1px tags, fields, secondary plates · 2px primary plates, focused fields · 4px tape.
-- **Motion** springs in `src/lib/motion.ts` (snap, settle, throw, stamp, swing); the zip tag's swing is the only overshoot. Haptics go through `src/lib/haptics.ts`.
+- **Motion** springs in `src/lib/motion.ts` (snap, settle, throw, stamp, swing); the zip tag's swing is the only overshoot. No haptics: they were removed from the game and aren't coming back (the maintainer's rule).
 - **Depth** is a 2px offset in `roles.offset` (ink on cotton, black on nylon). Pressing moves the element into it. No blur shadows.
 - **Focus (web)** 2px orange outline, 2px offset, square.
 
@@ -184,7 +184,7 @@ States listed are the ones built; the full lists are in `docs/ui-overhaul/08-COM
 
 **Floodlit is for whole screens** (Phase 9.75, R3-01). A screen stands on the everyday ground (cotton in light mode, nylon in dark) and its parts take the screen's ground with `useScreenRoles()`. A part pinned to the floodlit ground draws a dark card inside a light screen; the live match did until 8 October 2026. The few pins that stay (the ceremonies, the pitches, the draft's club card, the match sheet until P8-48) are listed with their reasons in `scripts/verify-grounds.ts`, which fails on any other.
 
-Everything else still uses the old palette and is rebuilt phase by phase (`docs/ui-overhaul/11-ROADMAP.md`). Until Phase 6 replaces it, web keeps the 480px column, so the rail only appears on native tablets wider than 1024.
+Everything else still uses the old palette and is rebuilt phase by phase (`docs/ui-overhaul/11-ROADMAP.md`). The web is no longer held to a 480px column: `KitScreen` has a reading column and a capped wide layout, and the rail appears at 1024px and wider on every platform (corrected 9 Oct 2026).
 
 ---
 
@@ -203,5 +203,5 @@ System copy never uses exclamation marks. Buttons are verbs that say what happen
 | Super line heights 72/64, 48/44 … | line height = size | The tighter values clip the italic's ascenders on Android |
 | Material Symbols Sharp as SVG | Ionicons Sharp, behind `Icon` | Already installed, same square ends; swapping is a one-table change |
 | Round flag assets | The flag emoji clipped to a circle, behind `RoundFlag` | The asset set is a later swap; the component contract is final |
-| NavRail on desktop web | Built, but web still renders inside the 480px column | Wide layouts are Phase 6 |
-| Settings (reduced motion, haptics), privacy, terms, delete account on You | Not shown | Nothing reads those settings yet (Phase 2), and the pages and server deletion are Phase 6. A row that does nothing would lie |
+| NavRail on desktop web | Built, shown from 1024px on the web too | (Was held to a 480px column until the wide layouts landed) |
+| Settings, privacy, terms, delete account | Built: `app/settings.tsx`, `app/privacy.tsx`, `app/terms.tsx`, account deletion through the `delete-account` function | (Corrected 9 Oct 2026; haptics were removed from the game entirely) |

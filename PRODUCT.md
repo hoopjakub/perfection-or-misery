@@ -37,13 +37,13 @@ Openly inspired by 38-0.app. What PoM can claim that a neighbour cannot copy:
 
 ## Capabilities and Constraints
 
-- **Modes:** All Time, League, Chaos, Cursed; UEFA Champions League (full path with qualifying), UEFA Champions League (finals only), FIFA World Cup (finals). A full World Cup route with confederation qualifying is announced in-app and not built.
+- **Modes:** All Time, League, Chaos, Cursed; UEFA Champions League, Europa League and Conference League, each finals only or the full European path with qualifying; FIFA World Cup (finals). A full World Cup route with confederation qualifying is announced in-app and not built. The public (legal) build shows generic names: European Cup, Europa Cup, Conference Cup, World Cup (corrected 9 Oct 2026, `docs/website/07-FACT-CHECK.md` F19).
 - **Difficulty:** easy, medium, hard and custom (rerolls, ratings on or off, a 1–10 screw level). The tilt applies only to the player's own matches.
 - **Data:** read-only bundled SQLite. Top-five leagues 2018–2025, Champions League 2024 and 2025, World Cup 2026, around fifty leagues feeding the custom UCL path.
 - **Stack:** Expo SDK 54, React Native 0.81, expo-router, Zustand, react-native-svg, Reanimated 4 (installed), Supabase.
 - **Engine truth the UI must respect:** results are decided before they are shown, and deep stats are regenerated from a seed. Any surface that plays a match back must show state as of the current minute. Nothing may spoil what the player has not seen yet.
 - **Decided direction for depth:** deepen each single run with The Dugout's league stories and news, award ceremonies and information design. No multi-run career carry-over beyond the career stats that already exist.
-- **Open decisions:** store listing content and screenshots; web hosting and domain; whether official competition marks can ship in a public release (see Evidence on Hand).
+- **Open decisions:** store listing content and screenshots; a bought domain (hosting is decided: Vercel, on `vercel.app` for now); official marks and real names in the public build wait for a lawyer (`docs/release/01-NAMES-MARKS-AND-THE-LAW.md`).
 
 ## Brand Commitments
 
@@ -58,7 +58,8 @@ Openly inspired by 38-0.app. What PoM can claim that a neighbour cannot copy:
 - The scraped player and club database, and club trivia in `scripts/club_facts.json`.
 - `assets/modes/world-cup.png` is the official FIFA World Cup 26 emblem; `assets/modes/champions-league.png` is a white competition mark; `assets/logos/brazil_nt.png` is a single national-team crest.
 - The maintainer's own story on the About screen.
-- **Absent, and not to be fabricated:** a real app icon or brand mark (icon, favicon and splash are unmodified Expo template art), store listing copy, store screenshots, player counts, reviews, testimonials, press.
+- **Brand marks:** the logo (`assets/Group 3.svg`: a volt triangle up, a red one down, the wordmark between, the orange pin) is on the icon, splash, favicon, web icons and link preview since 9 Oct 2026 (`scripts/brand-logo.cjs`); small sizes use the compact mark (wordmark out, gap closed), and the app opens from the compact mark to the full logo.
+- **Absent, and not to be fabricated:** store listing copy, store screenshots, player counts, reviews, testimonials, press.
 - Official UEFA and FIFA marks are trademarks. Shipping them in a public release is an open decision; the maintainer has said not to worry about trophy imagery for a personal build.
 
 ## Product Principles

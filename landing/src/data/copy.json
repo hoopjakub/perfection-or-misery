@@ -1,0 +1,296 @@
+{
+ "en": {
+  "ladder": [
+   {
+    "key": "perfection",
+    "name": "Perfection",
+    "line": "You won the league and won every match."
+   },
+   {
+    "key": "almost_perfection",
+    "name": "Almost Perfection",
+    "line": "You won the league without losing a match."
+   },
+   {
+    "key": "champions",
+    "name": "Champions",
+    "line": "You won the league."
+   },
+   {
+    "key": "title_contender",
+    "name": "Title Contenders",
+    "line": "A podium finish, pushing the champions all the way."
+   },
+   {
+    "key": "champions_league",
+    "name": "European Cup",
+    "line": "A top-four finish and a place in the European Cup."
+   },
+   {
+    "key": "europa_glory",
+    "name": "Europa Glory",
+    "line": "A top-seven finish and European football."
+   },
+   {
+    "key": "almost_matters",
+    "name": "Almost Matters",
+    "line": "Top half, comfortably mid-table. Safe, respectable, a bit forgettable."
+   },
+   {
+    "key": "respectful_mediocrity",
+    "name": "Respectable Mediocrity",
+    "line": "You stayed up, only just, after a season of scraping by. Recruit better next time."
+   },
+   {
+    "key": "absolute_misery",
+    "name": "Absolute Misery",
+    "line": "Relegated, bottom three, after a disastrous season."
+   }
+  ],
+  "tiers": {
+   "perfection": "Perfection",
+   "almost_perfection": "Almost Perfection",
+   "champions": "Champions",
+   "title_contender": "Title Contenders",
+   "champions_league": "European Cup",
+   "europa_glory": "Europa Glory",
+   "almost_matters": "Almost Matters",
+   "respectful_mediocrity": "Respectable Mediocrity",
+   "absolute_misery": "Absolute Misery",
+   "winner": "Champions",
+   "final": "Runners-up",
+   "finalist": "Runners-up",
+   "third": "Third Place",
+   "fourth": "Fourth",
+   "sf": "Semi-finalists",
+   "sf_exit": "Semi-finalists",
+   "qf": "Quarter-finalists",
+   "qf_exit": "Quarter-finalists",
+   "r16": "Round of 16",
+   "r16_exit": "Round of 16",
+   "r32": "Round of 32",
+   "playoff_exit": "Knockout Play-off",
+   "league_exit": "League Phase",
+   "groups": "Group Stage",
+   "quali_playoff_exit": "Out in the Play-off",
+   "q3_exit": "Out in Q3",
+   "q2_exit": "Out in Q2",
+   "q1_exit": "Out in Q1",
+   "not_qualified": "Didn't Qualify",
+   "euroWinners": "{{comp}} winners",
+   "euroTier": "{{comp}} {{tier}}",
+   "ueclQ1": "Out in Conference Cup Q1",
+   "ueclQ2": "Out in Conference Cup Q2",
+   "ueclQ3": "Out in Conference Cup Q3",
+   "ueclPlayoff": "Out in Conference Cup the play-off",
+   "tagAllTime": "All Time",
+   "tagLeague": "League",
+   "tagEra": "Era",
+   "tagChaos": "Chaos",
+   "tagCursed": "Cursed",
+   "tagUcl": "UCL",
+   "tagEurope": "Europe",
+   "tagWc": "World Cup",
+   "tagUel": "UEL",
+   "tagUecl": "UECL",
+   "metaCustom": "custom",
+   "metaCustomH": "custom {{h}}/11"
+  },
+  "modes": [
+   {
+    "key": "league",
+    "name": "League",
+    "line": "Pick a league. Every spin and your placement come from it, across every season we have."
+   },
+   {
+    "key": "all_time",
+    "name": "All Time",
+    "line": "Any club, any season, any league."
+   },
+   {
+    "key": "chaos",
+    "name": "Chaos",
+    "line": "You could be placed anywhere, and so could your players: you pick them, chaos picks where they play.",
+    "hazard": true
+   },
+   {
+    "key": "cursed",
+    "name": "Cursed",
+    "line": "The names won't stay still, and now and then the curse makes the pick for you.",
+    "hazard": true
+   },
+   {
+    "key": "europe_path",
+    "name": "Europe · Full path",
+    "line": "Every league and cup played. Your season puts you in the European Cup, the Europa Cup or the Conference Cup; lose in qualifying and you drop."
+   },
+   {
+    "key": "ucl",
+    "name": "European Cup",
+    "line": "The 36-club league phase and the knockouts. No qualifying."
+   },
+   {
+    "key": "uel",
+    "name": "Europa Cup",
+    "line": "The real 2025–26 field and pots: 36 clubs, eight league-phase games, then the knockouts."
+   },
+   {
+    "key": "uecl",
+    "name": "Conference Cup",
+    "line": "The real 2025–26 field: six pots, one opponent from each, then the knockouts."
+   },
+   {
+    "key": "world_cup",
+    "name": "World Cup",
+    "line": "48 national teams. Draft a squad and take over a country."
+   }
+  ]
+ },
+ "sk": {
+  "ladder": [
+   {
+    "key": "perfection",
+    "name": "Dokonalosť",
+    "line": "Titul a víťazstvo v každom zápase."
+   },
+   {
+    "key": "almost_perfection",
+    "name": "Skoro dokonalosť",
+    "line": "Titul bez jedinej prehry."
+   },
+   {
+    "key": "champions",
+    "name": "Majstri",
+    "line": "Titul je tvoj."
+   },
+   {
+    "key": "title_contender",
+    "name": "V boji o titul",
+    "line": "Miesto na stupňoch víťazov a majster si to musel vybojovať do konca."
+   },
+   {
+    "key": "champions_league",
+    "name": "Pohár majstrov",
+    "line": "Prvá štvorka a miesto v súťaži Pohár majstrov."
+   },
+   {
+    "key": "europa_glory",
+    "name": "Európska sláva",
+    "line": "Prvá sedmička a európsky futbal."
+   },
+   {
+    "key": "almost_matters",
+    "name": "Takmer to stálo za to",
+    "line": "Horná polovica, pokojný stred tabuľky. Bezpečné, slušné, trochu na zabudnutie."
+   },
+   {
+    "key": "respectful_mediocrity",
+    "name": "Úctyhodný priemer",
+    "line": "Záchrana tesne, po sezóne plnej trápenia. Nabudúce lepšie nakupuj."
+   },
+   {
+    "key": "absolute_misery",
+    "name": "Úplná bieda",
+    "line": "Zostup, posledná trojka, po katastrofálnej sezóne."
+   }
+  ],
+  "tiers": {
+   "perfection": "Dokonalosť",
+   "almost_perfection": "Skoro dokonalosť",
+   "champions": "Majstri",
+   "title_contender": "V boji o titul",
+   "champions_league": "Pohár majstrov",
+   "europa_glory": "Európska sláva",
+   "almost_matters": "Takmer to stálo za to",
+   "respectful_mediocrity": "Úctyhodný priemer",
+   "absolute_misery": "Úplná bieda",
+   "winner": "Víťazi",
+   "final": "Finalisti",
+   "finalist": "Finalisti",
+   "third": "Tretie miesto",
+   "fourth": "Štvrté miesto",
+   "sf": "Semifinalisti",
+   "sf_exit": "Semifinalisti",
+   "qf": "Štvrťfinalisti",
+   "qf_exit": "Štvrťfinalisti",
+   "r16": "Osemfinále",
+   "r16_exit": "Osemfinále",
+   "r32": "Šestnásťfinále",
+   "playoff_exit": "Play-off vyraďovacej fázy",
+   "league_exit": "Ligová fáza",
+   "groups": "Skupinová fáza",
+   "quali_playoff_exit": "Koniec v play-off",
+   "q3_exit": "Koniec v 3. predkole",
+   "q2_exit": "Koniec v 2. predkole",
+   "q1_exit": "Koniec v 1. predkole",
+   "not_qualified": "Bez Európy",
+   "euroWinners": "{{comp}}: víťazi",
+   "euroTier": "{{comp}}: {{tier}}",
+   "ueclQ1": "Konferenčný pohár: koniec v 1. predkole",
+   "ueclQ2": "Konferenčný pohár: koniec v 2. predkole",
+   "ueclQ3": "Konferenčný pohár: koniec v 3. predkole",
+   "ueclPlayoff": "Konferenčný pohár: koniec v play-off",
+   "tagAllTime": "Všetky časy",
+   "tagLeague": "Liga",
+   "tagEra": "Éra",
+   "tagChaos": "Chaos",
+   "tagCursed": "Prekliatie",
+   "tagUcl": "LM",
+   "tagEurope": "Európa",
+   "tagWc": "MS",
+   "tagUel": "EL",
+   "tagUecl": "KL",
+   "metaCustom": "vlastná",
+   "metaCustomH": "vlastná {{h}}/11"
+  },
+  "modes": [
+   {
+    "key": "league",
+    "name": "Liga",
+    "line": "Vyber si ligu. Každé točenie aj tvoje zaradenie pochádzajú z nej, zo všetkých sezón, ktoré máme."
+   },
+   {
+    "key": "all_time",
+    "name": "Všetky časy",
+    "line": "Akýkoľvek klub, akákoľvek sezóna, akákoľvek liga."
+   },
+   {
+    "key": "chaos",
+    "name": "Chaos",
+    "line": "Môžeš skončiť kdekoľvek a tvoji hráči tiež: ty ich vyberáš, chaos rozhodne, kde budú hrať.",
+    "hazard": true
+   },
+   {
+    "key": "cursed",
+    "name": "Prekliatie",
+    "line": "Mená neobsedia na mieste a z času na čas za teba vyberie prekliatie.",
+    "hazard": true
+   },
+   {
+    "key": "europe_path",
+    "name": "Európa · Celá cesta",
+    "line": "Hrá sa každá liga aj pohár. Sezóna ťa pošle do jednej zo súťaží Pohár majstrov, Európsky pohár, Konferenčný pohár; prehraj v kvalifikácii a padáš nižšie."
+   },
+   {
+    "key": "ucl",
+    "name": "Pohár majstrov",
+    "line": "Ligová fáza s 36 klubmi a vyraďovacia fáza. Bez kvalifikácie."
+   },
+   {
+    "key": "uel",
+    "name": "Európsky pohár",
+    "line": "Skutočné zloženie a koše ročníka 2025/26: 36 klubov, osem zápasov ligovej fázy, potom vyraďovacia fáza."
+   },
+   {
+    "key": "uecl",
+    "name": "Konferenčný pohár",
+    "line": "Skutočné zloženie ročníka 2025/26: šesť košov, jeden súper z každého, potom vyraďovacia fáza."
+   },
+   {
+    "key": "world_cup",
+    "name": "Majstrovstvá sveta",
+    "line": "48 reprezentácií. Zostav káder a prevezmi krajinu."
+   }
+  ]
+ }
+}

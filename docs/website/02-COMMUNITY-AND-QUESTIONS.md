@@ -17,6 +17,8 @@ No third channel until the first two are used. A chat, replies, reactions and pr
 |---|---|---|
 | A real account | Yes; guests (anonymous sessions) can read, not ask | A guest's session is throw-away; the game already treats them so (`pom_is_member()` in `supabase/friends.sql`) |
 | Has played | At least one saved run | A cheap wall against sign-up spam: a throw-away account doesn't have one ([04](04-SECURITY-AND-ABUSE.md) §3) |
+| Not banned, not made to rename | `profiles.banned_at` is null and `must_rename` is false (added 9 Oct, [08](08-HOLES.md) H4) | Moderation (1 Oct) can ban a player from runs, chat and clubs; the community follows it |
+| Age | A line on the form: writing here needs a player of **15 or over** (decided 9 Oct, [08](08-HOLES.md) H10) | Stated, not verified; the terms say the same |
 | One **active** question | Active means status `open` or `seen` | The maintainer's rule, and it keeps the inbox to one thread per person |
 | Length | 10 to 1,000 characters, plain text | Enough for a proper question, too short for a wall |
 | After an answer | Ask again once the last question is closed and 1 hour has passed | Stops a run of one-line questions the minute an answer lands. **Provisional:** the hour is a guess |
@@ -49,7 +51,8 @@ No third channel until the first two are used. A chat, replies, reactions and pr
 - **An edit resets to Open** and stamps `edited_at`, so the admin sees it changed since they last looked, and a question can't be made into something else after it was seen and planned. Editing stops at Planned.
 - **A link to your question.** The asker's own page at `/community/questions/[id]` works for them and the admin only, until it's published. That is the "when you click a link it takes you to the question" the maintainer described.
 - **Closed means** Answered, Declined or Duplicate: the admin's last word is in and nothing more happens unless the admin reopens it. Planned is not closed (it becomes Answered when the thing ships). **Closed questions are kept always** (Q26): nothing is deleted on a timer, only by the admin for abuse or by the asker deleting their account.
-- **No email**, because accounts have none. The status shows wherever the player looks: on `/community/ask`, and as a small mark on the app's You tab (a later step, [05](05-OPEN-QUESTIONS.md) build order).
+- **No email**, because accounts have none. **But the game has notifications** ([07](07-FACT-CHECK.md) F4): a status change, an answer or an admin's message inserts a notice (type `qa`) through the admin function, so the badge on You lights up and the notice opens the question ([08](08-HOLES.md) H5). On the site, `/community/mine` marks what changed.
+- **Withdraw** (added 9 Oct, [08](08-HOLES.md) H11): the asker can withdraw a question while it's open or seen. It's deleted, and still counts against the day's cap.
 
 ## 4 · Public or private
 
@@ -176,7 +179,7 @@ The daily-limit and edit-cooldown states name the missing step ("Available in 6 
 
 Answered Public questions, newest first. **The admin's answer is the bigger text** (Q24): the question sits above it smaller, as the prompt, and the answer is what the page is for. Plain text or a tiny whitelist ([04](04-SECURITY-AND-ABUSE.md) §6), and the date.
 
-**Search** (Q24) takes whole sentences, not just keywords: Postgres full-text search (`websearch_to_tsquery` over the question and answer, English and Slovak configurations; **check** Slovak stemming support, and fall back to `pg_trgm` similarity if it's missing), run through a function with a length cap. When nothing matches:
+**Search** (Q24) takes whole sentences, not just keywords: Postgres full-text search (`websearch_to_tsquery` over the question and answer), run through a function with a length cap. **Checked 9 Oct** ([07](07-FACT-CHECK.md) F13): Postgres has no Slovak stemmer and Supabase can't load one, so English text uses the `english` configuration and Slovak text `simple` with `unaccent` (so *zapas* finds *zápas*), and `pg_trgm` similarity catches near misses in both. (`unaccent` is installed on the project; `pg_trgm` isn't yet, so `qa.sql` enables it, 07 D6.) When nothing matches:
 
 > Didn't find an answer? Come and ask it yourself.
 

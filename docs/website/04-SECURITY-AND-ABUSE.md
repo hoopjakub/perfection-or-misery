@@ -13,7 +13,7 @@ Not money, not payment details, not email addresses (accounts have none). What t
 | **The admin's session** | It can read every question and write the public updates. The highest-value target on the site |
 | **The admin's attention** | One person reads the inbox. A flood of junk is a denial of service against a person |
 | **Players' question text** | Free text is personal data: it can contain a name, a school, anything |
-| **The shared Supabase project** | It also holds the game's runs, profiles and clubs, and The Dugout's and Become a Legend's tables. A mistake here reaches all of them |
+| **The shared Supabase project** | It also holds the game's runs, profiles and clubs, and Become a Legend's and The Gaffer's (`gaf_*`) tables (corrected 9 Oct: The Dugout uses no Supabase, [07](07-FACT-CHECK.md) F2). A mistake here reaches all of them |
 | **The site's reputation** | Published answers and updates appear under the game's name |
 
 Who abuses it, in the order they're likely: **a spammer with throw-away accounts** (accounts are a username and a password); **a player who loops** (a bug or a bored person hitting Send); **a curious visitor** probing for the admin; **someone who wants to harm the admin's browser** by putting script in a question (the admin is the one reader who opens everyone's text); **a scraper** reading everything readable.
@@ -41,7 +41,7 @@ Who abuses it, in the order they're likely: **a spammer with throw-away accounts
 
 | Function | Who | Checks |
 |---|---|---|
-| `qa_ask(body)` | A member | A real account, not a guest; has a saved run; no active question; the cooldown since the last one; the daily cap; the global breaker; length; then inserts |
+| `qa_ask(body)` | A member | A real account, not a guest; **not banned and not made to rename** (`profiles.banned_at`, `must_rename`; added 9 Oct); has a saved run; no active question; the cooldown since the last one; the daily cap; the global breaker; length; then inserts |
 | `qa_edit(id, body)` | The asker | It's theirs; status is open or seen; the edit cooldown; the edit and daily caps; length; resets status to open |
 | `qa_mine()` | A member | Returns their questions only |
 | `qa_published()`, `qa_search(text)` | Anyone | Answered, public, not admin-private only; search text length-capped and passed as a parameter to `websearch_to_tsquery`, never built into SQL |
@@ -56,7 +56,7 @@ The numbers in [02](02-COMMUNITY-AND-QUESTIONS.md) §2 are a row in `qa_settings
 
 ## 3 · Rate limiting
 
-**The facts (Supabase documentation, read 29 September).** Its limits cover Auth only: sign-up and sign-in 30 requests per five minutes per IP, token refresh 150 per five minutes per IP, anonymous sign-ins 30 an hour per IP, one-time-code resends 60 seconds per user, and emails and texts per project. The page says nothing about database or REST calls ([rate limits](https://supabase.com/docs/guides/auth/rate-limits)). Supabase's own material describes rate limiting the database in three ways: an Edge Function in front, with a store such as Redis; a Postgres pre-request hook counting requests per IP in an unlogged table ([the pgheaderkit walk-through](https://dev.to/supabase/rate-limiting-supabase-requests-with-postgresql-and-pgheaderkit-409j), which skips reads and needs a nightly cleanup job); or logic inside the functions themselves.
+**The facts (Supabase documentation, read 29 September and again 9 October).** Its limits cover Auth only: sign-up and sign-in 30 requests per five minutes per IP, token refresh 150 per five minutes per IP, anonymous sign-ins 30 an hour per IP, verification 30 per five minutes, MFA challenge and verify 15 a minute, one-time-code resends 60 seconds per user, and emails and texts per project. The page says nothing about database or REST calls ([rate limits](https://supabase.com/docs/guides/auth/rate-limits)). Supabase's own material describes rate limiting the database in three ways: an Edge Function in front, with a store such as Redis; a Postgres pre-request hook counting requests per IP in an unlogged table ([the pgheaderkit walk-through](https://dev.to/supabase/rate-limiting-supabase-requests-with-postgresql-and-pgheaderkit-409j), which skips reads and needs a nightly cleanup job); or logic inside the functions themselves.
 
 **The choice: inside the functions,** with `qa_events` as the counter. Reasons:
 - The thing to limit is a small number of *writes by an account*, not requests by an address. Per-account limits can't be dodged by changing address, and shared addresses (a school, a phone network) aren't punished together, which the per-IP approach does ("shared IPs count toward the same quota", the walk-through's own caveat).
@@ -86,7 +86,7 @@ The numbers in [02](02-COMMUNITY-AND-QUESTIONS.md) §2 are a row in `qa_settings
 
 Supabase can put a captcha (Cloudflare Turnstile or hCaptcha) in front of sign-up and sign-in. The setting is **per project**, and this project's sign-in is also used by the Expo app, whose sign-in screen doesn't send a captcha token and can't produce one natively without a web view. Turning it on could stop every sign-up in the app. **Not recommended** without first checking that native clients can be exempt.
 
-**Couldn't verify:** the captcha setting's scope and whether native clients can be excluded; check the dashboard's documentation before any decision.
+**Checked 9 Oct** ([07](07-FACT-CHECK.md) F15): the captcha covers the project's sign-in, sign-up and password reset, with a fresh token per request from a web widget; nothing documents a native exemption. The recommendation stands.
 
 ## 6 · What's in a question, and what the admin's browser sees
 
@@ -127,6 +127,8 @@ The most damaging realistic attack is not on the database: it's **a question tha
 
 ## 9 · What the `vibecode-audit` skill has to learn
 
+> **9 October 2026:** the skill was never upgraded, and it's plugin-managed ([07](07-FACT-CHECK.md) F8). The list below became [`10-AUDIT-ADDENDUM.md`](10-AUDIT-ADDENDUM.md), which the audit runs after the skill's own checklist.
+
 The roadmap (Phase 10) says the skill is upgraded before it's run against the site. The skill's own security pass is a 20-point checklist for a site, and this design is the case it doesn't cover. It needs at least:
 
 1. **A database-first section for sites on Supabase (or similar):** list every table, read its policies from `pg_policies`, and confirm row-level security is on for each (`relrowsecurity`). "RLS is enabled" isn't evidence without the policies (the audit references' own trap).
@@ -146,11 +148,11 @@ Then the skill's honesty rule applies to this plan too: anything above that depe
 
 | Item | What to check |
 |---|---|
-| Row-level security is on for every existing table | `select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r'` (already in `supabase/policies.sql`'s header) |
-| The token's `aal` claim at the second factor | A real login with an enrolled account, decoding the token |
-| Whether Supabase Auth locks an account after repeated failures | The dashboard's Auth settings and documentation |
+| Row-level security is on for every existing table | **Read 9 Oct: on for all 21** (07 D1) |
+| The token's `aal` claim at the second factor | The expression is documented (`auth.jwt()->>'aal'`, 9 Oct); still decode one real token after enrolling |
+| Whether Supabase Auth locks an account after repeated failures | **Read 9 Oct:** no lockout, only the per-address limit (07 D10) |
 | Whether captcha can exclude native clients | The dashboard's documentation |
-| That no policy in the shared project exposes another app's tables | List `pg_policies` for the whole project once and read it |
+| That no policy in the shared project exposes another app's tables | **Read 9 Oct:** Become a Legend's two tables are own-row only (07 D12) |
 | The site's headers (CSP, HSTS, frame options) | The deployed response, once it exists |
 
 ## 11 · Implementation order

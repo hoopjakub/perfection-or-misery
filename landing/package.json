@@ -1,0 +1,18 @@
+{
+  "name": "pom-landing",
+  "private": true,
+  "type": "module",
+  "description": "The Perfection or Misery landing page (docs/website). Its data comes from the game: node scripts/build-landing-data.cjs in the repo root.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "node scripts/check-dist.mjs"
+  },
+  "dependencies": {
+    "astro": "5.18.2"
+  },
+  "engines": {
+    "node": ">=20.3.0"
+  }
+}

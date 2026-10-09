@@ -1635,11 +1635,13 @@ The checklist went through on the phone ([`../PHASE-9.5-CHECKLIST.md`](../PHASE-
 
 *(27 September 2026: P8-154's website brief, [`docs/website/WEBSITE-BRIEF.md`](../website/WEBSITE-BRIEF.md), is this phase's creative brief: the live counter, the design bar and the prompts are there. Where this section and the brief differ, the brief is newer.)*
 
+*(9 October 2026, Phase 10 began: the website set was re-audited and is now the plan, newer than this section and the brief wherever they differ: [`docs/website/00-README.md`](../website/00-README.md). What changed here: the site is **Astro** in `landing/` on Node 22, not plain HTML; it stays on **`vercel.app`** (Q1), so the domain and `play.` below wait for a bought domain; the hero is **a live spin** and the page is [`09-LANDING-SHAPE.md`](../website/09-LANDING-SHAPE.md); the site speaks the **legal flavour** (generic competition names, altered club names, no crests); **1.0.0 comes after Phase 11**, not with this phase, so the site launches with the game in early access; the counter is a polled `site_counters` row; `latest.json` stays on the game's address; the audit's additions are [`10-AUDIT-ADDENDUM.md`](../website/10-AUDIT-ADDENDUM.md). Fact-check: [`07-FACT-CHECK.md`](../website/07-FACT-CHECK.md).)*
+
 **Goal.** Someone who has never heard of the game lands on one page and, in ten seconds, knows what it is, wants to try it, and can: play in the browser or get it on Android. Today the web address opens straight into the app's Home, which assumes you already know.
 
 *Added 29 September 2026, the maintainer:*
 
-- **1.0.0 is the whole thing.** The app is called 1.0.0 only once Phases 8.5, 9 and this one (the landing page) are done and the finishing work is in (decided 29 September 2026). Until then the versions stay under 1 (0.9.0 is Phase 8, built; see the version history in `src/data/versionHistory.ts`). It ships under a football release name with a welcome update ([`../website/05-OPEN-QUESTIONS.md`](../website/05-OPEN-QUESTIONS.md) Q13).
+- **1.0.0 is the whole thing.** ~~The app is called 1.0.0 only once Phases 8.5, 9 and this one (the landing page) are done and the finishing work is in (decided 29 September 2026).~~ **Changed 9 October 2026: 1.0.0 comes after Phase 11** (the PC sweep and the UI overhaul now follow this phase). Until then the versions stay under 1 (0.9.0 is Phase 8, built; see the version history in `src/data/versionHistory.ts`). It ships under a football release name with a welcome update ([`../website/05-OPEN-QUESTIONS.md`](../website/05-OPEN-QUESTIONS.md) Q13).
 - **The new logo.** A new mark, "an overall improvement on the current one": a volt-green triangle over a red one, the wordmark between them in white, and the orange pin at the top right. Files: `assets/Group 3.png` and the original `Group 3.svg` (the maintainer's export, 533 × 528, fills `#D5FF3F`, `#E1141F`, `#FF5A00`, white and black). The site and the app's icon, splash and wordmark move to it; the white wordmark needs a dark ground or an ink version for cotton.
 - **Upgrade the vibecode-audit skill first.** Before the site is audited, update and extend the `vibecode-audit` skill itself so its security part is properly researched and truly thorough: real rate limiting, row-level security, the admin area, abuse of forms. Then run it against the site.
 - **A community and a questions section**, kept quieter than the landing page itself: the plan is [`../website/`](../website/00-README.md).
@@ -1682,7 +1684,9 @@ The checklist went through on the phone ([`../PHASE-9.5-CHECKLIST.md`](../PHASE-
 
 **Scope.** Every screen walked on a desktop browser at several window sizes. Wide layouts (panes, the bracket beside the rounds, tables), hover and focus states, keyboard use (Tab order, Enter, Escape, the arrow keys the league season already takes), scroll and zoom, text that's too small or lines that run too long, anything that only worked by touch. A checklist in the Phase 9.5 style, then the fixes.
 
-**Done when** · the maintainer has played a run of every mode on the PC and nothing on the list is still open.
+**Guests, rethought (added 9 October 2026, decided by the maintainer):** option C of [`../release/09-GUESTS.md`](../release/09-GUESTS.md). No session until sign-up (no anonymous account per browser or install), sign-up as a plain account, and a guest's last 10 finished runs kept on the phone and sent through the run queue once the account exists, so *Keep my runs* is true. Then "require current password when updating" is turned on, and the old guest accounts are deleted once. Its done-when list is that document's §5.
+
+**Done when** · the maintainer has played a run of every mode on the PC, nothing on the list is still open, and the guest checks of [`../release/09-GUESTS.md`](../release/09-GUESTS.md) §5 pass.
 
 ## Phase 11 · The UI/UX overhaul, second pass (added 3 October 2026)
 

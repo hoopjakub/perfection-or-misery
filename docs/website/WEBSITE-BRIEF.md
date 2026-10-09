@@ -1,5 +1,7 @@
 # The Perfection or Misery website — brief and prompts
 
+> **9 October 2026:** superseded in places by the re-audit. The hero is chosen (a live spin, [09](09-LANDING-SHAPE.md)); the site speaks the **legal flavour** (generic competition names, altered club names, so "Barcelona 2010/11" in §6 becomes "Barcelona Navy 2010/11", [07](07-FACT-CHECK.md) F7); the colours in §6 are now volt `#D5FF3F` and red `#E1141F` (F23); the counter is **polled, not Realtime** ([08](08-HOLES.md) §2, F14), and `runs` is already publicly readable: the rule is no Realtime on `runs` (F6); the FAQ is back ([09](09-LANDING-SHAPE.md) §3.8). The counter's table is `site_counters`, not `public_counters`.
+>
 > **29 September 2026:** the plan that builds on this brief is [`00-README.md`](00-README.md) (the community and questions section, the admin, the security design, 31 open questions). The modes list below predates the Europa League, the Conference League and the European Full Path, and the new logo (`assets/Group 3.png`).
 
 *Written 24 September 2026, from the maintainer's note: "This website is something you cannot undershoot." Nothing here is built yet. This file is the brief, the skills to run it through, a Claude Design prompt to see how it could look, and the prompt for the build itself.*

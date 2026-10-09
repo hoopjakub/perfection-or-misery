@@ -83,6 +83,14 @@ check(out.includes('Europa Cup') && out.includes('Conference Cup'), 'plugin miss
 check(out.includes('World Cup winners') && !out.includes('FIFA World Cup winners'), 'plugin missed JSX text')
 check(out.includes('Serie B and the Leagues Cup stay'), 'plugin renamed a near-miss')
 check(out.includes('six European Cups'), 'plugin missed a plural')
+// Phase 10 (9 Oct 2026): the Slovak names write "liga" in lower case, and the
+// table's quick guard looked for "Liga" only, so "Európska liga" and
+// "Konferenčná liga" shipped unrenamed in the legal build's Slovak.
+{
+  const { renameText } = require('../src/data/legal-names.js') as { renameText: (t: string) => string }
+  for (const [real, legal] of [['Európska liga', 'Európsky pohár'], ['Konferenčná liga', 'Konferenčný pohár'], ['v súťaži Európska liga UEFA.', 'v súťaži Európsky pohár.'], ['Liga majstrov', 'Pohár majstrov']])
+    check(renameText(real) === legal, `renameText("${real}") is "${renameText(real)}", not "${legal}"`)
+}
 check(out.includes('UEFA Champions League is the comment'), 'plugin touched a comment')
 
 // 5. The plugin must leave its own table alone, or the run-time renames (club

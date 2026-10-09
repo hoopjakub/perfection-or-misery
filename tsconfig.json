@@ -1,5 +1,6 @@
 {
   "extends": "expo/tsconfig.base",
+  "exclude": ["node_modules", "landing"],
   "compilerOptions": {
     "strict": true,
     "ignoreDeprecations": "5.0",

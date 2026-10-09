@@ -25,8 +25,12 @@ export function PageMeta({ title, description = DEFAULT_DESC, path, jsonLd }: { 
       <meta property="og:title" content={full} />
       <meta property="og:description" content={description} />
       <meta property="og:type" content="website" />
-      {SITE ? <meta property="og:image" content={`${SITE}/icon-512.png`} /> : null}
-      <meta name="twitter:card" content="summary" />
+      {/* Phase 10 (step 1a): the designed 1200 × 630 card from the new logo
+          (public/og.png, scripts/brand-logo.cjs), not the square icon. */}
+      {SITE ? <meta property="og:image" content={`${SITE}/og.png`} /> : null}
+      {SITE ? <meta property="og:image:width" content="1200" /> : null}
+      {SITE ? <meta property="og:image:height" content="630" /> : null}
+      <meta name="twitter:card" content="summary_large_image" />
       {url ? <link rel="canonical" href={url} /> : null}
       {url ? <meta property="og:url" content={url} /> : null}
       {jsonLd ? <script type="application/ld+json">{JSON.stringify(jsonLd)}</script> : null}

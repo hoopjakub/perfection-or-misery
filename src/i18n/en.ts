@@ -639,7 +639,7 @@ export const en = {
     randomPositions: 'RANDOM POSITIONS',
     namesChange: 'NAMES CHANGE',
     cursePicks: 'THE CURSE PICKS',
-    europePathLine: 'Every league and cup played. Your season puts you in the Champions, Europa or Conference League; lose in qualifying and you drop.',
+    europePathLine: 'Every league and cup played. Your season puts you in the Champions League, the Europa League or the Conference League; lose in qualifying and you drop.',
     finals: '{{comp}} · Finals',
     uclLine: 'The 36-club league phase and the knockouts. No qualifying.',
     season2526: '{{comp}} · 25/26',

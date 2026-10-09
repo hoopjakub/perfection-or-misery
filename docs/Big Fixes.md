@@ -94,7 +94,7 @@ to more like this (more spacing for it. and maybe the match stats should go to a
 
 (Timeline)
 
-![](https://com.miui.notes/note_image/9be1cb10f3885bbbe28bed7abf7933c1693d1274)![1784839482015](image/BigFixes/1784839482015.jpg)
+![img](https://com.miui.notes/note_image/9be1cb10f3885bbbe28bed7abf7933c1693d1274)![1784839482015](image/BigFixes/1784839482015.jpg) env
 
 (Standings at the moment of the game played (aka if the game was in matchday 7 show those teams position and the other things shown in screenshot at the end of matchday 7), Top 3 rated players from each team and last 5 matches before the game was played for both teams and how they finished (since no emblems show team names)
 

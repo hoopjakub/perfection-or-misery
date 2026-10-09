@@ -1,0 +1,178 @@
+/* The landing page in the app's world: Kit Drop (DESIGN.md, 09 §12).
+   Tokens copied from src/theme.ts; the contrast figures are 09 §12's,
+   computed. Square corners, hard 2px offsets, no blur, no gradients except
+   the colourway tapes. */
+
+@font-face { font-family: 'Kit Super'; src: url('/fonts/super.woff') format('woff'); font-weight: 900; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Kit Tag'; src: url('/fonts/tag.woff') format('woff'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Kit Body'; src: url('/fonts/body.woff') format('woff'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Kit Body'; src: url('/fonts/body-bold.woff') format('woff'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Kit Body'; src: url('/fonts/body-black.woff') format('woff'); font-weight: 800; font-display: swap; }
+
+:root {
+  /* primitives */
+  --ink: #0C0C0D; --cotton: #F3F3F0; --nylon: #141416; --nylon-raised: #1F1F22;
+  --orange: #FF5A00; --volt: #D5FF3F; --red: #E1141F;
+  /* cotton (light) roles */
+  --bg: var(--cotton); --surface: var(--cotton); --sunken: #E2E2DE;
+  --text: var(--ink); --muted: #5A5A60; --rule: #CFCFCA; --line: var(--ink); --offset: var(--ink);
+  --wordmark: var(--ink);
+  --super: 'Kit Super', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --tag: 'Kit Tag', ui-monospace, Consolas, monospace;
+  --body: 'Kit Body', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --gutter: 16px;
+  --max: 1200px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--nylon); --surface: var(--nylon-raised); --sunken: #0B0B0C;
+    --text: var(--cotton); --muted: #A4A4AB; --rule: #34343A; --line: var(--cotton); --offset: #000;
+    --wordmark: #fff;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 var(--body); }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.super { font-family: var(--super); font-weight: 900; font-style: italic; text-transform: uppercase; line-height: 1; letter-spacing: 0; }
+.tag { font: 500 12px/1.4 var(--tag); letter-spacing: .04em; text-transform: uppercase; margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+/* ── The bar ─────────────────────────────────────────────────────────── */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: var(--max); margin: 0 auto; padding: 12px var(--gutter); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-mark { width: 40px; height: 40px; }
+.brand-name { font-family: var(--super); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 20px; line-height: 1; }
+.lang { font: 500 12px var(--tag); text-transform: uppercase; letter-spacing: .04em; padding: 10px 4px; }
+
+main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
+
+/* ── Plates ──────────────────────────────────────────────────────────── */
+.plate { display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 0 20px;
+  font: 800 15px/1.2 var(--body); letter-spacing: .02em; text-transform: uppercase; text-decoration: none;
+  border: 2px solid var(--line); background: var(--surface); color: var(--text); box-shadow: 2px 2px 0 var(--offset); cursor: pointer;
+  transition: transform .08s, box-shadow .08s; }
+.plate:active { transform: translate(2px, 2px); box-shadow: none; }
+.plate.primary { background: var(--orange); color: var(--ink); border-color: var(--ink); }   /* ink on orange 6.25:1; orange means you */
+.plate.secondary { border-width: 1px; }
+.plate.quiet { min-height: 44px; padding: 0 12px; border-width: 1px; box-shadow: none; font-size: 12px; font-family: var(--tag); font-weight: 500; }
+.plate.is-disabled { opacity: .7; cursor: default; box-shadow: none; }
+@media (hover: hover) { .plate:not(.is-disabled):hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--offset); } }
+
+/* ── The poster ──────────────────────────────────────────────────────── */
+.poster { padding-top: 8px; }
+/* The reel is always floodlit (09 §3.1), full bleed on any width. */
+.reel { position: relative; height: 96px; margin: 0 calc(50% - 50vw); background: var(--nylon); overflow: hidden; cursor: pointer; }
+.reel-track { position: absolute; top: 18px; left: 0; display: flex; will-change: transform; }
+.reel-tag { position: relative; flex: none; width: 156px; height: 60px; margin: 0 4px; background: var(--a); border: 1px solid #000;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px; padding: 0 8px; overflow: hidden; }
+.reel-tag::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--b); }
+.reel-name, .reel-season { background: var(--ink); color: var(--cotton); padding: 1px 5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reel-name { font: 800 13px/1.2 var(--body); text-transform: uppercase; }
+.reel-season { font: 500 10px/1.3 var(--tag); }
+.reel-tag.is-landed { animation: stamp .14s ease-out; }
+@keyframes stamp { from { transform: scale(1.04); } to { transform: scale(1); } }
+.reel-edge { position: absolute; left: 0; right: 0; height: 4px; background: var(--rule); z-index: 1; transition: background .05s; }
+.reel-edge.top { top: 0; } .reel-edge.bottom { bottom: 0; }
+.reel-marker { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--orange); z-index: 2; }
+.flapper { position: absolute; top: 0; left: -6px; width: 15px; height: 14px; background: var(--orange); border: 1px solid var(--ink); transform-origin: top; }
+.landed-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 12px 0 28px; }
+.landed { overflow-wrap: anywhere; }
+
+.poster-body { display: grid; gap: 28px; }
+#promise { font-size: clamp(36px, 11vw, 64px); margin: 0; }
+#promise .line { display: block; }
+.ends { font-size: clamp(22px, 6vw, 32px); margin: 12px 0 0; }
+.volt-word { color: var(--ink); background: var(--volt); padding: 0 6px; }      /* ink on volt 16.95:1; volt is never text on cotton */
+.red-word { color: #fff; background: var(--red); padding: 0 6px; }             /* large text: the logo's red, the accepted exception */
+.poster-actions { display: grid; gap: 8px; align-content: start; }
+.poster-actions .plate { width: 100%; }
+.plate-line { margin: 0 0 12px; color: var(--muted); }
+
+.counter-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.counter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.flaps { display: inline-flex; gap: 3px; }
+.flap { position: relative; display: inline-block; min-width: .8em; padding: 6px 5px; text-align: center; font: 900 italic 32px/1 var(--super);
+  background: var(--nylon); color: var(--cotton); }
+.flap::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.18); }
+.flap.is-flipping { animation: flip .16s ease-in; }
+@keyframes flip { from { transform: rotateX(80deg); } to { transform: rotateX(0); } }
+.sep { font: 900 italic 28px/1 var(--super); align-self: flex-end; }
+.counter-label { color: var(--text); }
+
+/* ── Sections ────────────────────────────────────────────────────────── */
+.band { padding-top: 56px; }
+.section-title { font-size: clamp(28px, 7vw, 40px); margin: 0 0 8px; }
+.frames, .proofs { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 28px; }
+.frame { display: grid; gap: 8px; align-content: start; }
+.frame p { margin: 0; }
+.shot { width: 100%; max-width: 280px; aspect-ratio: 390 / 844; border: 1px solid var(--line); background: var(--sunken); object-fit: cover; }
+.tile { display: grid; place-items: center; color: var(--muted); font-size: 48px; padding: 16px; text-align: center; }
+
+.ladder { list-style: none; padding: 0; margin: 16px 0; border-top: 1px solid var(--rule); }
+.rung { display: grid; gap: 2px; padding: 10px 0 10px 12px; border-bottom: 1px solid var(--rule); border-left: 4px solid transparent; }
+.rung-name { font-size: 22px; }
+.rung-line { color: var(--muted); font-size: 14px; }
+.rung.is-perfection { border-left-color: var(--volt); }
+.rung.is-misery { border-left-color: var(--red); }
+
+.modes { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; }
+.mode { position: relative; display: grid; gap: 2px; padding: 12px 12px 12px 18px; border: 1px solid var(--line); background: var(--surface); }
+.mode-tape { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--tape); }
+.mode.is-hazard { border-style: dashed; }
+.mode-name { font: 800 16px/1.2 var(--body); text-transform: uppercase; }
+.mode-line { color: var(--muted); font-size: 14px; }
+
+.top { list-style: none; padding: 0; margin: 16px 0 0; border-top: 1px solid var(--rule); }
+.top-row { display: grid; grid-template-columns: 40px 1fr auto; grid-template-areas: 'p who score' 'p what what'; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: center; }
+.top-place { grid-area: p; font-size: 28px; }
+.top-who { grid-area: who; font-weight: 700; overflow-wrap: anywhere; }
+.top-what { grid-area: what; color: var(--muted); }
+.top-score { grid-area: score; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.faq { margin-top: 16px; border-top: 1px solid var(--rule); max-width: 720px; }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary { cursor: pointer; padding: 14px 0; font-weight: 700; min-height: 44px; }
+.faq details p { margin: 0 0 14px; color: var(--muted); }
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.foot { max-width: var(--max); margin: 0 auto; padding: 32px var(--gutter) 48px; border-top: 1px solid var(--rule); display: grid; gap: 10px; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.foot-links a { padding: 10px 0; }
+.foot-small { margin: 0; color: var(--muted); font-size: 14px; }
+.foot-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; }
+
+/* ── 404 ─────────────────────────────────────────────────────────────── */
+.notfound { display: grid; gap: 12px; justify-items: start; padding: 48px 0; max-width: 560px; }
+.notfound-code { font-size: 96px; margin: 0; color: var(--muted); }
+.notfound h1 { font-size: 48px; margin: 0; }
+
+/* ── Wide ────────────────────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  :root { --gutter: 32px; }
+  .reel { height: 116px; }
+  .reel-track { top: 18px; }
+  .reel-tag { width: 180px; height: 80px; }
+  .reel-name { font-size: 15px; }
+  .poster-body { grid-template-columns: 1.3fr 1fr; align-items: start; gap: 48px; }
+  #promise { font-size: 64px; }
+  .frames { grid-template-columns: repeat(4, 1fr); }
+  .proofs { grid-template-columns: repeat(3, 1fr); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  .modes { grid-template-columns: 1fr; }
+}
+@media (max-width: 359px) { #promise { font-size: 32px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+  .plate, .mode, .reel-tag { border: 1px solid CanvasText; }
+}

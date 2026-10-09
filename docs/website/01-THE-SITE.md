@@ -8,6 +8,8 @@ One page that turns a stranger into a player in a minute (the brief's §1), with
 
 ## 2 · The order of the page
 
+> **9 October 2026:** the page's final order, the hero (a live spin), the counter and the wireframes are in [09](09-LANDING-SHAPE.md), which replaces this table where they differ. Two corrections to the table below: the modes are shown in the **legal flavour's names** (European Cup, Europa Cup, Conference Cup, World Cup; [07](07-FACT-CHECK.md) F7), and the users counter is **hidden until it passes a threshold** ([08](08-HOLES.md) H18).
+
 Read top to bottom. The brief's section list (poster, four frames, verdicts, modes, proof, ranks, footer) stands; two things change.
 
 | # | Section | Note |
@@ -35,7 +37,7 @@ Read top to bottom. The brief's section list (poster, four frames, verdicts, mod
 | `/community/ask` | Ask: write it, tick public or private, send (accepts a pre-filled text from search) | Signed-in players |
 | `/community/mine` | Your questions as an inbox ([02](02-COMMUNITY-AND-QUESTIONS.md) §4b) | Signed-in players |
 | `/download` | The APK, its version and checksum, "Google Play: coming soon" | Everyone |
-| `/latest.json` | The update record the app reads | The app |
+| ~~`/latest.json`~~ | **Not the site's** ([07](07-FACT-CHECK.md) F3): the app reads it from the game's address, where the release script writes it. `/download` reads it from there | — |
 | `/privacy`, `/terms` | The app's legal pages, shared | Everyone |
 | The admin routes | Not listed here on purpose | See [03](03-ACCOUNTS-AND-THE-ADMIN.md) §4 |
 
@@ -43,7 +45,7 @@ Read top to bottom. The brief's section list (poster, four frames, verdicts, mod
 
 ## 4 · The logo
 
-**The files.** `assets/Group 3.png` and the maintainer's `Group 3.svg` (533 × 528): a volt triangle over a red one, PERFECTION OR MISERY in white between them, the orange pin at the top right. Colours in the SVG: `#D5FF3F`, `#E1141F`, `#FF5A00`, white, and black for the pin's hole.
+**The files.** `assets/Group 3.png` (533 × 528). `assets/Group 3.svg`, re-exported 9 Oct ([07](07-FACT-CHECK.md) F1); its wordmark is one `fill="white"` path. The design: a volt triangle over a red one, PERFECTION OR MISERY in white between them, the orange pin at the top right. Colours in the SVG: `#D5FF3F`, `#E1141F`, `#FF5A00`, white, and black for the pin's hole.
 
 **What the site needs from it** (measured with `scripts/contrast.py`, 29 September):
 
@@ -70,6 +72,8 @@ The brief left it open: Astro or Next.js. What the plan now needs decides it.
 | Vercel hosting, analytics and Speed Insights | Supported | Supported |
 
 **Decided (Q3): Astro,** with three small islands (the counter, the sign-in form, the question form) and the Supabase JavaScript client loaded only on the pages that use them. The landing page then ships no client JavaScript except the counter, which matches the brief's "under 100 KB before images". If the maintainer would rather use Next.js because it's the stack he knows, the page can still be held to that budget; it's more work to keep it there.
+
+**Astro 7 needs Node 22.12 or newer** ([07](07-FACT-CHECK.md) F9); the site's Vercel project and the maintainer's machine both move to Node 22.
 
 **One Vercel project for the site,** separate from the game's (the roadmap's recommendation), from the same repo in a `landing/` folder. The `EXPO_PUBLIC_…` variables don't apply; the site has its own `PUBLIC_SUPABASE_URL` and anon key, which are public by design ([`../ui-overhaul/02-VIBECODE-AUDIT.md`](../ui-overhaul/02-VIBECODE-AUDIT.md) SEC-1).
 
