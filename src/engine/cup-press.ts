@@ -14,6 +14,7 @@
  * Every round writes at least one story: when nothing else is news, your match
  * is (a knockout round you're out of gets its headline tie).
  */
+import { cmpStr } from '@/lib/pmath'
 import { writePress, absenceStoriesOf, type PressSnapshot, type Story, type StoryKind, type StoryRow, type StoryMatch } from './press'
 import { sortStandings } from './standings'
 import type { Absence } from './availability'
@@ -168,7 +169,7 @@ export function cupPress(stages: CupStage[], absences: Absence[] = []): Story[] 
         const stories: Omit<Story, 'id' | 'stage'>[] = []
         if (you) stories.push(...absenceStoriesOf(mine, md, st.total, you))
         // The round's biggest win across every group, if it was a thrashing (P8-18's four goals).
-        const big = round.map(m => ({ m, margin: Math.abs(m.homeGoals - m.awayGoals) })).sort((a, b) => b.margin - a.margin || a.m.home.clubId.localeCompare(b.m.home.clubId))[0]
+        const big = round.map(m => ({ m, margin: Math.abs(m.homeGoals - m.awayGoals) })).sort((a, b) => b.margin - a.margin || cmpStr(a.m.home.clubId, b.m.home.clubId))[0]
         if (big && big.margin >= 4) {
           const homeWon = big.m.homeGoals > big.m.awayGoals
           const w = homeWon ? big.m.home : big.m.away, l = homeWon ? big.m.away : big.m.home
@@ -218,6 +219,15 @@ export function cupPress(stages: CupStage[], absences: Absence[] = []): Story[] 
     const stories: Omit<Story, 'id' | 'stage'>[] = []
     const told = new Set<PressTie>()
     const yours = ties.find(x => x.teamA.isPlayer || x.teamB.isPlayer)
+    // P9.75-22: the third-place play-off is one match, and nobody goes through
+    // it: one story, yours or not ("Postup bez problémov" said otherwise).
+    if (st.key === 'third') {
+      const x = ties[0]
+      if (x) stories.push(tieStory('thirdPlace', x, x.winner.clubId === x.teamA.clubId, koRound))
+      for (const s of stories) push(st, s)
+      if (st.clock) clock += days
+      continue
+    }
     if (yours) {
       const youA = !!yours.teamA.isPlayer
       const you = youA ? yours.teamA : yours.teamB
@@ -239,13 +249,13 @@ export function cupPress(stages: CupStage[], absences: Absence[] = []): Story[] 
         const winA = x.winner.clubId === x.teamA.clubId
         const w = winA ? x.teamA : x.teamB, l = winA ? x.teamB : x.teamA
         return { x, winA, gap: (ovr.get(l.clubId) ?? 0) - (ovr.get(w.clubId) ?? 0) }
-      }).filter(u => u.gap >= UPSET_GAP).sort((a, b) => b.gap - a.gap || a.x.teamA.clubId.localeCompare(b.x.teamA.clubId))[0]
+      }).filter(u => u.gap >= UPSET_GAP).sort((a, b) => b.gap - a.gap || cmpStr(a.x.teamA.clubId, b.x.teamA.clubId))[0]
       if (upset) { stories.push(tieStory('koUpset', upset.x, upset.winA, koRound, { gap: Math.round(upset.gap) })); told.add(upset.x) }
       const shoot = ties.find(x => !told.has(x) && x.aPens != null && x.bPens != null)
       if (shoot) { stories.push(tieStory('shootout', shoot, shoot.winner.clubId === shoot.teamA.clubId, koRound)); told.add(shoot) }
       // Nothing about the round yet: its headline, the biggest win.
       if (!stories.some(s => s.kind !== 'injury' && s.kind !== 'suspension')) {
-        const head = [...ties].sort((a, b) => Math.abs(b.aGoals - b.bGoals) - Math.abs(a.aGoals - a.bGoals) || a.teamA.clubId.localeCompare(b.teamA.clubId))[0]
+        const head = [...ties].sort((a, b) => Math.abs(b.aGoals - b.bGoals) - Math.abs(a.aGoals - a.bGoals) || cmpStr(a.teamA.clubId, b.teamA.clubId))[0]
         if (head) stories.push(tieStory('koRound', head, head.winner.clubId === head.teamA.clubId, koRound))
       }
     }

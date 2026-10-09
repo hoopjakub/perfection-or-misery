@@ -93,6 +93,10 @@ The simulation runs on the JS thread in the screen component. Each key ends at t
 | `stats:league` | 700 / 2000 | `computeLeagueRunStats` | `result.tsx:281`, `stats.tsx:94` | |
 | `stats:ucl` | 600 / 1800 | `computeCLRunStats` (both UCL modes) | `cl-result.tsx:89`, `custom-ucl-result.tsx:93`, `stats.tsx:91–92` | Three sites for one operation. The verify rule allows two, so the call moves into a small `runStatsFor(store)` helper first |
 | `stats:wc` | 400 / 1200 | `computeWCRunStats` | `wc-result.tsx:114`, `stats.tsx:93` | |
+| `stats:board` | 20 / 80 | a stats board ranked and sorted | `app/game/run.tsx` (`PlayerBoards`) | Phase 9.75 step 4: split from the rows' mount, which `ui:tab` covers. The audit's second pass put the ranking at about 1 ms in Node |
+| `hub:teams` | 100 / 300 | the run's teams of the round, rebuilt | `app/game/run.tsx` (`TeamsTab`) | Phase 9.75 step 4: the Teams tab took 1.8 s on the phone; this says whether it's the rebuild |
+
+*Phase 9.75 step 4: the three `stats:*` passes now give the screen a turn every 20 match sheets (`src/lib/chunked.ts`), so they measure wall time including those turns, and a stall shouldn't come with them.*
 
 **Expected second finding.** The result screen computes run stats, and the Stats screen computes them again for the same run (`stats.tsx:91–94`). If a player opens Stats, `stats:*` will show two samples per run. That's the clearest optimisation lead in the plan, and Diagnostics will prove or disprove it on a phone before anyone caches anything.
 
@@ -172,7 +176,7 @@ Never written by the game. Shown in their own section with the time the test ran
 
 | Kind | Keys |
 |---|---|
-| Runtime | 35 (30 in the plan; 31 after step 2's re-cut; then `ui:tab`, `screen:result`, `pundits:build` and `query:rosters` with Phase 9's own work) |
+| Runtime | 37 (30 in the plan; 31 after step 2's re-cut; then `ui:tab`, `screen:result`, `pundits:build` and `query:rosters` with Phase 9's own work; `stats:board` and `hub:teams` in Phase 9.75 step 4) |
 | Planned | 3 |
 | Build-time | 4 |
 | Self-test | 7 |

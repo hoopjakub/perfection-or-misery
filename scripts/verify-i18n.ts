@@ -58,7 +58,7 @@ const EXTRACTED = [
   'src/components/CustomUclViewers.tsx', 'src/components/ui.tsx', 'src/components/BracketTree.tsx',
   'src/components/MedicalTable.tsx', 'src/components/LiveMatch.tsx', 'src/components/profile/ProfileParts.tsx',
   'src/components/VenueMap.tsx', 'src/components/BracketPreview.tsx',
-  'src/components/Ceremony.tsx', 'src/components/MomentumGraph.tsx', 'src/components/WCGroupModal.tsx',
+  'src/components/Ceremony.tsx', 'src/components/MomentumGraph.tsx', 'src/components/WCGroupSheet.tsx',
   'src/components/InfoBubble.tsx', 'src/components/NavGuard.tsx', 'src/components/QualifyingLadder.tsx',
   'src/lib/liveBracket.ts',
 ]
@@ -155,6 +155,42 @@ for (const f of EXTRACTED) {
       }
     })
   }
+}
+
+// ── Team names and mixed-case words (Phase 9.75, R3-07 and L-13) ─────────────
+// A team's name is stored in English (it keys flags, venues and saved runs), so
+// every screen prints it through countryName(). Thirteen sites didn't and showed
+// "Croatia" in Slovak (P9.75-08). This reads every line of every screen for a
+// name field printed as it is: a JSX child ({team.clubName}) or a hole in a
+// visible string (`${m.homeName} 2`). Logs and keys are code, not text.
+// The capitals rule above reads only capitals; "Resume"/"Pause" in a ternary
+// passed it for a year (L-13). The second pattern reads a ternary or a JSX
+// child whose literals are capitalised English words.
+{
+  const NAME = String.raw`[\w.!?]*(?:clubName|homeName|awayName|teamName|opponentName|ClubName)`
+  const CHILD = new RegExp(String.raw`>\{${NAME}\}`)
+  const HOLE = new RegExp(String.raw`\$\{${NAME}\}`)
+  const WORD = String.raw`(['"])[A-Z][a-z]+(?: [a-z]+)*[.!]?\1`
+  const TERNARY = new RegExp(String.raw`\?\s*${WORD}\s*:\s*(['"])[A-Z][a-z]`)
+  const BARE = new RegExp(String.raw`>\{\s*${WORD}\s*\}`)
+  const UI = ['app', 'src/components'].flatMap(d => sources(path.join(ROOT, d))).map(f => path.relative(ROOT, f).split(path.sep).join('/'))
+  for (const f of UI) {
+    fs.readFileSync(path.join(ROOT, f), 'utf8').split(/\r?\n/).forEach((line, i) => {
+      const code = line.replace(/(^|\s)\/\/.*$/, '')
+      if (/^\s*(\*|\/\*|import )/.test(code) || /\blog\.\w+\(/.test(code)) return
+      if (CHILD.test(code) || (HOLE.test(code) && /accessibilityLabel|>\{`|^\s*\{?`/.test(code)))
+        fail(`${f}:${i + 1}: a team name printed without countryName(): ${code.trim().slice(0, 90)}`)
+      if (TERNARY.test(code) || BARE.test(code)) fail(`${f}:${i + 1}: English words aren't through t(): ${code.trim().slice(0, 90)}`)
+    })
+  }
+}
+
+// ── The player's nation, "<nation> XI" (P9.75-21) ───────────────────────────
+{
+  const mod = require('../src/data/countries-sk') as { countryNameIn?: (n: string, l: string) => string }
+  const f = mod.countryNameIn
+  const cases: [string, string][] = [['Croatia XI', 'Chorvátsko XI'], ['Sweden XI', 'Švédsko XI'], ['Croatia', 'Chorvátsko'], ['Arsenal FC', 'Arsenal FC'], ['Your XI', 'Your XI']]
+  for (const [en, want] of cases) { const got = f ? f(en, 'sk') : en; if (got !== want) fail(`countryName("${en}") in Slovak is "${got}", expected "${want}"`) }
 }
 
 // ── The engine's labels (src/i18n/labels.ts) ───────────────────────────────

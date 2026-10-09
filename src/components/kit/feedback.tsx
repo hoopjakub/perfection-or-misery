@@ -1,22 +1,37 @@
 // Kit Drop feedback and the screen frame.
 import { t } from '@/i18n'
 import { log } from '@/diag/log'
-import React, { useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Platform, Animated, AccessibilityInfo, type StyleProp, type ViewStyle, type ScrollViewProps } from 'react-native'
+import React, { useCallback, useContext, useEffect, useRef, useState, createContext } from 'react'
+import { View, ScrollView, StyleSheet, Platform, Animated, AccessibilityInfo, Keyboard, KeyboardAvoidingView, TextInput, type StyleProp, type ViewStyle, type ScrollViewProps } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { setStatusBarStyle } from 'expo-status-bar'
 import { ROLES, type Ground, type Roles, space } from '@/theme'
 import { COLUMN, MAX_CONTENT } from '@/hooks/useSizeClass'
 import { KitText, Stripe, Icon } from './primitives'
-import { Plate } from './controls'
+import { Plate, Loader, BackControl } from './controls'
 import { GroundContext } from '@/lib/appearance'
+
+// How near the end of the page counts as "the end" for BoardList: about two
+// screens of rows, so the next page is mounted before anyone reaches the last.
+const NEAR_END_PX = 1200
+type NearEnd = (fn: () => void) => () => void
+/** Subscribe to "the screen has scrolled near its end" (KitScreen provides it). */
+const NearEndContext = createContext<NearEnd | null>(null)
 
 // ── KitScreen ────────────────────────────────────────────────────────────────
 // A screen standing on one ground. Reads the top inset instead of a hardcoded
 // 52/56/64, and sets the status bar to match the ground whenever the screen is
 // focused (tabs stay mounted, so a mount-time setting would be overwritten by
 // whichever tab mounted last).
+//
+// It also keeps a text field above the keyboard (Phase 9.75, P9.75-07, R3-02).
+// That was KeyboardSafe's job, and only three screens of thirteen with a field
+// wore it: the keyboard sat over the clubs' invite field on the phone. Now the
+// screen does it, so a new field can't forget: the frame shrinks by the
+// keyboard ('padding': since SDK 54 draws edge to edge, Android's window no
+// longer resizes for it), and once the keyboard is up the focused field is
+// scrolled into view if it ended under it. scripts/verify-diag rule 2e.
 export function KitScreen({ ground, scroll = true, width = 'column', children, contentStyle, scrollRef, underHeader, ...scrollProps }: ScrollViewProps & {
   ground: Ground
   scroll?: boolean
@@ -36,27 +51,67 @@ export function KitScreen({ ground, scroll = true, width = 'column', children, c
 }) {
   const insets = useSafeAreaInsets()
   const roles = ROLES[ground]
+  // P9.75-11: the screen tells its long lists when it nears the end (BoardList).
+  const listeners = useRef(new Set<() => void>())
+  const nearEnd = useRef<NearEnd>(fn => { listeners.current.add(fn); return () => { listeners.current.delete(fn) } }).current
+  const { onScroll, scrollEventThrottle } = scrollProps
+  // The keyboard: this screen's scroll view and where it stands, and whether
+  // it's the screen in front (tabs and the screens under a stack stay
+  // mounted, and only the one in front should move).
+  const own = useRef<ScrollView | null>(null)
+  const offset = useRef(0)
+  const focused = useRef(false)
+  const setRef = useCallback((node: ScrollView | null) => {
+    own.current = node
+    if (typeof scrollRef === 'function') scrollRef(node)
+    else if (scrollRef) (scrollRef as React.MutableRefObject<ScrollView | null>).current = node
+  }, [scrollRef])
+  useEffect(() => {
+    if (Platform.OS === 'web' || !scroll) return
+    const sub = Keyboard.addListener('keyboardDidShow', e => {
+      const input = TextInput.State.currentlyFocusedInput()
+      if (!focused.current || !input || !own.current) return
+      input.measureInWindow((_x, y, _w, h) => {
+        const under = y + h + space[4] - e.endCoordinates.screenY
+        if (under > 0) own.current?.scrollTo({ y: offset.current + under, animated: true })
+      })
+    })
+    return () => sub.remove()
+  }, [scroll])
   useFocusEffect(useCallback(() => {
+    focused.current = true
     setStatusBarStyle(ground === 'cotton' ? 'dark' : 'light')
     // Web: the Kit scrollbar's colours follow the ground (webChrome.ts, P8-29).
     if (Platform.OS === 'web') document.documentElement.dataset.ground = ground
+    return () => { focused.current = false }
   }, [ground]))
   const cap = { maxWidth: width === 'wide' ? MAX_CONTENT : COLUMN, width: '100%' as const, alignSelf: 'center' as const }
   const pad = [{ paddingTop: underHeader ? space[3] : insets.top + space[5], paddingHorizontal: space[4] }, cap, contentStyle]
   // P8.5-25: everything inside reads this screen's ground (useScreenRoles), so a
   // shared component matches the page it's on instead of fixing its own.
-  if (!scroll) return <GroundContext.Provider value={ground}><View style={[styles.fill, { backgroundColor: roles.bg }, pad]}>{children}</View></GroundContext.Provider>
+  if (!scroll) return <GroundContext.Provider value={ground}>{lift(<View style={[styles.fill, { backgroundColor: roles.bg }, pad]}>{children}</View>, roles.bg)}</GroundContext.Provider>
   return (
     <GroundContext.Provider value={ground}>
+    <NearEndContext.Provider value={nearEnd}>
+    {lift(
     <View style={[styles.fill, { backgroundColor: roles.bg }]}>
       <ScrollView
-        ref={scrollRef}
+        ref={setRef}
         style={styles.fill}
+        // A tap on a button while the keyboard is up is a tap, not a dismissal.
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[pad, { paddingBottom: space[7] }]}
         // Native keeps its indicator hidden. On web the page shows the Kit
         // scrollbar (P8-29): a mouse user expects a bar they can see and drag.
         showsVerticalScrollIndicator={Platform.OS === 'web'}
         {...scrollProps}
+        scrollEventThrottle={scrollEventThrottle ?? 100}
+        onScroll={e => {
+          onScroll?.(e)
+          const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent
+          offset.current = contentOffset.y
+          if (listeners.current.size && contentOffset.y + layoutMeasurement.height >= contentSize.height - NEAR_END_PX) listeners.current.forEach(fn => fn())
+        }}
       >
         {children}
       </ScrollView>
@@ -67,8 +122,62 @@ export function KitScreen({ ground, scroll = true, width = 'column', children, c
           behind the status bar on every scrolling screen. */}
       {insets.top > 0 && !underHeader && <View pointerEvents="none" style={[styles.statusBand, { height: insets.top, backgroundColor: roles.bg }]} />}
     </View>
+    , roles.bg)}
+    </NearEndContext.Provider>
     </GroundContext.Provider>
   )
+}
+
+// The frame shrinks by the keyboard on the phone; the web's page does that itself.
+// P9.75-16: the frame wears the ground. Its padding is the keyboard's room,
+// and with no colour of its own it showed the light page under a dark screen.
+const lift = (node: React.ReactNode, bg: string) => (Platform.OS === 'web' ? node : <KeyboardAvoidingView style={[styles.fill, { backgroundColor: bg }]} behavior="padding">{node}</KeyboardAvoidingView>)
+
+// ── LoadingScreen ────────────────────────────────────────────────────────────
+// Phase 9.75 (R3-03): a whole screen waiting for its content, one way
+// everywhere: the way back, the kit's loading bar, and a line saying what's
+// coming. The run hub, a player's and a club's page each drew a bare
+// "reading…" line, and the result screen its own bar. A list waiting for its
+// rows draws GhostRows in the list's place instead; a button waits on its own
+// plate. The settle floor (src/lib/loading.ts) is applied where the data is
+// loaded (useRunData), not by each screen.
+export function LoadingScreen({ ground, label, back = true }: { ground: Ground; label: string; back?: boolean }) {
+  const roles = ROLES[ground]
+  return (
+    <KitScreen ground={ground}>
+      {back && <BackControl roles={roles} />}
+      <View style={{ marginTop: space[4], gap: space[3] }}>
+        <Loader color={roles.text} wide label={label} />
+      </View>
+    </KitScreen>
+  )
+}
+
+// ── BoardList ────────────────────────────────────────────────────────────────
+// Phase 9.75 (P9.75-11, R3-08): a long list (a stats board, the press, every
+// match) mounts a page of rows, and the next page as the screen nears its end.
+// The run hub's Stats tab mounted every row at once, hundreds of them in a
+// European run, and froze the phone for 4 to 5 seconds. Not a FlatList: the
+// lists live inside KitScreen's ScrollView, and a FlatList nested in a
+// ScrollView of the same direction mounts every row anyway (React Native warns
+// about exactly that). Rows already mounted stay; a new list (another stat, a
+// search) starts again from one page. Outside a scrolling KitScreen it draws
+// everything, as before. scripts/verify-diag fails on a hub list mapped by hand.
+export function BoardList<T>({ items, keyOf, renderRow, page = 40 }: {
+  items: readonly T[]
+  keyOf: (item: T, i: number) => string
+  renderRow: (item: T, i: number) => React.ReactNode
+  page?: number
+}) {
+  const nearEnd = useContext(NearEndContext)
+  const [shown, setShown] = useState(page)
+  useEffect(() => { setShown(page) }, [items, page])
+  useEffect(() => {
+    if (!nearEnd || shown >= items.length) return
+    return nearEnd(() => setShown(n => Math.min(items.length, n + page)))
+  }, [nearEnd, shown, items.length, page])
+  const visible = nearEnd ? items.slice(0, shown) : items
+  return <>{visible.map((item, i) => <React.Fragment key={keyOf(item, i)}>{renderRow(item, i)}</React.Fragment>)}</>
 }
 
 // ── WebColumn ────────────────────────────────────────────────────────────────

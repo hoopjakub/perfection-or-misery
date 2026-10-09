@@ -279,7 +279,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   // Europa and Conference Leagues' league phases too.
   const assocs = tables.map(t => ({ rank: t.rank, name: t.name, country: t.country, format: t.format, clubs: t.standings.map(r => ({ clubId: r.clubId, clubName: r.clubName, ovr: r.ovr })) }))
   const held = await getEuropeHolders()
-  const qual = playEuropeanSeason(access, assocs, held, { seed: Math.floor(Math.random() * 2 ** 31) })
+  const qual = playEuropeanSeason(access, assocs, held, { seed: Math.floor(Math.random() * 2147483648) })
   const compPick = pick<'ucl' | 'uel' | 'uecl'>(['ucl', 'uel', 'uecl'])
   const comp = EUROPE[compPick]
   const field = qual.europe!.fields[compPick]

@@ -814,7 +814,7 @@ function PlayerStatsTable({ detail, accent, homeName, awayName, onOpenPlayer }: 
           <View style={[styles.psSide, { backgroundColor: l.isHome ? (pair?.home ?? accent) : (pair?.away ?? prim.cottonMuted) }]} />
           <Text style={styles.psPos}>{l.position}</Text>
           <Text style={styles.psName} numberOfLines={1}>{l.name}</Text>
-          <Text style={styles.psTeam} numberOfLines={1}>{l.isHome ? homeName : awayName}</Text>
+          <Text style={styles.psTeam} numberOfLines={1}>{countryName(l.isHome ? homeName : awayName)}</Text>
           {/* Sorted by rating, the figure is the rating chip, in PoM's own rating colours (P8.5-33). */}
           {col.key === 'rating'
             ? <RatingSquare value={l.rating} />

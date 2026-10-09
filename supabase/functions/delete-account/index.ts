@@ -50,7 +50,8 @@ Deno.serve(async (req: Request) => {
     const failed: string[] = []
     for (const [table, del] of steps) {
       const { error } = await del(admin.from(table))
-      if (error) failed.push(`${table}: ${error.message}`)
+      // Phase 9.75 (S-3): which table, not the database's words (those go to the log).
+      if (error) { failed.push(table); console.error('delete-account', table, error.message) }
     }
 
     // P8-88: the avatar file (avatars/<id>/…). Best-effort like the rows.
@@ -61,9 +62,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const { error } = await admin.auth.admin.deleteUser(id)
-    if (error) return new Response(JSON.stringify({ error: error.message, failed }), { status: 500, headers: cors })
+    if (error) { console.error('delete-account deleteUser', error.message); return new Response(JSON.stringify({ error: 'The account could not be deleted.', failed }), { status: 500, headers: cors }) }
     return new Response(JSON.stringify({ deleted: true, failed }), { status: 200, headers: cors })
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors })
+    console.error('delete-account failed', err)
+    return new Response(JSON.stringify({ error: 'Something went wrong deleting the account.' }), { status: 500, headers: cors })
   }
 })

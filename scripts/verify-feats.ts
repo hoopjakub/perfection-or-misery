@@ -103,5 +103,23 @@ check(fullPathTrophy({ mode: 'champions_league', tier: 'winner' }) === null, 'th
   check(fresh.every(k => k.includes('uecl') || k.startsWith('feat:') || k === 'champions_league_custom:Medium'), `unexpected new keys: ${fresh.join(', ')}`)
 }
 
+// P9.75-23: a run kept on the phone (the saved row, or one in the offline
+// queue) earns what the same run earns once it's on the server.
+{
+  const ach = require('../src/lib/achievements') as { achievementRunFromRow?: (r: any) => any; achievementRunOf?: (r: any) => any }
+  check(!!ach.achievementRunFromRow && !!ach.achievementRunOf, 'no way to read a run kept on the phone (offline runs earn nothing)')
+  if (ach.achievementRunFromRow && ach.achievementRunOf) {
+    const league = { user_id: 'u', mode: 'league', tier: 'champions', final_position: 1, losses: 2, squad: [], difficulty: 'easy', difficulty_meta: null, highlights: { crest: {} } }
+    const path = { user_id: 'u', mode: 'champions_league_custom', tier: 'uel_winner', final_position: null, losses: 4, squad: [], difficulty: 'hard', difficulty_meta: null,
+      highlights: { cup: { winner: 'x' }, fullPath: { domesticChampion: true, cupWon: false } },
+      cl_result: { _customUclQual: { europe: { entry: 'q2' }, playerPath: [{}, {}] } } }
+    const asFetched = (r: any) => ach.achievementRunOf!({ ...r, cup_winner: r.highlights?.cup?.winner, fp_entry: 'q2', fp_ties: [{}, {}], fp_home: r.highlights?.fullPath })
+    check(JSON.stringify(ach.achievementRunFromRow(league)) === JSON.stringify(ach.achievementRunOf({ ...league })), "a league run read from the phone differs from the server's")
+    check(JSON.stringify(ach.achievementRunFromRow(path)) === JSON.stringify(asFetched(path)), "a full-path run read from the phone differs from the server's")
+    const keys = earnedList([ach.achievementRunFromRow(league), ach.achievementRunFromRow(path)]).map(e => e.key)
+    check(keys.includes('champions_league_custom:uel:Hard'), `the phone's full-path win earned nothing: ${keys.join(', ')}`)
+  }
+}
+
 console.log(failures === 0 ? '✅ ALL CHECKS PASSED' : `${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

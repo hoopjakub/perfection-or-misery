@@ -244,6 +244,26 @@ for (let i = 0; i < 500; i++) {
   check(pair?.legs?.length === 2 && pair.homeClubId === x.awayClubId, `a run hub tie opened on the wrong leg (${i})`)
 }
 
+// ── The stages' tabs (Phase 9.75, P9.75-04, R3-05) ───────────────────────────
+// The same content sits under the same tab on every stage. The knockouts drew
+// the press under every round ("why do I have to scroll all the way down"),
+// while the table stages had a Press tab. Read from the source: the screens
+// can't run headless.
+{
+  const fs = require('fs') as typeof import('fs')
+  const path = require('path') as typeof import('path')
+  const STAGES: Record<string, string[]> = {
+    'src/components/season/LeagueSeason.tsx': ['table', 'results', 'fixtures', 'press'],
+    'app/game/simulation.tsx': ['table', 'results', 'fixtures', 'press'],
+    'app/game/custom-ucl-simulation.tsx': ['table', 'results', 'fixtures', 'press'],
+    'src/components/season/KnockoutStage.tsx': ['rounds', 'bracket', 'press'],
+  }
+  for (const [f, ids] of Object.entries(STAGES)) {
+    const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8')
+    for (const id of ids) check(new RegExp(`id: '${id}'`).test(src), `${f}: no '${id}' tab (every stage puts the same content under the same tab)`)
+  }
+}
+
 console.log(`${checks} checks`)
 console.log(failures === 0 ? '✅ ALL CHECKS PASSED' : `❌ ${failures} CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

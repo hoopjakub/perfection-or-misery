@@ -6,6 +6,7 @@
 //
 // It pairs with P8-116: the stage split decides who's eligible for which
 // award; this decides how much each match counts inside it.
+import { cmpStr } from '@/lib/pmath'
 import type { AwardCandidate } from '@/types/stats'
 
 /** A match's weight from its label (the labels run-matches.ts writes). */
@@ -57,5 +58,5 @@ export function applyImportance(
     }
     c.breakdown = [...(c.breakdown ?? []), { label: `Big matches ×${f.toFixed(2)}`, value: f, points: Math.round((c.score - before) * 10) / 10 }]
   }
-  return [...candidates].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  return [...candidates].sort((a, b) => b.score - a.score || cmpStr(a.playerId, b.playerId))
 }

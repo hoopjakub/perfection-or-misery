@@ -1,3 +1,4 @@
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
@@ -388,7 +389,7 @@ function Others({ roles, teams, eights, countryOf }: {
                     accessibilityLabel={t('season.eightA11y', { name: team.clubName, you: team.isPlayer ? t('season.you') : '', action: isOpen ? t('season.hide') : t('season.show') })}
                     style={({ pressed }) => [styles.otherRow, { borderBottomColor: roles.rule }, team.isPlayer && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
                     <TeamMark roles={roles} clubId={team.clubId} name={team.clubName} size={16} />
-                    <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{team.clubName}</KitText>
+                    <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{countryName(team.clubName)}</KitText>
                     <Flag roles={roles} country={countryOf(team)} />
                     <Icon name={isOpen ? 'up' : 'down'} size={16} color={roles.textMuted} />
                   </Pressable>
@@ -396,7 +397,7 @@ function Others({ roles, teams, eights, countryOf }: {
                     <View key={s.opp.clubId} style={styles.theirs}>
                       <Tag roles={roles}>{t('season.pot', { pot: s.opp.pot })}</Tag>
                       <TeamMark roles={roles} clubId={s.opp.clubId} name={s.opp.clubName} size={16} />
-                      <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{s.opp.clubName}</KitText>
+                      <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{countryName(s.opp.clubName)}</KitText>
                       <VenueMark roles={roles} home={s.home} />
                     </View>
                   ))}

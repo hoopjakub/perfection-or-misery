@@ -18,7 +18,7 @@ import { buildCLAccessList, ensureHolders, type AssociationEntry, type Associati
 import { simulateLeagueTableDetailed, type LeagueFormat } from '../src/engine/cl-league-sim'
 import { playEveryCup, europaAndConferenceEntrants, simulateEurope, huntWeight, huntMet } from '../src/engine/europe-path'
 import { EURO_HOLDER_IDS, type EuroComp } from '../src/data/uefa-coefficients'
-import { buildCLTeams, drawCLLeaguePhase } from '../src/engine/cl-sim'
+import { buildCLTeams, drawCLLeaguePhase, europeCompetitions, type CLSeasonResult, type OtherCompetition } from '../src/engine/cl-sim'
 import { fullPathTier } from '../src/engine/europe-path'
 import { CUSTOM_CL_ROUND_SCORE, CL_ROUND_SCORE } from '../supabase/functions/_shared/score'
 import { TIER_LABEL, verdictOf } from '../src/data/tiers'
@@ -197,6 +197,24 @@ const range = (xs: number[]) => `${Math.min(...xs)}–${Math.max(...xs)}`
 console.log(`${runs} seasons · league phases: UCL ${range(sizes.ucl)}, UEL ${range(sizes.uel)}, UECL ${range(sizes.uecl)}`)
 console.log('your routes:', [...routes.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ×${n}`).join(' · '))
 for (const c of ['ucl', 'uel', 'uecl'] as EuroComp[]) check(sizes[c].every(n => n === 36), `the ${c} league phase isn't 36 every time (${range(sizes[c])})`)
+// P9.75-05: the run hub's Europe tab lists your competition, first, on every
+// full path. It listed only the two played out headless, so a Europa League
+// run's own competition was nowhere in it.
+{
+  const bare = { leaguePhaseStandings: [], playoffRound: [], r16: [], qf: [], sf: [], final: null, winner: {} as CLSeasonResult['winner'] }
+  const other = (comp: EuroComp): OtherCompetition => ({ ...bare, comp })
+  for (const own of ['ucl', 'uel', 'uecl'] as EuroComp[]) {
+    const others = (['ucl', 'uel', 'uecl'] as EuroComp[]).filter(c => c !== own).map(other)
+    for (const named of [own, undefined]) {   // a run out before any league phase may not name it
+      const list = europeCompetitions({ ...bare, competition: named, others })
+      check(list.length === 3 && list[0].comp === own && list[0].yours && list.filter(x => x.yours).length === 1, `the Europe tab for a ${own} run (${named ? 'named' : 'unnamed'}) doesn't list it first: ${list.map(x => x.comp).join(', ')}`)
+    }
+  }
+  check(europeCompetitions({ ...bare, competition: 'ucl' }).length === 0, 'a classic run gets a Europe list')
+  const tab = require('fs').readFileSync(path.join(__dirname, '../src/components/season/RunMore.tsx'), 'utf8') as string
+  check(/europeCompetitions\(/.test(tab), "the run hub's Europe tab doesn't list your competition (it reads only the other two)")
+}
+
 console.log(`${failures} failed`)
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 process.exit(failures === 0 ? 0 : 1)

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { runStarted } from '@/diag/log'
+import { runStarted, runEnded } from '@/diag/log'
 import { useSettingsStore, type EuropeanTarget } from './settingsStore'
 import type { DraftedPlayer, LeagueSeason, Formation, GameMode } from '@/types/game'
 import type { SeasonResult } from '@/types/simulation'
@@ -204,7 +204,8 @@ export const useGameStore = create<GameStore>((set) => ({
   }),
   markSeasonSpun: (id) => set(s => ({ spunSeasonIds: [...s.spunSeasonIds, id] })),
   useReroll:      () => set(s => ({ rerollsUsed: s.rerollsUsed + 1 })),
-  resetRun:       () => set(s => ({
+  // L-4: a reset run is over in the log too (a no-op after the result or an abandon ended it).
+  resetRun:       () => set(s => (runEnded('abandoned'), {
     ...s,
     formation:       null,
     draftedPlayers:  [],

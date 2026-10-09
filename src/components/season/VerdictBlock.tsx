@@ -1,3 +1,4 @@
+import { countryName } from '@/data/countries-sk'
 import { t, num, dec, numText } from '@/i18n'
 import { label } from '@/i18n/labels'
 import { ordinal } from '@/lib/format'
@@ -272,7 +273,7 @@ export function PunditsTable({ rows }: { rows: PunditRow[] }) {
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={tableStyles.club}>
                 <TeamMark roles={roles} clubId={r.clubId} name={r.clubName} size={16} />
-                <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.clubName}</KitText>
+                <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{countryName(r.clubName)}</KitText>
               </View>
               <KitText t="tag" color={roles.textMuted}>
                 {t('verdict.tipped', { place: ordinal(r.predicted).toUpperCase() }) + (r.predictedPoints != null ? t('verdict.tippedPts', { n: r.predictedPoints }) : '')}

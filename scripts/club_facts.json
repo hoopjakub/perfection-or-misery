@@ -1,102 +1,206 @@
 {
-  "arsenal": [
-    "The only club to go an entire Premier League season unbeaten — 49 games without a loss.",
-    "Named after the Royal Arsenal munitions factory in Woolwich.",
-    "First London club to win the league title, back in 1931."
-  ],
-  "man_city": [
-    "Won the treble in 2022/23 — Premier League, FA Cup, and Champions League.",
-    "Became the first English club to win four consecutive league titles in 2024.",
-    "Their home ground, the Etihad, sits on the site of the 2002 Commonwealth Games stadium."
-  ],
-  "man_utd": [
-    "Sir Alex Ferguson managed the club for 26 years, winning 13 Premier League titles.",
-    "The Busby Babes — eight players died in the 1958 Munich air disaster.",
-    "First English club to win the European Cup, in 1968 under Matt Busby."
-  ],
-  "liverpool": [
-    "Have won more European Cups/Champions Leagues than any other English club — six.",
-    "The Miracle of Istanbul — came back from 3-0 down at half time to win the 2005 CL final on penalties.",
-    "Bill Shankly built the foundation — he turned a Second Division club into European royalty."
-  ],
-  "chelsea": [
-    "Roman Abramovich's takeover in 2003 transformed them from mid-table to serial champions.",
-    "Won the Champions League in 2012 beating Bayern in their own stadium.",
-    "Stamford Bridge has been their home since 1905 — one of the oldest grounds in England."
-  ],
-  "aston_villa": [
-    "One of the founding members of the Football League in 1888.",
-    "Won the European Cup in 1982 — still one of England's greatest upsets.",
-    "Have won the league title seven times, the last in 1981."
-  ],
-  "spurs": [
-    "First non-league club to win the FA Cup, back in 1901.",
-    "The only club to complete the league and FA Cup double in the 20th century, in 1961.",
-    "Their new stadium has a synthetic grass section that retracts to reveal an NFL field underneath."
-  ],
-  "newcastle": [
-    "St James' Park is the third largest club stadium in England.",
-    "Alan Shearer — their all-time top scorer with 206 goals — turned down Manchester United to join them.",
-    "Saudi Arabian ownership arrived in 2021, beginning one of football's most dramatic club transformations."
-  ],
-  "brighton": [
-    "Under Graham Potter and then Roberto De Zerbi became one of Europe's most watched tactical sides.",
-    "The Amex Stadium only opened in 2011 — before that they groundshared for over a decade.",
-    "Their data-driven approach to recruitment is considered among the best in world football."
-  ],
-  "brentford": [
-    "Only club in England whose four adjacent sides of the ground are all on different streets.",
-    "Went 74 years without top-flight football before their 2021 Premier League promotion.",
-    "Ivan Toney served an eight-month betting ban — and came back scoring on his first game back."
-  ],
-  "fulham": [
-    "Craven Cottage has been their home since 1896 — the only ground with a cottage inside it.",
-    "Their greatest ever season was reaching the Europa League final in 2010 under Roy Hodgson.",
-    "Yo-yo club by reputation but Craven Cottage's riverside setting makes them one of football's most charming clubs."
-  ],
-  "everton": [
-    "Founding members of the Football League and have never been relegated from it — until 2024.",
-    "The Merseyside derby is the most played fixture in English top-flight history.",
-    "Their new stadium at Bramley-Moore Dock on the waterfront opened in 2025."
-  ],
-  "wolves": [
-    "Were one of England's top clubs in the 1950s, winning three league titles in a decade.",
-    "Their famous gold and black kit has barely changed since the 1950s.",
-    "Reached back-to-back Europa League quarter-finals in 2019 and 2020."
-  ],
-  "west_ham": [
-    "Known as the Academy of Football — Bobby Moore, Geoff Hurst, and Martin Peters all came through their ranks.",
-    "Three of England's 1966 World Cup winning goals were scored by West Ham players.",
-    "Moved to the London Stadium after the 2012 Olympics, leaving their beloved Upton Park."
-  ],
-  "crystal_palace": [
-    "Named after the iconic Crystal Palace building from the 1851 Great Exhibition.",
-    "Ian Wright — one of Arsenal's greatest ever strikers — started his career at Palace.",
-    "Selhurst Park is one of the most intimidating atmospheres in the Premier League."
-  ],
-  "nott_forest": [
-    "Won back-to-back European Cups in 1979 and 1980 under Brian Clough — a feat only five clubs have ever achieved.",
-    "Brian Clough spent just 44 days as Leeds manager before one of football's most legendary fallouts.",
-    "Were relegated in 1999 and spent 23 years outside the top flight before returning in 2022."
-  ],
-  "bournemouth": [
-    "Were in the fourth tier as recently as 2009 — five promotions in seven years took them to the Premier League.",
-    "Eddie Howe built the foundation that turned a near-bankrupt club into a top-flight side.",
-    "Their Vitality Stadium holds just 11,307 — the smallest in the Premier League."
-  ],
-  "sunderland": [
-    "Won six league titles before World War II — one of England's most decorated pre-war clubs.",
-    "The Sunderland 'Til I Die documentary on Netflix became one of football's most watched series.",
-    "Stadium of Light replaced Roker Park in 1997 — built on the site of a former colliery."
-  ],
-  "leeds": [
-    "Don Revie's Leeds of the late 60s and early 70s were one of Europe's most feared sides.",
-    "Spent 16 years outside the Premier League after financial collapse in the early 2000s.",
-    "Marcelo Bielsa's two seasons transformed them from a mid-Championship club to promotion winners playing some of England's most exciting football."
-  ],
-  "burnley": [
-    "Won the league title in 1960 with a squad costing less than £30,000.",
-    "One of only four clubs to have played in all four divisions of the Football League.",
-    "Sean Dyche kept them in the Premier League for six consecutive seasons on one of the division's smallest budgets."
-  ]
+  "en": {
+    "arsenal_fc": [
+      "The only club to go an entire Premier League season unbeaten — 49 games without a loss.",
+      "Named after the Royal Arsenal munitions factory in Woolwich.",
+      "First London club to win the league title, back in 1931."
+    ],
+    "manchester_city": [
+      "Won the treble in 2022/23 — Premier League, FA Cup, and Champions League.",
+      "Became the first English club to win four consecutive league titles in 2024.",
+      "Their home ground, the Etihad, sits on the site of the 2002 Commonwealth Games stadium."
+    ],
+    "manchester_united": [
+      "Sir Alex Ferguson managed the club for 26 years, winning 13 Premier League titles.",
+      "The Busby Babes — eight players died in the 1958 Munich air disaster.",
+      "First English club to win the European Cup, in 1968 under Matt Busby."
+    ],
+    "liverpool_fc": [
+      "Have won more European Cups/Champions Leagues than any other English club — six.",
+      "The Miracle of Istanbul — came back from 3-0 down at half time to win the 2005 CL final on penalties.",
+      "Bill Shankly built the foundation — he turned a Second Division club into European royalty."
+    ],
+    "chelsea_fc": [
+      "Roman Abramovich's takeover in 2003 transformed them from mid-table to serial champions.",
+      "Won the Champions League in 2012 beating Bayern in their own stadium.",
+      "Stamford Bridge has been their home since 1905 — one of the oldest grounds in England."
+    ],
+    "aston_villa": [
+      "One of the founding members of the Football League in 1888.",
+      "Won the European Cup in 1982 — still one of England's greatest upsets.",
+      "Have won the league title seven times, the last in 1981."
+    ],
+    "tottenham_hotspur": [
+      "First non-league club to win the FA Cup, back in 1901.",
+      "The first club of the 20th century to win the league and FA Cup double, in 1961.",
+      "Their new stadium has a synthetic grass section that retracts to reveal an NFL field underneath."
+    ],
+    "newcastle_united": [
+      "St James' Park is the third largest club stadium in England.",
+      "Alan Shearer — their all-time top scorer with 206 goals — turned down Manchester United to join them.",
+      "Saudi Arabian ownership arrived in 2021, beginning one of football's most dramatic club transformations."
+    ],
+    "brighton_hove_albion": [
+      "Under Graham Potter and then Roberto De Zerbi became one of Europe's most watched tactical sides.",
+      "The Amex Stadium only opened in 2011 — before that they groundshared for over a decade.",
+      "Their data-driven approach to recruitment is considered among the best in world football."
+    ],
+    "brentford_fc": [
+      "Griffin Park, their home until 2020, famously had a pub on every corner of the ground.",
+      "Went 74 years without top-flight football before their 2021 Premier League promotion.",
+      "Ivan Toney served an eight-month betting ban — and came back scoring on his first game back."
+    ],
+    "fulham_fc": [
+      "Craven Cottage has been their home since 1896 — the only ground with a cottage inside it.",
+      "Their greatest ever season was reaching the Europa League final in 2010 under Roy Hodgson.",
+      "Yo-yo club by reputation but Craven Cottage's riverside setting makes them one of football's most charming clubs."
+    ],
+    "everton_fc": [
+      "Founding members of the Football League, and in the top flight every season since 1954.",
+      "The Merseyside derby is the most played fixture in English top-flight history.",
+      "Their new stadium at Bramley-Moore Dock on the waterfront opened in 2025."
+    ],
+    "wolverhampton_wanderers": [
+      "Were one of England's top clubs in the 1950s, winning three league titles in a decade.",
+      "Their famous gold and black kit has barely changed since the 1950s.",
+      "Reached back-to-back Europa League quarter-finals in 2019 and 2020."
+    ],
+    "west_ham_united": [
+      "Known as the Academy of Football — Bobby Moore, Geoff Hurst, and Martin Peters all came through their ranks.",
+      "Three of England's 1966 World Cup winning goals were scored by West Ham players.",
+      "Moved to the London Stadium after the 2012 Olympics, leaving their beloved Upton Park."
+    ],
+    "crystal_palace": [
+      "Named after the iconic Crystal Palace building from the 1851 Great Exhibition.",
+      "Ian Wright — one of Arsenal's greatest ever strikers — started his career at Palace.",
+      "Selhurst Park is one of the most intimidating atmospheres in the Premier League."
+    ],
+    "nottingham_forest": [
+      "Won back-to-back European Cups in 1979 and 1980 under Brian Clough.",
+      "Brian Clough arrived after just 44 days as Leeds manager, one of football's most legendary fallouts.",
+      "Were relegated in 1999 and spent 23 years outside the top flight before returning in 2022."
+    ],
+    "afc_bournemouth": [
+      "Were in the fourth tier as recently as 2009 — five promotions in seven years took them to the Premier League.",
+      "Eddie Howe built the foundation that turned a near-bankrupt club into a top-flight side.",
+      "Their Vitality Stadium holds just over 11,000 — the smallest in the Premier League."
+    ],
+    "sunderland_afc": [
+      "Won six league titles before World War II — one of England's most decorated pre-war clubs.",
+      "The Sunderland 'Til I Die documentary on Netflix became one of football's most watched series.",
+      "Stadium of Light replaced Roker Park in 1997 — built on the site of a former colliery."
+    ],
+    "leeds_united": [
+      "Don Revie's Leeds of the late 60s and early 70s were one of Europe's most feared sides.",
+      "Spent 16 years outside the Premier League after financial collapse in the early 2000s.",
+      "Marcelo Bielsa's two seasons transformed them from a mid-Championship club to promotion winners playing some of England's most exciting football."
+    ],
+    "burnley_fc": [
+      "Won the league title in 1960 with a squad costing less than £30,000.",
+      "One of only five clubs to have won all four divisions of English league football.",
+      "Sean Dyche kept them in the Premier League for six consecutive seasons on one of the division's smallest budgets."
+    ]
+  },
+  "sk": {
+    "arsenal_fc": [
+      "Jediný klub, ktorý odohral celú sezónu Premier League bez prehry: 49 zápasov bez porážky.",
+      "Názov má po kráľovskej muničnej továrni Royal Arsenal vo Woolwichi.",
+      "Prvý londýnsky klub, ktorý vyhral ligový titul, ešte v roku 1931."
+    ],
+    "manchester_city": [
+      "V sezóne 2022/23 získal treble: Premier League, FA Cup aj Ligu majstrov.",
+      "V roku 2024 sa stal prvým anglickým klubom so štyrmi ligovými titulmi za sebou.",
+      "Domáci štadión Etihad stojí na mieste štadióna Hier Commonwealthu 2002."
+    ],
+    "manchester_united": [
+      "Sir Alex Ferguson viedol klub 26 rokov a získal s ním 13 titulov Premier League.",
+      "Busbyho mladíci: pri leteckom nešťastí v Mníchove v roku 1958 zahynulo osem hráčov.",
+      "Prvý anglický klub, ktorý vyhral Pohár majstrov európskych krajín, v roku 1968 pod Mattom Busbym."
+    ],
+    "liverpool_fc": [
+      "Pohár majstrov a Ligu majstrov vyhral šesťkrát, viac než ktorýkoľvek iný anglický klub.",
+      "Zázrak z Istanbulu: vo finále Ligy majstrov 2005 otočil stav 0:3 z polčasu a vyhral na penalty.",
+      "Základy položil Bill Shankly, ktorý z druholigového klubu urobil európsku veľmoc."
+    ],
+    "chelsea_fc": [
+      "Prevzatie Romanom Abramovičom v roku 2003 zmenilo stredný tím ligy na sériového majstra.",
+      "Ligu majstrov vyhral v roku 2012, keď zdolal Bayern na jeho vlastnom štadióne.",
+      "Stamford Bridge je jeho domovom od roku 1905, patrí k najstarším štadiónom v Anglicku."
+    ],
+    "aston_villa": [
+      "Jeden zo zakladajúcich členov Football League v roku 1888.",
+      "V roku 1982 vyhral Pohár majstrov európskych krajín, dodnes jedno z najväčších anglických prekvapení.",
+      "Ligový titul získal sedemkrát, naposledy v roku 1981."
+    ],
+    "tottenham_hotspur": [
+      "Prvý klub mimo ligy, ktorý vyhral FA Cup, ešte v roku 1901.",
+      "Prvý klub 20. storočia, ktorý získal double, ligu aj FA Cup, v roku 1961.",
+      "Nový štadión má výsuvný trávnik, pod ktorým sa skrýva ihrisko na americký futbal."
+    ],
+    "newcastle_united": [
+      "St James' Park je tretí najväčší klubový štadión v Anglicku.",
+      "Alan Shearer, najlepší strelec v histórii klubu s 206 gólmi, kvôli nemu odmietol Manchester United.",
+      "V roku 2021 klub prevzali saudskoarabskí majitelia a začala sa jedna z najprudších premien vo futbale."
+    ],
+    "brighton_hove_albion": [
+      "Pod Grahamom Potterom a potom Robertom De Zerbim sa stal jedným z takticky najsledovanejších tímov Európy.",
+      "Štadión Amex otvorili až v roku 2011, dovtedy klub viac ako desať rokov hrával na cudzích štadiónoch.",
+      "Jeho výber hráčov podľa dát patrí k najlepším vo svetovom futbale."
+    ],
+    "brentford_fc": [
+      "Griffin Park, domov klubu do roku 2020, mal na každom rohu štadióna krčmu.",
+      "Medzi elitou chýbal 74 rokov, až kým v roku 2021 nepostúpil do Premier League.",
+      "Ivan Toney si odpykal osemmesačný zákaz za stávkovanie a hneď v prvom zápase po návrate skóroval."
+    ],
+    "fulham_fc": [
+      "Craven Cottage je jeho domovom od roku 1896 a je to jediný štadión s chalupou vo vnútri.",
+      "Najväčším úspechom je finále Európskej ligy v roku 2010 pod Royom Hodgsonom.",
+      "Povesť výťahového klubu, no poloha Craven Cottage pri rieke z neho robí jeden z najpôvabnejších klubov."
+    ],
+    "everton_fc": [
+      "Zakladajúci člen Football League a v najvyššej súťaži bez prerušenia od roku 1954.",
+      "Merseysidské derby je najčastejšie hraný zápas v histórii najvyššej anglickej súťaže.",
+      "Nový štadión v Bramley-Moore Dock na nábreží otvorili v roku 2025."
+    ],
+    "wolverhampton_wanderers": [
+      "V 50. rokoch patril k najlepším anglickým klubom a za desaťročie získal tri ligové tituly.",
+      "Slávny zlato-čierny dres sa od 50. rokov takmer nezmenil.",
+      "V rokoch 2019 a 2020 sa dvakrát po sebe dostal do štvrťfinále Európskej ligy."
+    ],
+    "west_ham_united": [
+      "Prezývajú ho Akadémia futbalu: prešli ňou Bobby Moore, Geoff Hurst aj Martin Peters.",
+      "Tri góly Anglicka vo víťaznom finále MS 1966 strelili hráči West Hamu.",
+      "Po olympiáde 2012 sa presťahoval na London Stadium a opustil milovaný Upton Park."
+    ],
+    "crystal_palace": [
+      "Názov má po slávnej budove Crystal Palace z Veľkej výstavy v roku 1851.",
+      "Ian Wright, jeden z najlepších útočníkov v histórii Arsenalu, začínal kariéru práve tu.",
+      "Selhurst Park patrí k najnepríjemnejším prostrediam pre hostí v Premier League."
+    ],
+    "nottingham_forest": [
+      "Pod Brianom Cloughom vyhral Pohár majstrov európskych krajín dvakrát za sebou, v rokoch 1979 a 1980.",
+      "Brian Clough prišiel po iba 44 dňoch v Leedse, po jednom z najslávnejších rozchodov vo futbale.",
+      "V roku 1999 zostúpil a 23 rokov hral mimo elity, kým sa v roku 2022 vrátil."
+    ],
+    "afc_bournemouth": [
+      "Ešte v roku 2009 hral štvrtú ligu: päť postupov za sedem rokov ho dostalo do Premier League.",
+      "Eddie Howe položil základy, ktoré z klubu na pokraji bankrotu urobili prvoligový tím.",
+      "Štadión Vitality má niečo vyše 11 000 miest, najmenej v Premier League."
+    ],
+    "sunderland_afc": [
+      "Pred druhou svetovou vojnou získal šesť ligových titulov, patril k najúspešnejším predvojnovým klubom.",
+      "Dokument Sunderland 'Til I Die na Netflixe patrí k najsledovanejším futbalovým seriálom.",
+      "Stadium of Light nahradil v roku 1997 Roker Park a stojí na mieste bývalej bane."
+    ],
+    "leeds_united": [
+      "Leeds Dona Revieho z konca 60. a začiatku 70. rokov patril k najobávanejším tímom Európy.",
+      "Po finančnom krachu na začiatku 21. storočia strávil 16 rokov mimo Premier League.",
+      "Dve sezóny Marcela Bielsu z neho urobili postupujúci tím s jedným z najzábavnejších štýlov v Anglicku."
+    ],
+    "burnley_fc": [
+      "Ligový titul získal v roku 1960 s kádrom, ktorý stál menej ako 30 000 libier.",
+      "Jeden z iba piatich klubov, ktoré vyhrali všetky štyri divízie anglickej ligy.",
+      "Sean Dyche ho šesť sezón za sebou udržal v Premier League s jedným z najmenších rozpočtov súťaže."
+    ]
+  }
 }

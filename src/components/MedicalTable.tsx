@@ -14,6 +14,7 @@
 // orange edge, the one mark that always means "you"; the reason is words, so
 // it never depends on a colour.
 
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import React, { useState } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
@@ -57,7 +58,7 @@ export function MedicalTable({ absences }: { absences?: Absence[]; accent?: stri
             a.isPlayerClub && { backgroundColor: roles.yours }]}>
           <View style={styles.colPlayer}>
             <KitText t="body" color={roles.text} numberOfLines={1}>{a.playerName}</KitText>
-            <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${a.position} · ${a.clubName}`}</KitText>
+            <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${a.position} · ${countryName(a.clubName)}`}</KitText>
             {a.standInName ? (
               <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{t('parts.standIn', { name: a.standInName, ovr: a.standInOvr })}</KitText>
             ) : null}

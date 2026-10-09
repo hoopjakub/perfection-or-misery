@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { log, noteSave } from '@/diag/log'
+import { log, noteSave, saveLedgerLine } from '@/diag/log'
 import { useUserStore } from '@/store/userStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -31,8 +31,9 @@ export type RunSaveStatus =
   | 'queued'   // P8.5-24: no connection; kept on the phone, goes up when it's back
   | 'failed'
 
-export function useRunSave({ applies, signedIn, ready }: {
+export function useRunSave({ applies, history, signedIn, ready }: {
   applies: boolean   // a fresh, real run (not history, not quick-sim)
+  history: boolean   // a saved run opened again: not this session's run, so the ledger isn't its to write
   signedIn: boolean  // a real account, not a guest session
   ready: boolean     // everything the saved row should carry is computed
 }) {
@@ -58,7 +59,13 @@ export function useRunSave({ applies, signedIn, ready }: {
       (e) => {
         // P8.5-24: saved on the phone instead, not lost. It stays "in flight"
         // so leaving the screen doesn't try again: the queue sends it.
-        if (e instanceof RunQueuedError) { setStatus('queued'); return }
+        if (e instanceof RunQueuedError) {
+          setStatus('queued')
+          // P9.75-23: kept on the phone, and it still earns what it earned.
+          const id = useUserStore.getState().user?.id
+          if (id) announceNewAchievements(id, useGameStore.getState().savedRunRow as Record<string, unknown> | null)
+          return
+        }
         log.warn('save', 'run-save: failed', e)
         inflight.current = null
         setStatus('failed')
@@ -70,9 +77,9 @@ export function useRunSave({ applies, signedIn, ready }: {
 
   // Phase 9: the save ledger says whether this run was saved (04-CHECKS §6).
   useEffect(() => {
-    if (status === 'waiting') return
-    noteSave('run', status === 'off' ? 'skipped · tester or a saved run' : status === 'guest' ? 'skipped · guest' : status === 'failed' ? 'failed' : status)
-  }, [status])
+    const line = saveLedgerLine(status, history)
+    if (line) noteSave('run', line)
+  }, [status, history])
 
   // A queued run that the queue has since sent: its id lands on the store.
   const savedRunId = useGameStore(s => s.savedRunId)

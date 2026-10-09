@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import type { Roles } from '@/theme'
 import { space } from '@/theme'
-import { SectionTag, SafeSection } from '@/components/kit'
+import { SectionTag, SafeSection, ListRow } from '@/components/kit'
 import { FormationPitch } from '@/components/season/AwardsParts'
 import { teamOfTheRound, type RoundFixture } from '@/engine/run-stats'
 import type { PickedTeam } from '@/engine/awards'
@@ -34,7 +34,11 @@ export function RoundTeam({ roles, roundKey, label, fixtures, poolByClub, ctx }:
   ctx: { playerClubId?: string; benchSize?: number }
 }) {
   const [team, setTeam] = useState<PickedTeam | null>(null)
+  // P9.75-26: folded under its title until asked for; it's worked out then
+  // too, so a round's results no longer wait on regenerating its sheets.
+  const [open, setOpen] = useState(false)
   useEffect(() => {
+    if (!open) return
     if (fixtures.length === 0 || poolByClub.size === 0) { setTeam(null); return }
     const byRound = cache.get(poolByClub) ?? new Map<string, PickedTeam | null>()
     cache.set(poolByClub, byRound)
@@ -46,15 +50,17 @@ export function RoundTeam({ roles, roundKey, label, fixtures, poolByClub, ctx }:
       setTeam(picked)
     }, 0)
     return () => clearTimeout(t)
-  }, [roundKey, fixtures.length, poolByClub])
+  }, [open, roundKey, fixtures.length, poolByClub])
 
-  if (!team) return null
+  if (fixtures.length === 0) return null
   return (
     <SafeSection name="team of the matchday">
       <View style={styles.wrap}>
-        <SectionTag roles={roles}>{label}</SectionTag>
-        <FormationPitch roles={roles} team={team} showScores="rating"
-          caption={t('season.roundTeamCaption')} benchLabel={t('season.closeCalls')} />
+        <ListRow roles={roles} label={label} value={open ? t('season.hideTeam') : t('season.showTeam')} onPress={() => setOpen(o => !o)} />
+        {open && team && (
+          <FormationPitch roles={roles} team={team} showScores="rating"
+            caption={t('season.roundTeamCaption')} benchLabel={t('season.closeCalls')} />
+        )}
       </View>
     </SafeSection>
   )

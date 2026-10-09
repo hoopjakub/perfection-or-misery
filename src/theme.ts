@@ -1,6 +1,9 @@
 import { StyleSheet, Platform, type TextStyle } from 'react-native'
 
-export const colors = {
+// The pre-Kit Drop palette. Phase 9.75 (L-8): no longer exported. Nothing
+// outside this file used it since C-18, but CLAUDE.md still sent builders to
+// it; only the mode themes and the pots below read it now.
+const colors = {
   // base
   bg:           '#0A0E1A',
   bgCard:       '#111827',
@@ -176,14 +179,6 @@ export function getModeTheme(mode: string | null | undefined, leagueAccent?: str
   }
 }
 
-export const spacing = {
-  xs:  4,
-  sm:  8,
-  md:  16,
-  lg:  24,
-  xl:  32,
-  xxl: 48,
-}
 
 export const radius = {
   sm:   6,
@@ -192,24 +187,8 @@ export const radius = {
   full: 9999,
 }
 
-export const typography = {
-  // sizes
-  xs:   11,
-  sm:   13,
-  md:   15,
-  lg:   18,
-  xl:   22,
-  xxl:  28,
-  hero: 38,
 
-  // weights
-  regular: '400' as const,
-  medium:  '500' as const,
-  bold:    '700' as const,
-  black:   '900' as const,
-}
-
-// Append an alpha suffix to a 6-digit hex color — e.g. withAlpha(colors.accent, 0x33)
+// Append an alpha suffix to a 6-digit hex color — e.g. withAlpha(prim.orange, 0x33)
 // for ~20% opacity. Replaces the `color + '33'` / `color + '22'` pattern that
 // was repeated ad hoc (15+ call sites) across draft/mode-select/result screens.
 // `pct` is 0–100; converted to a 2-digit hex alpha suffix.

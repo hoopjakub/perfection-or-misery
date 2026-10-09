@@ -1,3 +1,4 @@
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import type { Story } from '@/engine/press'
 import { useRunData } from '@/lib/runData'
@@ -104,18 +105,18 @@ export default function StoryScreen() {
           const found = savedRun?.matches?.find(x => x.label === `Matchday ${story.matchday}` && x.homeClubId === m.homeId && x.awayClubId === m.awayId)
           return (
             <Pressable disabled={!found || !savedRun} onPress={() => { if (found && savedRun) openRunMatch(savedRun, found) }}
-              accessibilityRole={found ? 'button' : undefined} accessibilityLabel={`${m.homeName} ${m.homeGoals}, ${m.awayName} ${m.awayGoals}`}
+              accessibilityRole={found ? 'button' : undefined} accessibilityLabel={`${countryName(m.homeName)} ${m.homeGoals}, ${countryName(m.awayName)} ${m.awayGoals}`}
               style={({ pressed }) => [styles.table, styles.match, { borderColor: roles.line }, pressed && { backgroundColor: roles.sunken }]}>
               <KitText t="tag" color={roles.textMuted}>{story.totalMatchdays === 0 ? storyWhen(story, 'caps') : t('hub.mdCaps', { md: story.matchday })}</KitText>
               <View style={styles.matchRow}>
                 <View style={[styles.matchSide, { alignItems: 'flex-end' }]}>
                   <TeamMark roles={roles} clubId={m.homeId} name={m.homeName} size={24} />
-                  <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{m.homeName}</KitText>
+                  <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: 'right' }}>{countryName(m.homeName)}</KitText>
                 </View>
                 <KitText t="superL" color={roles.text}>{`${m.homeGoals}–${m.awayGoals}`}</KitText>
                 <View style={styles.matchSide}>
                   <TeamMark roles={roles} clubId={m.awayId} name={m.awayName} size={24} />
-                  <KitText t="title" color={roles.text} numberOfLines={2}>{m.awayName}</KitText>
+                  <KitText t="title" color={roles.text} numberOfLines={2}>{countryName(m.awayName)}</KitText>
                 </View>
               </View>
               {story.kind === 'masterclass' ? (

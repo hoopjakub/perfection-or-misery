@@ -1,3 +1,4 @@
+import { pexp } from '@/lib/pmath'
 import { SimTeam } from '@/types/simulation'
 import { simulateMatch } from './match'
 import { poissonSample } from '@/lib/math'
@@ -43,8 +44,8 @@ export type TwoLegResult = {
 // or the neutral "home" for a single-leg final).
 export function simulateExtraTime(home: SimTeam, away: SimTeam): LegScore {
   const d = (home.ovr + 2.0 - away.ovr) / 12   // small venue nudge + OVR tilt
-  const homeLambda = 0.55 * Math.exp(d * 0.5)  // ~0.55 goals/side baseline
-  const awayLambda = 0.55 * Math.exp(-d * 0.5)
+  const homeLambda = 0.55 * pexp(d * 0.5)  // ~0.55 goals/side baseline
+  const awayLambda = 0.55 * pexp(-d * 0.5)
   return { homeGoals: poissonSample(homeLambda), awayGoals: poissonSample(awayLambda) }
 }
 

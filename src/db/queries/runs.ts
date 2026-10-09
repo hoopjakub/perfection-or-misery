@@ -19,7 +19,7 @@ import { shownRun } from '@/lib/shownNames'
 import { settingsStorage } from '@/lib/mmkv'
 import { useUserStore } from '@/store/userStore'
 import { isOnline } from '@/lib/online'
-import { setRunQueueDeps, queueRun, flushRunQueue, RUN_QUEUE_KEY, type QueuedRun } from '@/lib/runQueue'
+import { setRunQueueDeps, queueRun, flushRunQueue, RUN_QUEUE_KEY, RUN_REFUSED_KEY, type QueuedRun } from '@/lib/runQueue'
 
 // Build the difficulty columns saved on every run so the achievements/leaderboard/
 // run-history screens can read back exactly how hard a run was. `difficulty` is
@@ -88,6 +88,12 @@ function newClientId(): string {
 
 // Whether a failed save is worth waiting for (no connection, or the server for
 // a while) or will never go through (the row itself was refused).
+/** A send's error in a line: the status and the server's message (fixed text since S-3). */
+function describeSendError(e: unknown): string {
+  const err = e as { name?: string; message?: string; code?: string; context?: { status?: number } }
+  return [err?.context?.status, err?.code, err?.name, err?.message].filter(Boolean).join(' ') || String(e)
+}
+
 function offlineError(e: unknown): boolean {
   const err = e as { name?: string; message?: string; code?: string; context?: { status?: number } }
   if (/FunctionsFetchError|FunctionsRelayError/.test(err?.name ?? '')) return true
@@ -136,13 +142,21 @@ async function sendPayloadNow(payload: Record<string, unknown>): Promise<{ id?: 
 setRunQueueDeps({
   load: async () => { try { return JSON.parse((await settingsStorage.getItem(RUN_QUEUE_KEY)) ?? '[]') } catch { return [] } },
   save: items => settingsStorage.setItem(RUN_QUEUE_KEY, JSON.stringify(items)),
+  loadRefused: async () => { try { return JSON.parse((await settingsStorage.getItem(RUN_REFUSED_KEY)) ?? '[]') } catch { return [] } },
+  saveRefused: items => settingsStorage.setItem(RUN_REFUSED_KEY, JSON.stringify(items)),
   send: async item => {
     // Only under the account that played it: signed out, or someone else
-    // signed in on this phone, it waits for its own player.
+    // signed in on this phone, it waits for its own player. Each "not now"
+    // says why, for the log (P9.75-06).
     const me = useUserStore.getState()
-    if (me.isGuest || !me.user?.id || item.payload.user_id !== me.user.id) return { result: 'offline' }
+    if (!me.user?.id) return { result: 'offline', why: 'nobody signed in yet' }
+    if (me.isGuest) return { result: 'offline', why: 'the account not known yet (still a guest)' }
+    if (item.payload.user_id !== me.user.id) return { result: 'offline', why: 'played under another account' }
     try { const r = await sendPayload(item.payload); return { result: 'sent', id: r.id } }
-    catch (e) { return offlineError(e) ? { result: 'offline' } : { result: 'refused', why: String((e as Error)?.message ?? e) } }
+    catch (e) {
+      const why = describeSendError(e)
+      return offlineError(e) ? { result: 'offline', why } : { result: 'refused', why }
+    }
   },
 })
 
@@ -153,7 +167,7 @@ let currentClientId: string | null = null
 const onQueueSent = (item: QueuedRun, id?: string) => { if (item.clientId === currentClientId && id) remember({ id }) }
 
 /** Send what's waiting on the phone (on start, back online, back in the foreground). */
-export const flushSavedRuns = () => flushRunQueue(onQueueSent)
+export const flushSavedRuns = (why?: string) => flushRunQueue(onQueueSent, why)
 
 async function insertRun(row: Record<string, unknown>): Promise<void> {
   // duration_seconds is optional like the other late columns: dropped and
@@ -168,7 +182,16 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   if (crest) payload.highlights = { ...((row.highlights as object) ?? {}), crest }
   // P8.5-41: the row as scored, so the result shows these points and how they
   // were made, the moment the save starts (the server runs the same formula).
+  let t0 = Date.now()
   useGameStore.setState({ savedRunRow: row as RunRow })
+  const stateMs = Date.now() - t0
+  // P9.75 probe (the release readings: 2.6 s frozen on the result "during
+  // save:run"): is it the screen answering the saved row, or the payload's
+  // size? The request turns the payload into JSON on the JS thread; this does
+  // it once more to weigh it. ponytail: a probe, remove once the reading names the cost.
+  t0 = Date.now()
+  const kb = Math.round(JSON.stringify(payload).length / 1024)
+  log.info('save', `run payload ${kb} KB, JSON in ${Date.now() - t0} ms; the saved row reached the screen in ${stateMs} ms`)
   const invalid = invalidRun(row as RunRow)
   if (invalid) log.warn('save', `saveRun: this run would be refused by the server: ${invalid}`)
   currentClientId = clientId

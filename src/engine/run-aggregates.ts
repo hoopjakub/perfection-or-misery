@@ -9,6 +9,7 @@
  * screens print it.
  */
 
+import { cmpStr } from '@/lib/pmath'
 import { t } from '@/i18n'
 import type { PlayerStatLine } from '@/types/stats'
 import { lineOf, type Line } from './awards'
@@ -64,21 +65,28 @@ export type Rank = { rank: number; of: number; percentile: number }
  * `percentile` is the share of the line he's ahead of or level with: 1 = top.
  */
 export function positionRanks(players: PlayerStatLine[], key: StatKey, mode: 'total' | 'per90' = 'total'): Map<string, Rank> {
+  // P9.75 (the release readings, stats:board 179–776 ms on the phone): one
+  // pass. Each player's score is worked out once, the lines are filled by
+  // push (a copy per player made it quadratic), and a level score takes the
+  // rank of the first at that score as the sort walks down, where a findIndex
+  // per player was quadratic again. No localeCompare: it's slow on Hermes, and
+  // level players share a rank whatever their order.
   const out = new Map<string, Rank>()
-  const byLine = new Map<Line, PlayerStatLine[]>()
+  const byLine = new Map<Line, { p: PlayerStatLine; s: number }[]>()
   for (const p of players) {
     if (!eligible(p, key, mode)) continue
     const l = lineOf(p.position)
-    byLine.set(l, [...(byLine.get(l) ?? []), p])
+    let list = byLine.get(l)
+    if (!list) byLine.set(l, list = [])
+    list.push({ p, s: mode === 'per90' ? per90(p, key) ?? 0 : value(p, key) })
   }
-  const score = (p: PlayerStatLine) => (mode === 'per90' ? per90(p, key) ?? 0 : value(p, key))
   for (const list of byLine.values()) {
-    const sorted = [...list].sort((a, b) => score(b) - score(a) || a.playerId.localeCompare(b.playerId))
-    for (const p of sorted) {
-      // Level players share the better rank.
-      const rank = sorted.findIndex(q => score(q) === score(p)) + 1
-      out.set(p.playerId, { rank, of: sorted.length, percentile: 1 - (rank - 1) / sorted.length })
-    }
+    list.sort((a, b) => b.s - a.s)
+    let rank = 0
+    list.forEach((x, i) => {
+      if (i === 0 || x.s !== list[i - 1].s) rank = i + 1   // level players share the better rank
+      out.set(x.p.playerId, { rank, of: list.length, percentile: 1 - (rank - 1) / list.length })
+    })
   }
   return out
 }

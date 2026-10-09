@@ -1,11 +1,12 @@
 import React from 'react'
 import { t } from '@/i18n'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { ROLES, space } from '@/theme'
 import { KitText, Stripe, Icon } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
 import { useOnline } from '@/lib/online'
 import { useRunQueue } from '@/lib/runQueue'
+import { router } from 'expo-router'
 
 // Offline strip (Phase 6). The game itself runs offline from the bundled
 // database; only saving a run, Ranks and accounts need the network, so the
@@ -18,6 +19,19 @@ const roles = ROLES[EVERYDAY]
 export function OfflineStrip() {
   const online = useOnline()
   const waiting = useRunQueue(s => s.count)
+  const refused = useRunQueue(s => s.refused)
+  // P9.75-06: a run the server refused is kept, not deleted, and said here, in
+  // misery red, until it's sent again from Diagnostics. Before, it vanished.
+  if (refused > 0) {
+    return (
+      <Pressable onPress={() => router.push('/diagnostics')} accessibilityRole="link"
+        style={[styles.strip, { backgroundColor: roles.surface, borderBottomColor: roles.line }]}>
+        <View style={[styles.edge, { backgroundColor: roles.loss }]} />
+        <Icon name="warning" size={16} color={roles.text} />
+        <KitText t="tag" color={roles.text} style={{ flex: 1 }}>{t('common.notSaved', { count: refused })}</KitText>
+      </Pressable>
+    )
+  }
   if (online) return null
   return (
     <View style={[styles.strip, { backgroundColor: roles.surface, borderBottomColor: roles.line }]} accessibilityRole="alert" accessibilityLiveRegion="polite">

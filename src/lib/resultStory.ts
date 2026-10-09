@@ -5,6 +5,7 @@
 // seasons (lessons: the logic that decides what a page says goes where a
 // script can reach it). Every row points at something that opens: a match, a
 // player, a club or a story. There are no placeholder rows.
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import { label } from '@/i18n/labels'
 import { ordinal } from '@/lib/format'
@@ -40,7 +41,7 @@ function side(m: RunMatch, you: string) {
 }
 const scoreLine = (m: RunMatch, you: string) => {
   const s = side(m, you)
-  return t('res.scoreV', { gf: s.gf, ga: s.ga, opp: s.opp })
+  return t('res.scoreV', { gf: s.gf, ga: s.ga, opp: countryName(s.opp) })
 }
 
 /**
@@ -103,7 +104,7 @@ function gotAway(data: RunData, away: GotAway[] | undefined): Highlight | null {
     .filter((p): p is NonNullable<typeof p> => !!p && (p.matchesRated ?? 0) > 0)
   if (!played.length) return null
   const p = played.reduce((a, b) => (b.goals + b.assists > a.goals + a.assists || ((b.avgRating ?? 0) > (a.avgRating ?? 0) && b.goals + b.assists === a.goals + a.assists) ? b : a))
-  return { kind: 'gotAway', label: t('res.gotAway'), value: t('res.gotAwayV', { name: p.name, goals: p.goals, club: p.clubName }), subject: { type: 'player', playerId: p.playerId } }
+  return { kind: 'gotAway', label: t('res.gotAway'), value: t('res.gotAwayV', { name: p.name, goals: p.goals, club: countryName(p.clubName) }), subject: { type: 'player', playerId: p.playerId } }
 }
 
 /** I-4: the club that beat you most (twice or more), else the one just above you. */
@@ -116,13 +117,13 @@ function rival(data: RunData): Highlight | null {
     if (s.ga > s.gf) beat.set(s.oppId, { name: s.opp, n: (beat.get(s.oppId)?.n ?? 0) + 1 })
   }
   const most = [...beat.entries()].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0]))[0]
-  if (most && most[1].n >= 2) return { kind: 'rival', label: t('res.rival'), value: t('res.rivalBeat', { club: most[1].name, n: most[1].n }), subject: { type: 'club', clubId: most[0] } }
+  if (most && most[1].n >= 2) return { kind: 'rival', label: t('res.rival'), value: t('res.rivalBeat', { club: countryName(most[1].name), n: most[1].n }), subject: { type: 'club', clubId: most[0] } }
   // A single table only: in a World Cup the row above you is another group.
   if (data.table.some(r => r.group)) return null
   const at = data.table.findIndex(r => r.isPlayer)
   const above = at > 0 ? data.table[at - 1] : null
   if (!above) return null
-  return { kind: 'rival', label: t('res.rival'), value: t('res.rivalAbove', { club: above.clubName, pts: above.points - data.table[at].points }), subject: { type: 'club', clubId: above.clubId } }
+  return { kind: 'rival', label: t('res.rival'), value: t('res.rivalAbove', { club: countryName(above.clubName), pts: above.points - data.table[at].points }), subject: { type: 'club', clubId: above.clubId } }
 }
 
 /** The press's last word on you. */
@@ -167,7 +168,7 @@ export function resultDoors(data: RunData, o: { pundits?: string | null; europe?
   if (you && ko.length) {
     const last = ko[ko.length - 1]
     const s = side(last, you)
-    out.push({ id: 'bracket', label: t('hub.tabBracket'), value: t('res.doorBracket', { round: label((last.label ?? '').split(' · ')[0]), opp: s.opp }) })
+    out.push({ id: 'bracket', label: t('hub.tabBracket'), value: t('res.doorBracket', { round: label((last.label ?? '').split(' · ')[0]), opp: countryName(s.opp) }) })
   }
   if (you && mine.length) {
     let w = 0, d = 0, l = 0

@@ -131,6 +131,11 @@ const idOf = (p: { article: string | null; name: string }, clubId: string) =>
 // player at two clubs of one league in one season (a January move), where the
 // second club gets a club-specific id rather than losing him.
 const taken = new Set<string>()
+// Phase 9.75 (L-11): a squad row whose name didn't parse came through as a
+// player called "", 57 of them in the shipped databases (blank draft cards,
+// blank scorers). No name, no player.
+const hasName = (p: { name?: string | null }) => !!(p.name ?? '').trim()
+
 function playerRecord(p: Rated, clubId: string, year: number, suffix = '') {
   const pos = p.position ?? 'CM'
   let id = idOf(p, clubId) + suffix
@@ -185,7 +190,7 @@ async function buildTop5(seedId: string) {
       if (QID.get(wc.title)) CLUB_QID.set(sc.id, QID.get(wc.title)!)
       CLUB_TITLE.set(sc.id, wc.title)
       const old = sc.seasons.find((s: any) => s.year_start === y)
-      const recs = players.map(p => playerRecord(p, sc.id, y))
+      const recs = players.filter(hasName).map(p => playerRecord(p, sc.id, y))
       const out = outClubs.find((c: any) => c.id === sc.id)
       out.seasons.push({ id: old.id, club_id: sc.id, year_start: y, year_end: y + 1, historical_ovr: teamStrength(recs), league_position: wc.position, players: recs })
       cover(seedId, y, sc.name, old.players.length, recs.length, { wikipedia: wc.title, full: recs.length })
@@ -264,7 +269,7 @@ async function buildCustom() {
       }
       if (QID.get(wt)) CLUB_QID.set(sc.id, QID.get(wt)!)
       CLUB_TITLE.set(sc.id, wt)
-      const recs = players.map(p => playerRecord(p, sc.id, 2025, '_cucl'))
+      const recs = players.filter(hasName).map(p => playerRecord(p, sc.id, 2025, '_cucl'))
       // Can't field a team even after the top-ups (Domžale, Rabotnički, Pas de
       // la Casa: no squad on their pages, stale or no Wikidata records). Left
       // out of the pool rather than padded with invented players; all of them
@@ -294,7 +299,33 @@ async function buildCustom() {
 // A club's squad for a season, from what's already built: the five leagues
 // (any season) or the 2025 association builds. Returns the league too, for the
 // band a 2024–25 outsider needs.
-async function findSquad(name: string, year: number): Promise<{ rated: Rated[]; seedId: string } | null> {
+// Phase 9.75 (L-15): a European club is first looked for by its own article,
+// the one its home league's build already matched (celtic_fc_ucl →
+// celtic_fc_cucl → "Celtic F.C."). Matched by name across the five leagues
+// first, "Celtic FC" found Celta de Vigo, and Red Star Belgrade and Red Bull
+// Salzburg found Manchester United: their squads, colours and grounds shipped
+// in the European modes for two weeks. The name match stays as the last resort.
+const baseOf = (id: string) => id.replace(/_(ucl|uel|uecl|cucl)$/, '')
+function ownTitle(id: string): string | undefined {
+  const b = baseOf(id)
+  return CLUB_TITLE.get(b) ?? CLUB_TITLE.get(`${b}_cucl`)
+}
+async function findSquad(name: string, year: number, id?: string): Promise<{ rated: Rated[]; seedId: string } | null> {
+  const own = id ? ownTitle(id) : undefined
+  if (own) {
+    for (const [seedId, perYear] of leagueOut) {
+      const rated = perYear.get(year)?.filter(r => r.club === own)
+      if (rated?.length) return { rated, seedId }
+    }
+    if (year === 2025) for (const [seedId, rated] of cuclRated) {
+      const mine = rated.filter(r => r.club === own)
+      if (mine.length) return { rated: mine, seedId }
+    }
+    // Its own article has no squad this season among what's built: the caller
+    // reads the club's history instead. A name match here is how Celtic's 2024
+    // became Celta de Vigo's.
+    return null
+  }
   for (const [seedId, perYear] of leagueOut) {
     const rated = perYear.get(year)
     if (!rated) continue
@@ -307,7 +338,9 @@ async function findSquad(name: string, year: number): Promise<{ rated: Rated[]; 
   }
   return null
 }
-async function leagueOfClub(name: string): Promise<{ seedId: string; wikiTitle: string } | null> {
+async function leagueOfClub(name: string, id?: string): Promise<{ seedId: string; wikiTitle: string } | null> {
+  const own = id ? ownTitle(id) : undefined
+  if (own) for (const [seedId, rated] of cuclRated) if (rated.some(r => r.club === own)) return { seedId, wikiTitle: own }
   for (const [seedId, rated] of cuclRated) {
     const club = await wikiFor(name, [...new Set(rated.map(r => r.club))])
     if (club) return { seedId, wikiTitle: club }
@@ -325,13 +358,13 @@ async function buildEurope(file: string) {
     const { tm_id, ...ident } = c
     const seasons: any[] = []
     for (const s of c.seasons) {
-      let rated = (await findSquad(c.name, s.year_start))?.rated ?? null
+      let rated = (await findSquad(c.name, s.year_start, c.id))?.rated ?? null
       if (!rated && s.year_start !== 2025) {
         // 2024–25 outsider: its own history, rated in its association's band.
         // A Champions League side finished near the top at home, so it's rated
         // as a runner-up (2nd of 12): the league table of that season isn't
         // part of this build.
-        const home = await leagueOfClub(c.name)
+        const home = await leagueOfClub(c.name, c.id)
         if (home) {
           const players = await historyClub(home.wikiTitle, s.year_start, GAMES.get(home.seedId) ?? 34)
           if (playable(players, 16)) rated = rate([{ title: home.wikiTitle, position: 2, players }], bandForRank(RANK.get(home.seedId) ?? 20), s.year_start, 12)
@@ -346,7 +379,7 @@ async function buildEurope(file: string) {
       }
       if (rated?.[0] && QID.get(rated[0].club)) CLUB_QID.set(c.id, QID.get(rated[0].club)!)
       if (rated?.[0]) CLUB_TITLE.set(c.id, rated[0].club)
-      const recs = (rated ?? []).map(p => playerRecord(p, c.id, s.year_start, SUFFIX[file]))
+      const recs = (rated ?? []).filter(hasName).map(p => playerRecord(p, c.id, s.year_start, SUFFIX[file]))
       cover(seed.league.id, s.year_start, c.name, s.players.length, recs.length, { wikipedia: rated ? rated[0]?.club ?? null : null })
       if (recs.length) seasons.push({ ...s, historical_ovr: teamStrength(recs), players: recs })
     }
@@ -468,6 +501,9 @@ async function main() {
   }
   // Rated players with their parts, for the La Liga sheet (trimmed to what it shows).
   write('_report.json', report)
+  // Phase 9.75 (D7): every game club's Wikidata item, for the club facts
+  // (scripts/build-club-facts.ts reads it).
+  write('_qids.json', Object.fromEntries([...CLUB_QID.entries()].sort()))
   log(`done: ${requestCount()} requests`)
 }
 

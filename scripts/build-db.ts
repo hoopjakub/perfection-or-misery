@@ -279,6 +279,16 @@ if (empty.length) {
   process.exit(1)
 }
 
+// Phase 9.75 (L-11): and no player without a name. 57 reached the shipped
+// databases from rows whose name didn't parse (blank draft cards, blank
+// scorers); the seed generator now drops them, and this makes sure.
+const nameless = db.prepare(`SELECT p.id, ps.club_season_id FROM players p JOIN player_seasons ps ON ps.player_id = p.id WHERE trim(coalesce(p.name, '')) = ''`).all() as { id: string; club_season_id: string }[]
+if (nameless.length) {
+  console.error(`✗ ${nameless.length} players have no name, e.g. in ${[...new Set(nameless.map(n => n.club_season_id))].slice(0, 5).join(', ')}. Fix the seed (build-open-seeds).`)
+  db.close()
+  process.exit(1)
+}
+
 // Bake the same version into the asset's _meta for reference.
 db.prepare(`INSERT OR REPLACE INTO _meta (key, value) VALUES ('db_version', ?)`).run(newVersion)
 

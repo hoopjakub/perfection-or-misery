@@ -93,7 +93,6 @@ const ROAD_STAGE: Record<string, number> = {
   world_sim: 1, qualifying: 2, quali_result: 2, review: 3, simulating: 3, knockout_phase: 4,
 }
 
-const nylon = ROLES[EVERYDAY]
 
 const simRow = (t: SimTeam): TableRowVM => ({
   clubId: t.clubId, clubName: t.clubName, isPlayer: t.isPlayer,
@@ -311,7 +310,7 @@ export default function CustomUclSimulationScreen() {
   const fpLiveMatch = (stage: 'dom' | 'lp') => fpLive === stage && fpLiveResult && fpLivePeriod ? (
     <>
     {stage === 'dom' && panelLineFor(domPanel, { clubId: fpLiveResult.homeId, clubName: fpLiveResult.home }, { clubId: fpLiveResult.awayId, clubName: fpLiveResult.away }) && (
-      <KitText t="body" color={nylon.textMuted}>{panelLineFor(domPanel, { clubId: fpLiveResult.homeId, clubName: fpLiveResult.home }, { clubId: fpLiveResult.awayId, clubName: fpLiveResult.away })}</KitText>
+      <KitText t="body" color={GR.textMuted}>{panelLineFor(domPanel, { clubId: fpLiveResult.homeId, clubName: fpLiveResult.home }, { clubId: fpLiveResult.awayId, clubName: fpLiveResult.away })}</KitText>
     )}
     <LiveMatch key={`${stage}-${fpLiveMd}`} periods={[fpLivePeriod]} onDone={fpLiveDone} hold={!isPlaying} msPerMin={LIVE_MS_PER_MIN[speed]}
       teamA={{ clubId: fpLiveResult.homeId, clubName: fpLiveResult.home }}
@@ -324,7 +323,7 @@ export default function CustomUclSimulationScreen() {
   // colours follow the competition you play in (the road was always blue).
   const road = (p: string) => (
     <View style={{ paddingTop: insets.top + space[3], paddingHorizontal: space[4] }}>
-      <RunHeader roles={nylon} stage={6} back={false}
+      <RunHeader roles={GR} stage={6} back={false}
         colourway={colourwayFor(europe?.competition === 'uel' ? 'europa_league' : europe?.competition === 'uecl' ? 'conference_league' : 'champions_league_custom')}
         road={{ names: UCL_ROAD, current: ROAD_STAGE[p] ?? 0 }}
         right={p === 'loading' ? undefined : <CloseRun onPress={() => askAbandon(() => setIsPlaying(false))} />} />
@@ -818,7 +817,7 @@ export default function CustomUclSimulationScreen() {
   const pathPress = useCupPress(pathStages, () => availabilityRef.current?.absences(),
     [domHistory.length, domLoop.liveMD, leagueHistoryRef.current.length, lpLoop.liveMD, qual, clTeamsLocal.length])
   const pressPane = { id: 'press', label: t('season.tabPress'), count: pathPress.length, title: `${t('season.tabPress')} · ${pathPress.length}`,
-    node: <PressList roles={nylon} stories={pathPress} empty={t('sim.pressWait')} onOpen={openStory} /> }
+    node: <PressList roles={GR} stories={pathPress} empty={t('sim.pressWait')} onOpen={openStory} /> }
 
   // Split in two so §7's Deep Match can commit the run WITHOUT this screen
   // navigating — it replaces itself with the result screen instead, so the
@@ -858,15 +857,15 @@ export default function CustomUclSimulationScreen() {
   // ── Guards ──────────────────────────────────────────────────────────────────
   if (!formation || draftedPlayers.length === 0 || !playerClubId) {
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
-        <KitText t="superM" color={nylon.text}>{t('path.noRun')}</KitText>
-        <KitText t="bodyL" color={nylon.textMuted}>{t('path.lostSquad')}</KitText>
-        <Plate label={t('sim.startNew')} roles={nylon} onPress={() => router.replace('/game/mode-select')} />
+      <View style={[styles.container, { backgroundColor: GR.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
+        <KitText t="superM" color={GR.text}>{t('path.noRun')}</KitText>
+        <KitText t="bodyL" color={GR.textMuted}>{t('path.lostSquad')}</KitText>
+        <Plate label={t('sim.startNew')} roles={GR} onPress={() => router.replace('/game/mode-select')} />
       </View>
     )
   }
 
-  // ── The road, on nylon (docs/ui-overhaul/07c C4) ──────────────────────────
+  // ── The road, on the everyday ground (docs/ui-overhaul/07c C4) ──────────────────────────
   // Every phase of the full path is the same screen: the road across the top,
   // one thing to read, and the next step in the thumb zone. The simulation
   // underneath is untouched.
@@ -913,11 +912,11 @@ export default function CustomUclSimulationScreen() {
 
   if (phase === 'loading' || !mine) {
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road('loading')}
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[3], padding: space[4] }}>
-          <KitText t="superM" color={nylon.text}>{t('path.settingUp')}</KitText>
-          <KitText t="bodyL" color={nylon.textMuted}>{t('path.settingUpLead')}</KitText>
+          <KitText t="superM" color={GR.text}>{t('path.settingUp')}</KitText>
+          <KitText t="bodyL" color={GR.textMuted}>{t('path.settingUpLead')}</KitText>
         </View>
       </View>
     )
@@ -932,28 +931,28 @@ export default function CustomUclSimulationScreen() {
   if (phase === 'domestic_review') {
     const preview = [...domTeamsRef.current].sort((a, b) => b.ovr - a.ovr)
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader>
-          <KitText t="superM" color={nylon.text} accessibilityRole="header">{mine.name.toUpperCase()}</KitText>
-          <KitText t="tag" color={nylon.textMuted}>{t('path.domMeta', { country: countryName(mine.country), rank: mine.rank, count: preview.length })}</KitText>
-          <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>
+          <KitText t="superM" color={GR.text} accessibilityRole="header">{mine.name.toUpperCase()}</KitText>
+          <KitText t="tag" color={GR.textMuted}>{t('path.domMeta', { country: countryName(mine.country), rank: mine.rank, count: preview.length })}</KitText>
+          <KitText t="bodyL" color={GR.text} style={{ marginTop: space[2] }}>
             {t('path.fieldLead')}
           </KitText>
           {isSpecialFormat(mine.format) && mine.format && (
-            <KitText t="body" color={nylon.textMuted} style={{ marginTop: space[2] }}>
+            <KitText t="body" color={GR.textMuted} style={{ marginTop: space[2] }}>
               {`${FORMAT_LABEL[mine.format as LeagueFormat]}: ${FORMAT_EXPLAINER[mine.format as LeagueFormat]}`}
             </KitText>
           )}
-          <SectionTag roles={nylon}>{t('path.theField')}</SectionTag>
-          <LeagueTable roles={nylon} strength zones={domZones}
+          <SectionTag roles={GR}>{t('path.theField')}</SectionTag>
+          <LeagueTable roles={GR} strength zones={domZones}
             rows={preview.map(t => ({ ...simRow(t), ovr: t.ovr }))} />
-          <ZoneLegend roles={nylon} zones={domZones} />
+          <ZoneLegend roles={GR} zones={domZones} />
         </KitScreen>
         <ThumbBar>
           {/* P8.5-15: the full path had no pundits. They call your league
               here, and the season starts from their screen ("Prove them wrong"). */}
-          <Plate label={t('path.hearPundits')} icon="forward" roles={nylon} onPress={() => openPundits({
+          <Plate label={t('path.hearPundits')} icon="forward" roles={GR} onPress={() => openPundits({
             teams: domTeamsRef.current.map(t => ({ clubId: t.clubId, clubName: t.clubName, ovr: t.ovr, isPlayer: t.isPlayer })),
             yearStart: 2025,
             // L-16 / D5: the season waits for your first tap, as every stage does.
@@ -974,14 +973,14 @@ export default function CustomUclSimulationScreen() {
     const others = shown.filter(r => !(r.playerHome || r.playerAway))
     const preSplit = domStage === 'split' && showRegularTable && domRegularSnapshotRef.current
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader width={wide ? 'wide' : 'column'}>
-          <TableStage roles={nylon} wide={wide} tab={domTab} onTab={id => setDomTab(id as typeof domTab)}
+          <TableStage roles={GR} wide={wide} tab={domTab} onTab={id => setDomTab(id as typeof domTab)}
             meta={t('path.domRunMeta', { league: mine.name, stage: domStage === 'split' ? label(domStageLabelRef.current) : t('path.regularSeason'), md: playedMDs, total: domTotalMDs })}
             standing={domYouPos > 0 && fpLive !== 'dom' ? { pos: domYouPos, delta: moveFrom(prevPos(domOrdersRef.current), domYouPos), zone: domZones[domYouPos - 1] ?? null, points: domOrdered[domYouPos - 1]?.stats.points ?? 0 } : null}
             beforeStrip={atSplitPause ? (
-              <KitText t="body" color={nylon.text}>
+              <KitText t="body" color={GR.text}>
                 {`${label(domStageLabelRef.current)}. ${FORMAT_EXPLAINER[(mine.format ?? 'double_round_robin') as LeagueFormat] ?? ''}`}
               </KitText>
             ) : null}
@@ -989,15 +988,15 @@ export default function CustomUclSimulationScreen() {
             keys={{ playPause: () => setIsPlaying(p => !p) }}
             yourMatch={<>
           {fpLiveMatch('dom') ?? (yourResult && (
-            <ScorelineCard roles={nylon} label={[label(`MD ${historyFor(domHistory)}`), kickoffFor({ label: `Matchday ${historyFor(domHistory)}`, yearStart: 2025, homeClubId: yourResult.homeId, awayClubId: yourResult.awayId })?.short].filter(Boolean).join(' · ')}
+            <ScorelineCard roles={GR} label={[label(`MD ${historyFor(domHistory)}`), kickoffFor({ label: `Matchday ${historyFor(domHistory)}`, yearStart: 2025, homeClubId: yourResult.homeId, awayClubId: yourResult.awayId })?.short].filter(Boolean).join(' · ')}
               homeName={yourResult.home} awayName={yourResult.away} homeClubId={yourResult.homeId} awayClubId={yourResult.awayId}
               homeGoals={yourResult.hg} awayGoals={yourResult.ag} youHome={yourResult.playerHome}
               homeScorers={yourResult.hs || undefined} awayScorers={yourResult.as || undefined}
               onPress={() => openMdDetail(yourResult, historyFor(domHistory), 'Domestic Season', 2025)}
-              footer={<ManOfTheMatch roles={nylon} req={mdRequest(yourResult, historyFor(domHistory), 'Domestic Season', 2025)!} />} />
+              footer={<ManOfTheMatch roles={GR} req={mdRequest(yourResult, historyFor(domHistory), 'Domestic Season', 2025)!} />} />
           ))}
             </>}
-            afterMatch={<CupNow roles={nylon} cup={domCup} md={historyFor(domHistory)} onTie={openCupTie} />}
+            afterMatch={<CupNow roles={GR} cup={domCup} md={historyFor(domHistory)} onTie={openCupTie} />}
             // The full path's table moves the moment a matchday is played, so while
             // your match plays the table and the round wait behind it.
             waiting={fpLive === 'dom'}
@@ -1006,9 +1005,9 @@ export default function CustomUclSimulationScreen() {
             <>
               {domStage === 'split' && domRegularSnapshotRef.current && (
                 <Plate label={showRegularTable ? t('path.showLive') : t('path.showPreSplit')} variant="quiet"
-                  roles={nylon} onPress={() => setShowRegularTable(v => !v)} />
+                  roles={GR} onPress={() => setShowRegularTable(v => !v)} />
               )}
-              <LeagueTable roles={nylon} zones={domZones}
+              <LeagueTable roles={GR} zones={domZones}
                 breakAfter={preSplit ? undefined : (domSplitSize > 0 ? domSplitSize : undefined)}
                 breakLabel={t('path.splitBreak')}
                 rows={preSplit
@@ -1017,19 +1016,19 @@ export default function CustomUclSimulationScreen() {
                       played: r.played, gd: r.goalsFor - r.goalsAgainst, points: r.points,
                     }))
                   : withMoves(domOrdered.map(simRow), domOrdersRef.current[domOrdersRef.current.length - 2])} />
-              <ZoneLegend roles={nylon} zones={domZones} />
+              <ZoneLegend roles={GR} zones={domZones} />
             </>
               </> },
               { id: 'results', label: t('sim.tabResultsMd', { md: historyFor(domHistory) }), node: <>{others.length === 0 ? (
-            <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.noOtherResults')}</KitText>
+            <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.noOtherResults')}</KitText>
             ) : (
             <>
             {others.map((r, i) => (
-              <ResultRow key={i} roles={nylon} homeName={r.home} awayName={r.away} homeGoals={r.hg} awayGoals={r.ag}
+              <ResultRow key={i} roles={GR} homeName={r.home} awayName={r.away} homeGoals={r.hg} awayGoals={r.ag}
                 homeClubId={r.homeId} awayClubId={r.awayId} youSide={null} homeScorers={r.hs || undefined} awayScorers={r.as || undefined}
                 onPress={() => openMdDetail(r, historyFor(domHistory), 'Domestic Season', 2025)} />
             ))}
-            <RoundTeam roles={nylon} roundKey={`dom-${historyFor(domHistory)}`} label={t('sim.teamOfMd', { md: historyFor(domHistory) })}
+            <RoundTeam roles={GR} roundKey={`dom-${historyFor(domHistory)}`} label={t('sim.teamOfMd', { md: historyFor(domHistory) })}
               poolByClub={domPoolRef.current} ctx={domLineupCtxRef.current}
               fixtures={shown.map(r => ({
                   homeClubId: r.homeId, awayClubId: r.awayId, homeClubName: r.home, awayClubName: r.away,
@@ -1037,16 +1036,16 @@ export default function CustomUclSimulationScreen() {
                 }))} />
             </>
             )}</> },
-              { id: 'fixtures', label: t('season.tabFixtures'), node: <YourFixtures roles={nylon} rows={domFixtureRows()} /> },
-              ...(domCup ? [{ id: 'cup', label: t('season.tabCup'), node: <CupPane roles={nylon} cup={domCup} country={mine.country} playerClubId={playerClubId} onTie={openCupTie} /> }] : []),
+              { id: 'fixtures', label: t('season.tabFixtures'), node: <YourFixtures roles={GR} rows={domFixtureRows()} /> },
+              ...(domCup ? [{ id: 'cup', label: t('season.tabCup'), node: <CupPane roles={GR} cup={domCup} country={mine.country} playerClubId={playerClubId} onTie={openCupTie} /> }] : []),
               pressPane,
             ]} />
         </KitScreen>
         <ThumbBar>
-          <StageControls roles={nylon} skip={{ label: t('season.skipToLast'), consequence: t('path.skipSeason', { league: mine.name }),
+          <StageControls roles={GR} skip={{ label: t('season.skipToLast'), consequence: t('path.skipSeason', { league: mine.name }),
             pause: () => setIsPlaying(false), run: () => domSkipRef.current() }} />
           <Plate label={isPlaying ? t('sim.pause') : atSplitPause ? t('path.playSplit') : t('sim.playMd', { md: Math.min(domMD + 1, domTotalMDs) })}
-            icon={isPlaying ? 'pause' : 'play'} roles={nylon} onPress={() => setIsPlaying(p => !p)} />
+            icon={isPlaying ? 'pause' : 'play'} roles={GR} onPress={() => setIsPlaying(p => !p)} />
         </ThumbBar>
         {modals}
       </View>
@@ -1071,39 +1070,39 @@ export default function CustomUclSimulationScreen() {
       : null
     const table = domPlayerTableRef.current
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader>
-          <StampLabel roles={nylon} good={qualified} sub={berthText}
+          <StampLabel roles={GR} good={qualified} sub={berthText}
             text={pos === 1 ? t('path.champions', { league: mine.name }) : t('path.finished', { place: ordinalOf(pos) })} />
-          {cupLine && <KitText t="body" color={nylon.textMuted}>{cupLine}</KitText>}
+          {cupLine && <KitText t="body" color={GR.textMuted}>{cupLine}</KitText>}
           {yourCup?.cup && (
-            <Plate label={t('path.seeCup', { cup: nationalCupName(mine.rank) })} icon="ranks" variant="secondary" roles={nylon}
+            <Plate label={t('path.seeCup', { cup: nationalCupName(mine.rank) })} icon="ranks" variant="secondary" roles={GR}
               onPress={() => openCupBracket(yourCup.cup!, mine.country, playerClubId, openCupTie)} />
           )}
           {/* The pundits' call, checked: the same seed, the same field. */}
           {domPunditCall != null && (
-            <KitText t="body" color={nylon.textMuted}>
+            <KitText t="body" color={GR.textMuted}>
               {domPunditCall === pos ? t('path.punditsSpotOn', { place: ordinalOf(domPunditCall) })
                 : t('path.punditsHad', { tipped: ordinalOf(domPunditCall), place: ordinalOf(pos) }) + (domPunditCall > pos ? t('path.provedWrong') : '.')}
             </KitText>
           )}
           {table && (
             <>
-              <SectionTag roles={nylon}>{t('path.finalTable', { league: mine.name })}</SectionTag>
-              <LeagueTable roles={nylon} zones={domZones}
+              <SectionTag roles={GR}>{t('path.finalTable', { league: mine.name })}</SectionTag>
+              <LeagueTable roles={GR} zones={domZones}
                 breakAfter={domSplitSize > 0 ? domSplitSize : undefined} breakLabel={t('path.splitBreak')}
                 rows={table.standings.map(r => ({
                   clubId: r.clubId, clubName: r.clubName, isPlayer: r.clubId === playerClubId,
                   played: r.played, gd: r.goalsFor - r.goalsAgainst, points: r.points,
                 }))} />
-              <ZoneLegend roles={nylon} zones={domZones} />
+              <ZoneLegend roles={GR} zones={domZones} />
             </>
           )}
         </KitScreen>
         <ThumbBar>
           <Plate label={!qual ? t('path.resolvingStep') : qualified ? t('path.restOfEurope') : t('path.whoTook')}
-            icon="forward" roles={nylon} disabled={!qual} missingStep={t('path.resolvingStep')}
+            icon="forward" roles={GR} disabled={!qual} missingStep={t('path.resolvingStep')}
             onPress={() => setPhase('world_sim')} />
         </ThumbBar>
         {modals}
@@ -1116,29 +1115,29 @@ export default function CustomUclSimulationScreen() {
     const visible = tables.slice(0, worldRevealed)
     const done = worldRevealed >= tables.length
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader>
-          <KitText t="superM" color={nylon.text} accessibilityRole="header">{t('path.europeDone')}</KitText>
-          <KitText t="bodyL" color={nylon.textMuted}>{t('path.everyLeague', { n: visible.length, total: tables.length })}</KitText>
-          <SectionTag roles={nylon}>{t('path.theChampions')}</SectionTag>
+          <KitText t="superM" color={GR.text} accessibilityRole="header">{t('path.europeDone')}</KitText>
+          <KitText t="bodyL" color={GR.textMuted}>{t('path.everyLeague', { n: visible.length, total: tables.length })}</KitText>
+          <SectionTag roles={GR}>{t('path.theChampions')}</SectionTag>
           {visible.map(t => (
-            <LeagueRow key={t.rank} roles={nylon} table={t} yours={t.rank === mine.rank} onPress={() => openLeagueTable(t, playerClubId)} />
+            <LeagueRow key={t.rank} roles={GR} table={t} yours={t.rank === mine.rank} onPress={() => openLeagueTable(t, playerClubId)} />
           ))}
           {/* P8-52: the rest of the ceremony, once every league is in. */}
           {done && europe && (
             <>
-              <SectionTag roles={nylon}>{t('path.theHolders')}</SectionTag>
+              <SectionTag roles={GR}>{t('path.theHolders')}</SectionTag>
               {europe.holders.map(h => (
-                <MarkRow key={h.comp} roles={nylon} clubId={h.clubId} clubName={h.clubName} yours={h.clubId === playerClubId}
+                <MarkRow key={h.comp} roles={GR} clubId={h.clubId} clubName={h.clubName} yours={h.clubId === playerClubId}
                   label={t('path.holders', { comp: EUROPE[h.comp].name }) + (h.playsIn ? t('path.holdersIn', { comp: EUROPE[h.playsIn].name }) : '')} />
               ))}
-              <KitText t="body" color={nylon.textMuted}>{t('path.holdersNote')}</KitText>
-              <SectionTag roles={nylon}>{t('path.theCups')}</SectionTag>
-              <KitText t="body" color={nylon.textMuted}>{t('path.cupsNote')}</KitText>
+              <KitText t="body" color={GR.textMuted}>{t('path.holdersNote')}</KitText>
+              <SectionTag roles={GR}>{t('path.theCups')}</SectionTag>
+              <KitText t="body" color={GR.textMuted}>{t('path.cupsNote')}</KitText>
               {/* P8.5-13: each cup opens as its bracket (older saves kept only the winner). */}
               {europe.cups.map(c => (
-                <MarkRow key={c.rank} roles={nylon} clubId={c.clubId} clubName={c.clubName} yours={c.clubId === playerClubId}
+                <MarkRow key={c.rank} roles={GR} clubId={c.clubId} clubName={c.clubName} yours={c.clubId === playerClubId}
                   label={`${nationalCupName(c.rank)} · ${c.country ? countryName(c.country) : c.name}`}
                   onPress={c.cup ? () => openCupBracket(c.cup!, c.country, playerClubId, (t, label) => openMatchStats(cupTieRequest(t, `${c.cup!.name} · ${label}`, { yearStart: 2025 }))) : undefined} />
               ))}
@@ -1147,7 +1146,7 @@ export default function CustomUclSimulationScreen() {
         </KitScreen>
         <ThumbBar>
           <Plate label={done ? (notQualified ? t('path.seeVerdict') : t('path.toQualifiers')) : t('path.revealAll')}
-            icon="forward" roles={nylon}
+            icon="forward" roles={GR}
             onPress={() => {
               setWorldRevealed(tables.length)
               if (done) {
@@ -1178,15 +1177,15 @@ export default function CustomUclSimulationScreen() {
     const ladder = qualComp ?? yourLatest?.comp ?? entry?.comp ?? 'ucl'
     const visibleTies = revealed.filter(t => (t.comp ?? 'ucl') === ladder)
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader>
-          <KitText t="superM" color={nylon.text} accessibilityRole="header">{t('path.qualifying')}</KitText>
-          <KitText t="bodyL" color={nylon.textMuted}>{t('path.qualLead')}</KitText>
-          <SegmentSwitch<EuroComp> roles={nylon} value={ladder} onChange={setQualComp} options={(['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => ({ id: c, label: EUROPE[c].short }))} />
+          <KitText t="superM" color={GR.text} accessibilityRole="header">{t('path.qualifying')}</KitText>
+          <KitText t="bodyL" color={GR.textMuted}>{t('path.qualLead')}</KitText>
+          <SegmentSwitch<EuroComp> roles={GR} value={ladder} onChange={setQualComp} options={(['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => ({ id: c, label: EUROPE[c].short }))} />
           {waitingOnLiveQual && liveQualMatch && currentQualRound && (
             <View style={{ gap: space[2], marginTop: space[3] }}>
-              <SectionTag roles={nylon}>
+              <SectionTag roles={GR}>
                 {`${playerQualTie?.comp ? `${EUROPE[playerQualTie.comp].short} · ` : ''}${label(QUAL_ROUND_LABEL[currentQualRound])}${playerQualTie ? ` · ${label(PATH_LABEL[playerQualTie.path])}` : ''}`}
               </SectionTag>
               <LiveMatch
@@ -1207,7 +1206,7 @@ export default function CustomUclSimulationScreen() {
           }} />
         </KitScreen>
         <ThumbBar>
-          <Plate label={t('path.skipQual')} icon="skip" variant="secondary" roles={nylon}
+          <Plate label={t('path.skipQual')} icon="skip" variant="secondary" roles={GR}
             onPress={() => { setLiveQualDone(Object.fromEntries(qualRoundsWithTies.map(r => [r, true]))); setQualRoundIdx(qualRoundsWithTies.length) }} />
         </ThumbBar>
         {modals}
@@ -1222,10 +1221,10 @@ export default function CustomUclSimulationScreen() {
     const exitKey = exitTie ? (Object.entries(QUAL_EXIT_ROUND).find(([, r]) => r === exitTie.round)?.[0] as CLSeasonResult['playerFinalRound'] | undefined) : undefined
     const through = playerReachedLeaguePhase
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader>
-          <StampLabel roles={nylon} good={through}
+          <StampLabel roles={GR} good={through}
             text={through ? (playerHadTies ? t('path.into', { comp: comp.name }) : t('path.fieldSet')) : t('path.outIn', { round: exitTie ? label(QUAL_ROUND_LABEL[exitTie.round]).toLowerCase() : t('path.qualifyingLower') })}
             sub={through
               ? (playerHadTies
@@ -1251,21 +1250,21 @@ export default function CustomUclSimulationScreen() {
             const came = field.filter(t => t.entryRound !== 'league_phase').length
             return (
               <>
-                <SectionTag roles={nylon}>{t('path.restOfEuropeTitle')}</SectionTag>
-                <SegmentSwitch<EuroComp> roles={nylon} value={shown} onChange={setQualComp}
+                <SectionTag roles={GR}>{t('path.restOfEuropeTitle')}</SectionTag>
+                <SegmentSwitch<EuroComp> roles={GR} value={shown} onChange={setQualComp}
                   options={(['ucl', 'uel', 'uecl'] as EuroComp[]).map(c => ({ id: c, label: EUROPE[c].short }))} />
-                <KitText t="body" color={nylon.textMuted}>
+                <KitText t="body" color={GR.textMuted}>
                   {t('path.phaseField', { comp: EUROPE[shown].name, count: field.length, direct: field.length - came, came })}
                 </KitText>
                 {field.map(team => (
-                  <View key={team.clubId} style={[styles.fieldRow, { borderBottomColor: nylon.rule }, team.isPlayer && { backgroundColor: nylon.yours }]}>
-                    <ClubName roles={nylon} clubId={team.clubId} name={team.clubName} size={16} style={{ flex: 1 }} />
-                    <KitText t="tag" color={nylon.textMuted}>
+                  <View key={team.clubId} style={[styles.fieldRow, { borderBottomColor: GR.rule }, team.isPlayer && { backgroundColor: GR.yours }]}>
+                    <ClubName roles={GR} clubId={team.clubId} name={team.clubName} size={16} style={{ flex: 1 }} />
+                    <KitText t="tag" color={GR.textMuted}>
                       {team.entryRound === 'league_phase' ? t('path.direct') : t('path.via', { round: label(QUAL_ROUND_LABEL[team.entryRound]).toUpperCase() })}
                     </KitText>
                   </View>
                 ))}
-                <SectionTag roles={nylon}>{t('path.compQualifying', { comp: EUROPE[shown].name })}</SectionTag>
+                <SectionTag roles={GR}>{t('path.compQualifying', { comp: EUROPE[shown].name })}</SectionTag>
                 <QualifyingLadder ties={qual.ties.filter(t => (t.comp ?? 'ucl') === shown)} onTiePress={t => {
                   const m = qualTieToKoMatch(t)
                   if (m) openMatchStats(tieRequest(m, `${EUROPE[t.comp ?? 'ucl'].short} · ${QUAL_ROUND_LABEL[t.round]} · ${PATH_LABEL[t.path]}`, koCtx))
@@ -1276,8 +1275,8 @@ export default function CustomUclSimulationScreen() {
         </KitScreen>
         <ThumbBar>
           {through
-            ? <Plate label={t('path.toLeaguePhase')} icon="forward" roles={nylon} onPress={() => setPhase('review')} />
-            : <Plate label={t('path.howItEnds')} icon="forward" roles={nylon} onPress={() => handleOutOfEurope(exitKey ?? 'q1_exit')} />}
+            ? <Plate label={t('path.toLeaguePhase')} icon="forward" roles={GR} onPress={() => setPhase('review')} />
+            : <Plate label={t('path.howItEnds')} icon="forward" roles={GR} onPress={() => handleOutOfEurope(exitKey ?? 'q1_exit')} />}
         </ThumbBar>
         {modals}
       </View>
@@ -1289,31 +1288,31 @@ export default function CustomUclSimulationScreen() {
     const playerTeam = clTeamsLocal.find(t => t.isPlayer)
     const yourEight = fixtures.filter(f => f.home.isPlayer || f.away.isPlayer).sort((a, b) => a.matchday - b.matchday)
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader>
-          <KitText t="superM" color={nylon.text} accessibilityRole="header">{t('path.theLeaguePhase')}</KitText>
-          <KitText t="tag" color={nylon.textMuted}>{comp.fullName}</KitText>
-          <KitText t="tag" color={nylon.textMuted}>
+          <KitText t="superM" color={GR.text} accessibilityRole="header">{t('path.theLeaguePhase')}</KitText>
+          <KitText t="tag" color={GR.textMuted}>{comp.fullName}</KitText>
+          <KitText t="tag" color={GR.textMuted}>
             {t('path.lpMeta', { club: playerTeam?.clubName ?? '', ovr: playerTeam?.ovr ?? 0, pot: playerTeam?.pot ?? '-', count: clTeamsLocal.length })}
           </KitText>
           {lpDraw && (
             // P8-114: the draw first, then your eight by matchday once it's done.
-            <LeaguePhaseDraw roles={nylon} teams={clTeamsLocal} draw={lpDraw} countryOf={countryOfClub} after={(
+            <LeaguePhaseDraw roles={GR} teams={clTeamsLocal} draw={lpDraw} countryOf={countryOfClub} after={(
               <>
-                <SectionTag roles={nylon}>{comp.matchdays === 6 ? t('path.yourSix') : t('sim.yourEight')}</SectionTag>
+                <SectionTag roles={GR}>{comp.matchdays === 6 ? t('path.yourSix') : t('sim.yourEight')}</SectionTag>
                 {yourEight.map(f => (
-                  <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday} home={f.home.isPlayer}
+                  <FixtureRow key={f.matchday} roles={GR} matchday={f.matchday} home={f.home.isPlayer}
                     opponent={(f.home.isPlayer ? f.away : f.home).clubName} pot={(f.home.isPlayer ? f.away : f.home).pot} you={(f.home.isPlayer ? f.home : f.away).clubName}
                     when={kickoffFor({ label: `League Phase · MD ${f.matchday}`, yearStart: clYear ?? 2025, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short} />
                 ))}
-                <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+                <ZoneLegend roles={GR} zones={CL_PHASE_ZONES} />
               </>
             )} />
           )}
         </KitScreen>
         <ThumbBar>
-          <Plate label={t('sim.startLeaguePhase')} icon="play" roles={nylon} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
+          <Plate label={t('sim.startLeaguePhase')} icon="play" roles={GR} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
         </ThumbBar>
         {modals}
       </View>
@@ -1332,41 +1331,41 @@ export default function CustomUclSimulationScreen() {
       return yours ? markOf(yours.playerHome, yours.hg, yours.ag) : null
     }).filter((m): m is Mark => !!m)
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {road(phase)}
         <KitScreen ground={EVERYDAY} underHeader width={wide ? 'wide' : 'column'}>
-          <TableStage roles={nylon} wide={wide} tab={lpTab} onTab={id => setLpTab(id as typeof lpTab)}
+          <TableStage roles={GR} wide={wide} tab={lpTab} onTab={id => setLpTab(id as typeof lpTab)}
             meta={t('path.lpRunMeta', { comp: comp.name, count: clTeamsLocal.length, md: Math.min(currentMD - 1, totalMatchdays), total: totalMatchdays })}
             standing={youPos > 0 && fpLive !== 'lp' ? { pos: youPos, delta: moveFrom(prevPos(lpOrdersRef.current), youPos), zone: CL_PHASE_ZONES[youPos - 1] ?? null, points: standings[youPos - 1]?.stats.points ?? 0 } : null}
             strip={{ marks: fpLive === 'lp' ? lpMarks.slice(0, -1) : lpMarks, total: totalMatchdays, viewing: mdView, latest: lpHistory.length, onPick: md => { setMdView(md); if (md != null) setIsPlaying(false) } }}
             keys={{ playPause: () => { if (currentMD <= totalMatchdays) setIsPlaying(p => !p) } }}
             yourMatch={<>
           {fpLiveMatch('lp') ?? (yourResult && (
-            <ScorelineCard roles={nylon} label={[label(`MD ${historyFor(lpHistory)}`), kickoffFor({ label: `League Phase · MD ${historyFor(lpHistory)}`, yearStart: clYear ?? 2025, homeClubId: yourResult.homeId, awayClubId: yourResult.awayId })?.short].filter(Boolean).join(' · ')}
+            <ScorelineCard roles={GR} label={[label(`MD ${historyFor(lpHistory)}`), kickoffFor({ label: `League Phase · MD ${historyFor(lpHistory)}`, yearStart: clYear ?? 2025, homeClubId: yourResult.homeId, awayClubId: yourResult.awayId })?.short].filter(Boolean).join(' · ')}
               homeName={yourResult.home} awayName={yourResult.away} homeClubId={yourResult.homeId} awayClubId={yourResult.awayId}
               homeGoals={yourResult.hg} awayGoals={yourResult.ag} youHome={yourResult.playerHome}
               homeScorers={yourResult.hs || undefined} awayScorers={yourResult.as || undefined}
               onPress={() => openMdDetail(yourResult, historyFor(lpHistory), 'League Phase', clYear ?? 2025)}
-              footer={<ManOfTheMatch roles={nylon} req={mdRequest(yourResult, historyFor(lpHistory), 'League Phase', clYear ?? 2025)!} />} />
+              footer={<ManOfTheMatch roles={GR} req={mdRequest(yourResult, historyFor(lpHistory), 'League Phase', clYear ?? 2025)!} />} />
           ))}
             </>}
             waiting={fpLive === 'lp'}
             panes={[
               { id: 'table', label: t('sim.tabTable'), flex: 1.4, node: <>
-                <LeagueTable roles={nylon} zones={CL_PHASE_ZONES}
+                <LeagueTable roles={GR} zones={CL_PHASE_ZONES}
                   rows={withMoves(standings.map(simRow), lpOrdersRef.current[lpOrdersRef.current.length - 2])} />
-                <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+                <ZoneLegend roles={GR} zones={CL_PHASE_ZONES} />
               </> },
               { id: 'results', label: t('sim.tabResultsMd', { md: historyFor(lpHistory) }), node: <>{others.length === 0 ? (
-            <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.noOtherResults')}</KitText>
+            <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.noOtherResults')}</KitText>
             ) : (
             <>
             {others.map((r, i) => (
-              <ResultRow key={i} roles={nylon} homeName={r.home} awayName={r.away} homeGoals={r.hg} awayGoals={r.ag}
+              <ResultRow key={i} roles={GR} homeName={r.home} awayName={r.away} homeGoals={r.hg} awayGoals={r.ag}
                 homeClubId={r.homeId} awayClubId={r.awayId} youSide={null} homeScorers={r.hs || undefined} awayScorers={r.as || undefined}
                 onPress={() => openMdDetail(r, historyFor(lpHistory), 'League Phase', clYear ?? 2025)} />
             ))}
-            <RoundTeam roles={nylon} roundKey={`lp-${historyFor(lpHistory)}`} label={t('sim.teamOfMd', { md: historyFor(lpHistory) })}
+            <RoundTeam roles={GR} roundKey={`lp-${historyFor(lpHistory)}`} label={t('sim.teamOfMd', { md: historyFor(lpHistory) })}
               poolByClub={poolByClubRef.current} ctx={lineupCtxRef.current}
               fixtures={shown.map(r => ({
                   homeClubId: r.homeId, awayClubId: r.awayId, homeClubName: r.home, awayClubName: r.away,
@@ -1375,21 +1374,21 @@ export default function CustomUclSimulationScreen() {
                 }))} />
             </>
             )}</> },
-              { id: 'fixtures', label: t('season.tabFixtures'), node: <YourFixtures roles={nylon} rows={lpFixtureRows()} /> },
+              { id: 'fixtures', label: t('season.tabFixtures'), node: <YourFixtures roles={GR} rows={lpFixtureRows()} /> },
               pressPane,
             ]} />
         </KitScreen>
         <ThumbBar>
           {currentMD > totalMatchdays && !fpLive ? (
             // The league phase is over: the final table stays until you go on.
-            <Plate label={t('path.toKnockouts')} icon="forward" roles={nylon}
+            <Plate label={t('path.toKnockouts')} icon="forward" roles={GR}
               onPress={() => { if (lpFinishingRef.current) return; lpFinishingRef.current = true; void finishLeaguePhase() }} />
           ) : (
             <>
-              <StageControls roles={nylon} skip={{ label: t('sim.skipLastMd'), consequence: t('sim.mdsAtOnce', { from: currentMD, to: totalMatchdays }),
+              <StageControls roles={GR} skip={{ label: t('sim.skipLastMd'), consequence: t('sim.mdsAtOnce', { from: currentMD, to: totalMatchdays }),
                 pause: () => setIsPlaying(false), run: () => lpSkipRef.current() }} />
               <Plate label={isPlaying ? t('sim.pause') : t('sim.playMd', { md: currentMD })}
-                icon={isPlaying ? 'pause' : 'play'} roles={nylon} onPress={() => setIsPlaying(p => !p)} />
+                icon={isPlaying ? 'pause' : 'play'} roles={GR} onPress={() => setIsPlaying(p => !p)} />
             </>
           )}
         </ThumbBar>

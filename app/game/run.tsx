@@ -1,10 +1,12 @@
 import { t } from '@/i18n'
+import { countryName } from '@/data/countries-sk'
 // knockoutRun names its ties `t`; `tr` is t() where that shadows it.
 const tr = t
 import { compareRows } from '@/engine/standings'
 import { label } from '@/i18n/labels'
-import { isEuropeMode } from '@/data/europe'
-import React, { useMemo, useState } from 'react'
+import { isEuropeMode, EUROPE, compOfMode } from '@/data/europe'
+import React, { useEffect, useMemo, useState } from 'react'
+import { time } from '@/diag/perf'
 import { FormationPitch } from '@/components/season/AwardsParts'
 import { buildAwardsNight } from '@/engine/awards'
 import { useRunOwner, RunOwnerLine } from '@/components/profile/ProfileParts'
@@ -15,7 +17,7 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, ScrollView, StyleSheet } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { ROLES, space, border, prim } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, Field, Chips, ClubName, RatingSquare, EventMark } from '@/components/kit'
+import { KitScreen, LoadingScreen, BoardList, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, Field, Chips, ClubName, RatingSquare, EventMark } from '@/components/kit'
 import { SegmentSwitch, SeasonStrip, PositionCompare, LeagueTable, ResultRow, StoryItem, ZoneLegend, leagueTableZones, tieDetail, CL_PHASE_ZONES, WC_GROUP_ZONES, WC_THIRD_ZONES, type Mark, type TableZone, type TableRowVM } from '@/components/season/SeasonParts'
 import { runTie } from '@/engine/stages'
 import { BracketTree, type BracketTie } from '@/components/BracketTree'
@@ -55,8 +57,8 @@ const FAMILIES: { id: string; label: string; keys: StatKey[] }[] = [
   { id: 'form', label: t('hub.famForm'), keys: ['avgRating', 'potm'] },
   { id: 'disc', label: t('hub.famDisc'), keys: ['fouls', 'yellowCards', 'redCards'] },
 ]
-// P8-80: a board lists everyone who qualifies, not a top 50.
-// ponytail: plain rows, not a virtualised list; Phase 9 moves long lists to FlatList.
+// P8-80: a board lists everyone who qualifies, not a top 50. P9.75-11: a page
+// at a time as you scroll (BoardList), not every row on opening.
 
 // Club boards (P8-80), from the club totals the run's stats pass keeps. `avg`
 // divides by matches (possession, pass accuracy); `low` ranks the smallest
@@ -88,24 +90,24 @@ function ClubBoards({ data, runId }: { data: RunData; runId?: string }) {
   const stats = CLUB_STATS.filter(c => hasSheets || !c.sheet)
   const [id, setId] = useState(stats[0].id)
   const stat = stats.find(c => c.id === id) ?? stats[0]
-  const rows = teams
+  const rows = useMemo(() => teams
     .map(t => ({ t, v: stat.get(t) }))
     .filter((r): r is { t: TeamGoalRecord; v: number } => r.v != null)
-    .sort((a, b) => (stat.low ? a.v - b.v : b.v - a.v) || a.t.clubName.localeCompare(b.t.clubName))
+    .sort((a, b) => (stat.low ? a.v - b.v : b.v - a.v) || a.t.clubName.localeCompare(b.t.clubName)), [teams, stat])
   return (
     <View style={styles.section}>
       <Chips roles={roles} options={stats.map(c => ({ id: c.id, label: c.label }))} value={stat.id} onChange={setId} />
       <KitText t="tag" color={roles.textMuted}>
         {t('hub.clubsCount', { count: rows.length }) + (stat.low ? t('hub.fewestFirst') : '') + (hasSheets ? '' : t('hub.oldClubNumbers'))}
       </KitText>
-      {rows.map(({ t: team, v }, i) => (
-        <Pressable key={team.clubId} onPress={() => openClub(team.clubId, runId)} accessibilityRole="link"
+      <BoardList items={rows} keyOf={r => r.t.clubId} renderRow={({ t: team, v }, i) => (
+        <Pressable onPress={() => openClub(team.clubId, runId)} accessibilityRole="link"
           style={({ pressed }) => [styles.row, { borderBottomColor: roles.rule }, team.clubId === data.playerClubId && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
           <KitText t="figure" color={roles.textMuted} style={styles.pos}>{String(i + 1)}</KitText>
           <ClubName roles={roles} clubId={team.clubId} name={team.clubName} size={16} style={{ flex: 1 }} />
           <KitText t="figure" color={roles.text} style={styles.val}>{stat.fmt ? stat.fmt(v) : String(v)}</KitText>
         </Pressable>
-      ))}
+      )} />
     </View>
   )
 }
@@ -115,14 +117,22 @@ export default function RunHub() {
   const { data, loading, failed, retry } = useRunData(params.runId)
   const [tab, setTab] = useState<Tab>(params.tab ?? 'table')
   const wide = useSizeClass() === 'expanded'
+  // P9.75-12: the knockout is worked out once per run (the tab list, the table
+  // and the bracket all asked for it, each walking every match).
+  const ko = useMemo(() => (data ? knockoutRun(data) : null), [data])
+  // P9.75-12: the hub answers the tap with its header and tabs, and mounts the
+  // tab's body a frame later. Opening it took 0.8 to 1.6 s on the phone, all
+  // of it before the first frame.
+  const [bodyReady, setBodyReady] = useState(false)
+  useEffect(() => { const id = requestAnimationFrame(() => setBodyReady(true)); return () => cancelAnimationFrame(id) }, [])
 
-  if (loading) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>{t('hub.reading')}</KitText></KitScreen>
-  if (failed || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message={t('hub.readFailed')} onRetry={retry} /></KitScreen>
+  if (loading) return <LoadingScreen ground={EVERYDAY} label={t('hub.reading')} />
+  if (failed || !data || !ko) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message={t('hub.readFailed')} onRetry={retry} /></KitScreen>
 
   const pick = (tb: Tab) => { setTab(tb); router.setParams({ tab: tb } as never) }   // survives a reload on web
   const tabs: { id: Tab; label: string }[] = [
     { id: 'table', label: data.mode === 'world_cup' ? t('hub.tabGroups') : t('hub.tabTable') },
-    ...(knockoutRun(data).main.length ? [{ id: 'bracket' as Tab, label: t('hub.tabBracket') }] : []),
+    ...(ko.main.length ? [{ id: 'bracket' as Tab, label: t('hub.tabBracket') }] : []),
     ...(data.matches?.length && data.playerClubId ? [{ id: 'season' as Tab, label: isTournament(data.mode) ? t('hub.tabTournament') : t('hub.tabSeason') }] : []),
     ...(data.more.cup ? [{ id: 'cup' as Tab, label: t('hub.tabCup') }] : []),
     ...(data.rounds?.length ? [{ id: 'teams' as Tab, label: t('hub.tabTeams') }] : []),
@@ -133,13 +143,13 @@ export default function RunHub() {
     { id: 'squad', label: t('hub.tabSquad') },
   ]
 
-  const body = (
+  const body = !bodyReady ? null : (
     <>
       {data.missing.length > 0 && (
         <KitText t="body" color={roles.textMuted} style={{ marginBottom: space[2] }}>{t('hub.missing', { what: data.missing.join(', ') })}</KitText>
       )}
-      {tab === 'table' && <TableTab data={data} runId={params.runId} />}
-      {tab === 'bracket' && <BracketTab data={data} />}
+      {tab === 'table' && <TableTab data={data} ko={ko} runId={params.runId} />}
+      {tab === 'bracket' && <BracketTab data={data} ko={ko} />}
       {tab === 'season' && <SeasonTab data={data} />}
       {tab === 'teams' && <TeamsTab data={data} runId={params.runId} />}
       {tab === 'stats' && <StatsTab data={data} runId={params.runId} />}
@@ -214,12 +224,13 @@ function zonesForTable(data: RunData, group: string, n: number, thirdThrough?: b
   return Array(n).fill(null)
 }
 
-function TableTab({ data, runId }: { data: RunData; runId?: string }) {
+type KnockoutRun = ReturnType<typeof knockoutRun>
+function TableTab({ data, ko, runId }: { data: RunData; ko: KnockoutRun; runId?: string }) {
   if (!data.table.length) return <EmptyState roles={roles} title={t('hub.noTable')} body={t('hub.noTableBody')} />
   const groups = [...new Set(data.table.map(r => r.group ?? ''))]
   const wc = data.mode === 'world_cup'
   // P8-79: how far each club got in the knockouts, after its name (QF, WON).
-  const reached = knockoutRun(data).reached
+  const reached = ko.reached
   const vm = (r: RunData['table'][number], note?: string): TableRowVM => ({
     clubId: r.clubId, clubName: r.clubName, isPlayer: r.isPlayer, played: r.played, gd: r.gf - r.ga, points: r.points,
     flag: wc ? getFlag(r.clubId) : undefined, note: [note, reached.get(r.clubId)].filter(Boolean).join(' · ') || undefined,
@@ -342,10 +353,14 @@ function bracketTie(data: RunData, t: Tie, winnerIsA: boolean): BracketTie {
 
 // P8-79: a real bracket, rounds side by side with lines between them — the
 // same tree the preview and the result screens draw — not a list of rounds.
-function BracketTab({ data }: { data: RunData }) {
-  const { main, third, winnerIsA } = knockoutRun(data)
+function BracketTab({ data, ko }: { data: RunData; ko: KnockoutRun }) {
+  const { main, third, winnerIsA } = ko
+  // P9.75-05: the bracket says whose it is ("EUROPA LEAGUE · KNOCKOUTS"); on a
+  // full path the Europe tab holds the other two.
+  const comp = data.more.cl ? (data.more.cl.competition ? EUROPE[data.more.cl.competition] : compOfMode(data.mode) ?? EUROPE.ucl) : null
   return (
     <View style={styles.section}>
+      {comp && <SectionTag roles={roles}>{t('sim.knockouts', { comp: comp.name })}</SectionTag>}
       <BracketTree
         playerClubId={data.playerClubId}
         columns={main.map(r => ({ key: r.round, label: label(r.round), ties: r.ties.map(t => bracketTie(data, t, winnerIsA.get(t)!)) }))}
@@ -359,7 +374,7 @@ function BracketTab({ data }: { data: RunData }) {
 // ── SEASON: your matches, your form, your position ───────────────────────────
 function SeasonTab({ data }: { data: RunData }) {
   const you = data.playerClubId!
-  const mine = (data.matches ?? []).filter(m => m.homeClubId === you || m.awayClubId === you)
+  const mine = useMemo(() => (data.matches ?? []).filter(m => m.homeClubId === you || m.awayClubId === you), [data, you])
   const marks: Mark[] = mine.map(m => {
     const d = m.homeClubId === you ? m.homeGoals - m.awayGoals : m.awayGoals - m.homeGoals
     return d > 0 ? 'W' : d < 0 ? 'L' : 'D'
@@ -375,8 +390,8 @@ function SeasonTab({ data }: { data: RunData }) {
       {/* P8-67: the season's own result row (the season screen's and the
           verdict's), not a lookalike — crests, scorers and your side marked the
           same way everywhere. The matchday label sits above each. */}
-      {mine.map((m, i) => (
-        <View key={i}>
+      <BoardList items={mine} keyOf={(_, i) => String(i)} renderRow={m => (
+        <View>
           {m.label ? <KitText t="tag" color={roles.textMuted} style={styles.matchLabel}>{label(m.label)}</KitText> : null}
           <ResultRow roles={roles} homeName={m.homeClubName} awayName={m.awayClubName}
             homeGoals={m.homeGoals} awayGoals={m.awayGoals}
@@ -385,7 +400,7 @@ function SeasonTab({ data }: { data: RunData }) {
             homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
             onPress={() => openRunMatch(data, m)} />
         </View>
-      ))}
+      )} />
     </View>
   )
 }
@@ -395,7 +410,8 @@ function SeasonTab({ data }: { data: RunData }) {
 // and there was nowhere to look at one. Step through them, or jump straight
 // to a round; each is the awards' pitch, every shirt a link to the player.
 function TeamsTab({ data, runId }: { data: RunData; runId?: string }) {
-  const teams = useMemo(() => buildAwardsNight({ awards: data.awards, stats: data.stats, rounds: data.rounds ?? undefined }).teamsOfTheRound, [data])
+  // P9.75-11: timed (the tab took 1.8 s on the phone): the awards night is rebuilt here.
+  const teams = useMemo(() => time('hub:teams', () => buildAwardsNight({ awards: data.awards, stats: data.stats, rounds: data.rounds ?? undefined }).teamsOfTheRound), [data])
   const [i, setI] = useState(teams.length - 1)
   if (!teams.length) return <EmptyState roles={roles} title={t('hub.noTeams')} body={t('hub.noTeamsBody')} />
   const k = Math.min(Math.max(i, 0), teams.length - 1)
@@ -451,14 +467,19 @@ function PlayerBoards({ data, runId }: { data: RunData; runId?: string }) {
   const players = data.stats.players
   const hasMinutes = players.some(p => (p.minutes ?? 0) > 0)   // runs saved before minutes existed
   const m = canPer90(key) && hasMinutes ? mode : 'total'
-  const ranks = useMemo(() => positionRanks(players, key, m), [players, key, m])
-
-  const score = (p: PlayerStatLine) => (m === 'per90' ? per90(p, key) ?? 0 : value(p, key))
   const q = query.trim().toLowerCase()
-  const list = q
-    ? players.filter(p => p.name.toLowerCase().includes(q))
-    : players.filter(p => eligible(p, key, m) && score(p) > 0)
-  const board = [...list].sort((a, b) => score(b) - score(a))
+  // P9.75-11: the ranking and the board, timed apart from the rows' mount
+  // (ui:tab), and worked out once per stat, mode and search.
+  const { ranks, list, board } = useMemo(() => time('stats:board', () => {
+    const score = (p: PlayerStatLine) => (m === 'per90' ? per90(p, key) ?? 0 : value(p, key))
+    const list = q
+      ? players.filter(p => p.name.toLowerCase().includes(q))
+      : players.filter(p => eligible(p, key, m) && score(p) > 0)
+    // Each score once, not twice per comparison (per 90 divides every time).
+    const board = list.map(p => ({ p, s: score(p) })).sort((a, b) => b.s - a.s).map(x => x.p)
+    return { ranks: positionRanks(players, key, m), list, board }
+  }), [players, key, m, q])
+  const yourClub = data.table.find(r => r.isPlayer)?.clubName ?? t('hub.yourXi')
   const fmt = (p: PlayerStatLine) => key === 'avgRating' ? (p.avgRating ?? 0).toFixed(2) : m === 'per90' ? (per90(p, key)?.toFixed(2) ?? '—') : String(value(p, key))
   const fam = FAMILIES.find(f => f.id === family)!
 
@@ -478,15 +499,15 @@ function PlayerBoards({ data, runId }: { data: RunData; runId?: string }) {
         {key === 'avgRating' ? t('hub.ratingQualify', { min: RATING_MIN_MATCHES, count: list.length })
           : m === 'per90' ? t('hub.per90Qualify', { min: PER90_MIN_MINUTES, count: list.length }) : t('hub.playersCount', { count: list.length })}
       </KitText>
-      {board.length === 0 ? <KitText t="body" color={roles.textMuted}>{t('hub.nobody')}</KitText> : board.map((p, i) => {
+      {board.length === 0 ? <KitText t="body" color={roles.textMuted}>{t('hub.nobody')}</KitText> : <BoardList items={board} keyOf={p => p.playerId} renderRow={(p, i) => {
         const tag = percentileTag(p, ranks.get(p.playerId))
         return (
-          <Pressable key={p.playerId} onPress={() => openPlayer(p.playerId, runId)} accessibilityRole="link"
+          <Pressable onPress={() => openPlayer(p.playerId, runId)} accessibilityRole="link"
             style={({ pressed }) => [styles.row, styles.tall, { borderBottomColor: roles.rule }, p.isPlayerClub && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
             <KitText t="figure" color={roles.textMuted} style={styles.pos}>{q ? '' : String(i + 1)}</KitText>
             <View style={{ flex: 1 }}>
               <KitText t="body" color={roles.text} numberOfLines={1}>{p.name}</KitText>
-              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${p.isPlayerClub ? (data.table.find(r => r.isPlayer)?.clubName ?? t('hub.yourXi')) : p.clubName} · ${p.position}`}</KitText>
+              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${countryName(p.isPlayerClub ? yourClub : p.clubName)} · ${p.position}`}</KitText>
             </View>
             {tag && <Tag roles={roles} variant="win">{tag}</Tag>}
             {key === 'avgRating'
@@ -494,25 +515,26 @@ function PlayerBoards({ data, runId }: { data: RunData; runId?: string }) {
               : <KitText t="figure" color={roles.text} style={styles.val}>{fmt(p)}</KitText>}
           </Pressable>
         )
-      })}
+      }} />}
     </View>
   )
 }
 
 // ── PRESS ────────────────────────────────────────────────────────────────────
 function PressTab({ data }: { data: RunData }) {
+  const stories = useMemo(() => [...data.press].reverse(), [data])
   return (
     <View style={styles.section}>
       {/* P8-67: the season screen's own press item, not a lookalike. */}
-      {[...data.press].reverse().map(s => <StoryItem key={s.id} roles={roles} story={s} onPress={() => openStory(s.id, data.key === 'live' ? undefined : data.key)} />)}
+      <BoardList items={stories} keyOf={s => s.id} page={20} renderRow={s => <StoryItem roles={roles} story={s} onPress={() => openStory(s.id, data.key === 'live' ? undefined : data.key)} />} />
     </View>
   )
 }
 
 // ── SQUAD: your players ──────────────────────────────────────────────────────
 function SquadTab({ data, runId }: { data: RunData; runId?: string }) {
-  const mine = data.stats.players.filter(p => p.isPlayerClub).sort((a, b) => b.goals - a.goals || b.assists - a.assists)
-  if (!mine.length) return <EmptyState roles={roles} title={t('hub.noSquad')} body={t('hub.noSquadBody')} />
+  const squad = data.stats.players.filter(p => p.isPlayerClub).sort((a, b) => b.goals - a.goals || b.assists - a.assists)
+  if (!squad.length) return <EmptyState roles={roles} title={t('hub.noSquad')} body={t('hub.noSquadBody')} />
   const bench = data.drafted.filter(p => p.isBench)
   return (
     <View style={styles.section}>
@@ -521,7 +543,7 @@ function SquadTab({ data, runId }: { data: RunData; runId?: string }) {
         <LineupPitch formation={data.formation} draftedPlayers={data.drafted} benchPlayers={bench} title={t('result.yourLineup')} />
       )}
       <MedicalTable absences={data.more.absences} />
-      {mine.map(p => (
+      {squad.map(p => (
         <Pressable key={p.playerId} onPress={() => openPlayer(p.playerId, runId)} accessibilityRole="link"
           style={({ pressed }) => [styles.row, styles.tall, { borderBottomColor: roles.rule }, pressed && { backgroundColor: roles.sunken }]}>
           <KitText t="tag" color={roles.textMuted} style={styles.md}>{p.position}</KitText>

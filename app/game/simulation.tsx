@@ -39,7 +39,7 @@ import { countryForClClub } from '@/data/geo-iso'
 import type { CLTeam, CLKnockoutMatch, CLSeasonResult, CLLeagueMatch } from '@/engine/cl-sim'
 import { assignGroups, generateWCGroupFixtures, simulateWCKnockoutsOnly } from '@/engine/world-cup-sim'
 import { simulateWCKnockoutsForceToFinal } from '@/engine/quick-sim'
-import { openWCGroup } from '@/components/WCGroupModal'
+import { openWCGroup } from '@/components/WCGroupSheet'
 import type { WCTeam, WCGroup, WCSeasonResult, WCGroupMatch } from '@/engine/world-cup-sim'
 import { MODE_THEMES } from '@/theme'
 import { useModeTheme } from '@/hooks/useModeTheme'
@@ -79,7 +79,6 @@ type SimPhase = 'review' | 'simulating' | 'completed' | 'group_review' | 'knocko
 // The knockouts' tie and round shapes live with their view (KnockoutStage.tsx).
 
 // ── Kit Drop pieces shared by the Champions League and World Cup screens ────
-const nylon = ROLES[EVERYDAY]
 const clCountryOf = (t: CLTeam) => countryForClClub(t.clubName)
 
 const teamRow = (t: SimTeam): TableRowVM => ({
@@ -242,9 +241,9 @@ function CLSimulation() {
 
   if (!clTeams || !formation || draftedPlayers.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
-        <EmptyState roles={nylon} title={t('sim.noClData')} body={t('sim.lostSquadDraw')} />
-        <Plate label={t('sim.startNew')} roles={nylon} onPress={() => router.replace('/game/mode-select')} />
+      <View style={[styles.container, { backgroundColor: GR.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
+        <EmptyState roles={GR} title={t('sim.noClData')} body={t('sim.lostSquadDraw')} />
+        <Plate label={t('sim.startNew')} roles={GR} onPress={() => router.replace('/game/mode-select')} />
       </View>
     )
   }
@@ -444,7 +443,7 @@ function CLSimulation() {
     })))
   }
 
-  // C2 (docs/ui-overhaul/07c) — the league phase on nylon, as the league
+  // C2 (docs/ui-overhaul/07c) — the league phase on the everyday ground, as the league
   // season: your result first, the table with the phase's three zones a beat
   // later, your eight as a strip. Knockouts keep their own view (C5).
   // P8-136: the movement column against the matchday before, not sliding rows.
@@ -497,69 +496,69 @@ function CLSimulation() {
   const clMeta = t('sim.clMeta', { comp: comp.fullName, count: simTeams.length || 36, md: clLatestMD, total: totalMatchdays })
   const clStarted = phase !== 'review'
   return (
-    <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+    <View style={[styles.container, { backgroundColor: GR.bg }]}>
       <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
-        <RunHeader roles={nylon} stage={6} colourway={colourwayFor(comp.mode)} back={false}
+        <RunHeader roles={GR} stage={6} colourway={colourwayFor(comp.mode)} back={false}
           title={clStarted ? undefined : t('sim.leaguePhaseTitle')}
           right={<CloseRun onPress={() => askAbandon(() => setIsPlaying(false))} />} />
         {!clStarted ? (
           <>
-            <KitText t="tag" color={nylon.textMuted}>{clMeta}</KitText>
+            <KitText t="tag" color={GR.textMuted}>{clMeta}</KitText>
             {lpDraw && (
-              <LeaguePhaseDraw roles={nylon} teams={simTeams} draw={lpDraw} countryOf={clCountryOf} after={(
+              <LeaguePhaseDraw roles={GR} teams={simTeams} draw={lpDraw} countryOf={clCountryOf} after={(
                 <>
-                  <SectionTag roles={nylon}>{t('sim.yourEight')}</SectionTag>
+                  <SectionTag roles={GR}>{t('sim.yourEight')}</SectionTag>
                   {yourEight.map(f => (
-                    <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday}
+                    <FixtureRow key={f.matchday} roles={GR} matchday={f.matchday}
                       home={f.home.isPlayer} opponent={(f.home.isPlayer ? f.away : f.home).clubName} you={(f.home.isPlayer ? f.home : f.away).clubName}
                       pot={(f.home.isPlayer ? f.away : f.home).pot}
                       when={kickoffFor({ label: `League Phase · MD ${f.matchday}`, yearStart: clPoolYear, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short} />
                   ))}
-                  <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+                  <ZoneLegend roles={GR} zones={CL_PHASE_ZONES} />
                 </>
               )} />
             )}
           </>
         ) : (
-          <TableStage roles={nylon} wide={wide} tab={clTab} onTab={id => setClTab(id as typeof clTab)} meta={clMeta}
+          <TableStage roles={GR} wide={wide} tab={clTab} onTab={id => setClTab(id as typeof clTab)} meta={clMeta}
             standing={clRows[clYouPos - 1] ? { pos: clYouPos, delta: clPrevPos - clYouPos, zone: clRestMD > 0 ? CL_PHASE_ZONES[clYouPos - 1] : null, points: clRows[clYouPos - 1].points } : null}
             strip={{ marks: clMarks, total: totalMatchdays, viewing: clViewMD, latest: clRestMD, onPick: md => { setClViewMD(md); if (md != null) setIsPlaying(false) } }}
             keys={{ playPause: () => { if (!clDone) setIsPlaying(p => !p) } }}
             yourMatch={<>
             {clLiveMatch && clLivePeriod && panelLineFor(clPanel, clLiveMatch.home, clLiveMatch.away) && (
-              <KitText t="body" color={nylon.textMuted}>{panelLineFor(clPanel, clLiveMatch.home, clLiveMatch.away)}</KitText>
+              <KitText t="body" color={GR.textMuted}>{panelLineFor(clPanel, clLiveMatch.home, clLiveMatch.away)}</KitText>
             )}
             {clLiveMatch && clLivePeriod ? (
               <LiveMatch key={`cl-md-${clLiveMatch.matchday}`} teamA={clLiveMatch.home} teamB={clLiveMatch.away}
                 periods={[clLivePeriod]} onDone={clLiveDone} hold={!isPlaying} msPerMin={LIVE_MS_PER_MIN[speed]} />
             ) : clCard && (
-              <ScorelineCard roles={nylon} label={[label(`MD ${clCard.matchday}`), kickoffFor({ label: `League Phase · MD ${clCard.matchday}`, yearStart: clPoolYear, homeClubId: clCard.home.clubId, awayClubId: clCard.away.clubId })?.short].filter(Boolean).join(' · ')}
+              <ScorelineCard roles={GR} label={[label(`MD ${clCard.matchday}`), kickoffFor({ label: `League Phase · MD ${clCard.matchday}`, yearStart: clPoolYear, homeClubId: clCard.home.clubId, awayClubId: clCard.away.clubId })?.short].filter(Boolean).join(' · ')}
                 homeName={clCard.home.clubName} awayName={clCard.away.clubName} homeClubId={clCard.home.clubId} awayClubId={clCard.away.clubId}
                 homeGoals={clCard.homeGoals} awayGoals={clCard.awayGoals} youHome={clCard.home.isPlayer}
                 homeScorers={summariseScorers(clCard.scorers?.home) || undefined}
                 awayScorers={summariseScorers(clCard.scorers?.away) || undefined}
                 onPress={() => openClLeagueMatch(clCard)}
-                footer={<ManOfTheMatch roles={nylon} req={matchRequest(clLeagueMatch(clCard), clCtx)!} />} />
+                footer={<ManOfTheMatch roles={GR} req={matchRequest(clLeagueMatch(clCard), clCtx)!} />} />
             )}
             </>}
             panes={[
               { id: 'table', label: t('sim.tabTable'), title: t('sim.leaguePhase'), flex: 1.4, wideOrder: 1, node: <>
-                <LeagueTable roles={nylon} rows={clTableRows} zones={CL_PHASE_ZONES} muted={clRestMD === 0} />
-                <ZoneLegend roles={nylon} zones={CL_PHASE_ZONES} />
+                <LeagueTable roles={GR} rows={clTableRows} zones={CL_PHASE_ZONES} muted={clRestMD === 0} />
+                <ZoneLegend roles={GR} zones={CL_PHASE_ZONES} />
               </> },
               { id: 'results', label: clTableMD > 0 ? t('sim.tabResultsMd', { md: clViewMD ?? clLatestMD }) : t('sim.tabResults'),
                 title: clTableMD > 0 ? t('sim.resultsMd', { md: clViewMD ?? clLatestMD }) : t('sim.tabResults'), wideOrder: 0, node: <>
             {clPending
-              ? <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.yourMatchFirst')}</KitText>
+              ? <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.yourMatchFirst')}</KitText>
               : clOthers.map((m, i) => (
-                  <ResultRow key={i} roles={nylon} homeName={m.home.clubName} awayName={m.away.clubName}
+                  <ResultRow key={i} roles={GR} homeName={m.home.clubName} awayName={m.away.clubName}
                     homeGoals={m.homeGoals} awayGoals={m.awayGoals} youSide={null}
                     homeClubId={m.home.clubId} awayClubId={m.away.clubId}
                     homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
                     onPress={() => openClLeagueMatch(m)} />
                 ))}
             {!clPending && clShown.length > 0 && (
-              <RoundTeam roles={nylon} roundKey={`cl-${clShown[0].matchday}`} label={t('sim.teamOfMd', { md: clShown[0].matchday })}
+              <RoundTeam roles={GR} roundKey={`cl-${clShown[0].matchday}`} label={t('sim.teamOfMd', { md: clShown[0].matchday })}
                 poolByClub={poolByClubRef.current} ctx={lineupCtxRef.current}
                 fixtures={clShown.map(m => ({
                   homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName,
@@ -568,7 +567,7 @@ function CLSimulation() {
                 }))} />
             )}
               </> },
-              { id: 'fixtures', label: t('season.tabFixtures'), title: t('sim.yourEight'), node: <YourFixtures roles={nylon} rows={yourEight.map(f => {
+              { id: 'fixtures', label: t('season.tabFixtures'), title: t('sim.yourEight'), node: <YourFixtures roles={GR} rows={yourEight.map(f => {
                 const played = clHistoryYours.find(m => m.matchday === f.matchday)
                 const youHome = f.home.isPlayer
                 return {
@@ -578,24 +577,24 @@ function CLSimulation() {
                 }
               })} /> },
               { id: 'press', label: t('season.tabPress'), count: clPress.length, title: `${t('season.tabPress')} · ${clPress.length}`,
-                node: <PressList roles={nylon} stories={clPress} empty={t('sim.pressWait')} onOpen={openStory} /> },
+                node: <PressList roles={GR} stories={clPress} empty={t('sim.pressWait')} onOpen={openStory} /> },
             ]} />
         )}
       </KitScreen>
 
       <ThumbBar>
         {clStarted && !clDone && (
-          <StageControls roles={nylon} skip={{ label: t('sim.skipLastMd'), consequence: t('sim.mdsAtOnce', { from: currentMD, to: totalMatchdays }),
+          <StageControls roles={GR} skip={{ label: t('sim.skipLastMd'), consequence: t('sim.mdsAtOnce', { from: currentMD, to: totalMatchdays }),
             pause: () => setIsPlaying(false), run: () => clSkipRef.current() }} />
         )}
         {!clStarted ? (
-          <Plate label={t('sim.startLeaguePhase')} icon="play" roles={nylon}
+          <Plate label={t('sim.startLeaguePhase')} icon="play" roles={GR}
             onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
         ) : clDone ? (
           <Plate label={sortByStats(simTeams).findIndex(team => team.isPlayer) >= 24 ? t('sim.howItEnds') : t('sim.koDraw')}
-            icon="forward" roles={nylon} onPress={handleFinish} loading={isFinishing} />
+            icon="forward" roles={GR} onPress={handleFinish} loading={isFinishing} />
         ) : (
-          <Plate label={isPlaying ? t('sim.pause') : t('sim.playMd', { md: currentMD })} icon={isPlaying ? 'pause' : 'play'} roles={nylon}
+          <Plate label={isPlaying ? t('sim.pause') : t('sim.playMd', { md: currentMD })} icon={isPlaying ? 'pause' : 'play'} roles={GR}
             onPress={() => setIsPlaying(p => !p)} />
         )}
       </ThumbBar>
@@ -716,9 +715,9 @@ function WCSimulation() {
 
   if (!wcTeams || !formation || draftedPlayers.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
-        <EmptyState roles={nylon} title={t('sim.noWcData')} body={t('sim.lostSquadDraw')} />
-        <Plate label={t('sim.startNew')} roles={nylon} onPress={() => router.replace('/game/mode-select')} />
+      <View style={[styles.container, { backgroundColor: GR.bg, padding: space[4], justifyContent: 'center', gap: space[4] }]}>
+        <EmptyState roles={GR} title={t('sim.noWcData')} body={t('sim.lostSquadDraw')} />
+        <Plate label={t('sim.startNew')} roles={GR} onPress={() => router.replace('/game/mode-select')} />
       </View>
     )
   }
@@ -981,7 +980,7 @@ function WCSimulation() {
     })))
   }
 
-  // C3 (docs/ui-overhaul/07c) — the group stage on nylon. Your group is the
+  // C3 (docs/ui-overhaul/07c) — the group stage on the everyday ground. Your group is the
   // table; the race for the eight best third places runs live beside it,
   // because that's the World Cup's real drama; the other eleven groups are a
   // wall you can open. Knockouts keep their own view (C5).
@@ -1037,42 +1036,42 @@ function WCSimulation() {
   const wcStage = phase === 'review' ? 'draw' : phase === 'group_review' ? 'done' : 'live'
   const wcMeta = t('sim.wcMeta', { where: playerGroup ? t('sim.groupN', { id: playerGroup.id }) : t('sim.twelveGroups'), stage: wcStage === 'done' ? t('sim.groupsComplete') : t('sim.roundOf', { n: Math.max(playedCount, livePlayerMatch?.md ?? 0), total: totalMatchdays }) })
   const groupTable = <>
-    <LeagueTable roles={nylon} rows={playerGroupSorted.map(x => wcFlagRow(x))} zones={WC_GROUP_ZONES} muted={playedCount === 0} />
-    <ZoneLegend roles={nylon} zones={WC_GROUP_ZONES} />
+    <LeagueTable roles={GR} rows={playerGroupSorted.map(x => wcFlagRow(x))} zones={WC_GROUP_ZONES} muted={playedCount === 0} />
+    <ZoneLegend roles={GR} zones={WC_GROUP_ZONES} />
   </>
   const thirdsRace = <>
-    <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[2] }}>{t('sim.thirdsNote')}</KitText>
-    <LeagueTable roles={nylon} rows={wcThirds.map(x => wcFlagRow(x, x.groupId))} zones={WC_THIRD_ZONES} muted={playedCount === 0} />
+    <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[2] }}>{t('sim.thirdsNote')}</KitText>
+    <LeagueTable roles={GR} rows={wcThirds.map(x => wcFlagRow(x, x.groupId))} zones={WC_THIRD_ZONES} muted={playedCount === 0} />
   </>
   return (
-    <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+    <View style={[styles.container, { backgroundColor: GR.bg }]}>
       <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }}>
-        <RunHeader roles={nylon} stage={6} colourway={colourwayFor('world_cup')} back={false}
+        <RunHeader roles={GR} stage={6} colourway={colourwayFor('world_cup')} back={false}
           title={wcStage === 'draw' ? t('sim.groupDraw') : undefined}
           right={<CloseRun onPress={() => askAbandon(() => setIsPlaying(false))} />} />
-        {wcStage !== 'live' && <KitText t="tag" color={nylon.textMuted}>{wcMeta}</KitText>}
+        {wcStage !== 'live' && <KitText t="tag" color={GR.textMuted}>{wcMeta}</KitText>}
 
         {wcStage === 'draw' && (
           <>
-            <KitText t="bodyL" color={nylon.text} style={{ marginTop: space[2] }}>{t('sim.topTwo')}</KitText>
-            <KitText t="bodyL" color={nylon.text}>{t('sim.bestThirds')}</KitText>
+            <KitText t="bodyL" color={GR.text} style={{ marginTop: space[2] }}>{t('sim.topTwo')}</KitText>
+            <KitText t="bodyL" color={GR.text}>{t('sim.bestThirds')}</KitText>
             {playerGroup && (
               <>
-                <SectionTag roles={nylon}>{t('sim.yourGroupId', { id: playerGroup.id })}</SectionTag>
+                <SectionTag roles={GR}>{t('sim.yourGroupId', { id: playerGroup.id })}</SectionTag>
                 {fixtures.filter(f => f.home.isPlayer || f.away.isPlayer).sort((a, b) => a.matchday - b.matchday).map(f => {
                   const opp = f.home.isPlayer ? f.away : f.home
-                  return <FixtureRow key={f.matchday} roles={nylon} matchday={f.matchday} home={null} opponent={opp.clubName} flag={getFlag(opp.clubId)}
+                  return <FixtureRow key={f.matchday} roles={GR} matchday={f.matchday} home={null} opponent={opp.clubName} flag={getFlag(opp.clubId)}
                     when={kickoffFor({ label: `Group ${playerGroup.id} · MD ${f.matchday}`, yearStart: 2026, homeClubId: f.home.clubId, awayClubId: f.away.clubId })?.short} />
                 })}
               </>
             )}
-            <SectionTag roles={nylon}>{t('sim.everyGroup')}</SectionTag>
-            <GroupWall roles={nylon} groups={wcWall} onOpen={openGroupSim} />
+            <SectionTag roles={GR}>{t('sim.everyGroup')}</SectionTag>
+            <GroupWall roles={GR} groups={wcWall} onOpen={openGroupSim} />
           </>
         )}
 
         {wcStage === 'live' && (
-          <TableStage roles={nylon} wide={wide} tab={wcTab} onTab={id => setWcTab(id as typeof wcTab)} meta={wcMeta}
+          <TableStage roles={GR} wide={wide} tab={wcTab} onTab={id => setWcTab(id as typeof wcTab)} meta={wcMeta}
             // F-07: where you stand in your group, and the move since the last matchday.
             standing={wcYouPos > 0 && playedCount > 0 ? { pos: wcYouPos, delta: wcPrevPos == null ? null : wcPrevPos - wcYouPos, zone: WC_GROUP_ZONES[wcYouPos - 1] ?? null, points: playerGroupSorted[wcYouPos - 1]?.stats.points ?? 0 } : null}
             // F-06: the lookback (its state was declared and never set).
@@ -1080,7 +1079,7 @@ function WCSimulation() {
             keys={{ playPause: () => setIsPlaying(p => !p) }}
             yourMatch={<>
             {livePlayerMatch && panelLineFor(wcPanel, livePlayerMatch.result.home, livePlayerMatch.result.away) && (
-              <KitText t="body" color={nylon.textMuted}>{panelLineFor(wcPanel, livePlayerMatch.result.home, livePlayerMatch.result.away)}</KitText>
+              <KitText t="body" color={GR.textMuted}>{panelLineFor(wcPanel, livePlayerMatch.result.home, livePlayerMatch.result.away)}</KitText>
             )}
             {livePlayerMatch ? (
               <LiveMatch
@@ -1099,15 +1098,15 @@ function WCSimulation() {
             ) : wcCard ? (
               // Your match as a card once it's played, as on every other stage
               // (the groups had none: the live match ended and left nothing).
-              <ScorelineCard roles={nylon} label={[label(`MD ${wcCard.matchday}`), kickoffFor({ label: `Group ${wcCard.groupId} · MD ${wcCard.matchday}`, yearStart: 2026, homeClubId: wcCard.home.clubId, awayClubId: wcCard.away.clubId })?.short].filter(Boolean).join(' · ')}
+              <ScorelineCard roles={GR} label={[label(`MD ${wcCard.matchday}`), kickoffFor({ label: `Group ${wcCard.groupId} · MD ${wcCard.matchday}`, yearStart: 2026, homeClubId: wcCard.home.clubId, awayClubId: wcCard.away.clubId })?.short].filter(Boolean).join(' · ')}
                 homeName={wcCard.home.clubName} awayName={wcCard.away.clubName} homeClubId={wcCard.home.clubId} awayClubId={wcCard.away.clubId}
                 homeGoals={wcCard.homeGoals} awayGoals={wcCard.awayGoals} youHome={wcCard.home.isPlayer}
                 homeScorers={summariseScorers(wcCard.scorers?.home) || undefined}
                 awayScorers={summariseScorers(wcCard.scorers?.away) || undefined}
                 onPress={() => openWcGroupMatch(wcCard)}
-                footer={<ManOfTheMatch roles={nylon} req={matchRequest(leagueMatch(wcCard, `Group ${wcCard.groupId} · Matchday ${wcCard.matchday}`, true), wcCtx)!} />} />
+                footer={<ManOfTheMatch roles={GR} req={matchRequest(leagueMatch(wcCard, `Group ${wcCard.groupId} · Matchday ${wcCard.matchday}`, true), wcCtx)!} />} />
             ) : (
-              <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>
+              <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[3] }}>
                 {playedCount === 0 ? t('sim.firstKickoff') : t('sim.nextKickoff')}
               </KitText>
             )}
@@ -1115,14 +1114,14 @@ function WCSimulation() {
             panes={[
               // On a wide window the race for third sits under your group.
               { id: 'group', label: t('sim.yourGroup'), flex: 1.2, node: groupTable,
-                wideNode: <>{groupTable}<SectionTag roles={nylon}>{t('sim.raceForThird')}</SectionTag>{thirdsRace}</> },
+                wideNode: <>{groupTable}<SectionTag roles={GR}>{t('sim.raceForThird')}</SectionTag>{thirdsRace}</> },
               { id: 'thirds', label: t('sim.thirdRace'), node: thirdsRace, wideNode: null },
               { id: 'results', label: t('sim.tabResults'), title: wcViewing > 0 ? t('sim.resultsMd', { md: wcViewing }) : t('sim.tabResults'), node: <>{wcOthers.length === 0
-              ? <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.noOtherResults')}</KitText>
+              ? <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[3] }}>{t('sim.noOtherResults')}</KitText>
               : wcOthers.map((m, i) => (
                   <View key={i}>
-                    {(i === 0 || wcOthers[i - 1].groupId !== m.groupId) && <SectionTag roles={nylon}>{t('sim.groupMd', { id: m.groupId, md: m.matchday })}</SectionTag>}
-                    <ResultRow roles={nylon} homeName={m.home.clubName} awayName={m.away.clubName}
+                    {(i === 0 || wcOthers[i - 1].groupId !== m.groupId) && <SectionTag roles={GR}>{t('sim.groupMd', { id: m.groupId, md: m.matchday })}</SectionTag>}
+                    <ResultRow roles={GR} homeName={m.home.clubName} awayName={m.away.clubName}
                       homeGoals={m.homeGoals} awayGoals={m.awayGoals} youSide={null}
                       homeClubId={m.home.clubId} awayClubId={m.away.clubId}
                     homeScorers={summariseScorers(m.scorers?.home) || undefined} awayScorers={summariseScorers(m.scorers?.away) || undefined}
@@ -1131,7 +1130,7 @@ function WCSimulation() {
                 ))}
             {/* F-03: the team of the matchday, as every other stage has it. */}
             {wcShown.length > 0 && (
-              <RoundTeam roles={nylon} roundKey={`wc-${wcViewing}`} label={t('sim.teamOfMd', { md: wcViewing })}
+              <RoundTeam roles={GR} roundKey={`wc-${wcViewing}`} label={t('sim.teamOfMd', { md: wcViewing })}
                 poolByClub={poolByClubRef.current} ctx={lineupCtxRef.current}
                 fixtures={wcShown.map(m => ({
                   homeClubId: m.home.clubId, awayClubId: m.away.clubId, homeClubName: m.home.clubName, awayClubName: m.away.clubName,
@@ -1141,7 +1140,7 @@ function WCSimulation() {
             )}</> },
               // F-08: your three, played and to come.
               { id: 'fixtures', label: t('season.tabFixtures'), node: <>
-              <YourFixtures roles={nylon} rows={fixtures.filter(f => f.home.isPlayer || f.away.isPlayer).sort((a, b) => a.matchday - b.matchday).map(f => {
+              <YourFixtures roles={GR} rows={fixtures.filter(f => f.home.isPlayer || f.away.isPlayer).sort((a, b) => a.matchday - b.matchday).map(f => {
                 const youHome = f.home.isPlayer
                 const opp = youHome ? f.away : f.home
                 const played = groupHistoryRef.current.find(m => m.matchday === f.matchday && m.home.clubId === f.home.clubId)
@@ -1152,46 +1151,46 @@ function WCSimulation() {
                 }
               })} />
               </> },
-              { id: 'groups', label: t('sim.allGroups'), node: <GroupWall roles={nylon} groups={wcWall} onOpen={openGroupSim} /> },
+              { id: 'groups', label: t('sim.allGroups'), node: <GroupWall roles={GR} groups={wcWall} onOpen={openGroupSim} /> },
               { id: 'press', label: t('season.tabPress'), count: wcPress.length, title: `${t('season.tabPress')} · ${wcPress.length}`,
-                node: <PressList roles={nylon} stories={wcPress} empty={t('sim.pressWait')} onOpen={openStory} /> },
+                node: <PressList roles={GR} stories={wcPress} empty={t('sim.pressWait')} onOpen={openStory} /> },
             ]} />
         )}
 
         {wcStage === 'done' && (
           <>
-            <StampLabel roles={nylon} text={wcFate.text} good={wcFate.good}
+            <StampLabel roles={GR} text={wcFate.text} good={wcFate.good}
               sub={wcYourIdx === 2 ? t('sim.ofTwelveThirds', { place: ordinal(wcYouThird + 1) }) : undefined} />
-            <SectionTag roles={nylon}>{t('sim.groupN', { id: playerGroup?.id ?? '' })}</SectionTag>
-            <LeagueTable roles={nylon} rows={wcYourSorted.map(t => wcFlagRow(t))} zones={WC_GROUP_ZONES} />
+            <SectionTag roles={GR}>{t('sim.groupN', { id: playerGroup?.id ?? '' })}</SectionTag>
+            <LeagueTable roles={GR} rows={wcYourSorted.map(t => wcFlagRow(t))} zones={WC_GROUP_ZONES} />
             {wcYourMatches.map(m => {
               const youHome = m.home.isPlayer
               const opp = youHome ? m.away : m.home
               return (
-                <FixtureRow key={m.matchday} roles={nylon} matchday={m.matchday} home={null} opponent={opp.clubName} flag={getFlag(opp.clubId)}
+                <FixtureRow key={m.matchday} roles={GR} matchday={m.matchday} home={null} opponent={opp.clubName} flag={getFlag(opp.clubId)}
                   result={{ mine: youHome ? m.homeGoals : m.awayGoals, theirs: youHome ? m.awayGoals : m.homeGoals }}
                   when={kickoffFor({ label: `Group ${m.groupId} · MD ${m.matchday}`, yearStart: 2026, homeClubId: m.home.clubId, awayClubId: m.away.clubId })?.short} />
               )
             })}
-            <SectionTag roles={nylon}>{t('sim.bestThirdsTitle')}</SectionTag>
-            <LeagueTable roles={nylon} rows={wcThirds.map(t => wcFlagRow(t, t.groupId))} zones={WC_THIRD_ZONES} />
-            <ZoneLegend roles={nylon} zones={WC_THIRD_ZONES} />
-            <SectionTag roles={nylon}>{t('sim.everyGroup')}</SectionTag>
-            <GroupWall roles={nylon} groups={wcWall} onOpen={openGroupSim} />
+            <SectionTag roles={GR}>{t('sim.bestThirdsTitle')}</SectionTag>
+            <LeagueTable roles={GR} rows={wcThirds.map(t => wcFlagRow(t, t.groupId))} zones={WC_THIRD_ZONES} />
+            <ZoneLegend roles={GR} zones={WC_THIRD_ZONES} />
+            <SectionTag roles={GR}>{t('sim.everyGroup')}</SectionTag>
+            <GroupWall roles={GR} groups={wcWall} onOpen={openGroupSim} />
           </>
         )}
       </KitScreen>
 
       <ThumbBar>
         {wcStage === 'draw' && (
-          <Plate label={t('sim.startGroups')} icon="play" roles={nylon} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
+          <Plate label={t('sim.startGroups')} icon="play" roles={GR} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
         )}
         {wcStage === 'live' && (
-          <StageControls roles={nylon} skip={{ label: t('sim.skipGroups'), consequence: t('sim.groupsAtOnce'),
+          <StageControls roles={GR} skip={{ label: t('sim.skipGroups'), consequence: t('sim.groupsAtOnce'),
             pause: () => setIsPlaying(false), run: () => wcSkipRef.current() }} />
         )}
         {wcStage === 'done' && (
-          <Plate label={wcFate.good ? t('sim.koDraw') : t('sim.howItEnds')} icon="forward" roles={nylon}
+          <Plate label={wcFate.good ? t('sim.koDraw') : t('sim.howItEnds')} icon="forward" roles={GR}
             onPress={handleFinish} loading={isFinishing} />
         )}
       </ThumbBar>

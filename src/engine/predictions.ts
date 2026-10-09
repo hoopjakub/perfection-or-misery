@@ -16,6 +16,7 @@
 // can say "They said Messi. It was Fekir." They're kept on the run beside the
 // table's seed and checked against the measured awards at the end.
 
+import { cmpStr } from '@/lib/pmath'
 import { t } from '@/i18n'
 import { mulberry32, rngNoise, deriveSeed, type Rng } from '@/lib/rng'
 import { PUNDITS, type Pundit } from '@/data/pundits'
@@ -95,7 +96,7 @@ export type Prediction = {
  */
 export function punditRatings(teams: PredictionTeam[], seed: number, noise = PREDICTION_NOISE): Map<string, number> {
   const rng: Rng = mulberry32(seed)
-  const ordered = [...teams].sort((a, b) => a.clubId.localeCompare(b.clubId))
+  const ordered = [...teams].sort((a, b) => cmpStr(a.clubId, b.clubId))
   return new Map(ordered.map(t => [t.clubId, t.ovr + rngNoise(rng) * noise]))
 }
 
@@ -111,14 +112,14 @@ export function predictTable(
  *  someone believes each side is worth. The consensus and every panellist
  *  (P8-57) build theirs the same way, so each pundit has a full preview. */
 export function tableFromRatings(teams: PredictionTeam[], pundit: Map<string, number>, seed: number, matchesPerClub?: number): Prediction {
-  const ordered = [...teams].sort((a, b) => a.clubId.localeCompare(b.clubId))
+  const ordered = [...teams].sort((a, b) => cmpStr(a.clubId, b.clubId))
 
-  const byStrength = [...ordered].sort((a, b) => b.ovr - a.ovr || a.clubId.localeCompare(b.clubId))
+  const byStrength = [...ordered].sort((a, b) => b.ovr - a.ovr || cmpStr(a.clubId, b.clubId))
   const strengthRank = new Map(byStrength.map((t, i) => [t.clubId, i + 1]))
 
   const matches = matchesPerClub ?? Math.max(1, (teams.length - 1) * 2)
   const table: PredictedRow[] = [...ordered]
-    .sort((a, b) => pundit.get(b.clubId)! - pundit.get(a.clubId)! || a.clubId.localeCompare(b.clubId))
+    .sort((a, b) => pundit.get(b.clubId)! - pundit.get(a.clubId)! || cmpStr(a.clubId, b.clubId))
     .map((t, i) => ({
       ...t, predicted: i + 1, strengthRank: strengthRank.get(t.clubId)!,
       // Against what they believe of everyone else, not of themselves.
@@ -174,12 +175,12 @@ export const PLAYER_PICK_NOISE = 3
 export function predictPlayers(players: PickablePlayer[], seed: number, noise = PLAYER_PICK_NOISE): PunditPicks {
   // Drawn in playerId order, from a stream separate from the table's, so the
   // picks never move the predicted table and input order never matters.
-  const ordered = [...players].sort((a, b) => a.playerId.localeCompare(b.playerId))
+  const ordered = [...players].sort((a, b) => cmpStr(a.playerId, b.playerId))
   const rng: Rng = mulberry32((seed ^ 0x5bd1e995) >>> 0)
   const shake = new Map(ordered.map(p => [p.playerId, rngNoise(rng) * noise]))
   const best = (list: PickablePlayer[], value: (p: PickablePlayer) => number): PunditPick | null => {
     const top = [...list].sort((a, b) =>
-      (value(b) + shake.get(b.playerId)!) - (value(a) + shake.get(a.playerId)!) || a.playerId.localeCompare(b.playerId))[0]
+      (value(b) + shake.get(b.playerId)!) - (value(a) + shake.get(a.playerId)!) || cmpStr(a.playerId, b.playerId))[0]
     return top ? { playerId: top.playerId, name: top.name, clubName: top.clubName } : null
   }
   const young = ordered.filter(p => p.birthYear != null && p.yearStart - p.birthYear <= 21)
@@ -222,7 +223,7 @@ export function punditPanel(teams: PredictionTeam[], seed: number, size = PANEL_
   const chosen: Pundit[] = []
   const n = Math.min(size, pool.length)   // fixed first: the pool shrinks as pundits are drawn
   while (chosen.length < n) chosen.push(pool.splice(Math.floor(pick() * pool.length), 1)[0])
-  const ordered = [...teams].sort((a, b) => a.clubId.localeCompare(b.clubId))
+  const ordered = [...teams].sort((a, b) => cmpStr(a.clubId, b.clubId))
   return chosen.map((p, i) => {
     const own = mulberry32(deriveSeed(seed, 0x9a4e1 + i + 1))
     const rating = new Map(ordered.map(t => [t.clubId, shared.get(t.clubId)! + rngNoise(own) * PANELLIST_NOISE]))

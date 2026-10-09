@@ -1,23 +1,14 @@
 // Kit Drop layout pieces for the three window classes (Phase 6,
 // docs/ui-overhaul/10-ADAPT-OPTIMIZE-A11Y.md §2).
 import React from 'react'
-import { View, StyleSheet, KeyboardAvoidingView, type StyleProp, type ViewStyle } from 'react-native'
+import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { useSizeClass } from '@/hooks/useSizeClass'
 import { space } from '@/theme'
 import { useScreenRoles } from '@/lib/appearance'
 import { SectionTag } from './controls'
 
-/**
- * A screen whose field must stay above the keyboard (sign-in, new account, the
- * club chat). One wrapper, so a fix lands everywhere at once (centralisation
- * N-13, step 1). 'padding' on every platform: since SDK 54 draws edge to edge,
- * Android's window no longer resizes for the keyboard, so the old 'height'
- * behaviour lifted nothing and the keyboard covered the field (P8.5-06 found
- * it in the chat; sign-in and new account had the same setting).
- */
-export function KeyboardSafe({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <KeyboardAvoidingView style={[{ flex: 1 }, style]} behavior="padding">{children}</KeyboardAvoidingView>
-}
+// KeyboardSafe lived here until Phase 9.75 (R3-02): KitScreen keeps a field
+// above the keyboard itself now, on every screen.
 
 /**
  * A rack of like things (mode labels, difficulty labels, leagues, shapes):

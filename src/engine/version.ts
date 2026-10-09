@@ -7,4 +7,9 @@
 // call, but it has to be a decision: bump this, run
 // `npx tsx scripts/diag-golden.ts`, and commit the new src/diag/golden.ts in
 // the same change. scripts/verify-diag-golden.ts fails until you do.
-export const ENGINE_VERSION = 1
+//
+// 2 (8 Oct 2026, Phase 9.75, P9.75-18): the engine's pow, exp, sin, tanh,
+// atan2 and hypot moved to src/lib/pmath.ts, the same bits on every JS engine.
+// The phone (Hermes) computed different sheets from the web (V8) for the same
+// seed; past runs' sheets change once, by a hair, and then agree everywhere.
+export const ENGINE_VERSION = 2

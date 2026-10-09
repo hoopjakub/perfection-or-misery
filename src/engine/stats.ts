@@ -2,6 +2,7 @@
 // Scorers are ATTRIBUTED after a scoreline is decided (the match engine has no
 // individual-player sim). See docs/"Major Overhaul + Bug fixes.md".
 
+import { ppow } from '@/lib/pmath'
 import type { AwardPart,
   RosterPlayer, GoalEvent, MatchScorers, PlayerStatLine, TeamGoalRecord,
   CompetitionStats, AwardCandidate, SeasonAwards,
@@ -66,7 +67,7 @@ const ERROR_WEIGHT: Record<string, number> = {
 const ATTACK_BASELINE = 60
 const ATTACK_CURVE = 2.5
 function attackMultiplier(atk: number): number {
-  return Math.pow(Math.max(1, atk) / ATTACK_BASELINE, ATTACK_CURVE)
+  return ppow(Math.max(1, atk) / ATTACK_BASELINE, ATTACK_CURVE)
 }
 
 // A substitute only sees a fraction of the match — roughly the back third,
@@ -251,7 +252,7 @@ export function attributeMatchScorers(
       // side's genuine forwards, which is what a penalty should look like.
       const scorer = weightedPick(
         pool,
-        isPenalty ? p => Math.pow(scoreWeight(p, mm.minute), 2) : p => scoreWeight(p, mm.minute),
+        isPenalty ? p => ppow(scoreWeight(p, mm.minute), 2) : p => scoreWeight(p, mm.minute),
         undefined, rng,
       )
       if (!scorer) continue

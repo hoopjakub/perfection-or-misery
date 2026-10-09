@@ -7,7 +7,7 @@ import { router } from 'expo-router'
 import { loginWithUsername } from '@/lib/auth'
 import { useUserStore } from '@/store/userStore'
 import { ROLES, space } from '@/theme'
-import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl, KeyboardSafe } from '@/components/kit'
+import { KitScreen, KitText, Field, Plate, StripedNotice, BackControl } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
 import { useOnline } from '@/lib/online'
 
@@ -49,8 +49,7 @@ export default function LoginScreen() {
   return (
     // Both platforms lift the form over the keyboard (the old layout only
     // adjusted on iOS, so Android hid the button).
-    <KeyboardSafe>
-      <KitScreen ground={EVERYDAY} keyboardShouldPersistTaps="handled">
+    <KitScreen ground={EVERYDAY}>
         <PageMeta title={t('auth.signInTitle')} path="/auth/login" />
         <BackControl roles={roles} />
         <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{t('auth.welcomeBack')}</KitText>
@@ -80,8 +79,7 @@ export default function LoginScreen() {
             disabled={!!missing} missingStep={missing} loading={loading}
           />
         </View>
-      </KitScreen>
-    </KeyboardSafe>
+    </KitScreen>
   )
 }
 

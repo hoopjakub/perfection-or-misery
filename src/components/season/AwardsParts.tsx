@@ -2,6 +2,7 @@
 // appear: Awards Night, where they're read out one at a time at the end of a
 // live run, and the verdict and history, where they're a plain section with no
 // ceremony. A winner is always tappable and opens that player's season.
+import { countryName } from '@/data/countries-sk'
 import { surname } from '@/lib/format'
 import { t, dec } from '@/i18n'
 import { label } from '@/i18n/labels'
@@ -60,7 +61,7 @@ export function FormationPitch({ roles, team, onPlayer, showScores, caption = t(
       </View>
       <Pitch rows={placed.map(row => row.map((x, i) => x ? (
               <Pressable key={x.player.id + i} disabled={!onPlayer} onPress={() => onPlayer?.(x.player.id)}
-                accessibilityRole="button" accessibilityLabel={`${x.slot.label}, ${x.player.name}, ${x.player.clubName}`}
+                accessibilityRole="button" accessibilityLabel={`${x.slot.label}, ${x.player.name}, ${countryName(x.player.clubName)}`}
                 style={({ pressed }) => [styles.shirt, { borderColor: x.player.isPlayerClub ? roles.you : roles.line, backgroundColor: pressed ? roles.bg : roles.surface }]}>
                 <KitText t="tag" color={roles.textMuted}>{x.slot.label}</KitText>
                 <KitText t="body" color={roles.text} numberOfLines={1} style={styles.shirtName}>{surname(x.player.name)}</KitText>
@@ -85,7 +86,7 @@ export function FormationPitch({ roles, team, onPlayer, showScores, caption = t(
               style={({ pressed }) => [styles.benchRow, { borderBottomColor: roles.rule }, p.isPlayerClub && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
               <KitText t="tag" color={roles.textMuted} style={styles.benchPos}>{p.position}</KitText>
               <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{p.name}</KitText>
-              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{p.clubName}</KitText>
+              <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{countryName(p.clubName)}</KitText>
               {benchScores && figure(p) ? <KitText t="figure" color={roles.text}>{figure(p)}</KitText> : null}
               {rated(p) ? <RatingSquare value={p.rating!} size="sm" decimals={showScores === 'score' ? 2 : 1} /> : null}
               {/* P8-34: yours are marked by the row's background; a YOURS tag on
@@ -121,11 +122,11 @@ export function PlayerAwardCard({ roles, award, onPlayer, big, said }: {
         accessibilityLabel={t('awards.winnerA11y', { title: award.title, name: w.name, club: w.clubName, headline: award.headline(w) })} accessibilityHint={t('awards.opensPage')}
         style={({ pressed }) => [styles.winner, { borderColor: roles.line, backgroundColor: pressed ? roles.sunken : roles.surface }]}>
         <View style={styles.winnerTop}>
-          <KitText t={big ? 'superL' : 'superM'} color={roles.text} numberOfLines={2} style={{ flex: 1 }}>{w.name.toUpperCase()}</KitText>
+          <KitText t={big ? 'superL' : 'superM'} color={roles.text} numberOfLines={2} style={{ flex: 1 }}>{countryName(w.name).toUpperCase()}</KitText>
           {onPlayer && <Icon name="chevron" size={20} color={roles.text} />}
         </View>
         <View style={styles.winnerMeta}>
-          <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{`${w.clubName} · ${award.headline(w)}`}</KitText>
+          <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{`${countryName(w.clubName)} · ${award.headline(w)}`}</KitText>
           {w.isPlayerClub && <Tag roles={roles} variant="you">{t('awards.yours')}</Tag>}
           {/* His season's average as the rating square, on the winner and every
               runner-up, so who was better reads from the colour (23 Sept). */}
@@ -176,7 +177,7 @@ function RunnerUp({ roles, place, c, line, onPlayer }: { roles: Roles; place: nu
       <KitText t="figure" color={roles.textMuted} style={styles.runnerPos}>{String(place)}</KitText>
       <View style={{ flex: 1 }}>
         <KitText t="body" color={roles.text} numberOfLines={1}>{c.name}</KitText>
-        <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${c.clubName} · ${line}`}</KitText>
+        <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{`${countryName(c.clubName)} · ${line}`}</KitText>
       </View>
       {c.isPlayerClub && <Tag roles={roles} variant="you">{t('awards.yours')}</Tag>}
       {c.avgRating != null && <RatingSquare value={c.avgRating} decimals={2} size="sm" />}
@@ -191,8 +192,8 @@ export function ClubAwardCard({ roles, award }: { roles: Roles; award: ClubAward
       <View style={[styles.winner, { borderColor: roles.line, backgroundColor: roles.surface }]}
         accessible accessibilityLabel={t('awards.clubA11y', { title: award.title, club: award.winner.clubName, headline: award.winner.headline })}>
         {/* P8-37: you're your club's manager, so the award names you. */}
-        <KitText t="superM" color={roles.text} numberOfLines={2}>{(award.winner.manager ?? award.winner.clubName).toUpperCase()}</KitText>
-        {award.winner.manager ? <KitText t="body" color={roles.text}>{award.winner.clubName}</KitText> : null}
+        <KitText t="superM" color={roles.text} numberOfLines={2}>{(award.winner.manager ?? countryName(award.winner.clubName)).toUpperCase()}</KitText>
+        {award.winner.manager ? <KitText t="body" color={roles.text}>{countryName(award.winner.clubName)}</KitText> : null}
         <View style={styles.winnerMeta}>
           <KitText t="body" color={roles.textMuted} style={{ flex: 1 }}>{award.winner.headline}</KitText>
           {award.winner.isPlayerClub && <Tag roles={roles} variant="you">{t('awards.yours')}</Tag>}
@@ -206,7 +207,7 @@ export function ClubAwardCard({ roles, award }: { roles: Roles; award: ClubAward
               long headline ("Tipped 8, finished 6 · 2 players in the team of
               the season") squeezed the club's name out entirely. */}
           <View style={{ flex: 1 }}>
-            <KitText t="body" color={roles.text} numberOfLines={1}>{r.clubName}</KitText>
+            <KitText t="body" color={roles.text} numberOfLines={1}>{countryName(r.clubName)}</KitText>
             <KitText t="tag" color={roles.textMuted}>{r.headline}</KitText>
           </View>
         </View>

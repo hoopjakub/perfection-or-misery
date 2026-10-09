@@ -7,6 +7,7 @@
 // time anything computes it, and a saved run's data is cached by id for the
 // session. Pages call `useRunData(runId?)` and get it instantly after the
 // first time.
+import { settled } from '@/lib/loading'
 import { compareStandings } from '@/engine/standings'
 import { log } from '@/diag/log'
 import { t } from '@/i18n'
@@ -129,6 +130,8 @@ function cupPressOf(mode: string | null | undefined, cl: CLSeasonResult | null |
 }
 
 const saved = new Map<string, RunData>()
+/** Diagnostics' "Drop caches" (P9.75-14's probe): every saved run kept this session, let go. */
+export function dropRunDataCache(): number { const n = saved.size; saved.clear(); return n }
 
 // Phase 9 ("no screen transition waits on a full-run computation", computed
 // once): two callers at the same moment (Awards Night handing over to the
@@ -281,7 +284,10 @@ export function useRunData(runId?: string): { data: RunData | null; loading: boo
     if (data) return
     let alive = true
     setLoading(true); setFailed(false)
-    ;(runId ? savedRunData(runId) : liveRunData())
+    // The settle floor for a run's first load (src/lib/loading.ts): every screen
+    // that reads a run (the hub, a player's, a club's page) gets it from here.
+    const load = runId ? savedRunData(runId) : liveRunData()
+    ;(attempt === 0 ? settled(load) : load)
       .then(d => { if (!alive) return; setData(d); setFailed(!d) })
       .catch(e => { log.warn('stats', 'run-data: failed', e); if (alive) setFailed(true) })
       .finally(() => { if (alive) setLoading(false) })

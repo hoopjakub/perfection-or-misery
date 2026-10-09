@@ -12,6 +12,7 @@
  * minutes the way an event list would.
  */
 
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import type { MatchEvent, MatchStats } from '@/types/match-stats'
 import { buildShotMap } from './match-geometry'
@@ -44,6 +45,8 @@ const minuteOf = (e: { minute: number; plus?: number }) => `${e.minute}${e.plus 
 const last = (name: string) => name.split(' ').slice(-1)[0]
 
 export function lineForEvent(e: MatchEvent, homeName: string, awayName: string): CommentaryLine {
+  // P9.75-21: a side's name as it reads ("pre tím Czechia" in Slovak before).
+  homeName = countryName(homeName); awayName = countryName(awayName)
   const team = e.isHome ? homeName : awayName
   const key = `${e.type}|${e.minute}|${e.plus ?? 0}|${e.playerId}`
   const who = last(e.playerName)
@@ -89,6 +92,7 @@ export type PlayState = {
 
 /** A line for the minutes between events, read from the state of play. */
 export function quietLine(minute: number, state: PlayState | null, homeName: string, awayName: string): CommentaryLine {
+  homeName = countryName(homeName); awayName = countryName(awayName)
   const m = `${minute}'`
   if (!state || minute <= 1) return { minute: m, text: t('com.kickOff'), big: false }
   const key = `quiet|${Math.floor(minute / 6)}`
@@ -153,6 +157,7 @@ export type FeedItem = {
 export type FeedClock = Record<'shots' | 'corners' | 'offsides' | 'fouls', { home: number[]; away: number[] }>
 
 export function chanceLines(detail: MatchStats, seed: number, homeName: string, awayName: string, clock?: FeedClock): FeedItem[] {
+  homeName = countryName(homeName); awayName = countryName(awayName)
   const rng = mulberry32(deriveSeed(seed, CHANCE_SALT))
   const extra = detail.duration > 90 || detail.events.some(e => e.minute > 90)
   const end = extra ? 120 : 90

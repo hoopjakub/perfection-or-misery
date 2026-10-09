@@ -27,7 +27,7 @@ app/                      expo-router screens
   (tabs)/                 the four destinations: index (Play), runs, leaderboard (Ranks), profile (You)
   guide, about, confirm   ordinary routes (guide/about moved out of the tab bar; confirm = ConfirmScreen)
   game/                   setup: mode-select → difficulty (+ difficulty-custom) → formation-select → draft → reveal (blind runs) → placement → pundits → simulation;
-                          then awards (Awards Night) → result, cl-result, wc-result, stats, career
+                          then awards (Awards Night) → result (one route for every mode, Wave F), run (the run hub), stats, career
 src/
   engine/                 pure sim/game logic (no RN)
     match.ts              simulateMatch (the core 1 match → score)
@@ -47,14 +47,14 @@ src/
     stats.ts              scorer/assist/clean-sheet ATTRIBUTION + awards (POTS/U21)
     run-stats.ts          aggregate a finished run → CompetitionStats + awards; loadLeaguePools
     quick-sim.ts          headless tester (About → tap version 8×, dev/preview builds only); quickSim flag suppresses saves
-  components/             TeamLabel, LineupPitch, SquadSummary, PenShootout, GlobeReveal, WCGroupModal
+  components/             kit/ (the Kit Drop parts), season/ (stages, tables, brackets, results), LineupPitch, GlobeReveal, WCGroupSheet
   components/kit/         the Kit Drop component set (see DESIGN.md)
   components/season/      LeagueSeason, SeasonParts (tables with zones, strip, ticker, ties), RunChrome, VerdictBlock
   db/queries/             runs.ts (save + score), leaderboard.ts (stats/best tier), career.ts, seasons.ts
   store/gameStore.ts      run state (mode, draftedPlayers, clTeams/clYear, wcTeams, results, quickSim…)
   data/                   tiers.ts (unified tier rank/label registry), geo-iso.ts (id→ISO for globe),
                           qualification-bands.ts (zones per league-season; the tier ladder reads them — verify-zones.ts)
-  lib/                    globe-geo.ts (hand-rolled orthographic projection), math.ts
+  lib/                    math.ts, format.ts, runData.ts (a run's stats, live or saved), runQueue.ts (offline saves)
   types/                  game.ts, simulation.ts, stats.ts
 scripts/                  build-db.ts + scrapers (run with tsx, NOT bundled into the app)
   lib/transfermarkt.ts    shared scraper lib (fetch, squad parse, OVR model, teamStrength)
@@ -82,11 +82,11 @@ Wikipedia + Wikidata → `npx tsx scripts/build-open-seeds.ts` → `scripts/seed
 - **Diagnostics (Phase 9, Oct 2026):** `src/diag/` is the app's one log (no `console` anywhere else), the timing recorder with a budget per key, the stall and memory watch, the self-test and engine fingerprint, and the report; the screen is `/diagnostics` (About, eight taps on "Made in Slovakia", or Ctrl+Shift+D on the web). Plan and as-built notes in `docs/diagnostics/`; readings in `docs/PERF-LOG.md`. The Quick Sim Tester is under it (`/diagnostics/tools`, developer builds only).
 
 - **Stats (deterministic):** scorers/assists/clean-sheets are **attributed once at sim time and stored on the match objects**, so live reveal, result screen, and saved snapshot all match. Aggregated into leaderboards + **POTS / Best-U21 awards** + a lifetime **career** (`career_stats`, keyed playerId+season+competition, with an awards cabinet). Shootout kicks never count as goals. See `docs/Major Overhaul + Bug fixes.md`.
-- **Penalties:** `simulateShootout` plays kick-by-kick with **early termination** (stops once mathematically decided), stores the real make/miss pattern; `PenShootout` renders it.
+- **Penalties:** `simulateShootout` plays kick-by-kick with **early termination** (stops once mathematically decided), stores the real make/miss pattern; the knockout views show it through the one tie line (`tieDetail`).
 - **Scoring:** league = position-in-table formula (`leaderboard.ts calculateScore`); CL/WC = **round-reached ladder** + real finish position (`runs.ts knockoutScore`, e.g. WC `winner 1650 … third 1150 … groups 150`). Home page "Best Tier" uses the unified `src/data/tiers.ts` registry across all modes.
 - **WC third-place:** SF losers always play a 3rd-place match (revealed between SF and final). Win → `third` (🥉), lose → `fourth` ("Semi 'No Medal' Finalist").
-- **Globe placement reveal:** hand-rolled orthographic SVG globe (NO d3-geo) in `src/lib/globe-geo.ts` + `GlobeReveal`; lights the country on lock. Used for domestic (country) + WC (nation). Domestic & WC pick **any** club/nation uniformly; UCL picks any of the 36 clubs but still uses a name roulette (globe-for-UCL needs club→country data — see More Competitions doc).
-- **WC group view:** `WCGroupModal` / `WCGroupMatchdays` (shared by the live simulation AND the result screen — single source of truth).
+- **Globe placement reveal:** hand-rolled orthographic SVG globe (NO d3-geo), its projection and land in `src/components/GlobeReveal.tsx` (`GlobeReveal`, `SpinningGlobe`); lights the country on lock. Used for domestic (country) + WC (nation). Domestic & WC pick **any** club/nation uniformly; UCL picks any of the 36 clubs but still uses a name roulette (globe-for-UCL needs club→country data — see More Competitions doc).
+- **WC group view:** `WCGroupSheet` / `WCGroupMatchdays` (shared by the live simulation AND the result screen — single source of truth).
 - **Sim robustness:** league `totalMatchdays` is derived from the actual generated fixtures (handles variable team counts, e.g. Ligue 1 was 20 teams pre-2023/24 → 38 MDs); match simulation is idempotent (no double-counting on Skip-All double-taps).
 - **Deep match stats (FotMob-style):** every finished match is tappable into a full match-detail modal — team stat grid (possession/xG/shots/passes/duels/discipline), events timeline, both lineups with 0–10 ratings, MOTM ★ and green▲/red▼ sub markers, tap-a-player full stat line. Matches store only a compact `seed` (+ the attributed scorers); `src/engine/match-detail.ts` regenerates the identical sheet on open (mulberry32, `src/lib/rng.ts`). Stats track team QUALITY more than the scoreline, so a beaten favourite often dominates xG/possession. Validate with `npx tsx scripts/verify-match-detail.ts`. See `docs/Next Up - Deep Match Stats & Ratings.md` (implemented) for the as-built map.
 
@@ -129,6 +129,8 @@ Wikipedia + Wikidata → `npx tsx scripts/build-open-seeds.ts` → `scripts/seed
 - **Open data (P8.5-32, 30 Sept 2026):** the player database rebuilt from Wikipedia + Wikidata with PoM's own rating. `npx tsx scripts/build-open-seeds.ts` (cached under `scripts/.cache/`, gitignored) writes `scripts/seed-open/`; `npm run build-db` builds the app's DB from it. The Transfermarkt scrapers and seeds were deleted on 30 Sept 2026 (git history); the game's club identities, without players, live in `scripts/seed-identity/`, and colours and grounds come from the Wikipedia infobox and Wikidata. Libraries: `scripts/lib/wikipedia.ts`, `open-squads.ts`, `open-rating.ts`, `open-leagues.ts`.
 - **Two build flavours (P8.5-30, 1 Oct 2026):** `EXPO_PUBLIC_BRAND_MODE=real` is the personal build (crests, real competition names); anything else is legal (no crest images bundled, generic names, `players_legal.db`). EAS `preview`/`production` are legal, `*-personal` personal; the web build is forced legal. Mechanics in `docs/release/01-NAMES-MARKS-AND-THE-LAW.md` §5.3. Switching locally: `npx expo start --clear`. Review sheets: `python scripts/open-data-sheets.py` → `docs/release/open-data/`.
 - `docs/audit-2026-10/` — **Wave G, the audit proper (2 Oct 2026)**: what was measured, the logic findings (brace-in-defeat ratings, two strength scales), security, performance, the interface re-scored (30/40, then 38/40 on 5 Oct after phase two), the critique checked, fresh ideas, and Wave F's one result screen. With `docs/centralisation/11-RE-AUDIT-2.md` and `12-PHASE-TWO-FINAL.md` (the order from here to Phase 9). Start at `00-README.md`.
+- `docs/audit-9.75/` — **Phase 9.75's audit (7 Oct 2026)**: the phone's findings traced to causes, the independent audit (logic, security, the interface re-scored 32/40), one build order in ten steps; with `docs/centralisation/13-RE-AUDIT-3.md` (round three). Start at `00-README.md`.
+  **Coded 8 Oct 2026, steps 1–9** (each fix behind a check seen failing; step 10 is the maintainer's release-build session). Server side waiting: `supabase/rate-limit.sql`, then redeploy `submit-run`. Checklist rows 975-1 to 975-24 in `docs/PHASE-9.5-CHECKLIST.md`.
 - `docs/PHASE-9.5-CHECKLIST.md` — **everything built since Wave D (1 Oct 2026) that hasn't been seen working on a phone**, with wave, date and whether the web shows it. Every new feature gets a row until Phase 9; Phase 9.5 goes through it on a native build.
 - `docs/MODERATION.md` — **how the swear filter, reports and bans work (P8.5-44), and how to add a word or let a name through.**
 - **Slovak (P8.5-28, finished 2 Oct 2026):** every string is a key in `src/i18n/en.ts` + `sk.ts` (`t()` works anywhere, the language is fixed per launch). Engine-made labels stay English inside the engine and show through `label()` (`src/i18n/labels.ts`); country and national-team names through `countryName()` (`src/data/countries-sk.ts`), so saved runs keep English names. Slovak never genders the player and never declines a name. `scripts/verify-i18n.ts` must stay green; engine verifiers take `POM_LANGUAGE=sk EXPO_PUBLIC_DEV_TOOLS=1`. Terms in `docs/release/08-SLOVAK-TERMS.md`.

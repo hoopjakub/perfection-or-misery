@@ -205,7 +205,7 @@ export default function PunditsScreen() {
                 <View key={label} style={styles.pickRow}>
                   <KitText t="tag" color={roles.textMuted} style={styles.pickLabel}>{label}</KitText>
                   <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{p!.name}</KitText>
-                  <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{p!.clubName}</KitText>
+                  <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{countryName(p!.clubName)}</KitText>
                 </View>
               ))}
           </>

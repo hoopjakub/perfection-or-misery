@@ -1,3 +1,4 @@
+import { achievementRunOf } from '@/lib/achievements'
 import { supabase } from '@/lib/supabase'
 import { timeAsync } from '@/diag/perf'
 import { bestTierOf } from '@/data/tiers'
@@ -66,6 +67,8 @@ export type UserStats = {
   bestScore: number | null
   bestTier: string | null
   totalRuns: number
+  /** P9.75-27: every saved run's points, added up. */
+  totalPoints: number
 }
 
 const LEADERBOARD_COLS = `
@@ -249,18 +252,23 @@ export async function fetchUserStats(userId: string): Promise<UserStats> {
   // Best tier across ALL modes (league finishes, UCL exits, WC finishes incl.
   // 3rd-place) via the unified tier ranking — not just league tiers.
   let bestTier: string | null = null
+  let totalPoints = 0
   if (bestRun) {
     const { data: allTiers } = await supabase
       .from('runs')
-      .select('tier')
+      .select('tier, score')
       .eq('user_id', userId)
-    if (allTiers) bestTier = bestTierOf(allTiers.map((r: any) => r.tier))
+    if (allTiers) {
+      bestTier = bestTierOf(allTiers.map((r: any) => r.tier))
+      totalPoints = allTiers.reduce((sum: number, r: any) => sum + (Number(r.score) || 0), 0)
+    }
   }
 
   return {
     bestScore: bestRun?.score ?? null,
     bestTier,
-    totalRuns: totalRuns ?? 0
+    totalRuns: totalRuns ?? 0,
+    totalPoints,
   }
 }
 
@@ -288,20 +296,18 @@ export async function fetchAchievementRuns(userId: string): Promise<AchievementR
   // highlights (saved since 1 Oct 2026). Never the whole jsonb.
   const route = 'fp_entry:cl_result->_customUclQual->europe->entry, fp_ties:cl_result->_customUclQual->playerPath, fp_home:highlights->fullPath'
   for (const cols of [`${base}, difficulty, difficulty_meta, cup_winner:highlights->cup->winner, ${route}`, `${base}, difficulty, difficulty_meta, cup_winner:highlights->cup->winner`, `${base}, difficulty, difficulty_meta`, base]) {
-    const { data, error } = await supabase
-      .from('runs').select(cols).eq('user_id', userId)
-    if (!error) return (data as unknown as AchievementRun[]).map(r => ({
-      mode: r.mode, tier: r.tier ?? null, final_position: r.final_position ?? null,
-      losses: (r as any).losses ?? null, squad: (r as any).squad ?? null,
-      difficulty: (r as any).difficulty ?? null, difficulty_meta: (r as any).difficulty_meta ?? null,
-      highlights: (r as any).cup_winner ? { cup: { winner: (r as any).cup_winner } } : null,
-      fullPath: r.mode === 'champions_league_custom' ? {
-        entry: (r as any).fp_entry ?? null,
-        qualTies: Array.isArray((r as any).fp_ties) ? (r as any).fp_ties.length : null,
-        domesticChampion: (r as any).fp_home?.domesticChampion ?? null,
-        cupWon: (r as any).fp_home?.cupWon ?? null,
-      } : null,
-    }))
+    // P9.75-23: every run, in pages: a request returns 1,000 rows at most, so a
+    // long career's older runs (and what they earned) went missing.
+    const PAGE = 1000
+    const rows: Record<string, any>[] = []
+    let error: { code?: string; message: string } | null = null
+    for (let from = 0; ; from += PAGE) {
+      const res = await supabase.from('runs').select(cols).eq('user_id', userId).order('id').range(from, from + PAGE - 1)
+      if (res.error) { error = res.error; break }
+      rows.push(...(res.data as unknown as Record<string, any>[]))
+      if (!res.data || res.data.length < PAGE) break
+    }
+    if (!error) return rows.map(achievementRunOf)
     // 42703 = undefined_column; anything else is a real error.
     if (error.code !== '42703' && !/column .* does not exist/i.test(error.message)) throw error
   }

@@ -82,8 +82,8 @@ for (const [k, b] of Object.entries(BUDGETS) as [string, Budget][]) {
 // 7
 const unbudgeted = [...sites.keys()].filter(k => !budgetSpec(k))
 // The plan's counts (03 §6), so the doc and the contract can't drift apart.
-check(RUNTIME.length === 35 && PLANNED.length === 3 && BUILD.length === 4 && BENCH.length === 7,
-  `counts ${RUNTIME.length}/${PLANNED.length}/${BUILD.length}/${BENCH.length}, the plan says 35/3/4/7`)
+check(RUNTIME.length === 37 && PLANNED.length === 3 && BUILD.length === 4 && BENCH.length === 7,
+  `counts ${RUNTIME.length}/${PLANNED.length}/${BUILD.length}/${BENCH.length}, the plan says 37/3/4/7`)
 
 console.log(`\n${Object.keys(BUDGETS).length} budgets · ${sites.size} keys recorded · ${unmeasured.length} runtime budgets not yet recorded${REQUIRE_RECORDED ? '' : ' (allowed until step 2)'}`)
 if (unbudgeted.length) console.log(`recorded with no budget: ${unbudgeted.join(', ')}`)

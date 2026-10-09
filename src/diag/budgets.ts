@@ -53,6 +53,10 @@ export const BUDGETS = {
   // tournaments (the maintainer's "lags the phone badly", 25 Sept).
   'screen:result':     ms(300, 800, 'a tap to the result screen drawn'),
   'pundits:build':     ms(80, 250, "one pundit's whole tournament, played out"),
+  // Phase 9.75 (P9.75-11): the run hub's Stats tab and Teams tab took 4.7 s and
+  // 1.8 s on the phone; these split the working-out from the rows' mount (ui:tab).
+  'stats:board':       ms(20, 80, "a stats board ranked and sorted (the run hub's Stats tab)"),
+  'hub:teams':         ms(100, 300, "the run's teams of the round, rebuilt (the run hub's Teams tab)"),
   // 2.5 Frames (p95 of the gap between frames)
   'frame:deepMatch':   ms(20, 50, 'the Deep Match, live'),
   'frame:globe':       ms(20, 50, 'the globes (the draw and About)'),

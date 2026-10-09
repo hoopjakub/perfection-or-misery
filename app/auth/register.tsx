@@ -8,7 +8,7 @@ import { View, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { upgradeGuestAccount } from '@/lib/auth'
 import { ROLES, space } from '@/theme'
-import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl, KeyboardSafe } from '@/components/kit'
+import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
 import { useOnline } from '@/lib/online'
 
@@ -79,8 +79,7 @@ export default function RegisterScreen() {
   return (
     // Both platforms lift the form over the keyboard (the old layout only
     // adjusted on iOS, so Android hid the button).
-    <KeyboardSafe>
-      <KitScreen ground={EVERYDAY} keyboardShouldPersistTaps="handled">
+    <KitScreen ground={EVERYDAY}>
         <PageMeta title={t('auth.registerTitle')} path="/auth/register" />
         <BackControl roles={roles} />
         <KitText t="superL" color={roles.text} accessibilityRole="header" style={styles.title}>{t('auth.keepYourRuns')}</KitText>
@@ -126,8 +125,7 @@ export default function RegisterScreen() {
             {t('auth.acceptAfter')}
           </KitText>
         </View>
-      </KitScreen>
-    </KeyboardSafe>
+    </KitScreen>
   )
 }
 

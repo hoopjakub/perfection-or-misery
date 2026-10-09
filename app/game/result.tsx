@@ -2,6 +2,7 @@
 // the family by mode and hands it the run. Four routes used to do this
 // (result, cl-result, wc-result, custom-ucl-result), each loading the saved
 // run, adopting its crest and drawing its own 13-to-20-block page.
+import { settled } from '@/lib/loading'
 import { t } from '@/i18n'
 import { runEnded } from '@/diag/log'
 import { log } from '@/diag/log'
@@ -13,7 +14,7 @@ import { fetchRunById } from '@/db/queries/runs'
 import { isClassicEurope } from '@/data/europe'
 import { ROLES, space } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
-import { KitScreen, KitText, Loader, Plate, EmptyState } from '@/components/kit'
+import { KitScreen, LoadingScreen, KitText, Plate, EmptyState } from '@/components/kit'
 import { LeagueResult } from '@/components/season/results/LeagueResult'
 import { ClassicCupResult, WorldCupResult, FullPathResult } from '@/components/season/results/CupResults'
 import { OlderRunResult } from '@/components/season/results/OlderRunResult'
@@ -30,7 +31,8 @@ export default function ResultScreen() {
   useEffect(() => {
     if (!runId) return
     let active = true
-    fetchRunById(runId)
+    // The settle floor (src/lib/loading.ts): a saved run's result arrives, it doesn't pop.
+    settled(fetchRunById(runId))
       .then(r => { adoptRunCrest((r as any)?.highlights); if (active) setRun(r) })   // P8-132: the crest it was played with
       .catch(e => log.error('net', 'result: failed to load run', e))
       .finally(() => active && setLoading(false))
@@ -39,14 +41,7 @@ export default function ResultScreen() {
   // Phase 9: a fresh run reaching its result is RUN ENDED in the log (once: it clears the run).
   useEffect(() => { if (!runId) runEnded('finished') }, [runId])
 
-  if (loading) {
-    return (
-      <KitScreen ground={EVERYDAY}>
-        <Loader color={roles.text} wide />
-        <KitText t="bodyL" color={roles.textMuted} style={{ marginTop: space[4] }}>{t('result.loadingRunDots')}</KitText>
-      </KitScreen>
-    )
-  }
+  if (loading) return <LoadingScreen ground={EVERYDAY} label={t('result.loadingRunDots')} back={false} />
 
   // A saved run says what it was; a fresh one is in the store.
   const mode = runId ? run?.mode : store.mode

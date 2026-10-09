@@ -14,7 +14,7 @@ import { ROLES, space, border } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
 import { KitScreen, KitText, RunHeader, Plate, SectionTag, PaneRow, Pane } from '@/components/kit'
 import { ThumbBar, CloseRun, BackToLive } from './RunChrome'
-import { StampLabel, TieCard, TieRow, tieVM, PressList } from './SeasonParts'
+import { StampLabel, TieCard, TieRow, tieVM, PressList, SegmentSwitch } from './SeasonParts'
 import { setLivePress } from '@/lib/livePress'
 import { openStory } from '@/lib/runNav'
 import type { Story } from '@/engine/press'
@@ -23,7 +23,6 @@ import { InfoBubble } from '@/components/InfoBubble'
 import { BracketTree } from '@/components/BracketTree'
 import { LiveMatch, periodsForTwoLegTie, type LivePeriod } from '@/components/LiveMatch'
 import { liveBracket, liveProgress } from '@/lib/liveBracket'
-import { openSheet } from '@/lib/sheet'
 import { useSizeClass } from '@/hooks/useSizeClass'
 import { useIsFocused } from '@react-navigation/native'
 import { BracketPreview } from '@/components/BracketPreview'
@@ -35,7 +34,8 @@ import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { PenKick } from '@/engine/knockout-match'
 import type { MatchScorers, RosterPlayer } from '@/types/stats'
 
-const nylon = ROLES[EVERYDAY]
+// The screen's everyday ground (R3-04: it was named `nylon`, the dark ground's name, which it isn't).
+const GR = ROLES[EVERYDAY]
 
 export type KnockoutTie = {
   teamA: { clubId: string; clubName: string; isPlayer: boolean }
@@ -104,7 +104,7 @@ export function bracketPreviewProps(rounds: KnockoutRound[]) {
 }
 
 // ── Knockout Phase View ────────────────────────────────────────────────────────
-// C5 (docs/ui-overhaul/07c) on nylon: your tie first, live on the clock; the
+// C5 (docs/ui-overhaul/07c) on the everyday ground: your tie first, live on the clock; the
 // rest of the round after it; going out is a stamped verdict, not a line; the
 // primary button always names what's next.
 
@@ -138,7 +138,8 @@ export type KnockoutPhaseViewProps = {
   /** F-04: the squads, for the team of the round under each settled round. */
   pools?: { poolByClub: Map<string, RosterPlayer[]>; ctx: { playerClubId?: string; benchSize?: number } }
   /** F-01: the press so far, under the rounds. */
-  press?: React.ReactNode
+  /** The run's press so far: a tab on a phone, a pane on a wide window (P9.75-04). */
+  press?: { count: number; node: React.ReactNode }
 }
 
 const OUT_IN: Record<string, string> = {
@@ -175,11 +176,19 @@ export function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colo
   // takes you back, and your live match waits while it's out of sight.
   const scrollRef = useRef<ScrollView>(null)
   const [scrolledAway, setScrolledAway] = useState(false)
-  useEffect(() => { onAwayChange?.(scrolledAway) }, [scrolledAway])
-  // F-11: on a wide window the bracket stands beside the rounds instead of
-  // behind a button. The same bracket the sheet opens: as it stands, with the
-  // live round's ties at the same moment as yours, so it can't spoil your match.
+  // F-11: on a wide window the bracket stands beside the rounds. The bracket
+  // is as it stands, with the live round's ties at the same moment as yours,
+  // so it can't spoil your match.
   const wide = useSizeClass() === 'expanded'
+  // P9.75-04 (R3-05): on a phone the knockouts have the table stages' tabs,
+  // Rounds · Bracket · Press. The press sat under every round ("why do I have
+  // to scroll all the way down"), and the bracket behind a button. The rounds
+  // stay mounted under the other tabs, so your live match keeps its place,
+  // and it waits while you're on another tab, as it does when you scroll away.
+  const [tab, setTab] = useState<'rounds' | 'bracket' | 'press'>('rounds')
+  const offRounds = !wide && tab !== 'rounds'
+  const away = scrolledAway || offRounds
+  useEffect(() => { onAwayChange?.(away) }, [away])
   const bracketNow = () => {
     const current = rounds[visibleCount - 1]
     const liveOpen = !!current && !!current.ties.find(t => t.teamA.isPlayer || t.teamB.isPlayer) && !liveDone[current.round]
@@ -190,25 +199,39 @@ export function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colo
   useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: true }) }, [visibleCount])
 
   return (
-    <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+    <View style={[styles.container, { backgroundColor: GR.bg }]}>
       <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'} contentStyle={{ paddingBottom: space[4] }} scrollRef={scrollRef} scrollEventThrottle={64}
         onScroll={e => setScrolledAway(e.nativeEvent.contentOffset.y > AWAY_PX)}>
-        <RunHeader roles={nylon} stage={6} colourway={colourway} back={false} road={road} right={<CloseRun onPress={onAbandon} />} />
-        <KitText t="tag" color={nylon.textMuted}>{t('sim.knockouts', { comp: competitionLabel })}</KitText>
+        <RunHeader roles={GR} stage={6} colourway={colourway} back={false} road={road} right={<CloseRun onPress={onAbandon} />} />
+        <KitText t="tag" color={GR.textMuted}>{t('sim.knockouts', { comp: competitionLabel })}</KitText>
+        {!wide && (
+          <View style={styles.tabs}>
+            <SegmentSwitch<'rounds' | 'bracket' | 'press'> roles={GR} value={tab} onChange={setTab}
+              options={[
+                { id: 'rounds', label: t('sim.tabRounds') },
+                { id: 'bracket', label: t('sim.tabBracket') },
+                ...(press ? [{ id: 'press' as const, label: t('season.tabPress'), count: press.count }] : []),
+              ]} />
+          </View>
+        )}
         {/* P8-91: the whole bracket, mid-round: results so far, and every tie of
             this round as it stands at the same moment as yours. */}
-        {!wide && <Plate label={t('sim.seeBracket')} icon="ranks" variant="secondary" roles={nylon} style={styles.bracketPlate} onPress={() => {
+        {!wide && tab === 'bracket' && (() => {
           const { b, liveOpen, you } = bracketNow()
-          openSheet({
-            title: t('sim.theBracket'), sub: liveOpen ? t('sim.asTheyStand', { comp: competitionLabel }) : competitionLabel,
-            render: () => <BracketTree columns={b.columns} third={b.third} playerClubId={you} />,
-          })
-        }} />}
+          return (
+            <View style={styles.tabBody}>
+              <KitText t="tag" color={GR.textMuted}>{liveOpen ? t('sim.asTheyStand', { comp: competitionLabel }) : competitionLabel}</KitText>
+              <BracketTree columns={b.columns} third={b.third} playerClubId={you} />
+            </View>
+          )
+        })()}
+        {!wide && tab === 'press' && press && <View style={styles.tabBody}>{press.node}</View>}
         <PaneRow wide={wide}>
         <Pane wide={wide} title={competitionLabel} flex={1}>
+        <View style={offRounds ? styles.hidden : undefined}>
 
         {!allVisible && visibleCount > 0 && nextRound && (
-          <KitText t="body" color={nylon.textMuted} style={{ paddingVertical: space[3] }}>
+          <KitText t="body" color={GR.textMuted} style={{ paddingVertical: space[3] }}>
             {youAreIn(nextRound) ? t('sim.yoursNext', { round: label(nextRound.label).toLowerCase() }) : t('sim.nextRound', { round: label(nextRound.label).toLowerCase() })}
           </KitText>
         )}
@@ -229,12 +252,12 @@ export function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colo
           return (
             <View key={round.round} style={styles.koKitRound}>
               <View style={styles.headRow}>
-                <SectionTag roles={nylon}>{label(round.label)}</SectionTag>
+                <SectionTag roles={GR}>{label(round.label)}</SectionTag>
                 {round.round === 'playoff' && <InfoBubble topic="knockout_playoff" size={15} />}
               </View>
 
               {playerTie && isCurrent && !isDeepFinal && !liveDone[round.round] && panelLine?.(playerTie.teamA, playerTie.teamB) && (
-                <KitText t="body" color={nylon.textMuted}>{panelLine(playerTie.teamA, playerTie.teamB)}</KitText>
+                <KitText t="body" color={GR.textMuted}>{panelLine(playerTie.teamA, playerTie.teamB)}</KitText>
               )}
               {playerTie && isCurrent && !isDeepFinal && !liveDone[round.round] && (
                 <LiveMatch
@@ -244,34 +267,34 @@ export function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colo
                   pens={playerTie.aPens !== undefined ? { a: playerTie.aPens, b: playerTie.bPens ?? 0, kicksA: playerTie.penKicksA, kicksB: playerTie.penKicksB } : null}
                   aggregate={!!playerTie.leg1}
                   onDone={() => onLiveDone?.(round.round)}
-                  hold={scrolledAway}
+                  hold={away}
                 />
               )}
 
               {/* The final, reached but not yet watched: the scoreline is what
                   the Deep Match exists to reveal, so it isn't printed here. */}
               {playerTie && isDeepFinal && !deepFinal!.watched && (
-                <View style={[styles.koKitFinal, { borderColor: nylon.line, backgroundColor: nylon.surface }]}>
-                  <KitText t="superM" color={nylon.text}>{t('sim.theFinal')}</KitText>
-                  <KitText t="title" color={nylon.text}>{t('sim.vs', { a: playerTie.teamA.clubName, b: playerTie.teamB.clubName })}</KitText>
-                  <KitText t="body" color={nylon.textMuted}>{t('sim.finalNote')}</KitText>
+                <View style={[styles.koKitFinal, { borderColor: GR.line, backgroundColor: GR.surface }]}>
+                  <KitText t="superM" color={GR.text}>{t('sim.theFinal')}</KitText>
+                  <KitText t="title" color={GR.text}>{t('sim.vs', { a: playerTie.teamA.clubName, b: playerTie.teamB.clubName })}</KitText>
+                  <KitText t="body" color={GR.textMuted}>{t('sim.finalNote')}</KitText>
                 </View>
               )}
 
               {playerTie && settled && !(isDeepFinal && !deepFinal!.watched) && (
-                <TieCard roles={nylon} label={round.label} tone={playerTie.winner.isPlayer ? 'win' : 'loss'}
+                <TieCard roles={GR} label={round.label} tone={playerTie.winner.isPlayer ? 'win' : 'loss'}
                   tie={{ ...liveTieVM(playerTie, round.round, onTiePress ? () => onTiePress(playerTie, round.label) : undefined),
                          isPlayerTie: false, note: playerTie.winner.isPlayer ? t('sim.through') : t('sim.outTag') }} />
               )}
-              {fate && <StampLabel roles={nylon} text={fate} good={thirdWon} />}
+              {fate && <StampLabel roles={GR} text={fate} good={thirdWon} />}
 
               {settled && otherTies.map((tie, i) => (
-                <TieRow key={i} roles={nylon} tie={liveTieVM(tie, round.round, onTiePress ? () => onTiePress(tie, round.label) : undefined)} />
+                <TieRow key={i} roles={GR} tie={liveTieVM(tie, round.round, onTiePress ? () => onTiePress(tie, round.label) : undefined)} />
               ))}
               {/* F-04: the round's best eleven, from every leg it played, once
                   it's settled (and never over a final still to be watched). */}
               {pools && settled && !(isDeepFinal && !deepFinal!.watched) && (
-                <RoundTeam roles={nylon} roundKey={`ko-${round.round}`} label={t('sim.teamOfRound', { round: label(round.label).toLowerCase() })}
+                <RoundTeam roles={GR} roundKey={`ko-${round.round}`} label={t('sim.teamOfRound', { round: label(round.label).toLowerCase() })}
                   poolByClub={pools.poolByClub} ctx={pools.ctx}
                   fixtures={appendKnockoutRounds([], [{ label: round.label, ties: round.ties.map(x => knockoutTieToCLMatch(x, round.round)) }])
                     .filter(m => m.homeGoals !== undefined && m.awayGoals !== undefined)
@@ -284,13 +307,14 @@ export function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colo
             </View>
           )
         })}
+        </View>
         </Pane>
         {wide && (() => {
           const { b, you } = bracketNow()
           return <Pane wide title={t('sim.theBracket')} flex={1.3}><BracketTree columns={b.columns} third={b.third} playerClubId={you} height={560} /></Pane>
         })()}
+        {wide && press && <Pane wide title={t('season.tabPress')} flex={0.8}>{press.node}</Pane>}
         </PaneRow>
-        {press}
       </KitScreen>
       {scrolledAway && (
         <View style={styles.toNewest} pointerEvents="box-none">
@@ -300,15 +324,15 @@ export function KnockoutPhaseView({ rounds, visibleCount, competitionLabel, colo
 
       <ThumbBar>
         {!awaitingDeepFinal && endOfRun > visibleCount - 1 && (
-          <Plate label={t('sim.skipEndRun')} icon="skip" variant="secondary" roles={nylon} onPress={() => onSkipToRound(endOfRun)} />
+          <Plate label={t('sim.skipEndRun')} icon="skip" variant="secondary" roles={GR} onPress={() => onSkipToRound(endOfRun)} />
         )}
         {!awaitingDeepFinal && endOfRun <= visibleCount - 1 && !allVisible && (
-          <Plate label={t('sim.skipEnd')} icon="skip" variant="secondary" roles={nylon} onPress={() => onSkipToRound(rounds.length - 1)} />
+          <Plate label={t('sim.skipEnd')} icon="skip" variant="secondary" roles={GR} onPress={() => onSkipToRound(rounds.length - 1)} />
         )}
         {awaitingDeepFinal && deepFinal ? (
-          <Plate label={t('sim.lineups')} icon="forward" roles={nylon} onPress={deepFinal.onSeeLineups} />
+          <Plate label={t('sim.lineups')} icon="forward" roles={GR} onPress={deepFinal.onSeeLineups} />
         ) : allVisible ? (
-          <Plate label={t('sim.verdict')} icon="forward" roles={nylon} onPress={onFinish} />
+          <Plate label={t('sim.verdict')} icon="forward" roles={GR} onPress={onFinish} />
         ) : null}
       </ThumbBar>
     </View>
@@ -364,9 +388,10 @@ export function knockoutTieToCLMatch(tie: KnockoutTie, round: string): CLKnockou
 }
 
 const styles = StyleSheet.create({
-  press: { marginTop: space[6], gap: space[2] },
+  tabs: { marginTop: space[3] },
+  tabBody: { marginTop: space[3], gap: space[2] },
+  hidden: { display: 'none' },
   container: { flex: 1 },
-  bracketPlate: { marginTop: space[2], marginBottom: space[3] },
   toNewest: { position: 'absolute', left: space[4], right: space[4], bottom: 120, alignItems: 'center' },
   koKitRound: { gap: space[2], marginTop: space[3] },
   koKitFinal: { borderWidth: border.plate, padding: space[3], gap: space[2] },
@@ -437,16 +462,13 @@ export function KnockoutStage({ rounds, previewHeader, onTiePress, deepMatch, pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pressFor ? played.length : 0, rounds.length])
   useEffect(() => { if (stories.length) setLivePress(stories) }, [stories])
-  const pressNode = stories.length ? (
-    <View style={styles.press}>
-      <SectionTag roles={nylon}>{t('season.tabPress')}</SectionTag>
-      <PressList roles={nylon} stories={stories} empty="" onOpen={id => openStory(id)} />
-    </View>
-  ) : null
+  const pressNode = stories.length
+    ? { count: stories.length, node: <PressList roles={GR} stories={stories} empty="" onOpen={id => openStory(id)} /> }
+    : undefined
 
   if (visible === 0 && rounds.length > 0) {
     return (
-      <View style={[styles.container, { backgroundColor: nylon.bg }]}>
+      <View style={[styles.container, { backgroundColor: GR.bg }]}>
         {previewHeader}
         <BracketPreview {...bracketPreviewProps(rounds)} onStart={() => setVisible(1)} />
       </View>

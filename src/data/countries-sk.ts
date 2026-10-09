@@ -108,7 +108,20 @@ export const COUNTRY_SK: Record<string, string> = {
 const EN_OF = new Map(Object.entries(COUNTRY_SK).map(([en, sk]) => [sk, en]))
 
 /** A country or national team's name in the app's language; anything else as given. */
-export const countryName = (name?: string | null): string => (!name ? '' : LANGUAGE === 'sk' ? COUNTRY_SK[name] ?? name : name)
+/**
+ * A name in a language. The player's side is "<nation> XI" (the drafted eleven
+ * that took a nation's place), which the table didn't know, so it read
+ * "Croatia XI" and "SWEDEN XI" in Slovak (P9.75-21).
+ */
+export function countryNameIn(name: string | null | undefined, lang: string): string {
+  if (!name) return ''
+  if (lang !== 'sk') return name
+  const hit = COUNTRY_SK[name]
+  if (hit) return hit
+  const xi = name.match(/^(.*) XI$/)
+  return xi && COUNTRY_SK[xi[1]] ? `${COUNTRY_SK[xi[1]]} XI` : name
+}
+export const countryName = (name?: string | null): string => countryNameIn(name, LANGUAGE)
 
 /** The English name behind a Slovak one (for lookups keyed in English), or undefined. */
 export const englishCountry = (name: string): string | undefined => EN_OF.get(name)

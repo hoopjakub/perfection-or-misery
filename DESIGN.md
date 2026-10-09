@@ -182,6 +182,8 @@ States listed are the ones built; the full lists are in `docs/ui-overhaul/08-COM
 | The four result screens below the verdict, and the run's awards page | nylon tokens; the layout rebuild is Phase 5 |
 | The verdict block on all four result screens (`src/components/season/VerdictBlock.tsx`) | nylon · the rest of those screens is still the old dark palette |
 
+**Floodlit is for whole screens** (Phase 9.75, R3-01). A screen stands on the everyday ground (cotton in light mode, nylon in dark) and its parts take the screen's ground with `useScreenRoles()`. A part pinned to the floodlit ground draws a dark card inside a light screen; the live match did until 8 October 2026. The few pins that stay (the ceremonies, the pitches, the draft's club card, the match sheet until P8-48) are listed with their reasons in `scripts/verify-grounds.ts`, which fails on any other.
+
 Everything else still uses the old palette and is rebuilt phase by phase (`docs/ui-overhaul/11-ROADMAP.md`). Until Phase 6 replaces it, web keeps the 480px column, so the rail only appears on native tablets wider than 1024.
 
 ---

@@ -29,6 +29,7 @@
 //    no save opportunity; it lands on the conceding player's line as `ownGoals`
 //    and on the scoreboard for the other team, and nowhere else.
 
+import { pexp, ppow, ptanh } from '@/lib/pmath'
 import type { RosterPlayer, MatchScorers, GoalEvent } from '@/types/stats'
 import { time } from '@/diag/perf'
 import type {
@@ -514,15 +515,15 @@ function buildSideTexture(
   // emergent: a dominant loser piles up misses and out-xGs a 1-0 winner.
   const shotXgs: SideTexture['shotXgs'] = []
   for (let i = 0; i < goalsFor; i++) {
-    const xg = round2(clamp(0.08 + Math.pow(rng(), 1.4) * 0.72, 0.03, 0.85))
+    const xg = round2(clamp(0.08 + ppow(rng(), 1.4) * 0.72, 0.03, 0.85))
     shotXgs.push({ xg, isGoal: true, big: xg >= 0.35 || rng() < 0.25 })
   }
   for (let i = 0; i < shotsOnTarget - goalsFor; i++) {
-    const xg = round2(clamp(0.04 + Math.pow(rng(), 1.6) * 0.55, 0.02, 0.7))
+    const xg = round2(clamp(0.04 + ppow(rng(), 1.6) * 0.55, 0.02, 0.7))
     shotXgs.push({ xg, isGoal: false, big: xg >= 0.35 })
   }
   for (let i = 0; i < shotsOffTarget + shotsBlocked; i++) {
-    const xg = round2(clamp(0.02 + Math.pow(rng(), 2.0) * 0.38, 0.01, 0.5))
+    const xg = round2(clamp(0.02 + ppow(rng(), 2.0) * 0.38, 0.01, 0.5))
     shotXgs.push({ xg, isGoal: false, big: xg >= 0.35 })
   }
   const xg = round2(shotXgs.reduce((s, x) => s + x.xg, 0))
@@ -603,12 +604,12 @@ function distributeSide(
   const assistsArr = onPitch.map(x => x.assists)
 
   // Shots: every goal is a shot on target; the rest by position/attack weight.
-  const shotW = w(W_SHOT, x => Math.pow(atkOf(x) / 60, 2))
+  const shotW = w(W_SHOT, x => ppow(atkOf(x) / 60, 2))
   const sot   = distributeInt(team.shotsOnTarget, shotW, goalsArr)
   const shots = distributeInt(team.shots, shotW, sot)
 
   // Creation: an assist guarantees a key pass.
-  const createW = w(W_CREATE, x => Math.pow(atkOf(x) / 60, 1.2))
+  const createW = w(W_CREATE, x => ppow(atkOf(x) / 60, 1.2))
   const teamKeyPasses = Math.max(assistsArr.reduce((a, b) => a + b, 0), Math.round(team.shots * 0.55))
   const keyPasses = distributeInt(teamKeyPasses, createW, assistsArr)
   const bigChancesCreated = distributeInt(Math.round(team.bigChances * 0.75), createW, undefined)
@@ -617,7 +618,7 @@ function distributeSide(
   const bigChancesMissedArr = distributeInt(team.bigChancesMissed, bcmW, undefined)
 
   // Passing.
-  const passW = w(W_PASS, x => Math.pow(x.p.ovr / 70, 1.5))
+  const passW = w(W_PASS, x => ppow(x.p.ovr / 70, 1.5))
   const passes = distributeInt(team.passes, passW, undefined)
   const accuracyOf = (i: number) => {
     const g = posGroup(pos[i])
@@ -629,7 +630,7 @@ function distributeSide(
   const longBalls = distributeInt(team.accurateLongBalls, w(W_LONGBALL), undefined)
 
   // Duels & ball-carrying.
-  const dribbles = distributeInt(team.dribbles, w(W_DRIBBLE, x => Math.pow(atkOf(x) / 60, 1.5)), undefined)
+  const dribbles = distributeInt(team.dribbles, w(W_DRIBBLE, x => ppow(atkOf(x) / 60, 1.5)), undefined)
   // Roughly a 55–60% success rate, which is about where real dribbling sits.
   const dribbleTries = dribbles.map(d => d + rngPoisson(rng, d * 0.75 + 0.25))
   const groundDuels = distributeInt(team.groundDuelsWon, onPitch.map((_, i) => (posGroup(pos[i]) === 'GK' ? 0.05 : 1) * minFrac[i]), undefined)
@@ -638,7 +639,7 @@ function distributeSide(
     (wOf(W_SHOT, pos[i], 0.3) * 0.6 + 0.4) * (passes[i] + 8) * minFrac[i]), undefined)
 
   // Defending.
-  const defW = w(W_DEFEND, x => Math.pow(x.p.ovr / 70, 1.2))
+  const defW = w(W_DEFEND, x => ppow(x.p.ovr / 70, 1.2))
   const tackles = distributeInt(team.tacklesWon, defW, undefined)
   const intercepts = distributeInt(team.interceptions, defW, undefined)
   const clearArr = distributeInt(team.clearances, w(W_DEFEND, (_, i) => posGroup(pos[i]) === 'DEF' ? 1.6 : 1), undefined)
@@ -649,7 +650,7 @@ function distributeSide(
   const foulsArr = distributeInt(team.fouls, foulW, undefined)
   const foulsWonArr = distributeInt(oppTeam.fouls, w(W_DRIBBLE, () => 1).map((v, i) => v + minFrac[i] * 0.5), undefined)
   const offsidesArr = distributeInt(team.offsides, w(W_BOXTOUCH), undefined)
-  const boxTouches = distributeInt(team.touchesInOppBox, w(W_BOXTOUCH, x => Math.pow(atkOf(x) / 60, 1.3)),
+  const boxTouches = distributeInt(team.touchesInOppBox, w(W_BOXTOUCH, x => ppow(atkOf(x) / 60, 1.3)),
     goalsArr.map(g => Math.min(g, 9)))
 
   // Cards: booked players are the heavy foulers; a red ends their match early.
@@ -881,7 +882,7 @@ function buildMissedPenalties(
     if (takers.length === 0) continue
     // Same "designated taker" bias §9 uses for converted penalties, so the man
     // who misses is the man who'd have been on the spot anyway.
-    const weights = takers.map(x => Math.pow(wOf(W_SHOT, x.p.primaryPosition) * (x.p.attack || x.p.ovr || 60) / 60, 2))
+    const weights = takers.map(x => ppow(wOf(W_SHOT, x.p.primaryPosition) * (x.p.attack || x.p.ovr || 60) / 60, 2))
     const ti = rngWeightedIndex(rng, weights)
     const taker = takers[ti === -1 ? 0 : ti]
     // Only while he's actually on the pitch.
@@ -958,7 +959,7 @@ function buildMomentum(rng: Rng, duration: number, homeDom: number, events: Matc
       // a goal — it just doesn't get the scoreline to show for it.
       for (let m = 0; m < duration; m++) {
         const d = (m + 1) - at + 1
-        pulses[m] += side * 0.7 * Math.exp(-(d * d) / (2 * MOM_GOAL_SIGMA * MOM_GOAL_SIGMA))
+        pulses[m] += side * 0.7 * pexp(-(d * d) / (2 * MOM_GOAL_SIGMA * MOM_GOAL_SIGMA))
       }
       continue
     }
@@ -968,7 +969,7 @@ function buildMomentum(rng: Rng, duration: number, homeDom: number, events: Matc
         // Peaks one minute BEFORE the goal — the pressure that produced it —
         // and is still near its peak on the minute itself.
         const d = (m + 1) - at + 1
-        pulses[m] += side * amp * Math.exp(-(d * d) / (2 * MOM_GOAL_SIGMA * MOM_GOAL_SIGMA))
+        pulses[m] += side * amp * pexp(-(d * d) / (2 * MOM_GOAL_SIGMA * MOM_GOAL_SIGMA))
       }
     } else {
       for (let m = 0; m < duration; m++) {
@@ -985,7 +986,7 @@ function buildMomentum(rng: Rng, duration: number, homeDom: number, events: Matc
   // extreme around every goal, and ±100 is supposed to mean a side is REALLY
   // on top — a handful of minutes a match, not a quarter of them.
   return Array.from({ length: duration }, (_, m) =>
-    Math.round(Math.tanh((base + wave[m] + pulses[m]) * 0.78) * 100))
+    Math.round(ptanh((base + wave[m] + pulses[m]) * 0.78) * 100))
 }
 
 // ── Entry point ─────────────────────────────────────────────────────────────
@@ -1027,8 +1028,8 @@ function generateMatchDetailNow(input: MatchDetailInput): MatchStats | null {
 
   // Dominance: mostly quality, mildly the result — so a big-OVR loser routinely
   // "wins everything but the match". Home side gets the usual nudge.
-  const qualityLean = Math.tanh((homeOvr + 2.5 - awayOvr) / 11)
-  const resultLean  = Math.tanh((homeGoals - awayGoals) / 2.5)
+  const qualityLean = ptanh((homeOvr + 2.5 - awayOvr) / 11)
+  const resultLean  = ptanh((homeGoals - awayGoals) / 2.5)
   const homeDom = clamp(0.62 * qualityLean + 0.28 * resultLean + rngNoise(rng) * 0.28, -0.85, 0.85)
 
   const possession = Math.round(clamp(50 + homeDom * 17 + rngNoise(rng) * 3.5, 30, 70))

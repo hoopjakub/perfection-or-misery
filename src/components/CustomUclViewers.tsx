@@ -170,7 +170,7 @@ export function MarkRow({ roles, clubId, clubName, label, onPress, yours }: {
       style={({ pressed }) => [styles.leagueRow, { borderBottomColor: roles.rule }, yours && { backgroundColor: roles.yours }, pressed && { backgroundColor: roles.sunken }]}>
       <TeamMark roles={roles} clubId={clubId} name={clubName} size={20} />
       <View style={{ flex: 1 }}>
-        <KitText t="body" color={roles.text} numberOfLines={1}>{clubName}</KitText>
+        <KitText t="body" color={roles.text} numberOfLines={1}>{countryName(clubName)}</KitText>
         <KitText t="tag" color={roles.textMuted} numberOfLines={1}>{label.toUpperCase()}</KitText>
       </View>
       {onPress ? <Icon name="chevron" size={16} color={roles.textMuted} /> : null}

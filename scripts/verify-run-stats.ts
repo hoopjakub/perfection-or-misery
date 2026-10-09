@@ -70,6 +70,24 @@ for (let s = 1; s <= 300; s++) {
   }
 }
 
+// ── The ranking at a full path's size (Phase 9.75, the release readings) ────
+// stats:board took 179–776 ms on the phone: the ranking was quadratic (a copy
+// of the line per player, a findIndex per player, localeCompare in the sort).
+// 6,000 players, the size of a long full path's board: the one pass does it in
+// a few milliseconds in Node; the quadratic one took seconds.
+{
+  const KEY: StatKey = 'goals'
+  const big: PlayerStatLine[] = Array.from({ length: 6000 }, (_, i) => ({
+    playerId: `p${i}`, name: `P ${i}`, clubId: `c${i % 300}`, clubName: `Club ${i % 300}`, isPlayerClub: false,
+    position: ['GK', 'CB', 'CM', 'ST'][i % 4], goals: (i * 7919) % 23, assists: 0, matchesPlayed: 10, minutes: 900,
+  }) as unknown as PlayerStatLine)
+  const t0 = performance.now()
+  positionRanks(big, KEY, 'total')
+  const ms = performance.now() - t0
+  check(ms < 60, `ranking 6,000 players took ${ms.toFixed(0)} ms (quadratic?)`)
+  console.log(`ranking 6,000 players: ${ms.toFixed(1)} ms`)
+}
+
 // ── P8-80: club totals from the match sheets ─────────────────────────────────
 // Feeds the accumulator hand-made sheets with known numbers, then checks each
 // club's totals are the exact sums from its own side of every sheet, possession

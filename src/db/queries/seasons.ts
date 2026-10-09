@@ -58,6 +58,8 @@ type RosterRow = {
 // ponytail: an unbounded session cache; a session touches a few hundred
 // club-seasons at most (a full path's Europe), a few MB. Cap it if a reading says so.
 const rosterCache = new Map<string, RosterPlayer[]>()
+/** Diagnostics' "Drop caches" (P9.75-14's probe): the squads read this session, let go. */
+export function dropRosterCache(): number { const n = rosterCache.size; rosterCache.clear(); return n }
 const rosterKey = (clubId: string, yearStart: number) => `${clubId}@${yearStart}`
 
 export async function getRostersForClubs(

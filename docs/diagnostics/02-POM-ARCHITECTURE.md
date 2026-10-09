@@ -13,8 +13,8 @@ The Dugout runs in a browser engine with a worker. PoM runs on Hermes on Android
 |---|---|---|---|
 | `performance.now()` | Available | Available | Use it everywhere |
 | `performance.mark`/`measure` in DevTools | Partial on the new architecture | Available | Use the recorder's own marks; mirror to `performance.mark` when present, as The Dugout does |
-| `PerformanceObserver('longtask')` | **Probe.** Parts of the Web Performance API ship on the new architecture; `longtask` delivery isn't confirmed on this build | Chromium only | An event-loop lag detector that works everywhere (§3.3). Use the observer too if the probe finds it |
-| `performance.memory` | Absent | Chromium only | Web: poll it. Android: **probe** `HermesInternal.getInstrumentedStats()` for heap size. If absent, `mem:js` stays NO DATA and says so |
+| `PerformanceObserver('longtask')` | **Not delivered on Hermes** (7 Oct 2026: no entries; the stall detector is the only source). Was: **Probe.** Parts of the Web Performance API ship on the new architecture; `longtask` delivery isn't confirmed on this build | Chromium only | An event-loop lag detector that works everywhere (§3.3). Use the observer too if the probe finds it |
+| `performance.memory` | Absent; **`HermesInternal` heap stats work** (the maintainer's POCO X6, 7 Oct 2026: 20 MB at start) | Chromium only | Web: poll it. Android: **probe** `HermesInternal.getInstrumentedStats()` for heap size. If absent, `mem:js` stays NO DATA and says so |
 | A worker thread | None. The sim blocks the JS thread | None | Nothing to split. A slow sim shows as a stall, which is exactly what should be measured |
 | `navigator.clipboard` | Absent; RN removed `Clipboard` from core | Available (needs a user gesture) | `Share.share` from `react-native` on Android; clipboard on web; selectable text always (§6) |
 | Reading the recorder from Playwright | Not applicable | `globalThis.pomPerf` | Publish it on web only, for future browser scripts |

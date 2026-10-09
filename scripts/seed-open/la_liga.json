@@ -20,7 +20,7 @@
      "club_id": "real_madrid",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 3,
      "players": [
       {
@@ -170,7 +170,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -516,7 +516,7 @@
      "club_id": "real_madrid",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 91,
+     "historical_ovr": 88,
      "league_position": 1,
      "players": [
       {
@@ -666,7 +666,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -994,7 +994,7 @@
      "club_id": "real_madrid",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -1144,7 +1144,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -1544,7 +1544,7 @@
      "club_id": "real_madrid",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 91,
+     "historical_ovr": 88,
      "league_position": 1,
      "players": [
       {
@@ -1748,7 +1748,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -2000,7 +2000,7 @@
       {
        "id": "peter_gonzalez_footballer",
        "name": "Peter González",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 2002,
        "primary_position": "RW",
        "secondary_positions": [],
@@ -2130,7 +2130,7 @@
      "club_id": "real_madrid",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -2298,7 +2298,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -2608,7 +2608,7 @@
      "club_id": "real_madrid",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -3104,7 +3104,7 @@
      "club_id": "real_madrid",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -3690,7 +3690,7 @@
      "club_id": "real_madrid",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 90,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -4322,7 +4322,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 92,
+     "historical_ovr": 88,
      "league_position": 1,
      "players": [
       {
@@ -4854,7 +4854,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -4986,7 +4986,7 @@
       {
        "id": "junior_firpo",
        "name": "Junior Firpo",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1996,
        "primary_position": "LB",
        "secondary_positions": [],
@@ -5350,7 +5350,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 3,
      "players": [
       {
@@ -5518,7 +5518,7 @@
       {
        "id": "junior_firpo",
        "name": "Junior Firpo",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1996,
        "primary_position": "LB",
        "secondary_positions": [],
@@ -5828,7 +5828,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -6522,7 +6522,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -7054,7 +7054,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -7586,7 +7586,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -8100,7 +8100,7 @@
      "club_id": "fc_barcelona",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -8642,7 +8642,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -9156,7 +9156,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 3,
      "players": [
       {
@@ -9706,7 +9706,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 91,
+     "historical_ovr": 88,
      "league_position": 1,
      "players": [
       {
@@ -10148,7 +10148,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 3,
      "players": [
       {
@@ -10644,7 +10644,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 90,
+     "historical_ovr": 86,
      "league_position": 3,
      "players": [
       {
@@ -11140,7 +11140,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 4,
      "players": [
       {
@@ -11618,7 +11618,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 3,
      "players": [
       {
@@ -12042,7 +12042,7 @@
      "club_id": "atletico_de_madrid",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 4,
      "players": [
       {
@@ -13062,7 +13062,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 5,
      "players": [
       {
@@ -13540,7 +13540,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 7,
      "players": [
       {
@@ -14072,7 +14072,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 7,
      "players": [
       {
@@ -14568,7 +14568,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 5,
      "players": [
       {
@@ -15082,7 +15082,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -15668,7 +15668,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 5,
      "players": [
       {
@@ -16218,7 +16218,7 @@
      "club_id": "villarreal_cf",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 90,
+     "historical_ovr": 86,
      "league_position": 3,
      "players": [
       {
@@ -16814,7 +16814,7 @@
      "club_id": "real_sociedad",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 9,
      "players": [
       {
@@ -17328,7 +17328,7 @@
      "club_id": "real_sociedad",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 6,
      "players": [
       {
@@ -17842,7 +17842,7 @@
      "club_id": "real_sociedad",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -18410,7 +18410,7 @@
      "club_id": "real_sociedad",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 6,
      "players": [
       {
@@ -18960,7 +18960,7 @@
      "club_id": "real_sociedad",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 4,
      "players": [
       {
@@ -19510,7 +19510,7 @@
      "club_id": "real_sociedad",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 6,
      "players": [
       {
@@ -20610,7 +20610,7 @@
      "club_id": "real_sociedad",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 10,
      "players": [
       {
@@ -21374,7 +21374,7 @@
       {
        "id": "junior_firpo",
        "name": "Junior Firpo",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1996,
        "primary_position": "LB",
        "secondary_positions": [],
@@ -21684,7 +21684,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 15,
      "players": [
       {
@@ -22162,7 +22162,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -22622,7 +22622,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -23190,7 +23190,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -23704,7 +23704,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 7,
      "players": [
       {
@@ -24290,7 +24290,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 86,
+     "historical_ovr": 85,
      "league_position": 6,
      "players": [
       {
@@ -24948,7 +24948,7 @@
      "club_id": "real_betis_balompie",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -25152,7 +25152,7 @@
       {
        "id": "junior_firpo",
        "name": "Junior Firpo",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1996,
        "primary_position": "LB",
        "secondary_positions": [],
@@ -25436,7 +25436,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -25914,7 +25914,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 82,
+     "historical_ovr": 83,
      "league_position": 11,
      "players": [
       {
@@ -26410,7 +26410,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 10,
      "players": [
       {
@@ -26924,7 +26924,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -27366,7 +27366,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 8,
      "players": [
       {
@@ -27826,7 +27826,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -28322,7 +28322,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -28890,7 +28890,7 @@
      "club_id": "athletic_bilbao",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 12,
      "players": [
       {
@@ -29432,7 +29432,7 @@
      "club_id": "celta_de_vigo",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 17,
      "players": [
       {
@@ -29928,7 +29928,7 @@
      "club_id": "celta_de_vigo",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 17,
      "players": [
       {
@@ -30442,7 +30442,7 @@
      "club_id": "celta_de_vigo",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -30956,7 +30956,7 @@
      "club_id": "celta_de_vigo",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 11,
      "players": [
       {
@@ -32318,7 +32318,7 @@
      "club_id": "celta_de_vigo",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -32850,7 +32850,7 @@
      "club_id": "celta_de_vigo",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -33338,7 +33338,7 @@
      "club_id": "sevilla_fc",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 6,
      "players": [
       {
@@ -33834,7 +33834,7 @@
      "club_id": "sevilla_fc",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 4,
      "players": [
       {
@@ -34312,7 +34312,7 @@
      "club_id": "sevilla_fc",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 4,
      "players": [
       {
@@ -34790,7 +34790,7 @@
      "club_id": "sevilla_fc",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 4,
      "players": [
       {
@@ -35962,7 +35962,7 @@
      "club_id": "sevilla_fc",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 14,
      "players": [
       {
@@ -36076,7 +36076,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -36584,7 +36584,7 @@
      "club_id": "sevilla_fc",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 17,
      "players": [
       {
@@ -37658,7 +37658,7 @@
      "club_id": "girona_fc",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 18,
      "players": [
       {
@@ -38538,7 +38538,7 @@
       {
        "id": "oscar_urena",
        "name": "Óscar Ureña",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 2003,
        "primary_position": "RW",
        "secondary_positions": [],
@@ -38578,7 +38578,7 @@
      "club_id": "girona_fc",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 3,
      "players": [
       {
@@ -39020,7 +39020,7 @@
      "club_id": "girona_fc",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 16,
      "players": [
       {
@@ -39552,7 +39552,7 @@
      "club_id": "girona_fc",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 19,
      "players": [
       {
@@ -40148,7 +40148,7 @@
      "club_id": "valencia_cf",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -40608,7 +40608,7 @@
      "club_id": "valencia_cf",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 9,
      "players": [
       {
@@ -41104,7 +41104,7 @@
      "club_id": "valencia_cf",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 81,
+     "historical_ovr": 82,
      "league_position": 13,
      "players": [
       {
@@ -42276,7 +42276,7 @@
      "club_id": "valencia_cf",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 16,
      "players": [
       {
@@ -42790,7 +42790,7 @@
      "club_id": "valencia_cf",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 9,
      "players": [
       {
@@ -43228,7 +43228,7 @@
       {
        "id": "peter_gonzalez_footballer",
        "name": "Peter González",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 2002,
        "primary_position": "RW",
        "secondary_positions": [],
@@ -44144,7 +44144,7 @@
      "club_id": "rcd_espanyol_barcelona",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -44532,7 +44532,7 @@
      "club_id": "rcd_espanyol_barcelona",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 20,
      "players": [
       {
@@ -45064,7 +45064,7 @@
      "club_id": "rcd_espanyol_barcelona",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 14,
      "players": [
       {
@@ -45578,7 +45578,7 @@
      "club_id": "rcd_espanyol_barcelona",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 19,
      "players": [
       {
@@ -46408,7 +46408,7 @@
      "club_id": "rcd_espanyol_barcelona",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 11,
      "players": [
       {
@@ -46680,7 +46680,7 @@
      "club_id": "levante_ud",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 15,
      "players": [
       {
@@ -47754,7 +47754,7 @@
      "club_id": "levante_ud",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 19,
      "players": [
       {
@@ -48232,7 +48232,7 @@
      "club_id": "levante_ud",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 16,
      "players": [
       {
@@ -48576,7 +48576,7 @@
      "club_id": "rayo_vallecano",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 20,
      "players": [
       {
@@ -49054,7 +49054,7 @@
      "club_id": "rayo_vallecano",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 12,
      "players": [
       {
@@ -49514,7 +49514,7 @@
      "club_id": "rayo_vallecano",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 11,
      "players": [
       {
@@ -50434,7 +50434,7 @@
      "club_id": "rayo_vallecano",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -50840,7 +50840,7 @@
      "club_id": "rayo_vallecano",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -51346,7 +51346,7 @@
      "club_id": "ca_osasuna",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 10,
      "players": [
       {
@@ -51824,7 +51824,7 @@
      "club_id": "ca_osasuna",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 11,
      "players": [
       {
@@ -52302,7 +52302,7 @@
      "club_id": "ca_osasuna",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 10,
      "players": [
       {
@@ -52780,7 +52780,7 @@
      "club_id": "ca_osasuna",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -53764,7 +53764,7 @@
      "club_id": "ca_osasuna",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 17,
      "players": [
       {
@@ -55028,7 +55028,7 @@
      "club_id": "elche_cf",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 20,
      "players": [
       {
@@ -55524,7 +55524,7 @@
      "club_id": "elche_cf",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 15,
      "players": [
       {
@@ -55958,7 +55958,7 @@
      "club_id": "rcd_mallorca",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 78,
+     "historical_ovr": 80,
      "league_position": 19,
      "players": [
       {
@@ -56472,7 +56472,7 @@
      "club_id": "rcd_mallorca",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 16,
      "players": [
       {
@@ -57058,7 +57058,7 @@
      "club_id": "rcd_mallorca",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 9,
      "players": [
       {
@@ -58384,7 +58384,7 @@
      "club_id": "rcd_mallorca",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 18,
      "players": [
       {
@@ -58908,7 +58908,7 @@
      "club_id": "getafe_cf",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 86,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -59296,7 +59296,7 @@
      "club_id": "getafe_cf",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 8,
      "players": [
       {
@@ -59738,7 +59738,7 @@
      "club_id": "getafe_cf",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 15,
      "players": [
       {
@@ -61704,7 +61704,7 @@
      "club_id": "getafe_cf",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 13,
      "players": [
       {
@@ -61926,7 +61926,7 @@
       {
        "id": "peter_gonzalez_footballer",
        "name": "Peter González",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 2002,
        "primary_position": "RW",
        "secondary_positions": [],
@@ -62074,7 +62074,7 @@
      "club_id": "getafe_cf",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -62932,7 +62932,7 @@
      "club_id": "deportivo_alaves",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 16,
      "players": [
       {
@@ -63500,7 +63500,7 @@
      "club_id": "deportivo_alaves",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 16,
      "players": [
       {
@@ -64014,7 +64014,7 @@
      "club_id": "deportivo_alaves",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 20,
      "players": [
       {
@@ -65340,7 +65340,7 @@
      "club_id": "deportivo_alaves",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 14,
      "players": [
       {
@@ -65400,7 +65400,7 @@
       {
        "id": "mariano_diaz",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -65630,7 +65630,7 @@
      "club_id": "real_oviedo",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 72,
+     "historical_ovr": 77,
      "league_position": 20,
      "players": [
       {
@@ -65920,7 +65920,7 @@
      "club_id": "ud_las_palmas",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 16,
      "players": [
       {
@@ -66398,7 +66398,7 @@
      "club_id": "ud_las_palmas",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 19,
      "players": [
       {
@@ -66850,7 +66850,7 @@
      "club_id": "real_valladolid_cf",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -67328,7 +67328,7 @@
      "club_id": "real_valladolid_cf",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 13,
      "players": [
       {
@@ -67698,7 +67698,7 @@
      "club_id": "real_valladolid_cf",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 19,
      "players": [
       {
@@ -68086,7 +68086,7 @@
      "club_id": "real_valladolid_cf",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 18,
      "players": [
       {
@@ -68672,7 +68672,7 @@
      "club_id": "real_valladolid_cf",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 20,
      "players": [
       {
@@ -69494,7 +69494,7 @@
      "club_id": "cd_leganes",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -69918,7 +69918,7 @@
      "club_id": "cd_leganes",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 18,
      "players": [
       {
@@ -70244,7 +70244,7 @@
      "club_id": "granada_cf",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 7,
      "players": [
       {
@@ -71200,7 +71200,7 @@
      "club_id": "granada_cf",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 18,
      "players": [
       {
@@ -71660,7 +71660,7 @@
      "club_id": "granada_cf",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 20,
      "players": [
       {
@@ -72238,7 +72238,7 @@
      "club_id": "ud_almeria",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 17,
      "players": [
       {
@@ -72734,7 +72734,7 @@
      "club_id": "ud_almeria",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 19,
      "players": [
       {
@@ -73294,7 +73294,7 @@
      "club_id": "cadiz_cf",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 12,
      "players": [
       {
@@ -73826,7 +73826,7 @@
      "club_id": "cadiz_cf",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 17,
      "players": [
       {
@@ -74908,7 +74908,7 @@
      "club_id": "cadiz_cf",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -75324,7 +75324,7 @@
      "club_id": "sd_eibar",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 12,
      "players": [
       {
@@ -75658,7 +75658,7 @@
      "club_id": "sd_eibar",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 14,
      "players": [
       {
@@ -75974,7 +75974,7 @@
      "club_id": "sd_eibar",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 20,
      "players": [
       {
@@ -76372,7 +76372,7 @@
      "club_id": "sd_huesca",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 19,
      "players": [
       {
@@ -76724,7 +76724,7 @@
      "club_id": "sd_huesca",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {

@@ -15,6 +15,7 @@
 // centreline the fill sits on already encodes the team, and markers sit in a
 // top row (home) or bottom row (away) to match.
 
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import React, { useId, useMemo, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
@@ -208,11 +209,11 @@ export function MomentumGraph({
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: accentHome }]} />
-            <Text style={styles.legendText} numberOfLines={1}>{homeName} <Text style={styles.legendHint}>{t('parts.above')}</Text></Text>
+            <Text style={styles.legendText} numberOfLines={1}>{countryName(homeName)} <Text style={styles.legendHint}>{t('parts.above')}</Text></Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: accentAway }]} />
-            <Text style={styles.legendText} numberOfLines={1}>{awayName} <Text style={styles.legendHint}>{t('parts.below')}</Text></Text>
+            <Text style={styles.legendText} numberOfLines={1}>{countryName(awayName)} <Text style={styles.legendHint}>{t('parts.below')}</Text></Text>
           </View>
         </View>
       )}

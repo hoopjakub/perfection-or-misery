@@ -29,6 +29,8 @@ The maintainer: "do we do like your runs offline can get saved online when you a
 - Score validation stays on the server: a queued run is scored and checked by `submit-run` like any other, so the queue can't be used to post a made-up run. **Risk to decide:** a player could edit the queue file on a rooted phone. The server checks (`invalidRun`) already reject impossible rows; a queued run is no weaker than a live one, since both are reported by the app.
 - **A guest's runs aren't queued,** since a guest's account isn't kept (unchanged rule).
 
+*As changed in Phase 9.75, 8 October 2026 (P9.75-06, after queued runs stuck on the maintainer's phone):* the queue also flushes when the account becomes known (not only when the user id arrives, which met a "still a guest" and stopped); each send times out after 20 s and counts as offline; a run the server refuses is kept in a "not saved" list with its reason, said by a red strip and listed in Diagnostics with "Try them again", instead of being dropped; and every flush, send and hold-back is logged with its reason. [`../audit-9.75/01-PHONE-FINDINGS.md`](../audit-9.75/01-PHONE-FINDINGS.md) §7.
+
 ### 2.2 An offline mode that changes the app
 With `expo-network` (a native module, so a new build) the app knows when it's offline and changes around, as the maintainer asked:
 

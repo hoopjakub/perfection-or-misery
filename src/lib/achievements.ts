@@ -104,3 +104,36 @@ export function earnedList(runs: AchievementRun[]): { key: string; title: string
   for (const f of FEATS) if ((feats.get(f.id) ?? 0) > 0) out.push({ key: `feat:${f.id}`, title: f.title, line: f.how })
   return out
 }
+
+// ── A run as the achievements read it ────────────────────────────────────────
+/** A run from the achievements query (its jsonb paths flattened, see fetchAchievementRuns). */
+export function achievementRunOf(r: Record<string, any>): AchievementRun {
+  return {
+    mode: r.mode, tier: r.tier ?? null, final_position: r.final_position ?? null,
+    losses: r.losses ?? null, squad: r.squad ?? null,
+    difficulty: r.difficulty ?? null, difficulty_meta: r.difficulty_meta ?? null,
+    highlights: r.cup_winner ? { cup: { winner: r.cup_winner } } : null,
+    fullPath: r.mode === 'champions_league_custom' ? {
+      entry: r.fp_entry ?? null,
+      qualTies: Array.isArray(r.fp_ties) ? r.fp_ties.length : null,
+      domesticChampion: r.fp_home?.domesticChampion ?? null,
+      cupWon: r.fp_home?.cupWon ?? null,
+    } : null,
+  }
+}
+
+/**
+ * A run as it's saved (the row the app sends, or one waiting in the offline
+ * queue), read the way the query reads a saved one. P9.75-23: achievements
+ * were judged from the server's runs only, so a run kept on the phone earned
+ * nothing until it went up and the app was reloaded.
+ */
+export function achievementRunFromRow(row: Record<string, any>): AchievementRun {
+  return achievementRunOf({
+    ...row,
+    cup_winner: row.highlights?.cup?.winner,
+    fp_entry: row.cl_result?._customUclQual?.europe?.entry,
+    fp_ties: row.cl_result?._customUclQual?.playerPath,
+    fp_home: row.highlights?.fullPath,
+  })
+}

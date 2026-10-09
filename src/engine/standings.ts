@@ -14,6 +14,7 @@
 //
 // Imports nothing: the engine, the screens and the verify scripts all use it.
 // It also holds the one way a result goes into the table (`recordResult`).
+import { cmpStr } from '@/lib/pmath'
 
 export type StandingStats = { points: number; goalsFor: number; goalsAgainst: number }
 
@@ -23,7 +24,7 @@ export function compareStandings<T extends { clubId?: string; stats: StandingSta
   const gd = (b.stats.goalsFor - b.stats.goalsAgainst) - (a.stats.goalsFor - a.stats.goalsAgainst)
   if (gd !== 0) return gd
   if (b.stats.goalsFor !== a.stats.goalsFor) return b.stats.goalsFor - a.stats.goalsFor
-  return (a.clubId ?? '').localeCompare(b.clubId ?? '')
+  return cmpStr(a.clubId ?? '', b.clubId ?? '')
 }
 
 /** A sorted copy, the better side first. */

@@ -36,10 +36,14 @@ Modes: `league`/`all_time`/`era`/`chaos`/`cursed`, `champions_league`,
    deep stats are a **deterministic seeded texture layer** on top. Don't invert
    this or make the scoreline an output of the stat generator. See *Architecture*.
 3. **Share, don't copy-paste.** A pattern used in 2+ places becomes a primitive
-   or a theme token. The repo already has `PressCard`, `BackButton` (`src/components/ui.tsx`),
-   nav helpers (`src/lib/nav.ts`), `ratingColor`/`withAlpha`/`colors.pots`/`colors.gold`
-   (`src/theme.ts`), `summariseScorers`, shared shootout/attribution helpers. Reach
-   for these before writing a new one; add to them rather than duplicating.
+   or a theme token. The repo already has the kit (`@/components/kit`: `Plate`,
+   `Tag`, `ListRow`, `BackControl`, `TeamMark`, `ClubName`, `GhostRows`,
+   `KitScreen` (it keeps a field above the keyboard)…), the season parts (`src/components/season/`:
+   `LeagueTable`, `TieRow`, `BracketTree`, `KnockoutStage`, `TableStage`,
+   `SegmentSwitch`), nav helpers (`src/lib/nav.ts`, `src/lib/runNav.ts`),
+   `ROLES`/`prim`/`ratingColor`/`withAlpha`/`POT_COLOURS` (`src/theme.ts`),
+   `summariseScorers`, shared shootout/attribution helpers. Reach for these
+   before writing a new one; add to them rather than duplicating.
 4. **Comment the WHY, generously.** This codebase's comments explain *why a
    decision was made*, what the gotcha is, and what the previous approach was and
    why it changed — not what the line does. Match that density and voice. A
@@ -181,26 +185,34 @@ simulates headlessly, and lands on the result screen (stats included).
   `ROLES[ground]` from `src/theme.ts`; they never import `colors` or write raw
   hex. Kit text goes through `KitText`, and never sets `fontWeight` (each weight
   is its own font family). Content goes on routes, not modals; decisions use
-  `openConfirm()` (`app/confirm.tsx`). The bullets below describe the OLD
-  dark screens that haven't been rebuilt yet (see `docs/ui-overhaul/11-ROADMAP.md`).
-- **Shared feedback primitives**: use `PressCard` for any tappable card/row (adds
-  pressed scale+dim and web hover lift) and `BackButton` for headers. Every
-  interactive element needs press feedback; a bare `Pressable` with no pressed
-  style is a regression.
+  `openConfirm()` (`app/confirm.tsx`). Still on the interim text
+  (`ScaleText`): the match sheet and its parts (`MatchStatsParts`,
+  `MatchLineupPitch`, `MomentumGraph`), `InfoBubble`, `WCGroupSheet` and
+  `ui.tsx`, until the match sheet's redesign (Phase 11, P8-48).
+- **Grounds**: a screen stands on `EVERYDAY` (light or dark with the setting)
+  and its parts take `useScreenRoles()` (`src/lib/appearance.ts`). `FLOODLIT` (always dark) is for whole
+  floodlit screens only (the ceremonies, the draw's reveal), never a card
+  inside an everyday screen (Phase 9.75, R3-01).
+- **Feedback**: `Plate` for actions (held at once, "Waiting…" only after
+  100 ms), `ListRow` for rows, `BackControl` for headers. Every interactive
+  element needs press feedback; a bare `Pressable` with no pressed style is a
+  regression.
 - **Icons**: `@expo/vector-icons` `Ionicons`, not emoji-as-functional-icon.
   (Decorative text emoji in copy is fine; a ▶/⏸/🔄 standing in for a control is not.)
-- **Theme tokens, not hardcoded hex.** `colors.*`, `spacing`, `radius`,
-  `typography`, `shadows`; `ratingColor(r)` for 0–10 rating chips; `withAlpha(hex, pct)`
-  instead of `color + '33'`; `colors.pots` / `colors.gold` / `colors.overlay`.
-  `textMuted` must stay ≥4.5:1 on `bgCard`.
+- **Theme tokens, not hardcoded hex.** `ROLES[ground]` for colours by role,
+  `prim` for the named colours, `space[n]` and `type.*` for the scales, `radius`,
+  `border`; `ratingColor(r)` / `ratingInk(r)` for 0–10 rating squares;
+  `withAlpha(hex, pct)` instead of `color + '33'`; `POT_COLOURS`. The old
+  `colors`/`spacing`/`typography` are gone (Phase 9.75).
 - **No content modals** (Phase 5): `AppModal` is deleted. Content is a route:
   run pages via `src/lib/runNav.ts` (`openPlayer`/`openClub`/`openStory`/`openRunHub`/
   `openRunMatch`), in-memory content (a live group, a league table from a live
   draw) via `openSheet` (`src/lib/sheet.ts`, module-scope hand-off like the match
   sheet), explainers via `openRules(topic)`. Decisions still use `openConfirm()`.
-- **Web/desktop**: mobile-first, capped to a centered ~480px column with hairline
-  edges + ambient backdrop (`app/_layout.tsx`, `app/+html.tsx`). Style for both
-  light and dark where relevant; keep flag-emoji font handling intact.
+- **Web/desktop**: mobile-first, but the window is used: `KitScreen` keeps a
+  reading column (`width="column"`) or a capped wide layout (`width="wide"`),
+  and `Panes`/`PaneRow`/`Columns` give two- and three-pane layouts from 1024 px
+  (`useSizeClass`). Style for light and dark; keep flag-emoji font handling intact.
 
 ## Working style
 

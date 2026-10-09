@@ -20,7 +20,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 1,
      "players": [
       {
@@ -588,7 +588,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 1,
      "players": [
       {
@@ -1174,7 +1174,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 2,
      "players": [
       {
@@ -1796,7 +1796,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 1,
      "players": [
       {
@@ -2490,7 +2490,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 1,
      "players": [
       {
@@ -3004,7 +3004,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 1,
      "players": [
       {
@@ -3536,7 +3536,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 1,
      "players": [
       {
@@ -4050,7 +4050,7 @@
      "club_id": "paris_saint_germain",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 1,
      "players": [
       {
@@ -4574,7 +4574,7 @@
      "club_id": "as_monaco",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 17,
      "players": [
       {
@@ -5520,7 +5520,7 @@
      "club_id": "as_monaco",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 78,
+     "historical_ovr": 80,
      "league_position": 9,
      "players": [
       {
@@ -6250,7 +6250,7 @@
      "club_id": "as_monaco",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 87,
+     "historical_ovr": 84,
      "league_position": 3,
      "players": [
       {
@@ -6944,7 +6944,7 @@
      "club_id": "as_monaco",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -7566,7 +7566,7 @@
      "club_id": "as_monaco",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 6,
      "players": [
       {
@@ -8098,7 +8098,7 @@
      "club_id": "as_monaco",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 2,
      "players": [
       {
@@ -8648,7 +8648,7 @@
      "club_id": "as_monaco",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 3,
      "players": [
       {
@@ -10326,7 +10326,7 @@
      "club_id": "rc_strasbourg_alsace",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 10,
      "players": [
       {
@@ -10822,7 +10822,7 @@
      "club_id": "rc_strasbourg_alsace",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -11390,7 +11390,7 @@
      "club_id": "rc_strasbourg_alsace",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 6,
      "players": [
       {
@@ -11976,7 +11976,7 @@
      "club_id": "rc_strasbourg_alsace",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -12670,7 +12670,7 @@
      "club_id": "rc_strasbourg_alsace",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 13,
      "players": [
       {
@@ -14654,7 +14654,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 5,
      "players": [
       {
@@ -15258,7 +15258,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 2,
      "players": [
       {
@@ -15790,7 +15790,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 5,
      "players": [
       {
@@ -16484,7 +16484,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 2,
      "players": [
       {
@@ -17124,7 +17124,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -17854,7 +17854,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 8,
      "players": [
       {
@@ -18620,7 +18620,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -19368,7 +19368,7 @@
      "club_id": "olympique_marseille",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 5,
      "players": [
       {
@@ -20144,7 +20144,7 @@
      "club_id": "olympique_lyon",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 86,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -20258,7 +20258,7 @@
       {
        "id": "mariano_diaz__olympique_lyon",
        "name": "Mariano Díaz",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1993,
        "primary_position": "ST",
        "secondary_positions": [],
@@ -20604,7 +20604,7 @@
      "club_id": "olympique_lyon",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 7,
      "players": [
       {
@@ -21118,7 +21118,7 @@
      "club_id": "olympique_lyon",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 87,
+     "historical_ovr": 84,
      "league_position": 4,
      "players": [
       {
@@ -22858,7 +22858,7 @@
      "club_id": "olympique_lyon",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 6,
      "players": [
       {
@@ -23552,7 +23552,7 @@
      "club_id": "olympique_lyon",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 6,
      "players": [
       {
@@ -24192,7 +24192,7 @@
      "club_id": "olympique_lyon",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 4,
      "players": [
       {
@@ -24842,7 +24842,7 @@
      "club_id": "losc_lille",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 2,
      "players": [
       {
@@ -25554,7 +25554,7 @@
      "club_id": "losc_lille",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 4,
      "players": [
       {
@@ -26356,7 +26356,7 @@
      "club_id": "losc_lille",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 1,
      "players": [
       {
@@ -27726,7 +27726,7 @@
      "club_id": "losc_lille",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 82,
      "league_position": 5,
      "players": [
       {
@@ -28294,7 +28294,7 @@
      "club_id": "losc_lille",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 4,
      "players": [
       {
@@ -28952,7 +28952,7 @@
      "club_id": "losc_lille",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 5,
      "players": [
       {
@@ -29556,7 +29556,7 @@
      "club_id": "losc_lille",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 3,
      "players": [
       {
@@ -30936,7 +30936,7 @@
      "club_id": "stade_rennais_fc",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 3,
      "players": [
       {
@@ -31594,7 +31594,7 @@
      "club_id": "stade_rennais_fc",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 6,
      "players": [
       {
@@ -32360,7 +32360,7 @@
      "club_id": "stade_rennais_fc",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -33072,7 +33072,7 @@
      "club_id": "stade_rennais_fc",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 4,
      "players": [
       {
@@ -34388,7 +34388,7 @@
      "club_id": "stade_rennais_fc",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 12,
      "players": [
       {
@@ -35624,7 +35624,7 @@
      "club_id": "rc_lens",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 7,
      "players": [
       {
@@ -36192,7 +36192,7 @@
      "club_id": "rc_lens",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 7,
      "players": [
       {
@@ -36832,7 +36832,7 @@
      "club_id": "rc_lens",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -37526,7 +37526,7 @@
      "club_id": "rc_lens",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 7,
      "players": [
       {
@@ -38896,7 +38896,7 @@
      "club_id": "rc_lens",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 2,
      "players": [
       {
@@ -41322,7 +41322,7 @@
      "club_id": "ogc_nice",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 5,
      "players": [
       {
@@ -41832,7 +41832,7 @@
       {
        "id": "pablo_rosario",
        "name": "Pablo Rosario",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1997,
        "primary_position": "CM",
        "secondary_positions": [],
@@ -41980,7 +41980,7 @@
      "club_id": "ogc_nice",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 81,
+     "historical_ovr": 80,
      "league_position": 9,
      "players": [
       {
@@ -42508,7 +42508,7 @@
       {
        "id": "pablo_rosario",
        "name": "Pablo Rosario",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1997,
        "primary_position": "CM",
        "secondary_positions": [],
@@ -42692,7 +42692,7 @@
      "club_id": "ogc_nice",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 5,
      "players": [
       {
@@ -43076,7 +43076,7 @@
       {
        "id": "pablo_rosario",
        "name": "Pablo Rosario",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1997,
        "primary_position": "CM",
        "secondary_positions": [],
@@ -43206,7 +43206,7 @@
      "club_id": "ogc_nice",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 4,
      "players": [
       {
@@ -43734,7 +43734,7 @@
       {
        "id": "pablo_rosario",
        "name": "Pablo Rosario",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1997,
        "primary_position": "CM",
        "secondary_positions": [],
@@ -43810,7 +43810,7 @@
      "club_id": "ogc_nice",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -44392,7 +44392,7 @@
       {
        "id": "pablo_rosario",
        "name": "Pablo Rosario",
-       "nationality": "Dominican Republic",
+       "nationality": "Dominican",
        "birth_year": 1997,
        "primary_position": "CM",
        "secondary_positions": [],
@@ -44496,7 +44496,7 @@
      "club_id": "fc_toulouse",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -45208,7 +45208,7 @@
      "club_id": "fc_toulouse",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 71,
+     "historical_ovr": 75,
      "league_position": 20,
      "players": [
       {
@@ -45830,7 +45830,7 @@
      "club_id": "fc_toulouse",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 13,
      "players": [
       {
@@ -46470,7 +46470,7 @@
      "club_id": "fc_toulouse",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 11,
      "players": [
       {
@@ -47110,7 +47110,7 @@
      "club_id": "fc_toulouse",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 10,
      "players": [
       {
@@ -48148,7 +48148,7 @@
      "club_id": "paris_fc",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 11,
      "players": [
       {
@@ -48510,7 +48510,7 @@
      "club_id": "fc_lorient",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 76,
+     "historical_ovr": 77,
      "league_position": 16,
      "players": [
       {
@@ -48988,7 +48988,7 @@
      "club_id": "fc_lorient",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -50088,7 +50088,7 @@
      "club_id": "fc_lorient",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 17,
      "players": [
       {
@@ -50692,7 +50692,7 @@
      "club_id": "fc_lorient",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 76,
+     "historical_ovr": 79,
      "league_position": 10,
      "players": [
       {
@@ -51694,7 +51694,7 @@
      "club_id": "fc_nantes",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 76,
+     "historical_ovr": 77,
      "league_position": 13,
      "players": [
       {
@@ -52262,7 +52262,7 @@
      "club_id": "fc_nantes",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 18,
      "players": [
       {
@@ -53290,7 +53290,7 @@
      "club_id": "fc_nantes",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -53930,7 +53930,7 @@
      "club_id": "fc_nantes",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 14,
      "players": [
       {
@@ -54714,7 +54714,7 @@
      "club_id": "fc_nantes",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 13,
      "players": [
       {
@@ -55426,7 +55426,7 @@
      "club_id": "fc_nantes",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 17,
      "players": [
       {
@@ -56076,7 +56076,7 @@
      "club_id": "aj_auxerre",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -56662,7 +56662,7 @@
      "club_id": "aj_auxerre",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 11,
      "players": [
       {
@@ -57194,7 +57194,7 @@
      "club_id": "aj_auxerre",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 15,
      "players": [
       {
@@ -57628,7 +57628,7 @@
      "club_id": "stade_brestois_29",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 74,
+     "historical_ovr": 76,
      "league_position": 14,
      "players": [
       {
@@ -58052,7 +58052,7 @@
      "club_id": "stade_brestois_29",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -59026,7 +59026,7 @@
      "club_id": "stade_brestois_29",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -59576,7 +59576,7 @@
      "club_id": "stade_brestois_29",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -60054,7 +60054,7 @@
      "club_id": "stade_brestois_29",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 81,
+     "historical_ovr": 80,
      "league_position": 9,
      "players": [
       {
@@ -60532,7 +60532,7 @@
      "club_id": "stade_brestois_29",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 12,
      "players": [
       {
@@ -61390,7 +61390,7 @@
      "club_id": "angers_sco",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 11,
      "players": [
       {
@@ -61976,7 +61976,7 @@
      "club_id": "angers_sco",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 13,
      "players": [
       {
@@ -62670,7 +62670,7 @@
      "club_id": "angers_sco",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -63292,7 +63292,7 @@
      "club_id": "angers_sco",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 74,
+     "historical_ovr": 76,
      "league_position": 20,
      "players": [
       {
@@ -63950,7 +63950,7 @@
      "club_id": "angers_sco",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 14,
      "players": [
       {
@@ -64428,7 +64428,7 @@
      "club_id": "angers_sco",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 13,
      "players": [
       {
@@ -64898,7 +64898,7 @@
      "club_id": "le_havre_ac",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 15,
      "players": [
       {
@@ -65628,7 +65628,7 @@
      "club_id": "le_havre_ac",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -66232,7 +66232,7 @@
      "club_id": "le_havre_ac",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -66810,7 +66810,7 @@
      "club_id": "fc_metz",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 74,
+     "historical_ovr": 76,
      "league_position": 15,
      "players": [
       {
@@ -67414,7 +67414,7 @@
      "club_id": "fc_metz",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 10,
      "players": [
       {
@@ -68000,7 +68000,7 @@
      "club_id": "fc_metz",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 72,
+     "historical_ovr": 75,
      "league_position": 19,
      "players": [
       {
@@ -68622,7 +68622,7 @@
      "club_id": "fc_metz",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 16,
      "players": [
       {
@@ -69262,7 +69262,7 @@
      "club_id": "fc_metz",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 74,
+     "historical_ovr": 76,
      "league_position": 18,
      "players": [
       {
@@ -69912,7 +69912,7 @@
      "club_id": "stade_reims",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 81,
+     "historical_ovr": 82,
      "league_position": 8,
      "players": [
       {
@@ -71084,7 +71084,7 @@
      "club_id": "stade_reims",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -71670,7 +71670,7 @@
      "club_id": "stade_reims",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 12,
      "players": [
       {
@@ -73716,7 +73716,7 @@
      "club_id": "stade_reims",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -74384,7 +74384,7 @@
      "club_id": "as_saint_etienne",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 4,
      "players": [
       {
@@ -75078,7 +75078,7 @@
      "club_id": "as_saint_etienne",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 71,
+     "historical_ovr": 75,
      "league_position": 17,
      "players": [
       {
@@ -75862,7 +75862,7 @@
      "club_id": "as_saint_etienne",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 11,
      "players": [
       {
@@ -76700,7 +76700,7 @@
      "club_id": "as_saint_etienne",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 18,
      "players": [
       {
@@ -77538,7 +77538,7 @@
      "club_id": "as_saint_etienne",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 17,
      "players": [
       {
@@ -78062,7 +78062,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 6,
      "players": [
       {
@@ -78630,7 +78630,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 8,
      "players": [
       {
@@ -79234,7 +79234,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 8,
      "players": [
       {
@@ -79802,7 +79802,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 13,
      "players": [
       {
@@ -80388,7 +80388,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 12,
      "players": [
       {
@@ -81082,7 +81082,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 12,
      "players": [
       {
@@ -81740,7 +81740,7 @@
      "club_id": "montpellier_hsc",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 18,
      "players": [
       {
@@ -82408,7 +82408,7 @@
      "club_id": "clermont_foot_63",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 17,
      "players": [
       {
@@ -82940,7 +82940,7 @@
      "club_id": "clermont_foot_63",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 8,
      "players": [
       {
@@ -83364,7 +83364,7 @@
      "club_id": "clermont_foot_63",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 18,
      "players": [
       {
@@ -83906,7 +83906,7 @@
      "club_id": "estac_troyes",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 76,
+     "historical_ovr": 77,
      "league_position": 15,
      "players": [
       {
@@ -84636,7 +84636,7 @@
      "club_id": "estac_troyes",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 19,
      "players": [
       {
@@ -85214,7 +85214,7 @@
      "club_id": "ac_ajaccio",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 72,
+     "historical_ovr": 75,
      "league_position": 18,
      "players": [
       {
@@ -85666,7 +85666,7 @@
      "club_id": "fc_girondins_bordeaux",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 76,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -86342,7 +86342,7 @@
      "club_id": "fc_girondins_bordeaux",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 75,
+     "historical_ovr": 78,
      "league_position": 12,
      "players": [
       {
@@ -86982,7 +86982,7 @@
      "club_id": "fc_girondins_bordeaux",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 12,
      "players": [
       {
@@ -87586,7 +87586,7 @@
      "club_id": "fc_girondins_bordeaux",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 20,
      "players": [
       {
@@ -88470,7 +88470,7 @@
      "club_id": "dijon_fco",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 18,
      "players": [
       {
@@ -88948,7 +88948,7 @@
      "club_id": "dijon_fco",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 16,
      "players": [
       {
@@ -89498,7 +89498,7 @@
      "club_id": "dijon_fco",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 72,
+     "historical_ovr": 76,
      "league_position": 20,
      "players": [
       {
@@ -90608,7 +90608,7 @@
      "club_id": "nimes_olympique",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 18,
      "players": [
       {
@@ -91140,7 +91140,7 @@
      "club_id": "nimes_olympique",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 19,
      "players": [
       {
@@ -91736,7 +91736,7 @@
      "club_id": "amiens_sc",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -92232,7 +92232,7 @@
      "club_id": "amiens_sc",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 72,
+     "historical_ovr": 75,
      "league_position": 19,
      "players": [
       {
@@ -92882,7 +92882,7 @@
      "club_id": "ea_guingamp",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 73,
+     "historical_ovr": 76,
      "league_position": 20,
      "players": [
       {
@@ -93442,7 +93442,7 @@
      "club_id": "sm_caen",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 74,
+     "historical_ovr": 76,
      "league_position": 19,
      "players": [
       {

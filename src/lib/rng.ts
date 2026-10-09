@@ -1,3 +1,4 @@
+import { pexp } from './pmath'
 // Deterministic seeded RNG (mulberry32) — powers the deep match-stat
 // generator. Same seed → byte-identical output stream, on every platform,
 // forever. See docs/"Next Up - Deep Match Stats & Ratings.md" §2/§7: matches
@@ -66,7 +67,7 @@ export function rngInt(rng: Rng, lo: number, hi: number): number {
 
 export function rngPoisson(rng: Rng, lambda: number): number {
   if (lambda <= 0) return 0
-  const L = Math.exp(-lambda)
+  const L = pexp(-lambda)
   let k = 0, p = 1
   do { k++; p *= rng() } while (p > L)
   return k - 1

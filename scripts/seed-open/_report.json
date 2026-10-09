@@ -1,5 +1,5 @@
 {
- "built": "2026-09-30T21:38:07.004Z",
+ "built": "2026-10-08T12:40:06.174Z",
  "coverage": [
   {
    "league": "premier_league",
@@ -8449,7 +8449,7 @@
    "season": 2025,
    "club": "Feyenoord Rotterdam",
    "before": 0,
-   "after": 30,
+   "after": 29,
    "wikipedia": "Feyenoord",
    "full": 27,
    "partial": 2,
@@ -8460,7 +8460,7 @@
    "season": 2025,
    "club": "NEC Nijmegen",
    "before": 0,
-   "after": 30,
+   "after": 26,
    "wikipedia": "NEC Nijmegen",
    "full": 23,
    "partial": 0,
@@ -8471,7 +8471,7 @@
    "season": 2025,
    "club": "FC Twente Enschede",
    "before": 0,
-   "after": 28,
+   "after": 27,
    "wikipedia": "FC Twente",
    "full": 24,
    "partial": 2,
@@ -8493,7 +8493,7 @@
    "season": 2025,
    "club": "FC Utrecht",
    "before": 0,
-   "after": 30,
+   "after": 28,
    "wikipedia": "FC Utrecht",
    "full": 26,
    "partial": 0,
@@ -8515,7 +8515,7 @@
    "season": 2025,
    "club": "SC Heerenveen",
    "before": 0,
-   "after": 24,
+   "after": 22,
    "wikipedia": "SC Heerenveen",
    "full": 13,
    "partial": 7,
@@ -8526,7 +8526,7 @@
    "season": 2025,
    "club": "FC Groningen",
    "before": 0,
-   "after": 26,
+   "after": 21,
    "wikipedia": "FC Groningen",
    "full": 13,
    "partial": 8,
@@ -8537,7 +8537,7 @@
    "season": 2025,
    "club": "Sparta Rotterdam",
    "before": 0,
-   "after": 24,
+   "after": 21,
    "wikipedia": "Sparta Rotterdam",
    "full": 19,
    "partial": 2,
@@ -8548,7 +8548,7 @@
    "season": 2025,
    "club": "Fortuna Sittard",
    "before": 0,
-   "after": 22,
+   "after": 20,
    "wikipedia": "Fortuna Sittard",
    "full": 10,
    "partial": 9,
@@ -8559,7 +8559,7 @@
    "season": 2025,
    "club": "Go Ahead Eagles",
    "before": 0,
-   "after": 29,
+   "after": 25,
    "wikipedia": "Go Ahead Eagles",
    "full": 21,
    "partial": 0,
@@ -8570,7 +8570,7 @@
    "season": 2025,
    "club": "Excelsior Rotterdam",
    "before": 0,
-   "after": 25,
+   "after": 19,
    "wikipedia": "Excelsior Rotterdam",
    "full": 12,
    "partial": 6,
@@ -8581,7 +8581,7 @@
    "season": 2025,
    "club": "SC Telstar",
    "before": 0,
-   "after": 27,
+   "after": 21,
    "wikipedia": "SC Telstar",
    "full": 15,
    "partial": 2,
@@ -8592,7 +8592,7 @@
    "season": 2025,
    "club": "PEC Zwolle",
    "before": 0,
-   "after": 26,
+   "after": 22,
    "wikipedia": "PEC Zwolle",
    "full": 14,
    "partial": 7,
@@ -11412,7 +11412,7 @@
    "season": 2025,
    "club": "FK Gabala",
    "before": 0,
-   "after": 28,
+   "after": 26,
    "wikipedia": "Qabala İK",
    "full": 10,
    "partial": 0,
@@ -12220,7 +12220,7 @@
    "season": 2025,
    "club": "Alashkert Yerevan FC",
    "before": 0,
-   "after": 26,
+   "after": 25,
    "wikipedia": "FC Alashkert",
    "full": 2,
    "partial": 7,
@@ -12275,7 +12275,7 @@
    "season": 2025,
    "club": "FC Ararat Yerevan",
    "before": 0,
-   "after": 28,
+   "after": 27,
    "wikipedia": "FC Ararat Yerevan",
    "full": 0,
    "partial": 4,
@@ -12998,7 +12998,7 @@
    "season": 2025,
    "club": "FC Sheriff Tiraspol",
    "before": 0,
-   "after": 28,
+   "after": 27,
    "wikipedia": "FC Sheriff Tiraspol",
    "full": 3,
    "partial": 8,
@@ -13042,7 +13042,7 @@
    "season": 2025,
    "club": "Politehnica UTM Сhișinău",
    "before": 0,
-   "after": 20,
+   "after": 19,
    "wikipedia": "FC Politehnica UTM Chișinău",
    "full": 0,
    "partial": 1,
@@ -14523,7 +14523,7 @@
    "season": 2025,
    "club": "Penya Encarnada d'Andorra",
    "before": 0,
-   "after": 23,
+   "after": 22,
    "wikipedia": "Penya Encarnada d'Andorra",
    "full": 0,
    "partial": 6,
@@ -14609,7 +14609,7 @@
    "season": 2025,
    "club": "Dinamo Tbilisi",
    "before": 0,
-   "after": 37,
+   "after": 34,
    "wikipedia": "FC Dinamo Tbilisi",
    "full": 4,
    "partial": 12,
@@ -14964,7 +14964,7 @@
    "season": 2025,
    "club": "Tre Fiori FC",
    "before": 0,
-   "after": 24,
+   "after": 23,
    "wikipedia": "Tre Fiori FC",
    "full": 0,
    "partial": 4,
@@ -15338,16 +15338,16 @@
    "season": 2024,
    "club": "Sporting CP",
    "before": 0,
-   "after": 33,
-   "wikipedia": "Lille OSC"
+   "after": 36,
+   "wikipedia": "Sporting CP"
   },
   {
    "league": "ucl_2025",
    "season": 2025,
    "club": "Sporting CP",
    "before": 0,
-   "after": 31,
-   "wikipedia": "Lille OSC"
+   "after": 29,
+   "wikipedia": "Sporting CP"
   },
   {
    "league": "ucl_2025",
@@ -15490,8 +15490,8 @@
    "season": 2025,
    "club": "Athletic Bilbao",
    "before": 0,
-   "after": 28,
-   "wikipedia": "AFC Bournemouth"
+   "after": 29,
+   "wikipedia": "Athletic Bilbao"
   },
   {
    "league": "ucl_2025",
@@ -15515,7 +15515,7 @@
    "club": "Union Saint-Gilloise",
    "before": 0,
    "after": 26,
-   "wikipedia": "1. FC Union Berlin"
+   "wikipedia": "Royale Union Saint-Gilloise"
   },
   {
    "league": "ucl_2025",
@@ -15563,7 +15563,7 @@
    "club": "Kairat Almaty",
    "before": 0,
    "after": 27,
-   "wikipedia": "Knattspyrnufélag Akureyrar"
+   "wikipedia": "FC Kairat"
   },
   {
    "league": "ucl_2025",
@@ -15578,8 +15578,8 @@
    "season": 2024,
    "club": "RB Leipzig",
    "before": 0,
-   "after": 36,
-   "wikipedia": "Real Betis"
+   "after": 30,
+   "wikipedia": "RB Leipzig"
   },
   {
    "league": "ucl_2025",
@@ -15634,8 +15634,8 @@
    "season": 2024,
    "club": "Red Bull Salzburg",
    "before": 0,
-   "after": 31,
-   "wikipedia": "Manchester United F.C."
+   "after": 39,
+   "wikipedia": "FC Red Bull Salzburg"
   },
   {
    "league": "ucl_2025",
@@ -15643,23 +15643,23 @@
    "club": "Celtic FC",
    "before": 0,
    "after": 29,
-   "wikipedia": "RC Celta de Vigo"
+   "wikipedia": "Celtic F.C."
   },
   {
    "league": "ucl_2025",
    "season": 2024,
    "club": "Girona FC",
    "before": 0,
-   "after": 27,
-   "wikipedia": "West Ham United F.C."
+   "after": 29,
+   "wikipedia": "Girona FC"
   },
   {
    "league": "ucl_2025",
    "season": 2024,
    "club": "Red Star Belgrade",
    "before": 0,
-   "after": 31,
-   "wikipedia": "Manchester United F.C."
+   "after": 35,
+   "wikipedia": "Red Star Belgrade"
   },
   {
    "league": "ucl_2025",
@@ -15674,16 +15674,16 @@
    "season": 2024,
    "club": "AC Sparta Prague",
    "before": 0,
-   "after": 35,
-   "wikipedia": "Sparta Rotterdam"
+   "after": 29,
+   "wikipedia": "AC Sparta Prague"
   },
   {
    "league": "ucl_2025",
    "season": 2024,
    "club": "GNK Dinamo Zagreb",
    "before": 0,
-   "after": 27,
-   "wikipedia": "FC Dinamo București"
+   "after": 36,
+   "wikipedia": "GNK Dinamo Zagreb"
   },
   {
    "league": "ucl_2025",
@@ -15691,7 +15691,7 @@
    "club": "BSC Young Boys",
    "before": 0,
    "after": 32,
-   "wikipedia": "Ipswich Town F.C."
+   "wikipedia": "BSC Young Boys"
   },
   {
    "league": "ucl_2025",
@@ -15706,8 +15706,8 @@
    "season": 2024,
    "club": "Slovan Bratislava",
    "before": 0,
-   "after": 30,
-   "wikipedia": "FC Slovan Liberec"
+   "after": 27,
+   "wikipedia": "ŠK Slovan Bratislava"
   },
   {
    "league": "uel_2025",
@@ -15730,15 +15730,15 @@
    "season": 2025,
    "club": "Rangers FC",
    "before": 0,
-   "after": 25,
-   "wikipedia": "Angers SCO"
+   "after": 28,
+   "wikipedia": "Rangers F.C."
   },
   {
    "league": "uel_2025",
    "season": 2025,
    "club": "Feyenoord Rotterdam",
    "before": 0,
-   "after": 30,
+   "after": 29,
    "wikipedia": "Feyenoord"
   },
   {
@@ -15754,8 +15754,8 @@
    "season": 2025,
    "club": "GNK Dinamo Zagreb",
    "before": 0,
-   "after": 27,
-   "wikipedia": "FC Dinamo București"
+   "after": 30,
+   "wikipedia": "GNK Dinamo Zagreb"
   },
   {
    "league": "uel_2025",
@@ -15770,8 +15770,8 @@
    "season": 2025,
    "club": "Red Bull Salzburg",
    "before": 0,
-   "after": 27,
-   "wikipedia": "Manchester United F.C."
+   "after": 30,
+   "wikipedia": "FC Red Bull Salzburg"
   },
   {
    "league": "uel_2025",
@@ -15802,8 +15802,8 @@
    "season": 2025,
    "club": "Red Star Belgrade",
    "before": 0,
-   "after": 27,
-   "wikipedia": "Manchester United F.C."
+   "after": 33,
+   "wikipedia": "Red Star Belgrade"
   },
   {
    "league": "uel_2025",
@@ -15834,16 +15834,16 @@
    "season": 2025,
    "club": "Ferencvárosi TC",
    "before": 0,
-   "after": 27,
-   "wikipedia": "Manchester City F.C."
+   "after": 37,
+   "wikipedia": "Ferencvárosi TC"
   },
   {
    "league": "uel_2025",
    "season": 2025,
    "club": "Celtic FC",
    "before": 0,
-   "after": 26,
-   "wikipedia": "RC Celta de Vigo"
+   "after": 29,
+   "wikipedia": "Celtic F.C."
   },
   {
    "league": "uel_2025",
@@ -15866,8 +15866,8 @@
    "season": 2025,
    "club": "FC Basel 1893",
    "before": 0,
-   "after": 27,
-   "wikipedia": "VfB Stuttgart"
+   "after": 26,
+   "wikipedia": "FC Basel"
   },
   {
    "league": "uel_2025",
@@ -15914,8 +15914,8 @@
    "season": 2025,
    "club": "FCSB",
    "before": 0,
-   "after": 25,
-   "wikipedia": "FC St. Pauli"
+   "after": 30,
+   "wikipedia": "FCSB"
   },
   {
    "league": "uel_2025",
@@ -15970,15 +15970,15 @@
    "season": 2025,
    "club": "Go Ahead Eagles",
    "before": 0,
-   "after": 29,
-   "wikipedia": "Crystal Palace F.C."
+   "after": 25,
+   "wikipedia": "Go Ahead Eagles"
   },
   {
    "league": "uel_2025",
    "season": 2025,
    "club": "FC Utrecht",
    "before": 0,
-   "after": 30,
+   "after": 28,
    "wikipedia": "FC Utrecht"
   },
   {
@@ -16027,7 +16027,7 @@
    "club": "Slovan Bratislava",
    "before": 0,
    "after": 30,
-   "wikipedia": "FC Slovan Liberec"
+   "wikipedia": "ŠK Slovan Bratislava"
   },
   {
    "league": "uecl_2025",
@@ -16050,8 +16050,8 @@
    "season": 2025,
    "club": "AC Sparta Prague",
    "before": 0,
-   "after": 24,
-   "wikipedia": "Sparta Rotterdam"
+   "after": 29,
+   "wikipedia": "AC Sparta Prague"
   },
   {
    "league": "uecl_2025",
@@ -16155,15 +16155,15 @@
    "club": "Lincoln Red Imps FC",
    "before": 0,
    "after": 27,
-   "wikipedia": "Manchester United F.C."
+   "wikipedia": "Lincoln Red Imps F.C."
   },
   {
    "league": "uecl_2025",
    "season": 2025,
    "club": "Kuopion Palloseura",
    "before": 0,
-   "after": 30,
-   "wikipedia": "Legia Warsaw"
+   "after": 31,
+   "wikipedia": "Kuopion Palloseura"
   },
   {
    "league": "uecl_2025",
@@ -16178,8 +16178,8 @@
    "season": 2025,
    "club": "Aberdeen FC",
    "before": 0,
-   "after": 26,
-   "wikipedia": "FC Fredericia"
+   "after": 27,
+   "wikipedia": "Aberdeen F.C."
   },
   {
    "league": "uecl_2025",
@@ -16226,16 +16226,16 @@
    "season": 2025,
    "club": "AEK Larnaca",
    "before": 0,
-   "after": 29,
-   "wikipedia": "AEK Athens F.C."
+   "after": 30,
+   "wikipedia": "AEK Larnaca FC"
   },
   {
    "league": "uecl_2025",
    "season": 2025,
    "club": "Shkendija Tetovo",
    "before": 0,
-   "after": 25,
-   "wikipedia": "FC St. Pauli"
+   "after": 26,
+   "wikipedia": "KF Shkëndija"
   },
   {
    "league": "uecl_2025",
@@ -16250,8 +16250,8 @@
    "season": 2025,
    "club": "FC Lausanne-Sport",
    "before": 0,
-   "after": 30,
-   "wikipedia": "SS Lazio"
+   "after": 28,
+   "wikipedia": "FC Lausanne-Sport"
   },
   {
    "league": "uecl_2025",
@@ -18759,7 +18759,7 @@
       "age": 0,
       "ovr": 81
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 85,
       "defense": 41,
@@ -24122,7 +24122,7 @@
       "age": -0.44526315789473686,
       "ovr": 82
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 74,
       "defense": 82,
@@ -32181,7 +32181,7 @@
       "age": 0,
       "ovr": 80
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 84,
       "defense": 40,
@@ -32956,7 +32956,7 @@
       "age": 0,
       "ovr": 84
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 76,
       "defense": 84,
@@ -48705,7 +48705,7 @@
       "age": 0,
       "ovr": 82
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 86,
       "defense": 42,
@@ -49666,7 +49666,7 @@
       "age": 0,
       "ovr": 79
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 71,
       "defense": 79,
@@ -64311,7 +64311,7 @@
       "age": 0,
       "ovr": 80
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 84,
       "defense": 40,
@@ -64745,7 +64745,7 @@
       "age": -3.3726315789473684,
       "ovr": 76
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 76,
       "defense": 40,
@@ -82563,7 +82563,7 @@
       "age": 0,
       "ovr": 79
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 83,
       "defense": 40,
@@ -89557,7 +89557,7 @@
       "age": -3.296842105263158,
       "ovr": 71
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 71,
       "defense": 40,
@@ -105918,7 +105918,7 @@
       "age": -0.663157894736842,
       "ovr": 81
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 81,
       "defense": 40,
@@ -109283,7 +109283,7 @@
       "age": 0,
       "ovr": 73
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 77,
       "defense": 40,
@@ -125584,7 +125584,7 @@
       "age": -0.5778947368421052,
       "ovr": 76
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 76,
       "defense": 40,
@@ -134964,7 +134964,7 @@
       "age": 0,
       "ovr": 80
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 72,
       "defense": 80,
@@ -141477,7 +141477,7 @@
       "age": 0,
       "ovr": 74
      },
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "attrs": {
       "attack": 78,
       "defense": 40,
@@ -146170,19 +146170,11 @@
    "players": 2
   }
  ],
- "proxied": [
-  {
-   "club": "Slovan Bratislava",
-   "season": 2024,
-   "from": "2025-26 squad",
-   "found": 15
-  }
- ],
  "colours": {
-  "fromOpenData": 913,
-  "kit": 871,
-  "wikidata": 42,
-  "gap": 70,
+  "fromOpenData": 915,
+  "kit": 874,
+  "wikidata": 41,
+  "gap": 68,
   "gapClubs": [
    {
     "club": "FC St. Pauli",
@@ -146193,8 +146185,8 @@
     "qid": "Q1886"
    },
    {
-    "club": "Celtic FC",
-    "qid": "Q8749"
+    "club": "Red Star Belgrade",
+    "qid": "Q173009"
    },
    {
     "club": "NK Celje",
@@ -146203,10 +146195,6 @@
    {
     "club": "HNK Rijeka",
     "qid": "Q318969"
-   },
-   {
-    "club": "Shkendija Tetovo",
-    "qid": "Q6463"
    },
    {
     "club": "FC Noah Yerevan",
@@ -146357,10 +146345,6 @@
     "qid": "Q629843"
    },
    {
-    "club": "Red Star Belgrade",
-    "qid": "Q173009"
-   },
-   {
     "club": "FK Partizan Belgrade",
     "qid": "Q188656"
    },
@@ -146395,10 +146379,6 @@
    {
     "club": "Briton Ferry Llansawel",
     "qid": "Q4971508"
-   },
-   {
-    "club": "FCSB",
-    "qid": "Q6463"
    },
    {
     "club": "Clermont Foot 63",

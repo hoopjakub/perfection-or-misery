@@ -4,7 +4,7 @@ import { log } from '@/diag/log'
 import { t, LOCALE } from '@/i18n'
 import { View, FlatList, TextInput, Platform, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
-import { KitScreen, KitText, BackControl, StripedNotice, Icon, KeyboardSafe, GhostRows } from '@/components/kit'
+import { KitScreen, KitText, BackControl, StripedNotice, Icon, GhostRows } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { Avatar } from '@/components/profile/ProfileParts'
 import { ClubTag } from '@/components/ClubParts'
@@ -103,7 +103,8 @@ export default function ClubChatScreen() {
       {state === 'failed' && <StripedNotice roles={roles} failed>{t('clubs.chatFailed')}</StripedNotice>}
       {state === 'outside' && <StripedNotice roles={roles}>{t('clubs.outside')}</StripedNotice>}
       {state === 'ready' && (
-        <KeyboardSafe>
+        // The screen keeps the composer above the keyboard (KitScreen, R3-02).
+        <View style={styles.fill}>
           <FlatList
             ref={list}
             style={styles.fill}
@@ -153,7 +154,7 @@ export default function ClubChatScreen() {
               <Icon name="forward" size={20} color={draft.trim() ? prim.ink : roles.textMuted} />
             </Pressable>
           </View>
-        </KeyboardSafe>
+        </View>
       )}
     </KitScreen>
   )

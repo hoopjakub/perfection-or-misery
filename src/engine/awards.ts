@@ -16,6 +16,7 @@
  * Pure and deterministic: inputs in any order, the same night out.
  */
 
+import { cmpStr, ppow } from '@/lib/pmath'
 import { t, dec } from '../i18n'
 import type { AwardCandidate, CompetitionStats, SeasonAwards } from '@/types/stats'
 import { seasonWord, isTournament } from '../data/competition'
@@ -43,7 +44,7 @@ export function lineOf(position: string): Line {
 // Ties always break on id, so the night is the same whatever order the
 // candidates arrive in.
 const byThenId = <T extends { id: string }>(score: (x: T) => number) =>
-  (a: T, b: T) => score(b) - score(a) || a.id.localeCompare(b.id)
+  (a: T, b: T) => score(b) - score(a) || cmpStr(a.id, b.id)
 
 // ── Picking a team in its best shape ─────────────────────────────────────────
 export type Pick = {
@@ -82,7 +83,7 @@ function fillFormation(formation: Formation, pool: Pick[]): { xi: PickedTeam['xi
       if (fit > 0) pairs.push({ slot, player, value: player.score * fit })
     }
   }
-  pairs.sort((a, b) => b.value - a.value || a.slot.slotIndex - b.slot.slotIndex || a.player.id.localeCompare(b.player.id))
+  pairs.sort((a, b) => b.value - a.value || a.slot.slotIndex - b.slot.slotIndex || cmpStr(a.player.id, b.player.id))
   const usedSlot = new Set<number>(), usedPlayer = new Set<string>()
   const xi: PickedTeam['xi'] = []
   let total = 0
@@ -120,11 +121,12 @@ export function pickTeam(all: Pick[], keeperId?: string): PickedTeam | null {
   if (all.length === 0) return null
   const pool = keeperId && all.some(p => p.id === keeperId) ? all.filter(p => lineOf(p.position) !== 'GK' || p.id === keeperId) : all
   const byPosition = new Map<string, Pick[]>()
-  for (const p of pool) byPosition.set(p.position, [...(byPosition.get(p.position) ?? []), p])
+  // Lines filled by push: a copy per player made a round of 500 quadratic (Phase 9.75).
+  for (const p of pool) { const l = byPosition.get(p.position); if (l) l.push(p); else byPosition.set(p.position, [p]) }
   const shortlisted = [...byPosition.values()].flatMap(list => [...list].sort(byThenId<Pick>(x => x.score)).slice(0, SHORTLIST_PER_POSITION))
 
   const byLine = new Map<Line, number[]>()
-  for (const p of pool) byLine.set(lineOf(p.position), [...(byLine.get(lineOf(p.position)) ?? []), p.score])
+  for (const p of pool) { const k = lineOf(p.position), l = byLine.get(k); if (l) l.push(p.score); else byLine.set(k, [p.score]) }
   const baseline = new Map<Line, number>()
   for (const [line, scores] of byLine) {
     const top = scores.sort((a, b) => b - a).slice(0, LINE_STARTERS[line])
@@ -230,7 +232,7 @@ function decide(def: AwardDef, candidates: AwardCandidate[]): PlayerAward | null
     .sort((a, b) => def.value(b) - def.value(a)
       || (def.tiebreak ? def.tiebreak(b) - def.tiebreak(a) : 0)
       || b.score - a.score
-      || a.playerId.localeCompare(b.playerId))
+      || cmpStr(a.playerId, b.playerId))
   if (!ranked.length) return null
   return { key: def.key, title: def.title, how: def.how, winner: ranked[0], runnersUp: ranked.slice(1, 4), headline: def.headline }
 }
@@ -301,13 +303,13 @@ function clubAwards(stats: CompetitionStats, clubs: ClubRow[], playerClubId?: st
   const teams = [...stats.teams]
   const name = (id: string) => teams.find(t => t.clubId === id)?.clubName ?? clubs.find(c => c.clubId === id)?.clubName ?? ''
   if (teams.length) {
-    const attack = [...teams].sort((a, b) => b.goalsFor - a.goalsFor || a.goalsAgainst - b.goalsAgainst || a.clubId.localeCompare(b.clubId))
+    const attack = [...teams].sort((a, b) => b.goalsFor - a.goalsFor || a.goalsAgainst - b.goalsAgainst || cmpStr(a.clubId, b.clubId))
     if (attack[0].goalsFor > 0) out.push({
       key: 'attack', title: 'Best attack', how: 'Most goals scored.',
       winner: { clubId: attack[0].clubId, clubName: attack[0].clubName, isPlayerClub: attack[0].clubId === playerClubId, headline: plural(attack[0].goalsFor, 'goal') },
       runnersUp: attack.slice(1, 4).map(c => ({ clubName: c.clubName, headline: plural(c.goalsFor, 'goal') })),
     })
-    const defence = [...teams].sort((a, b) => a.goalsAgainst - b.goalsAgainst || b.cleanSheets - a.cleanSheets || a.clubId.localeCompare(b.clubId))
+    const defence = [...teams].sort((a, b) => a.goalsAgainst - b.goalsAgainst || b.cleanSheets - a.cleanSheets || cmpStr(a.clubId, b.clubId))
     out.push({
       key: 'defence', title: 'Best defence', how: 'Fewest goals conceded. Level, the most clean sheets.',
       winner: { clubId: defence[0].clubId, clubName: defence[0].clubName, isPlayerClub: defence[0].clubId === playerClubId, headline: plural(defence[0].goalsAgainst, 'conceded') },
@@ -318,7 +320,7 @@ function clubAwards(stats: CompetitionStats, clubs: ClubRow[], playerClubId?: st
   if (judged.length) {
     const n = Math.max(judged.length, ...judged.map(c => Math.max(c.finalPosition, c.predicted ?? 0)))
     const score = (c: ClubRow) => managerScore(c, n, stars.get(c.clubId) ?? 0)
-    const ranked = [...judged].sort((a, b) => score(b) - score(a) || a.finalPosition - b.finalPosition || a.clubId.localeCompare(b.clubId))
+    const ranked = [...judged].sort((a, b) => score(b) - score(a) || a.finalPosition - b.finalPosition || cmpStr(a.clubId, b.clubId))
     const line = (c: ClubRow) => {
       const s = stars.get(c.clubId) ?? 0
       const tip = c.stage ? t('awards.managerLineCup', { tipped: c.stage.tippedLabel, reached: c.stage.reachedLabel }) : t('awards.managerLine', { tipped: c.predicted, finished: c.finalPosition })
@@ -368,27 +370,14 @@ export type AwardsInput = {
   managerName?: string
 }
 
-export function buildAwardsNight(input: AwardsInput): AwardsNight {
-  const cup = isTournament(input.mode)
-  const candidates = [...input.awards.playerOfTheSeason].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
-
-  // P8-155: judged against his own position's field, not everyone's.
-  const potsOrder = evenLines(candidates)
-  const pots: PlayerAward | null = potsOrder.length
-    ? { key: 'pots', title: 'Player of the season', how: 'The best season by the scoring model, judged against his own position: every number below, carried by how hard the club had it.',
-        winner: potsOrder[0], runnersUp: potsOrder.slice(1, 4), headline: c => t(cup ? 'awards.scoreTournament' : 'awards.scoreSeason', { n: c.score }) }
-    : null
-  const u21s = [...input.awards.bestU21].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
-  const u21: PlayerAward | null = u21s.length
-    ? { key: 'u21', title: 'Best under-21', how: 'The best season score by a player aged 21 or under.',
-        winner: u21s[0], runnersUp: u21s.slice(1, 4), headline: c => t(cup ? 'awards.scoreTournament' : 'awards.scoreSeason', { n: c.score }) + (c.age != null ? t('awards.aged', { age: c.age }) : '') }
-    : null
-
-  // Defender of the season ranks on defending evened out by position (P8-36).
-  const even = evenDefenders(candidates)
-  const players = PLAYER_AWARDS.map(d => decide(d, d.key === 'defender' ? even : candidates)).filter((a): a is PlayerAward => !!a)
-
-  const teamsOfTheRound: RoundTeam[] = (input.rounds ?? []).map(r => {
+// P9.75 (the release readings: the Teams tab 668–900 ms on the phone): the
+// team of every round depends on the round lines alone, and six screens built
+// it again from the same run (three on one result screen). Kept per run.
+const roundTeamsCache = new WeakMap<object, RoundTeam[]>()
+function teamsForRounds(rounds: NonNullable<AwardsInput['rounds']>): RoundTeam[] {
+  const hit = roundTeamsCache.get(rounds)
+  if (hit) return hit
+  const out: RoundTeam[] = rounds.map(r => {
     // One entry per player per round (a two-legged round never lists anyone twice).
     const best = new Map<string, Pick>()
     for (const l of r.lines) {
@@ -398,6 +387,31 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
     const team = pickTeam([...best.values()])
     return team ? { label: r.label, team } : null
   }).filter((x): x is RoundTeam => !!x)
+  roundTeamsCache.set(rounds, out)
+  return out
+}
+
+export function buildAwardsNight(input: AwardsInput): AwardsNight {
+  const cup = isTournament(input.mode)
+  const candidates = [...input.awards.playerOfTheSeason].sort((a, b) => b.score - a.score || cmpStr(a.playerId, b.playerId))
+
+  // P8-155: judged against his own position's field, not everyone's.
+  const potsOrder = evenLines(candidates)
+  const pots: PlayerAward | null = potsOrder.length
+    ? { key: 'pots', title: 'Player of the season', how: 'The best season by the scoring model, judged against his own position: every number below, carried by how hard the club had it.',
+        winner: potsOrder[0], runnersUp: potsOrder.slice(1, 4), headline: c => t(cup ? 'awards.scoreTournament' : 'awards.scoreSeason', { n: c.score }) }
+    : null
+  const u21s = [...input.awards.bestU21].sort((a, b) => b.score - a.score || cmpStr(a.playerId, b.playerId))
+  const u21: PlayerAward | null = u21s.length
+    ? { key: 'u21', title: 'Best under-21', how: 'The best season score by a player aged 21 or under.',
+        winner: u21s[0], runnersUp: u21s.slice(1, 4), headline: c => t(cup ? 'awards.scoreTournament' : 'awards.scoreSeason', { n: c.score }) + (c.age != null ? t('awards.aged', { age: c.age }) : '') }
+    : null
+
+  // Defender of the season ranks on defending evened out by position (P8-36).
+  const even = evenDefenders(candidates)
+  const players = PLAYER_AWARDS.map(d => decide(d, d.key === 'defender' ? even : candidates)).filter((a): a is PlayerAward => !!a)
+
+  const teamsOfTheRound: RoundTeam[] = input.rounds ? teamsForRounds(input.rounds) : []
 
   // The regular of those teams: most selections, then the better average.
   if (teamsOfTheRound.length > 1) {
@@ -405,7 +419,7 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
     for (const r of teamsOfTheRound) for (const x of r.team.xi) count.set(x.player.id, (count.get(x.player.id) ?? 0) + 1)
     const regular = candidates
       .filter(c => (count.get(c.playerId) ?? 0) > 0)
-      .sort((a, b) => (count.get(b.playerId)! - count.get(a.playerId)!) || (b.avgRating ?? 0) - (a.avgRating ?? 0) || a.playerId.localeCompare(b.playerId))
+      .sort((a, b) => (count.get(b.playerId)! - count.get(a.playerId)!) || (b.avgRating ?? 0) - (a.avgRating ?? 0) || cmpStr(a.playerId, b.playerId))
     if (regular.length) players.push({
       key: 'totr', title: 'Team of the matchday regular', how: 'Picked in the team of the matchday most often.',
       winner: regular[0], runnersUp: regular.slice(1, 4),
@@ -450,7 +464,7 @@ export function buildAwardsNight(input: AwardsInput): AwardsNight {
 // rounds it played; measured on the same scoring model, over qualifying alone.
 function qualifyingAwards(cands?: AwardCandidate[]): AwardsNight['qualifying'] {
   if (!cands?.length) return undefined
-  const ranked = [...cands].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  const ranked = [...cands].sort((a, b) => b.score - a.score || cmpStr(a.playerId, b.playerId))
   return {
     player: {
       key: 'qualifying', title: t('awards.k.qualifying.title'),
@@ -508,7 +522,7 @@ function evenLines(candidates: AwardCandidate[]): AwardCandidate[] {
   for (const line of ['GK', 'DEF', 'MID', 'FWD']) {
     const xs = regulars.filter(c => lineOf(c.position) === line).map(c => c.score)
     const mean = xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length)
-    const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, xs.length))
+    const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) * (b - mean), 0) / Math.max(1, xs.length))
     stat.set(line, { mean, sd })
   }
   const z = (c: AwardCandidate) => {
@@ -519,9 +533,9 @@ function evenLines(candidates: AwardCandidate[]): AwardCandidate[] {
   // against everyone's (both as z-scores, so they add up).
   const all = regulars.map(c => c.score)
   const mean = all.reduce((a, b) => a + b, 0) / Math.max(1, all.length)
-  const sd = Math.sqrt(all.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, all.length)) || 1
+  const sd = Math.sqrt(all.reduce((a, b) => a + (b - mean) * (b - mean), 0) / Math.max(1, all.length)) || 1
   const value = (c: AwardCandidate) => POTS_EVEN * z(c) + (1 - POTS_EVEN) * (c.score - mean) / sd
-  return [...candidates].sort((a, b) => value(b) - value(a) || a.playerId.localeCompare(b.playerId))
+  return [...candidates].sort((a, b) => value(b) - value(a) || cmpStr(a.playerId, b.playerId))
 }
 
 function evenDefenders(candidates: AwardCandidate[]): AwardCandidate[] {
@@ -534,7 +548,7 @@ function evenDefenders(candidates: AwardCandidate[]): AwardCandidate[] {
   const cb = median(regulars.filter(c => !FULL_BACKS.has(c.position)).map(score))
   const fb = median(regulars.filter(c => FULL_BACKS.has(c.position)).map(score))
   if (!cb || !fb) return candidates
-  const lift = Math.pow(cb / fb, DEF_EVEN)
+  const lift = ppow(cb / fb, DEF_EVEN)
   return candidates.map(c => FULL_BACKS.has(c.position) && c.lineScores
     ? { ...c, lineScores: { ...c.lineScores, defender: score(c) * lift } }
     : c)

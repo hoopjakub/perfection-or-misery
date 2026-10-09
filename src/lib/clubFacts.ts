@@ -1,5 +1,6 @@
 import factsData from './clubFactsData'
 import { BRAND_MODE } from './brand'
+import { LANGUAGE } from '@/i18n'
 
 // The facts are JSON, which the legal build's Babel rename never sees. P8.5-30
 // renamed the competitions in them here; but they are free text about real
@@ -7,7 +8,8 @@ import { BRAND_MODE } from './brand'
 // names a cup or a rival the rename table doesn't know ("FA Cup") would leak
 // the real one. The public build shows none: twenty clubs lose a line, and
 // nothing can slip through.
-const FACTS: Record<string, string[]> = BRAND_MODE === 'real' ? factsData : {}
+// In the app's language (Phase 9.75, D7: they were English only).
+const FACTS: Record<string, string[]> = BRAND_MODE === 'real' ? factsData[LANGUAGE] ?? factsData.en : {}
 
 /** How many clubs have facts in this build (Diagnostics' data check; 0 in the legal build, on purpose). */
 export const clubFactCount = () => Object.keys(FACTS).length

@@ -14,7 +14,22 @@
 //    happen (even before a quarter of the season), and nobody else's do
 // Run: npx tsx scripts/verify-press.ts
 
-import { writePress, storyText, storyBody, type Story, type PressSnapshot } from '../src/engine/press'
+import { writePress, storyText, storyBody, storyVariants, type Story, type PressSnapshot } from '../src/engine/press'
+import * as pressMod from '../src/engine/press'
+import { COUNTRY_SK } from '../src/data/countries-sk'
+
+// P9.75-09: every story kind can be told at least three ways (the cups' had
+// two, over one fixed line, and read generated on the phone), and the same
+// story about the same club never reads the same on consecutive matchdays.
+const lastTold = new Map<string, { md: number; headline: string }>()
+function checkVariants(st: Story, where: string) {
+  const vs = storyVariants(st)
+  check(vs.length >= 3 && new Set(vs.map(v => v.headline)).size >= 3 && new Set(vs.map(v => v.headline + v.standfirst)).size >= 3,
+    `${where}: ${st.kind} has ${vs.length} variants, ${new Set(vs.map(v => v.headline)).size} headlines; it needs three`)
+  const key = `${where}|${st.kind}:${st.subject}`, prev = lastTold.get(key), headline = storyText(st).headline
+  if (prev && st.matchday === prev.md + 1) check(prev.headline !== headline, `${where}: ${st.kind} about ${st.subject} reads "${headline}" two matchdays running`)
+  lastTold.set(key, { md: st.matchday, headline })
+}
 import { zonesFor } from '../src/data/qualification-bands'
 import { simulateMatch, setMatchTilt } from '../src/engine/match'
 import { generateFixtures } from '../src/engine/fixtures'
@@ -164,6 +179,7 @@ for (let s = 1; s <= SEASONS; s++) {
           `season ${s} ${st.id}: frozen row ${row.clubName} doesn't match the table`)
       }
       const words = storyText(st)
+      checkVariants(st, `season ${s}`)
       // SAMPLE=1 prints the first story of each kind (with POM_LANGUAGE=sk, in Slovak).
       if (process.env.SAMPLE && !kinds.has(st.kind)) console.log(`[${st.kind}] ${words.headline} — ${words.standfirst}
      ${storyBody(st).join(' ')}`)
@@ -205,6 +221,9 @@ console.log([...kinds.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${
 // rounds) is exactly the start of the finished one, what a story says is what
 // happened, your injuries land in the round they happened, and it reads.
 const cupKinds = new Map<string, number>()
+// Real nation names (yours as "<nation> XI"), so the Slovak check below meets them.
+const NATIONS = Object.keys(COUNTRY_SK).filter(n => COUNTRY_SK[n] !== n).slice(0, 48)
+let thirdTold = 0   // P9.75-22: the third-place story fires (World Cup runs)
 let cupRuns = 0, cupStories = 0
 const absenceAt = (day: number, id: string, reason: 'injury' | 'suspension', you = true): Absence => ({
   playerId: id, playerName: `Player ${id}`, clubId: you ? 'c0' : 'c1', clubName: 'X', position: 'ST', reason,
@@ -278,6 +297,17 @@ function checkCup(name: string, stages: CupStage[], absences: Absence[], expect:
   }
   for (const x of all) {
     const words = storyText(x), body = storyBody(x).join(' ')
+    checkVariants(x, name)
+    // P9.75-21: in Slovak a story names a nation in Slovak (the press wrote
+    // the stored English names, "2:0, súper: Croatia").
+    const shown = (pressMod as { shownStory?: (s: Story, l: string) => Story }).shownStory?.(x, 'sk') ?? x
+    for (const nm of [...shown.names, ...shown.rows.map(r => r.clubName)]) {
+      const base = nm.replace(/ XI$/, '')
+      if (COUNTRY_SK[base] && COUNTRY_SK[base] !== base) { check(false, `${name}: ${x.kind} names "${nm}" in Slovak, not "${COUNTRY_SK[base]}"`); break }
+    }
+    // P9.75-22: the third-place play-off is its own story, never "through".
+    if (x.stage === 'Third-place play-off') check(['thirdPlace', 'injury', 'suspension'].includes(x.kind), `${name}: the third-place match told as ${x.kind}`)
+    if (x.kind === 'thirdPlace') thirdTold++
     const text = `${words.headline} ${words.standfirst} ${body}`
     check(words.headline.length > 0 && words.standfirst.length > 0, `${name}: ${x.id} has empty words`)
     check(!/undefined|NaN|\{\{|!/.test(text), `${name}: ${x.id} reads "${text}"`)
@@ -324,7 +354,7 @@ for (let run = 0; run < 300; run++) {
   check(cupPress(clPressStages({ ...cl, domesticMatchdays }), injuries).some(x => x.id.startsWith('dom~') && x.kind === 'champions'), `full path ${run}: an unsplit season crowned nobody`)
 
   // The World Cup: twelve groups of four played, then the knockouts.
-  const nations = buildWCTeams(Array.from({ length: 48 }, (_, i) => ({ clubId: i === 0 ? 'c0' : `n${i}`, clubName: `Nation ${i}`, ovr: 70 + ((i * 11 + run) % 19), isPlayer: i === 0 })))
+  const nations = buildWCTeams(Array.from({ length: 48 }, (_, i) => ({ clubId: i === 0 ? 'c0' : `n${i}`, clubName: i === 0 ? `${NATIONS[0]} XI` : NATIONS[i], ovr: 70 + ((i * 11 + run) % 19), isPlayer: i === 0 })))
   const groups = assignGroups(nations)
   const groupMatchdays: WCGroupMatch[] = []
   for (const f of generateWCGroupFixtures(groups)) {
@@ -340,6 +370,7 @@ for (let run = 0; run < 300; run++) {
 Math.random = realRandom
 for (const k of ['yourMatch', 'phaseDecided', 'groupDecided', 'bestThird', 'yourTie', 'koUpset', 'shootout', 'koRound', 'cupWinners', 'injury', 'suspension', 'thrashing']) check((cupKinds.get(k) ?? 0) > 0, `the cups' ${k} story never fired`)
 console.log(`${cupRuns} cup runs · ${(cupStories / cupRuns).toFixed(1)} stories a run`)
+check(thirdTold > 0, 'the third-place story never fired')
 console.log([...cupKinds.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · '))
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 else console.log(`${failures} failure(s)`)

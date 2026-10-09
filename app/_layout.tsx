@@ -15,6 +15,7 @@ import { space, font } from '@/theme'
 import { installNavGuard } from '@/lib/navGuard'
 import { startRunKeeper } from '@/lib/runKeeper'
 import { flushSavedRuns } from '@/db/queries/runs'
+import { flushOnUserChange } from '@/lib/runQueue'
 import { useUserStore } from '@/store/userStore'
 import { isOnline, onOnlineChange } from '@/lib/online'
 import { checkForAppUpdate } from '@/lib/appUpdate'
@@ -114,12 +115,16 @@ installNavGuard()
 startRunKeeper()
 // P8.5-24: runs saved on the phone while offline go up now, whenever the app
 // comes back online, and whenever it returns to the foreground.
-flushSavedRuns()
-onOnlineChange(() => { if (isOnline()) flushSavedRuns() })
-AppState.addEventListener('change', st => { if (st === 'active') flushSavedRuns() })
+flushSavedRuns('start-up')
+onOnlineChange(() => { if (isOnline()) flushSavedRuns('back online') })
+AppState.addEventListener('change', st => { if (st === 'active') flushSavedRuns('back in the foreground') })
 // And once you're signed in: at start the session is restored a moment later,
 // and a queued run only goes up under the player who played it.
-useUserStore.subscribe((st, prev) => { if (st.user?.id && st.user.id !== prev.user?.id) flushSavedRuns() })
+// P9.75-06: also when the account becomes known (isGuest turns false), the
+// second half of a session arriving; see flushOnUserChange.
+useUserStore.subscribe((st, prev) => {
+  if (flushOnUserChange({ userId: prev.user?.id, isGuest: prev.isGuest }, { userId: st.user?.id, isGuest: st.isGuest })) flushSavedRuns('signed in')
+})
 // P8.5-31: is there a newer build? Silently, in the background (public build only).
 checkForAppUpdate()
 

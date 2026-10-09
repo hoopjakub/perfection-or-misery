@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react'
 import { log } from '@/diag/log'
-import { t } from '@/i18n'
+import { t, num } from '@/i18n'
 import { en } from '@/i18n/en'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, Pressable } from 'react-native'
@@ -94,6 +94,7 @@ export default function YouScreen() {
     [t('you.factRuns'), String(runs)],
     [t('you.factBest'), stats?.bestTier ? formatTier(stats.bestTier) : '—'],
     [t('you.factWorld'), place ? ordinal(place) : '—'],
+    [t('you.factPoints'), num(stats?.totalPoints ?? 0)],
     ...(pub?.playtime_seconds ? [[t('you.factPlayed'), formatPlaytime(pub.playtime_seconds)] as [string, string]] : []),
   ]
   const badgeId = profile?.badge_team_id, badgeName = profile?.badge_team_name

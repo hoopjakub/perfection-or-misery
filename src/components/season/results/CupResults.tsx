@@ -54,7 +54,7 @@ function useCupRun(fresh: boolean) {
       .catch(e => log.warn('stats', 'result: stats failed', e))
       .finally(() => setStatsDone(true))
   }, [])
-  const runSave = useRunSave({ applies: fresh && !quickSim, signedIn: !!user && !isGuest, ready: statsDone })
+  const runSave = useRunSave({ applies: fresh && !quickSim, history: !fresh, signedIn: !!user && !isGuest, ready: statsDone })
   const submittingRef = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const leave = (then: () => void) => async () => {

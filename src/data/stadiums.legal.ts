@@ -688,10 +688,10 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Spain"
   },
   "Glasgow Green": {
-    "name": "Vigo Stadium",
-    "capacity": 24870,
-    "city": "Vigo",
-    "country": "Spain"
+    "name": "Glasgow City Stadium",
+    "capacity": 60355,
+    "city": "Glasgow City",
+    "country": "United Kingdom"
   },
   "Brugge Green": {
     "name": "Bruges Stadium",
@@ -1079,10 +1079,10 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Spain"
   },
   "Basel Blue": {
-    "name": "Bad Cannstatt Stadium",
-    "capacity": 60058,
-    "city": "Bad Cannstatt",
-    "country": "Germany"
+    "name": "Basel Stadium",
+    "capacity": 38512,
+    "city": "Basel",
+    "country": "Switzerland"
   },
   "Blau-Weiss Blue": {
     "name": "Linz Stadium",
@@ -1623,10 +1623,10 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Estonia"
   },
   " Bucharest Blue": {
-    "name": "Hamburg-Mitte Stadium",
-    "capacity": 29546,
-    "city": "Hamburg-Mitte",
-    "country": "Germany"
+    "name": "Sector 2 Stadium",
+    "capacity": 55634,
+    "city": "Sector 2",
+    "country": "Romania"
   },
   "EH Blue": {
     "name": "Denderleeuw Stadium",
@@ -1958,10 +1958,9 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Turkey"
   },
   "TC Black": {
-    "name": "Manchester Stadium",
-    "capacity": 52900,
-    "city": "Manchester",
-    "country": "United Kingdom"
+    "name": "Budapest District IX Stadium",
+    "city": "Budapest District IX",
+    "country": "Hungary"
   },
   "Rotterdam Red": {
     "name": "Rotterdam Stadium",
@@ -2046,10 +2045,10 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Poland"
   },
   "Zagreb Blue": {
-    "name": "Sector 2 Stadium",
-    "capacity": 55634,
-    "city": "Sector 2",
-    "country": "Romania"
+    "name": "Maksimir Stadium",
+    "capacity": 60000,
+    "city": "Maksimir",
+    "country": "Croatia"
   },
   "Istanbul Navy": {
     "name": "Sarıyer Stadium",
@@ -2123,10 +2122,10 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "United Kingdom"
   },
   "Eagles Red": {
-    "name": "South Norwood Stadium",
-    "capacity": 26255,
-    "city": "South Norwood",
-    "country": "United Kingdom"
+    "name": "Deventer Stadium",
+    "capacity": 6700,
+    "city": "Deventer",
+    "country": "Netherlands"
   },
   "Granada Red": {
     "name": "Granada Stadium",
@@ -3404,10 +3403,10 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Denmark"
   },
   "Glasgow Blue": {
-    "name": "Angers Stadium",
-    "capacity": 18000,
-    "city": "Angers",
-    "country": "France"
+    "name": "Glasgow City Stadium",
+    "capacity": 51700,
+    "city": "Glasgow City",
+    "country": "United Kingdom"
   },
   "Vienna Green": {
     "name": "Hütteldorf Stadium",
@@ -3451,16 +3450,16 @@ export const STADIUMS: Record<string, Stadium> = {
     "country": "Spain"
   },
   "Salzburg Claret": {
-    "name": "Trafford Stadium",
-    "capacity": 75731,
-    "city": "Trafford",
-    "country": "United Kingdom"
+    "name": "Wals-Siezenheim Stadium",
+    "capacity": 31895,
+    "city": "Wals-Siezenheim",
+    "country": "Austria"
   },
   "Belgrade Red & Gold": {
-    "name": "Trafford Stadium",
-    "capacity": 75731,
-    "city": "Trafford",
-    "country": "United Kingdom"
+    "name": "Belgrade Stadium",
+    "capacity": 55538,
+    "city": "Belgrade",
+    "country": "Serbia"
   },
   "Riga Sky": {
     "name": "Riga Stadium",

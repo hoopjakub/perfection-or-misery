@@ -22,6 +22,7 @@
  * Pure apart from the match engine's randomness (simulateTwoLegs), like
  * cl-qualifying.ts, whose round player it uses.
  */
+import { ppow } from '@/lib/pmath'
 import {
   UEL_ACCESS, UECL_ACCESS, UEFA_ASSOCIATIONS,
   type EuroComp, type EuroAccessRule, type UclRound, type UclPath,
@@ -222,7 +223,7 @@ function pick(entry: AssociationEntry, rule: EuroAccessRule, cupWinner: string |
 const HUNT_POWER = 4
 
 /** How strongly a hunt's draw favours association `rank` for target `c`. */
-export const huntWeight = (rank: number, c: EuroComp) => (HUNT_ODDS[rank]?.[c] ?? 0) ** HUNT_POWER
+export const huntWeight = (rank: number, c: EuroComp) => ppow(HUNT_ODDS[rank]?.[c] ?? 0, HUNT_POWER)
 
 /** Whether a hunt reached its target: the season went on in that competition. */
 export const huntMet = (target: EuroComp, q: QualifyingResult | null | undefined) => q?.europe?.competition === target

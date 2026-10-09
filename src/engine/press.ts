@@ -17,8 +17,10 @@
  * stories are written once, as each matchday lands, and kept on the result.
  */
 
+import { cmpStr } from '@/lib/pmath'
+import { countryNameIn } from '@/data/countries-sk'
 import type { ZoneKey } from '@/data/qualification-bands'
-import { t, dec } from '@/i18n'
+import { t, dec, LANGUAGE } from '@/i18n'
 import { label } from '@/i18n/labels'
 import { ordinal } from '@/lib/format'
 import type { Absence } from './availability'
@@ -43,6 +45,8 @@ export type StoryKind =
   // a shootout, a knockout round's headline, and the winners.
   | 'yourMatch' | 'phaseDecided' | 'groupDecided' | 'bestThird'
   | 'yourTie' | 'koUpset' | 'shootout' | 'koRound' | 'cupWinners'
+  // P9.75-22: the third-place play-off, which isn't anyone going through.
+  | 'thirdPlace'
 
 /** One of a club's results, frozen with a form story (P8-138: a team's form is
  *  shown with its results, not as a bare W-D-L). */
@@ -164,7 +168,7 @@ const WITH_FORM = new Set<StoryKind>(['hotStreak', 'coldStreak', 'unbeaten', 'un
 export function absenceStoriesOf(absences: Absence[], md: number, total: number, yourRow: StoryRow): Story[] {
   return absences
     .filter(a => a.isPlayerClub && a.incurredOn === md)
-    .sort((a, b) => (a.minute ?? 99) - (b.minute ?? 99) || a.playerId.localeCompare(b.playerId))
+    .sort((a, b) => (a.minute ?? 99) - (b.minute ?? 99) || cmpStr(a.playerId, b.playerId))
     .map(a => {
       const kind: StoryKind = a.reason === 'injury' ? 'injury' : 'suspension'
       return {
@@ -247,7 +251,7 @@ export function writePress(history: PressSnapshot[], prior: Story[], ctx: PressC
   // and whenever it was: an event, not a statistic, so like an injury it's
   // outside the quarter-season rule and the one-a-round cap. One a round, the best.
   const star = (now.players ?? []).filter(p => p.rating >= MASTERCLASS)
-    .sort((a, b) => b.rating - a.rating || a.playerId.localeCompare(b.playerId))[0]
+    .sort((a, b) => b.rating - a.rating || cmpStr(a.playerId, b.playerId))[0]
   const starRow = star ? rows.find(r => r.clubId === star.clubId) : undefined
   const eventStories: Story[] = [...absenceStories]
   if (star && starRow) {
@@ -383,7 +387,7 @@ export function writePress(history: PressSnapshot[], prior: Story[], ctx: PressC
       const avg = last.reduce((sum, g) => sum + g.rating, 0) / Math.max(1, last.length)
       return { id, a, last, avg }
     }).filter(x => x.last.length === FORM_APPS && x.last[x.last.length - 1].md === md && md - x.last[0].md <= 6 && x.avg >= FORM_AVG)
-      .sort((x, y) => y.avg - x.avg || x.id.localeCompare(y.id))[0]
+      .sort((x, y) => y.avg - x.avg || cmpStr(x.id, y.id))[0]
     const formRow = inForm ? rows.find(r => r.clubId === inForm.a.clubId) : undefined
     if (inForm && formRow) add('playerForm', inForm.id, [formRow], { avg10: Math.round(inForm.avg * 10), apps: FORM_APPS }, [inForm.a.name, formRow.clubName])
 
@@ -391,7 +395,7 @@ export function writePress(history: PressSnapshot[], prior: Story[], ctx: PressC
     const played = now.fixtures.filter(f => f.result)
     const biggest = played
       .map(f => ({ f, margin: Math.abs(f.result!.homeGoals - f.result!.awayGoals) }))
-      .sort((a, b) => b.margin - a.margin || a.f.home.clubId.localeCompare(b.f.home.clubId))[0]
+      .sort((a, b) => b.margin - a.margin || cmpStr(a.f.home.clubId, b.f.home.clubId))[0]
     if (biggest && biggest.margin >= THRASHING) {
       const { homeGoals: hg, awayGoals: ag } = biggest.f.result!
       const winId = hg > ag ? biggest.f.home.clubId : biggest.f.away.clubId
@@ -450,7 +454,7 @@ export function writePress(history: PressSnapshot[], prior: Story[], ctx: PressC
     .map(c => ({ ...c, involvesPlayer: c.rows.some(r => r.isPlayer) }))
     .sort((a, b) =>
       PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind)
-      || a.subject.localeCompare(b.subject))
+      || cmpStr(a.subject, b.subject))
 
   // Final day: both final-day stories, whoever they're about.
   const picked = finalDay
@@ -557,6 +561,7 @@ const WRITERS: Record<StoryKind, (s: Story) => Words[]> = {
     return [
       w('suspension', 0, { player }, { club, games, stand: covers('comesIn') }),
       { headline: t('press.suspension.h1', { player }), standfirst: (n.out === 1 ? t('press.injury.missesNext') : t('press.suspension.missesN', { n: n.out, games })) + '.' + covers('covers') },
+      w('suspension', 2, { player, club }, { games, stand: covers('stepsIn') }),
     ]
   },
   unbeatenRun: ({ names: [a], n }) => [0, 1, 2].map(i => w('unbeatenRun', i, { a, n: n.run, games: plural(n.run, 'game') }, { n: n.run, games: plural(n.run, 'game') })),
@@ -571,11 +576,12 @@ const WRITERS: Record<StoryKind, (s: Story) => Words[]> = {
   yoyo: ({ names: [a], n }) => [
     { headline: t(n.newer > n.older ? 'press.yoyo.h0Up' : 'press.yoyo.h0Down', { a }), standfirst: t('press.yoyo.s0', { older: plural(n.older, 'point'), newer: plural(n.newer, 'point') }) },
     w('yoyo', 1, { a }, { o: n.older, nw: n.newer, older: plural(n.older, 'point'), newer: plural(n.newer, 'point') }),
+    w('yoyo', 2, { a }, { older: plural(n.older, 'point'), newer: plural(n.newer, 'point') }),
   ],
-  goalFest: ({ names: [a], n }) => [0, 1].map(i => w('goalFest', i, { a }, { x: x10(n.per10), n: n.played, games: plural(n.played, 'game') })),
-  tightGames: ({ names: [a], n }) => [0, 1].map(i => w('tightGames', i, { a }, { x: x10(n.per10), n: n.played, games: plural(n.played, 'game') })),
-  leaky: ({ names: [a], n }) => [0, 1].map(i => w('leaky', i, { a }, { c: n.conceded, goals: plural(n.conceded, 'goal'), p: n.played, x: x10(n.per10) })),
-  fortress: ({ names: [a], n }) => [0, 1].map(i => w('fortress', i, { a }, { goals: plural(n.conceded, 'goal'), n: n.played, games: plural(n.played, 'game'), x: x10(n.per10) })),
+  goalFest: ({ names: [a], n }) => [0, 1, 2].map(i => w('goalFest', i, { a }, { x: x10(n.per10), n: n.played, games: plural(n.played, 'game') })),
+  tightGames: ({ names: [a], n }) => [0, 1, 2].map(i => w('tightGames', i, { a }, { x: x10(n.per10), n: n.played, games: plural(n.played, 'game') })),
+  leaky: ({ names: [a], n }) => [0, 1, 2].map(i => w('leaky', i, { a }, { c: n.conceded, goals: plural(n.conceded, 'goal'), p: n.played, x: x10(n.per10) })),
+  fortress: ({ names: [a], n }) => [0, 1, 2].map(i => w('fortress', i, { a }, { goals: plural(n.conceded, 'goal'), n: n.played, games: plural(n.played, 'game'), x: x10(n.per10) })),
   playerForm: ({ names: [player, club], n }) => {
     const v = { player, club, x: x10(n.avg10), n: n.apps, games: plural(n.apps, 'game') }
     return [0, 1, 2].map(i => w('playerForm', i, v, v))
@@ -591,36 +597,39 @@ const WRITERS: Record<StoryKind, (s: Story) => Words[]> = {
   yourMatch: ({ names: [you, opp], n, matchday }) => {
     const r = n.for > n.against ? 'w' : n.for === n.against ? 'd' : 'l'
     const v = { you, opp, for: n.for, against: n.against, md: matchday }
-    return [0, 1].map(i => ({
+    return [0, 1, 2].map(i => ({
       headline: t(`press.yourMatch.${r}H${i}` as 'press.yourMatch.wH0', v),
       standfirst: t(`press.yourMatch.${r}S${i}` as 'press.yourMatch.wS0', v),
     }))
   },
-  phaseDecided: ({ names: [you], n }) => [0, 1].map(i => ({
+  // P9.75-09: three of everything, the standfirsts too. The cups' stories read
+  // generated on the phone: two headlines each over one fixed line.
+  phaseDecided: ({ names: [you], n }) => [0, 1, 2].map(i => ({
     headline: t(`press.phaseDecided.f${n.fate}H${i}` as 'press.phaseDecided.f0H0', { you }),
-    standfirst: t('press.phaseDecided.s', { place: ordinal(n.pos), pts: plural(n.pts, 'point') }),
+    standfirst: t(`press.phaseDecided.s${i}` as 'press.phaseDecided.s0', { place: ordinal(n.pos), pts: plural(n.pts, 'point') }),
   })),
-  groupDecided: ({ names: [you, g], n }) => [0, 1].map(i => ({
+  groupDecided: ({ names: [you, g], n }) => [0, 1, 2].map(i => ({
     headline: t(`press.groupDecided.f${n.fate}H${i}` as 'press.groupDecided.f0H0', { you, g }),
-    standfirst: t('press.groupDecided.s', { pts: plural(n.pts, 'point'), g }),
+    standfirst: t(`press.groupDecided.s${i}` as 'press.groupDecided.s0', { pts: plural(n.pts, 'point'), g }),
   })),
-  bestThird: ({ names: [you], n }) => [0, 1].map(i => ({
+  bestThird: ({ names: [you], n }) => [0, 1, 2].map(i => ({
     headline: t(`press.bestThird.${n.through ? 'in' : 'out'}H${i}` as 'press.bestThird.inH0', { you }),
-    standfirst: t('press.bestThird.s', { place: ordinal(n.rank), n: n.of }),
+    standfirst: t(`press.bestThird.s${i}` as 'press.bestThird.s0', { place: ordinal(n.rank), n: n.of }),
   })),
-  yourTie: ({ names: [you, opp], n }) => [0, 1].map(i => ({
+  yourTie: ({ names: [you, opp], n }) => [0, 1, 2].map(i => ({
     headline: t(`press.yourTie.${n.won ? 'won' : 'lost'}H${i}` as 'press.yourTie.wonH0', { you, opp }),
-    standfirst: t('press.yourTie.s', { score: scoreText(n), opp }),
+    standfirst: t(`press.yourTie.s${i}` as 'press.yourTie.s0', { score: scoreText(n), opp }),
   })),
-  koUpset: ({ names: [a, b], n }) => [0, 1].map(i => w('koUpset', i, { a, b }, { a, b, score: scoreText(n), gap: n.gap })),
-  shootout: ({ names: [a, b], n }) => [0, 1].map(i => w('shootout', i, { a, b }, { a, b, score: scoreText(n) })),
-  koRound: ({ names: [a, b], n }) => [0, 1].map(i => w('koRound', i, { a, b }, { a, b, score: scoreText(n) })),
-  cupWinners: ({ names: [a, b], n }) => [0, 1].map(i => w('cupWinners', i, { a, b }, { a, b, score: scoreText(n) })),
+  koUpset: ({ names: [a, b], n }) => [0, 1, 2].map(i => w('koUpset', i, { a, b }, { a, b, score: scoreText(n), gap: n.gap })),
+  shootout: ({ names: [a, b], n }) => [0, 1, 2].map(i => w('shootout', i, { a, b }, { a, b, score: scoreText(n) })),
+  koRound: ({ names: [a, b], n }) => [0, 1, 2].map(i => w('koRound', i, { a, b }, { a, b, score: scoreText(n) })),
+  cupWinners: ({ names: [a, b], n }) => [0, 1, 2].map(i => w('cupWinners', i, { a, b }, { a, b, score: scoreText(n) })),
+  thirdPlace: ({ names: [a, b], n }) => [0, 1, 2].map(i => w('thirdPlace', i, { a, b }, { a, b, score: scoreText(n) })),
   champions: ({ names: [a, b], n }) => {
     const pts = plural(n.gap, 'point')
     const margin = n.gap === 0 ? t('press.champions.onGd') : t('press.champions.byPts', { pts })
     const set = n.gap <= TIGHT ? 'tight' : 'clear'
-    return [0, 1].map(i => ({
+    return [0, 1, 2].map(i => ({
       headline: t(`press.champions.${set}H${i}` as 'press.champions.tightH0', { a, b }),
       standfirst: t(`press.champions.${set}S${i}` as 'press.champions.tightS0', { a, b, pts, margin }),
     }))
@@ -659,16 +668,40 @@ export function storyWhen(s: Story, style: 'long' | 'short' | 'day' | 'caps' = '
   return style === 'caps' ? out.toUpperCase() : out
 }
 
+/**
+ * The story as it reads in a language: the names in it (clubs, nations, the
+ * rows of its table, its match) through countryName. A story is stored with
+ * the names as the data has them, in English, and it read "2:0, súper:
+ * Croatia" in Slovak (P9.75-21). A player's or a club's name is unchanged.
+ */
+export function shownStory(s: Story, lang: string = LANGUAGE): Story {
+  const n = (x: string) => countryNameIn(x, lang)
+  return {
+    ...s,
+    names: s.names.map(n),
+    rows: s.rows.map(r => ({ ...r, clubName: n(r.clubName) })),
+    match: s.match && { ...s.match, homeName: n(s.match.homeName), awayName: n(s.match.awayName) },
+  }
+}
+
+/** Every way a story can be told (verify-press: three or more for every kind). */
+export const storyVariants = (s: Story): Words[] => WRITERS[s.kind](shownStory(s))
+
+/** P9.75-09: the variant turns with the matchday. Chosen by the whole id's
+ *  hash, the same story about the same club (your match, every round) could
+ *  read the same three rounds running; now consecutive ones never do. Still a
+ *  pure function of the story, so a saved run reads the same every time. */
 export function storyText(s: Story): Words {
-  const variants = WRITERS[s.kind](s)
-  return variants[hash(s.id) % variants.length]
+  const variants = storyVariants(s)
+  return variants[(hash(`${s.kind}:${s.subject}`) + s.matchday) % variants.length]
 }
 
 // ── The story, opened (Phase 5, D6) ──────────────────────────────────────────
 // A short paragraph set under the headline, built from the frozen rows the
 // story carries, so it says exactly what the table said that week — never
 // what it says now.
-export function storyBody(s: Story): string[] {
+export function storyBody(story: Story): string[] {
+  const s = shownStory(story)
   let r = s.rows
   if (r.length === 0) return []
   const pts = (x: StoryRow) => plural(x.points, 'point')

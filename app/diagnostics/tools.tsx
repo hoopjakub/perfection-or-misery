@@ -18,6 +18,9 @@ import { quickSimLeague, quickSimCL, quickSimWC, quickSimCustomUcl, autoDraftFor
 import { ROLES, space } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
 import { log, setLogContext } from '@/diag/log'
+import { heapMB } from '@/diag/watch'
+import { dropRunDataCache } from '@/lib/runData'
+import { dropRosterCache } from '@/db/queries/seasons'
 
 export const DEV_TOOLS = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1'
 
@@ -27,7 +30,25 @@ const FAMILIES: [Family, string][] = [['league', t('about.famLeague')], ['champi
 
 export default function DiagnosticsTools() {
   const [busy, setBusy] = useState(false)
+  const [dropped, setDropped] = useState<string | null>(null)
   if (!DEV_TOOLS) return <Redirect href="/diagnostics" />
+
+  // P9.75-14: the heap climbed from 20 to 104 MB in a session and never fell.
+  // Hermes counts garbage not yet collected, so a high number alone proves
+  // nothing. This lets go of the session's two caches and reads the heap now
+  // and a few seconds later: if it falls, it was the caches (cap them); if not,
+  // something else holds on (the screens kept under the one in front).
+  function dropCaches() {
+    const before = heapMB()
+    const runs = dropRunDataCache(), rosters = dropRosterCache()
+    const mb = (v?: number) => (v == null ? '?' : v.toFixed(0))
+    setDropped(t('about.droppedNow', { runs, rosters, mb: mb(before) }))
+    setTimeout(() => {
+      const after = heapMB()
+      log.info('perf', `caches dropped: ${runs} runs, ${rosters} squads; heap ${mb(before)} MB, ${mb(after)} MB five seconds later`)
+      setDropped(t('about.droppedLater', { runs, rosters, before: mb(before), after: mb(after) }))
+    }, 5000)
+  }
 
   async function run(family: Family) {
     setBusy(true)
@@ -90,6 +111,8 @@ export default function DiagnosticsTools() {
             <Plate roles={roles} label={t('about.final')} onPress={() => run('test_final')} style={styles.btn} />
           </View>
         )}
+        <Plate roles={roles} variant="quiet" label={t('about.dropCaches')} onPress={dropCaches} />
+        {dropped && <KitText t="body" color={roles.textMuted} selectable>{dropped}</KitText>}
       </View>
     </KitScreen>
   )

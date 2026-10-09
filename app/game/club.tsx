@@ -10,7 +10,7 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border, prim, ratingColor, ratingInk } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, TeamMark, RatingSquare } from '@/components/kit'
+import { KitScreen, LoadingScreen, KitText, Tag, SectionTag, BackControl, EmptyState, InlineError, Icon, TeamMark, RatingSquare } from '@/components/kit'
 import { SegmentSwitch, SeasonStrip, PositionCompare, type Mark } from '@/components/season/SeasonParts'
 import { useRunData } from '@/lib/runData'
 import { openPlayer, openRunMatch, openStory } from '@/lib/runNav'
@@ -64,7 +64,7 @@ export default function ClubScreen() {
     return teamInFormation(usual[0] as Formation, picks)
   }, [usual, squad, data])
 
-  if (loading) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><KitText t="bodyL" color={roles.textMuted}>{t('hub.reading')}</KitText></KitScreen>
+  if (loading) return <LoadingScreen ground={EVERYDAY} label={t('hub.reading')} />
   if (failed || !data) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><InlineError roles={roles} message={t('hub.readFailed')} onRetry={retry} /></KitScreen>
   if (!name) return <KitScreen ground={EVERYDAY}><BackControl roles={roles} /><EmptyState roles={roles} title={t('hub.notInRun')} body={t('hub.clubNotIn')} /></KitScreen>
 

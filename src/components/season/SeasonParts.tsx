@@ -681,7 +681,7 @@ export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result,
       {flag !== undefined && <RoundFlag emoji={flag} code={opponent} size={16} roles={roles} />}
       {you && home != null ? (
         <>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={styles.fixtureLeft}>{home ? you : opponent}</KitText>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={styles.fixtureLeft}>{countryName(home ? you : opponent)}</KitText>
           <KitText t="figure" color={result ? roles.text : roles.textMuted} style={styles.fixtureScore}>
             {result ? (home ? `${result.mine}–${result.theirs}` : `${result.theirs}–${result.mine}`) : t('season.v')}
           </KitText>
@@ -691,7 +691,7 @@ export function FixtureRow({ roles, matchday, opponent, home, pot, flag, result,
         </>
       ) : (
         <>
-          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{opponent}</KitText>
+          <KitText t="body" color={roles.text} numberOfLines={1} style={{ flex: 1 }}>{countryName(opponent)}</KitText>
           {pot ? <Tag roles={roles}>{t('season.pot', { pot })}</Tag> : null}
           {result && mark ? (
             <>

@@ -16,6 +16,7 @@
  * attacked). A team's shots are always drawn attacking y = 1.
  */
 
+import { cmpStr, patan2, pexp, phypot } from '@/lib/pmath'
 import type { MatchStats, PlayerMatchLine, MatchEvent } from '@/types/match-stats'
 import type { Formation } from '@/types/game'
 import { getFormationRows } from './formations'
@@ -44,9 +45,9 @@ const PEN_SPOT = 11 / 105
 function rawXg(x: number, y: number): number {
   const dist = (1 - y) * 105                      // metres from the goal line
   const lateral = Math.abs(x - 0.5) * 68          // metres from the centre line
-  const d = Math.hypot(dist, lateral)
-  const angle = Math.atan2(7.32 * dist, dist * dist + lateral * lateral - (7.32 / 2) ** 2)
-  return Math.max(0.01, Math.min(0.7, 0.9 * Math.exp(-d / 9) + 0.35 * Math.max(0, angle) - 0.02))
+  const d = phypot(dist, lateral)
+  const angle = patan2(7.32 * dist, dist * dist + lateral * lateral - (3.66 * 3.66))
+  return Math.max(0.01, Math.min(0.7, 0.9 * pexp(-d / 9) + 0.35 * Math.max(0, angle) - 0.02))
 }
 
 function spot(rng: Rng, inside: boolean, goal: boolean): { x: number; y: number } {
@@ -70,7 +71,7 @@ export function buildShotMap(detail: MatchStats, seed: number): Shot[] {
     const side: Shot[] = []
     // Players in a stable order, so the map never depends on the sheet's order.
     const players = detail.players.filter(p => p.isHome === isHome && p.shots > 0)
-      .sort((a, b) => a.playerId.localeCompare(b.playerId))
+      .sort((a, b) => cmpStr(a.playerId, b.playerId))
     for (const p of players) {
       const pens = penaltyScorers.filter(id => id === p.playerId).length
       const openGoals = Math.max(0, p.goals - pens)
@@ -181,7 +182,7 @@ export function averagePositions(detail: MatchStats, seed: number): PlayerSpot[]
     for (const e of detail.events) {
       if (e.type === 'sub' && e.isHome === isHome && e.offPlayerId && slotOf.has(e.offPlayerId)) slotOf.set(e.playerId, slotOf.get(e.offPlayerId)!)
     }
-    for (const [playerId, base] of [...slotOf.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    for (const [playerId, base] of [...slotOf.entries()].sort((a, b) => cmpStr(a[0], b[0]))) {
       const p = byId.get(playerId)
       if (!p || p.minutes <= 0) continue
       const d = DRIFT[base.label] ?? { dx: 0, dy: 0.03, spread: 0.035 }
@@ -214,7 +215,7 @@ export function heatMap(player: PlayerMatchLine, spot: PlayerSpot | undefined, s
     for (let c = 0; c < HEAT_COLS; c++) {
       const cx = (c + 0.5) / HEAT_COLS, cy = 1 - (r + 0.5) / HEAT_ROWS
       let v = 0
-      for (const b of blobs) v += b.w * Math.exp(-(((cx - b.x) ** 2) + ((cy - b.y) ** 2)) / (2 * reach * reach))
+      for (const b of blobs) v += b.w * pexp(-(((cx - b.x) * (cx - b.x)) + ((cy - b.y) * (cy - b.y))) / (2 * reach * reach))
       grid[r][c] = v
       if (v > max) max = v
     }

@@ -98,7 +98,7 @@ function checkTeam(team: NonNullable<ReturnType<typeof pickTeam>>, pool: Pick[],
   const inXI = new Set(team.xi.map(x => x.player.id))
   check(team.bench.length <= BENCH_SIZE, `${label}: bench of ${team.bench.length}`)
   check(team.bench.every(p => !inXI.has(p.id)), `${label}: a starter on the bench`)
-  const sortedOut = pool.filter(p => !inXI.has(p.id)).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+  const sortedOut = pool.filter(p => !inXI.has(p.id)).sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))   // the engine's code-unit order (cmpStr)
   check(team.bench.every((p, i) => p.id === sortedOut[i]?.id), `${label}: the bench isn't the next best`)
   // No other shape beats the chosen one on the same pool.
   const again = pickTeam([...pool].reverse())
@@ -320,6 +320,27 @@ console.log(`manager of the season went to a favourite who won it ${managerWasFa
   Math.random = real
   console.log(`cup manager award: ${runs} runs, ${judged} sides judged, the winner beat its tip in ${winnersBeatTip}`)
 }
+// Phase 9.75: the teams of the round at a full path's size (50 rounds of 500
+// players), and a second awards night from the same run reuses them (the Teams
+// tab rebuilt them on every opening: 668–900 ms on the phone).
+{
+  const POS = ['GK', 'CB', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST']
+  const rounds = Array.from({ length: 50 }, (_, r) => ({ label: `Matchday ${r + 1}`, lines: Array.from({ length: 500 }, (_, i) => ({
+    playerId: `p${(i * 31 + r) % 900}`, name: `P ${i}`, position: POS[i % POS.length], rating: 5 + ((i * 7 + r * 3) % 50) / 10,
+    clubName: `C ${i % 40}`, clubId: `c${i % 40}`, isPlayerClub: i % 40 === 0,
+  })) }))
+  const base = season(1, 20)
+  const t0 = performance.now()
+  const one = buildAwardsNight({ ...base, rounds })
+  const first = performance.now() - t0
+  const t1 = performance.now()
+  const two = buildAwardsNight({ ...base, rounds })
+  const second = performance.now() - t1
+  check(one.teamsOfTheRound.length === 50 && two.teamsOfTheRound === one.teamsOfTheRound, 'a second awards night from the same run rebuilt its teams of the round')
+  check(first < 400, `50 rounds of 500 players took ${first.toFixed(0)} ms`)
+  console.log(`teams of the round: 50 × 500 in ${first.toFixed(0)} ms, again in ${second.toFixed(1)} ms`)
+}
+
 if (failures === 0) console.log('✅ ALL CHECKS PASSED')
 else console.log(`${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

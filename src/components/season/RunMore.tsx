@@ -28,7 +28,7 @@ import { EUROPE, compOfMode } from '@/data/europe'
 import type { EuroComp } from '@/data/uefa-coefficients'
 import { QUAL_ROUND_LABEL } from '@/data/cl-qual-labels'
 import { openMatchStats } from '@/lib/matchStats'
-import type { CLSeasonResult, OtherCompetition } from '@/engine/cl-sim'
+import { europeCompetitions, type CLSeasonResult, type OtherCompetition } from '@/engine/cl-sim'
 import type { WCSeasonResult } from '@/engine/world-cup-sim'
 import type { RunData } from '@/lib/runData'
 
@@ -130,7 +130,7 @@ export function EuropeTab({ data }: { data: RunData }) {
   const ties = qual ? runQualTies(qual, you) : []
   return (
     <View style={styles.section}>
-      {cl?.others?.length ? <RestOfEurope others={cl.others} playerClubId={you} /> : null}
+      {cl?.others?.length ? <Europe comps={europeCompetitions(cl)} playerClubId={you} /> : null}
       {ties.length > 0 && (
         <View style={styles.section}>
           <SectionTag roles={roles}>{t('result.qualifying')}</SectionTag>
@@ -154,16 +154,19 @@ export function EuropeTab({ data }: { data: RunData }) {
   )
 }
 
-// The two competitions you weren't in, played out headless (P8.5-16). Their
-// matches have no sheets (nobody attributed their scorers), so the ties don't open.
-function RestOfEurope({ others, playerClubId }: { others: OtherCompetition[]; playerClubId?: string | null }) {
-  const [shown, setShown] = useState<EuroComp>(others[0].comp)
-  const o = others.find(x => x.comp === shown) ?? others[0]
+// Europe's three competitions, yours first and marked (P9.75-05). The two you
+// weren't in were played out headless (P8.5-16): their matches have no sheets
+// (nobody attributed their scorers), so the ties don't open. Yours open from
+// the Bracket tab.
+function Europe({ comps, playerClubId }: { comps: (OtherCompetition & { yours: boolean })[]; playerClubId?: string | null }) {
+  const [shown, setShown] = useState<EuroComp>(comps[0].comp)
+  const o = comps.find(x => x.comp === shown) ?? comps[0]
   const zones = o.leaguePhaseStandings.map((_, i) => CL_PHASE_ZONES[Math.min(i, CL_PHASE_ZONES.length - 1)])
   return (
     <View style={styles.section}>
-      <SectionTag roles={roles}>{t('result.restOfEurope')}</SectionTag>
-      <SegmentSwitch<EuroComp> roles={roles} value={shown} onChange={setShown} options={others.map(x => ({ id: x.comp, label: EUROPE[x.comp].short }))} />
+      <SectionTag roles={roles}>{t('result.allEurope')}</SectionTag>
+      <SegmentSwitch<EuroComp> roles={roles} value={shown} onChange={setShown}
+        options={comps.map(x => ({ id: x.comp, label: x.yours ? `${EUROPE[x.comp].short} · ${t('parts.you')}` : EUROPE[x.comp].short }))} />
       <KitText t="body" color={roles.textMuted}>{t('result.wonBy', { comp: EUROPE[o.comp].name, club: o.winner.clubName })}</KitText>
       <BracketTree {...koRoundsToColumns(clRounds(o))} playerClubId={playerClubId} />
       <LeagueTable roles={roles} zones={zones}

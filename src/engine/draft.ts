@@ -1,5 +1,6 @@
 import { GameMode, PositionSlot } from '@/types/game'
 import { positionPenalty } from './rating'
+import { getFlag } from '@/lib/flagMap'
 
 export type ClubSeasonRow = {
   id: string
@@ -72,3 +73,18 @@ export function spinClubSeason(
 // Reroll allowance and hidden ratings moved to engine/difficulty.ts
 // (`rerollLimitFor` / `ratingsHiddenFor`) so every difficulty knob — including
 // the new custom rerolls/ratings — lives in one place.
+export const seasonLabel = (y: number) => `${y}/${String(y + 1).slice(-2)}`
+
+/** One item on the draft's reel. P8-163 gave every item its mark, so the reel
+ *  wears crests and flags in every mode. The mark is keyed by the CLUB
+ *  (`club_id`, "croatia_nt"), not the season row (`id`, "croatia_wc_2026"):
+ *  keyed by the season, no World Cup item ever found its flag and no club its
+ *  crest, and the reel was a grey strip (P9.75-02, R3-06). scripts/verify-spin.ts. */
+export function spinItem(mode: GameMode | null, c: ClubSeasonRow): { title: string; sub?: string; colour?: string; clubId?: string; flag?: string | null } {
+  // club_id is optional on this type (older callers built rows without it);
+  // the database's rows always carry it.
+  const clubId = c.club_id ?? c.id
+  return mode === 'world_cup'
+    ? { title: c.club_name, clubId, flag: getFlag(clubId) }
+    : { title: c.club_name, sub: seasonLabel(c.year_start), colour: c.primary_color, clubId }
+}

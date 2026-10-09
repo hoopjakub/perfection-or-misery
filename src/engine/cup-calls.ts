@@ -23,6 +23,7 @@
  * Pure and seeded: the same field, ratings and seed give the same tournament.
  */
 
+import { cmpStr, pexp } from '@/lib/pmath'
 import type { CLSeasonResult } from './cl-sim'
 import type { WCSeasonResult } from './world-cup-sim'
 import type { PredictionTeam } from './predictions'
@@ -96,7 +97,7 @@ export type PunditTournament = {
 // its games, 55% between equals, about 80% at a six-point gap, never above 90%.
 // In a group or league game a draw takes half of what's left. Heavy on purpose:
 // a pundit's bracket has the favourites going through, with an upset or two.
-export const LEAN = (gap: number) => 0.55 + 0.35 * (1 - Math.exp(-Math.abs(gap) / 4))
+export const LEAN = (gap: number) => 0.55 + 0.35 * (1 - pexp(-Math.abs(gap) / 4))
 
 type Rng = () => number
 function play(rng: Rng, ra: number, rb: number, draws: boolean): [number, number] {
@@ -126,7 +127,7 @@ function tableOf(sides: PunditSide[], matches: [string, string][], rating: Map<s
   }
   // Points, then goal difference, then how they rate the side (no coin tosses in a prediction).
   return [...t.values()].sort((x, y) => y.points - x.points || (y.gf - y.ga) - (x.gf - x.ga)
-    || (rating.get(y.clubId) ?? 0) - (rating.get(x.clubId) ?? 0) || x.clubId.localeCompare(y.clubId))
+    || (rating.get(y.clubId) ?? 0) - (rating.get(x.clubId) ?? 0) || cmpStr(x.clubId, y.clubId))
 }
 
 function knockout(rng: Rng, rating: Map<string, number>, key: string, label: string, sides: PunditSide[],
@@ -147,7 +148,7 @@ const rowsOf = (tally: Tally[]): PunditTableRow[] =>
 
 /** The field in four pots by their ratings, best first, each pot shuffled (their draw). */
 function pots(rng: Rng, field: PredictionTeam[], rating: Map<string, number>, count = 4): PunditSide[][] {
-  const ranked = [...field].sort((a, b) => (rating.get(b.clubId) ?? b.ovr) - (rating.get(a.clubId) ?? a.ovr) || a.clubId.localeCompare(b.clubId)).map(side)
+  const ranked = [...field].sort((a, b) => (rating.get(b.clubId) ?? b.ovr) - (rating.get(a.clubId) ?? a.ovr) || cmpStr(a.clubId, b.clubId)).map(side)
   const size = Math.ceil(ranked.length / count)
   return Array.from({ length: count }, (_, p) => shuffle(rng, ranked.slice(p * size, (p + 1) * size)))
 }

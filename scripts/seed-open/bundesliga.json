@@ -20,7 +20,7 @@
      "club_id": "bayern_munich",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -462,7 +462,7 @@
      "club_id": "bayern_munich",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -976,7 +976,7 @@
      "club_id": "bayern_munich",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -1472,7 +1472,7 @@
      "club_id": "bayern_munich",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -2022,7 +2022,7 @@
      "club_id": "bayern_munich",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -2518,7 +2518,7 @@
      "club_id": "bayern_munich",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -3050,7 +3050,7 @@
      "club_id": "bayern_munich",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -3600,7 +3600,7 @@
      "club_id": "bayern_munich",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 91,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -4178,7 +4178,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -4584,7 +4584,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 3,
      "players": [
       {
@@ -5116,7 +5116,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 90,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -5576,7 +5576,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -6108,7 +6108,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 3,
      "players": [
       {
@@ -6568,7 +6568,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -7028,7 +7028,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -7578,7 +7578,7 @@
      "club_id": "rb_leipzig",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -8120,7 +8120,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 88,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -8544,7 +8544,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -9022,7 +9022,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -9500,7 +9500,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 89,
+     "historical_ovr": 85,
      "league_position": 2,
      "players": [
       {
@@ -10104,7 +10104,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -10654,7 +10654,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 5,
      "players": [
       {
@@ -11240,7 +11240,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -11772,7 +11772,7 @@
      "club_id": "borussia_dortmund",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -12278,7 +12278,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -12666,7 +12666,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 5,
      "players": [
       {
@@ -13108,7 +13108,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 6,
      "players": [
       {
@@ -13658,7 +13658,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -14190,7 +14190,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -14686,7 +14686,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 1,
      "players": [
       {
@@ -15128,7 +15128,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 89,
+     "historical_ovr": 86,
      "league_position": 2,
      "players": [
       {
@@ -15552,7 +15552,7 @@
      "club_id": "bayer_04_leverkusen",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -16094,7 +16094,7 @@
      "club_id": "vfb_stuttgart",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 16,
      "players": [
       {
@@ -17104,7 +17104,7 @@
      "club_id": "vfb_stuttgart",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 15,
      "players": [
       {
@@ -17708,7 +17708,7 @@
      "club_id": "vfb_stuttgart",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -18276,7 +18276,7 @@
      "club_id": "vfb_stuttgart",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 90,
+     "historical_ovr": 87,
      "league_position": 2,
      "players": [
       {
@@ -18790,7 +18790,7 @@
      "club_id": "vfb_stuttgart",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 9,
      "players": [
       {
@@ -19340,7 +19340,7 @@
      "club_id": "vfb_stuttgart",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -19846,7 +19846,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -20342,7 +20342,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 9,
      "players": [
       {
@@ -20820,7 +20820,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 5,
      "players": [
       {
@@ -21758,7 +21758,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -22254,7 +22254,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -22876,7 +22876,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 3,
      "players": [
       {
@@ -23354,7 +23354,7 @@
      "club_id": "eintracht_frankfurt",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 8,
      "players": [
       {
@@ -24428,7 +24428,7 @@
      "club_id": "tsg_1899_hoffenheim",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 6,
      "players": [
       {
@@ -24978,7 +24978,7 @@
      "club_id": "tsg_1899_hoffenheim",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 11,
      "players": [
       {
@@ -26718,7 +26718,7 @@
      "club_id": "tsg_1899_hoffenheim",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -27286,7 +27286,7 @@
      "club_id": "tsg_1899_hoffenheim",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 15,
      "players": [
       {
@@ -27908,7 +27908,7 @@
      "club_id": "tsg_1899_hoffenheim",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -28396,7 +28396,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 13,
      "players": [
       {
@@ -28892,7 +28892,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 8,
      "players": [
       {
@@ -29352,7 +29352,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 10,
      "players": [
       {
@@ -29776,7 +29776,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 86,
+     "historical_ovr": 85,
      "league_position": 6,
      "players": [
       {
@@ -30290,7 +30290,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -30750,7 +30750,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 10,
      "players": [
       {
@@ -31192,7 +31192,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 86,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -31670,7 +31670,7 @@
      "club_id": "sc_freiburg",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 85,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -32140,7 +32140,7 @@
      "club_id": "vfl_wolfsburg",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 85,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -33114,7 +33114,7 @@
      "club_id": "vfl_wolfsburg",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -34178,7 +34178,7 @@
      "club_id": "vfl_wolfsburg",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 8,
      "players": [
       {
@@ -35720,7 +35720,7 @@
      "club_id": "vfl_wolfsburg",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -36280,7 +36280,7 @@
      "club_id": "hamburger_sv",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 13,
      "players": [
       {
@@ -36858,7 +36858,7 @@
      "club_id": "sv_werder_bremen",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 8,
      "players": [
       {
@@ -37318,7 +37318,7 @@
      "club_id": "sv_werder_bremen",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -37868,7 +37868,7 @@
      "club_id": "sv_werder_bremen",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -38842,7 +38842,7 @@
      "club_id": "sv_werder_bremen",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 9,
      "players": [
       {
@@ -39356,7 +39356,7 @@
      "club_id": "sv_werder_bremen",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 8,
      "players": [
       {
@@ -39780,7 +39780,7 @@
      "club_id": "sv_werder_bremen",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 15,
      "players": [
       {
@@ -40304,7 +40304,7 @@
      "club_id": "fc_augsburg",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -40746,7 +40746,7 @@
      "club_id": "fc_augsburg",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -41188,7 +41188,7 @@
      "club_id": "fc_augsburg",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 13,
      "players": [
       {
@@ -41576,7 +41576,7 @@
      "club_id": "fc_augsburg",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 14,
      "players": [
       {
@@ -41964,7 +41964,7 @@
      "club_id": "fc_augsburg",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 15,
      "players": [
       {
@@ -43614,7 +43614,7 @@
      "club_id": "fc_augsburg",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 83,
+     "historical_ovr": 82,
      "league_position": 9,
      "players": [
       {
@@ -44156,7 +44156,7 @@
      "club_id": "1_fsv_mainz_05",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 12,
      "players": [
       {
@@ -45698,7 +45698,7 @@
      "club_id": "1_fsv_mainz_05",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 8,
      "players": [
       {
@@ -46140,7 +46140,7 @@
      "club_id": "1_fsv_mainz_05",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 9,
      "players": [
       {
@@ -47132,7 +47132,7 @@
      "club_id": "1_fsv_mainz_05",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 6,
      "players": [
       {
@@ -47592,7 +47592,7 @@
      "club_id": "1_fsv_mainz_05",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 10,
      "players": [
       {
@@ -48152,7 +48152,7 @@
      "club_id": "1_fc_koln",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -48648,7 +48648,7 @@
      "club_id": "1_fc_koln",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 16,
      "players": [
       {
@@ -49144,7 +49144,7 @@
      "club_id": "1_fc_koln",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -50028,7 +50028,7 @@
      "club_id": "1_fc_koln",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -50958,7 +50958,7 @@
      "club_id": "borussia_monchengladbach",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 86,
+     "historical_ovr": 85,
      "league_position": 5,
      "players": [
       {
@@ -51382,7 +51382,7 @@
      "club_id": "borussia_monchengladbach",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 87,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -51824,7 +51824,7 @@
      "club_id": "borussia_monchengladbach",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 8,
      "players": [
       {
@@ -53312,7 +53312,7 @@
      "club_id": "borussia_monchengladbach",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 14,
      "players": [
       {
@@ -53826,7 +53826,7 @@
      "club_id": "borussia_monchengladbach",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 82,
+     "historical_ovr": 81,
      "league_position": 10,
      "players": [
       {
@@ -55306,7 +55306,7 @@
      "club_id": "1_fc_union_berlin",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 7,
      "players": [
       {
@@ -55766,7 +55766,7 @@
      "club_id": "1_fc_union_berlin",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 86,
+     "historical_ovr": 84,
      "league_position": 5,
      "players": [
       {
@@ -56244,7 +56244,7 @@
      "club_id": "1_fc_union_berlin",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 88,
+     "historical_ovr": 85,
      "league_position": 4,
      "players": [
       {
@@ -56776,7 +56776,7 @@
      "club_id": "1_fc_union_berlin",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 15,
      "players": [
       {
@@ -57326,7 +57326,7 @@
      "club_id": "1_fc_union_berlin",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 13,
      "players": [
       {
@@ -58328,7 +58328,7 @@
      "club_id": "1_fc_heidenheim_1846",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 84,
+     "historical_ovr": 83,
      "league_position": 8,
      "players": [
       {
@@ -58752,7 +58752,7 @@
      "club_id": "1_fc_heidenheim_1846",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 16,
      "players": [
       {
@@ -59230,7 +59230,7 @@
      "club_id": "1_fc_heidenheim_1846",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 17,
      "players": [
       {
@@ -59736,7 +59736,7 @@
      "club_id": "fc_st_pauli",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 79,
+     "historical_ovr": 80,
      "league_position": 14,
      "players": [
       {
@@ -60304,7 +60304,7 @@
      "club_id": "fc_st_pauli",
      "year_start": 2025,
      "year_end": 2026,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -60774,7 +60774,7 @@
      "club_id": "vfl_bochum",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 13,
      "players": [
       {
@@ -61252,7 +61252,7 @@
      "club_id": "vfl_bochum",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -61676,7 +61676,7 @@
      "club_id": "vfl_bochum",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 16,
      "players": [
       {
@@ -62100,7 +62100,7 @@
      "club_id": "vfl_bochum",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -62588,7 +62588,7 @@
      "club_id": "holstein_kiel",
      "year_start": 2024,
      "year_end": 2025,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -63148,7 +63148,7 @@
      "club_id": "sv_darmstadt_98",
      "year_start": 2023,
      "year_end": 2024,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -64222,7 +64222,7 @@
      "club_id": "hertha_bsc",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 80,
+     "historical_ovr": 81,
      "league_position": 10,
      "players": [
       {
@@ -64844,7 +64844,7 @@
      "club_id": "hertha_bsc",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 79,
      "league_position": 14,
      "players": [
       {
@@ -65376,7 +65376,7 @@
      "club_id": "hertha_bsc",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 16,
      "players": [
       {
@@ -65962,7 +65962,7 @@
      "club_id": "hertha_bsc",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 76,
+     "historical_ovr": 79,
      "league_position": 18,
      "players": [
       {
@@ -66522,7 +66522,7 @@
      "club_id": "fc_schalke_04",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 14,
      "players": [
       {
@@ -67090,7 +67090,7 @@
      "club_id": "fc_schalke_04",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 78,
+     "historical_ovr": 79,
      "league_position": 12,
      "players": [
       {
@@ -67604,7 +67604,7 @@
      "club_id": "fc_schalke_04",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 74,
+     "historical_ovr": 77,
      "league_position": 18,
      "players": [
       {
@@ -68334,7 +68334,7 @@
      "club_id": "fc_schalke_04",
      "year_start": 2022,
      "year_end": 2023,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -68984,7 +68984,7 @@
      "club_id": "arminia_bielefeld",
      "year_start": 2020,
      "year_end": 2021,
-     "historical_ovr": 77,
+     "historical_ovr": 78,
      "league_position": 15,
      "players": [
       {
@@ -69390,7 +69390,7 @@
      "club_id": "arminia_bielefeld",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -69842,7 +69842,7 @@
      "club_id": "spvgg_greuther_furth",
      "year_start": 2021,
      "year_end": 2022,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -70916,7 +70916,7 @@
      "club_id": "fortuna_dusseldorf",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -71548,7 +71548,7 @@
      "club_id": "sc_paderborn_07",
      "year_start": 2019,
      "year_end": 2020,
-     "historical_ovr": 76,
+     "historical_ovr": 78,
      "league_position": 18,
      "players": [
       {
@@ -72072,7 +72072,7 @@
      "club_id": "hannover_96",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 75,
+     "historical_ovr": 78,
      "league_position": 17,
      "players": [
       {
@@ -72578,7 +72578,7 @@
      "club_id": "1_fc_nuremberg",
      "year_start": 2018,
      "year_end": 2019,
-     "historical_ovr": 75,
+     "historical_ovr": 77,
      "league_position": 18,
      "players": [
       {

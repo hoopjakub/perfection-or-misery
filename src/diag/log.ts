@@ -142,13 +142,22 @@ export async function attachLogStore(s: LogStore): Promise<void> {
 // The tag is made here, four characters, so the lines of one run can be picked
 // out of a log; it's not the saved run's id and means nothing outside it.
 let run: { tag: string; mode: string; at: number } | null = null
+// Phase 9.75 (L-4, R3-12): one lifecycle for the log's run. It used to end only
+// on the result or an abandon, so a draft left before its first pick kept its
+// tag on every later line (the maintainer's log, 7 Oct: [europa_league] on the
+// history screens). Now a new run closes one still open ('replaced'), the
+// store's resetRun closes it, and the draft closes the run it opened when you
+// leave it with no picks ('left').
 export function runStarted(mode: string, detail = ''): void {
+  if (run) runEnded('replaced')
   run = { tag: Math.random().toString(36).slice(2, 6), mode, at: Date.now() }
   context = mode
   saveLedger.run = saveLedger.career = 'not attempted'   // a new run hasn't been saved yet
   write('info', 'run', `RUN STARTED ${run.tag} · ${mode}${detail ? ` · ${detail}` : ''}`)
 }
-export function runEnded(how: 'finished' | 'abandoned'): void {
+/** The open run's tag, so a screen can end only the run it started. */
+export const currentRunTag = (): string | null => run?.tag ?? null
+export function runEnded(how: 'finished' | 'abandoned' | 'left' | 'replaced'): void {
   if (!run) return
   write('info', 'run', `RUN ENDED ${run.tag} · ${run.mode} · ${how} after ${Math.round((Date.now() - run.at) / 1000)} s`)
   run = null
@@ -158,6 +167,16 @@ export function runEnded(how: 'finished' | 'abandoned'): void {
 // ── The save ledger (docs/diagnostics/04-CHECKS.md §6) ───────────────────────
 // Whether THIS run was saved, said plainly, for the Diagnostics screen.
 export const saveLedger = { run: 'not attempted', career: 'not attempted', schemaRetries: 0 }
+/**
+ * What the ledger says for a result screen's save state. Phase 9.75 (L-5,
+ * R3-13): a saved run opened from history isn't this run, so it says nothing.
+ * It used to write "skipped · tester or a saved run", and Diagnostics then
+ * reported the live run unsaved when it had been saved.
+ */
+export function saveLedgerLine(status: string, history: boolean): string | null {
+  if (status === 'waiting' || history) return null
+  return status === 'off' ? 'skipped · tester' : status === 'guest' ? 'skipped · guest' : status
+}
 export function noteSave(part: 'run' | 'career', state: string): void {
   if (saveLedger[part] === state) return
   saveLedger[part] = state

@@ -23,6 +23,7 @@
 // cumulative value at the final whistle is EXACTLY the sheet's total (R3):
 // allocation is largest-remainder, which cannot drift.
 
+import { psin } from '@/lib/pmath'
 import { mulberry32, deriveSeed } from '@/lib/rng'
 import type { MatchStats, TeamStatLine, MatchEvent, PlayerMatchLine } from '@/types/match-stats'
 
@@ -371,7 +372,7 @@ export function buildDeepMatchTimeline(detail: MatchStats, seed: number): DeepMa
       const k = Math.min(controls - 2, Math.floor(t))
       const f = t - k
       const lerp = knots[k] * (1 - f) + knots[k + 1] * f
-      return lerp * Math.sin((Math.PI * (i + 1)) / (span + 1))
+      return lerp * psin((Math.PI * (i + 1)) / (span + 1))
     })
     const mean = raw.reduce((a, b) => a + b, 0) / (span || 1)
     const wobble = raw.map(v => Math.round((v - mean) * WOBBLE_SCALE))

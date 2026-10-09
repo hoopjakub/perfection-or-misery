@@ -1,3 +1,4 @@
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import { log } from '@/diag/log'
 import { label } from '@/i18n/labels'
@@ -7,20 +8,22 @@ import { useIsFocused } from '@react-navigation/native'
 import { EventMark } from '@/components/kit'
 import { View, StyleSheet, Pressable } from 'react-native'
 import Animated, { FadeInLeft, FadeInRight } from 'react-native-reanimated'
-import { ROLES, space, border } from '@/theme'
+import { space, border } from '@/theme'
 import { KitText, Tag, Icon, Stripe, TeamMark } from '@/components/kit'
 import { summariseScorers } from '@/engine/run-stats'
 import type { MatchScorers, RosterPlayer } from '@/types/stats'
 import type { Formation } from '@/types/game'
 import { generateMatchDetail } from '@/engine/match-detail'
 import type { PenKick } from '@/engine/knockout-match'
-import { FLOODLIT } from '@/lib/appearance'
+import { useScreenRoles } from '@/lib/appearance'
 
-// Your match under floodlights (docs/ui-overhaul/07c C5): the scoreline as a
-// super, the round and clock in the tag mono, events sliding in from their
-// side, the aggregate under the score, penalties as a row of tags. Always
-// nylon: it's live play.
-const roles = ROLES[FLOODLIT]
+// Your match (docs/ui-overhaul/07c C5): the scoreline as a super, the round
+// and clock in the tag mono, events sliding in from their side, the aggregate
+// under the score, penalties as a row of tags.
+// It stands on the screen's ground (Phase 9.75, R3-01, decision D1). It was
+// pinned to the floodlit ground "because it's live play", which drew a dark
+// card in the middle of every light screen it sits on (P9.75-01). Floodlit is
+// for whole screens; scripts/verify-grounds.ts holds the list of the rest.
 
 // ── Public shapes ───────────────────────────────────────────────────────────
 export type LiveTeam = { clubId: string; clubName: string }
@@ -133,6 +136,7 @@ export function LiveMatch({
    *  so it waits for you instead of playing on unseen. */
   hold?: boolean
 }) {
+  const roles = useScreenRoles()
   const [periodIdx, setPeriodIdx] = useState(0)
   const [clock, setClock] = useState(periods[0]?.fromMin ?? 0)
   const [aggA, setAggA] = useState(0)       // running aggregate for teamA (fixed identity, cross-leg)
@@ -352,13 +356,13 @@ export function LiveMatch({
           style={({ pressed }) => [styles.pause, { borderColor: roles.line }, (pressed || paused) && { backgroundColor: roles.sunken }]}
         >
           <Icon name={paused ? 'play' : 'pause'} size={20} color={roles.text} />
-          <KitText t="tag" color={roles.text}>{paused ? 'Resume' : 'Pause'}</KitText>
+          <KitText t="tag" color={roles.text}>{paused ? t('parts.resume') : t('parts.pause')}</KitText>
         </Pressable>
       </View>
       {paused && <KitText t="body" color={roles.textMuted}>{t('parts.timeStopped')}</KitText>}
 
       <View style={styles.scoreRow} accessible accessibilityLiveRegion="polite"
-        accessibilityLabel={t('parts.liveA11y', { home: homeName, h: legHome, away: awayName, a: legAway, min: Math.min(clock, p.toMin) })}>
+        accessibilityLabel={t('parts.liveA11y', { home: countryName(homeName), h: legHome, away: countryName(awayName), a: legAway, min: Math.min(clock, p.toMin) })}>
         <Side name={homeName} clubId={p.homeId} align="right" />
         <KitText t="superL" color={roles.text} style={styles.bigScore}>{`${legHome}–${legAway}`}</KitText>
         <Side name={awayName} clubId={p.awayId} align="left" />
@@ -373,7 +377,7 @@ export function LiveMatch({
       {priorLegs.map((L, i) => (
         <View key={i} style={styles.priorLegBlock}>
           <KitText t="tag" color={roles.textMuted} style={styles.center} numberOfLines={1}>
-            {`${label(L.label)}: ${L.homeName} ${L.homeG}–${L.awayG} ${L.awayName}`}
+            {`${label(L.label)}: ${countryName(L.homeName)} ${L.homeG}–${L.awayG} ${countryName(L.awayName)}`}
           </KitText>
           {!!(L.homeScorers || L.awayScorers) && (
             <View style={styles.priorLegScorerRow}>
@@ -424,10 +428,11 @@ type FeedLine = { id: string; kind: 'GOAL' | 'OG' | 'PEN' | 'RED'; text: string;
 // decides by the id). It showed only a nation's flag, so every club tie, the
 // qualifiers and the Champions League knockouts, had no mark at all.
 function Side({ name, clubId, align }: { name: string; clubId: string; align: 'left' | 'right' }) {
+  const roles = useScreenRoles()
   return (
     <View style={[styles.side, { alignItems: align === 'right' ? 'flex-end' : 'flex-start' }]}>
       <TeamMark roles={roles} clubId={clubId} name={name} size={24} />
-      <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{name}</KitText>
+      <KitText t="title" color={roles.text} numberOfLines={2} style={{ textAlign: align }}>{countryName(name)}</KitText>
     </View>
   )
 }
@@ -440,11 +445,12 @@ function Side({ name, clubId, align }: { name: string; clubId: string; align: 'l
 const REGULATION_KICKS = 5
 
 function PenRow({ name, kicks }: { name: string; kicks: PenKick[] }) {
+  const roles = useScreenRoles()
   const total = Math.max(REGULATION_KICKS, kicks.length)
+  const said = kicks.map(k => t(k.scored ? 'match.penScored' : 'match.penMissed', { name: k.playerName })).join(', ') || t('parts.noKicks')
   return (
-    <View style={styles.penRow} accessible
-      accessibilityLabel={`${name}: ${kicks.map(k => `${k.playerName} ${k.scored ? 'scored' : 'missed'}`).join(', ') || 'no kicks yet'}`}>
-      <KitText t="body" color={roles.text} numberOfLines={1} style={styles.penName}>{name}</KitText>
+    <View style={styles.penRow} accessible accessibilityLabel={`${countryName(name)}: ${said}`}>
+      <KitText t="body" color={roles.text} numberOfLines={1} style={styles.penName}>{countryName(name)}</KitText>
       {Array.from({ length: total }, (_, i) => {
         const k = kicks[i]
         return (

@@ -24,6 +24,8 @@ import { reading } from '@/diag/perf'
 import { logEntries, saveLedger, enableDebugLog, type Entry } from '@/diag/log'
 import { stallSummary } from '@/diag/watch'
 import { useGameStore } from '@/store/gameStore'
+import { useRunQueue, refusedRuns, retryRefused, type RefusedRun } from '@/lib/runQueue'
+import { flushSavedRuns } from '@/db/queries/runs'
 import { DEV_TOOLS } from './tools'
 import { runShape, sessionKind, storageShape, type StorageShape } from '@/diag/shape'
 import type { StepResult, StepKey } from '@/diag/checks'
@@ -113,7 +115,11 @@ export default function DiagnosticsScreen() {
   const [cancelled, setCancelled] = useState(false)
   const [shareNote, setShareNote] = useState<string | null>(null)
   const stop = useRef(false)
-  const quickSim = useGameStore(s => s.quickSim)   // a tester run in memory gets its tag
+  const quickSim = useGameStore(s => s.quickSim)
+  const waitingRuns = useRunQueue(s => s.count)
+  const refusedCount = useRunQueue(s => s.refused)
+  const [refused, setRefused] = useState<RefusedRun[]>([])
+  useEffect(() => { refusedRuns().then(setRefused).catch(() => setRefused([])) }, [tick, refusedCount])   // a tester run in memory gets its tag
   const scroll = useRef<ScrollView>(null)
   const reportY = useRef(0)
 
@@ -234,6 +240,16 @@ export default function DiagnosticsScreen() {
           <ListRow roles={roles} label={t('about.tester')} icon="play" onPress={() => router.push('/diagnostics/tools')} />
         </Section>
       )}
+
+      {/* P9.75-06: what's waiting to go up, and what the server refused, with its reason. */}
+      <Section title={t('diag.saves')}>
+        <Line>{waitingRuns > 0 ? t('diag.waitingRuns', { count: waitingRuns }) : t('diag.noneWaiting')}</Line>
+        {refused.map(r => (
+          <KitText key={r.clientId} t="tag" color={roles.lossText} selectable>{t('diag.refusedLine', { date: r.refusedAt.slice(0, 16).replace('T', ' '), why: r.why })}</KitText>
+        ))}
+        {refused.length > 0 && <Plate label={t('diag.tryAgain')} roles={roles} variant="secondary" onPress={async () => { await retryRefused(); setTick(n => n + 1) }} />}
+        {waitingRuns > 0 && <Plate label={t('diag.refresh')} roles={roles} variant="quiet" icon="retry" onPress={async () => { await flushSavedRuns('Diagnostics'); setTick(n => n + 1) }} />}
+      </Section>
 
       {storage && (
         <Section title={t('diag.storage')}>

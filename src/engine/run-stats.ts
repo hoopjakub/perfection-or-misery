@@ -2,8 +2,10 @@
 // Works off the stored match results (no need to wire into the live sim loop),
 // so the same path serves real runs, the quick-sim tester, and history loads.
 
+import { cmpStr } from '@/lib/pmath'
 import type { RosterPlayer, CompetitionStats, SeasonAwards, MatchScorers, GoalEvent, AwardCandidate } from '@/types/stats'
 import { timeAsync } from '@/diag/perf'
+import { drain, drainInChunks } from '@/lib/chunked'
 import type { DraftedPlayer } from '@/types/game'
 import {
   attributeMatchScorers, createStatsAccumulator, computeAwards, buildClubGKMap,
@@ -124,7 +126,18 @@ export type ComputeRunStatsParams = {
   benchSize?:          number   // 0 when the run has substitutes off
 }
 
-export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } {
+export type RunStatsResult = { stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] }
+
+/** The whole pass at once (the self-test, scripts). */
+export const computeRunStats = (p: ComputeRunStatsParams): RunStatsResult => drain(runStatsPass(p))
+
+/** P9.75-13 (D2): the screen gets a turn every STATS_CHUNK match sheets. */
+const STATS_CHUNK = 20
+const computeRunStatsChunked = (p: ComputeRunStatsParams): Promise<RunStatsResult> => drainInChunks(runStatsPass(p), STATS_CHUNK)
+
+// One pass over the run's matches, yielding after each sheet so the caller
+// decides whether the screen gets a turn (src/lib/chunked.ts).
+function* runStatsPass(p: ComputeRunStatsParams): Generator<void, RunStatsResult> {
   // The player's club id maps to the original (replaced) club; use the drafted
   // XI as its pool instead of the DB roster.
   const poolByClub = new Map(p.rosters)
@@ -156,7 +169,8 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
   const matchLog: PlayerMatchLog = new Map()
   const rounds = new Map<string, RoundLine[]>()
 
-  p.matches.forEach((m, idx) => {
+  for (let idx = 0; idx < p.matches.length; idx++) {
+    const m = p.matches[idx]
     const homePool = poolByClub.get(m.homeClubId) ?? []
     const awayPool = poolByClub.get(m.awayClubId) ?? []
     const seed = m.seed ?? hashSeed(`${m.homeClubId}|${m.awayClubId}|${m.homeGoals}|${m.awayGoals}|${idx}`)
@@ -223,7 +237,8 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
       })
       matchLog.set(l.playerId, arr)
     }
-  })
+    yield
+  }
 
   const stats = acc.build()
   const mainStats = mainAcc?.build()
@@ -239,7 +254,7 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
     .filter(e => !qualLabels.has(e.label)).map(e => ({ label: e.label, rating: e.line.rating }))
   awards.playerOfTheSeason = applyImportance(awards.playerOfTheSeason, gamesOf, l => matchWeight(l, lastMd))
   // The same candidates (applyImportance changed their scores), re-ranked.
-  awards.bestU21 = [...awards.bestU21].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  awards.bestU21 = [...awards.bestU21].sort((a, b) => b.score - a.score || cmpStr(a.playerId, b.playerId))
   if (mainStats) awards.teams = mainStats.teams
   if (mainStats && qualAcc) {
     // Qualifying has no finishing order to carry anyone (a club out in Q1 and
@@ -256,7 +271,7 @@ export function computeRunStats(p: ComputeRunStatsParams): { stats: CompetitionS
 // team is picked from the best few at each position (awards.ts shortlists 5).
 const QUAL_KEEP = 6
 function bestPerPosition(cands: AwardCandidate[], keep: number): AwardCandidate[] {
-  const sorted = [...cands].sort((a, b) => b.score - a.score || a.playerId.localeCompare(b.playerId))
+  const sorted = [...cands].sort((a, b) => b.score - a.score || cmpStr(a.playerId, b.playerId))
   const count = new Map<string, number>()
   return sorted.filter(c => {
     const n = count.get(c.position) ?? 0
@@ -273,7 +288,7 @@ async function computeLeagueRunStatsNow(
   draftedPlayers: DraftedPlayer[],
   placedLeague: LeagueSeason,
   useSubstitutes = true,
-): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
+): Promise<RunStatsResult | null> {
   const table = simResult.table
   const playerClub = table.find(t => t.isPlayer)
   if (!playerClub) return null
@@ -282,7 +297,7 @@ async function computeLeagueRunStatsNow(
   const playerPool = draftedToPool(draftedPlayers, playerClub.clubId, playerClub.clubName, yearStart)
   const matches = leagueRunMatches(simResult)
   const finalPositionByClub = new Map(table.map((t, i) => [t.clubId, i + 1]))
-  return computeRunStats({
+  return computeRunStatsChunked({
     matches, rosters, playerPool, playerClubId: playerClub.clubId,
     finalPositionByClub, teamsInComp: simResult.teamsInLeague,
     benchSize: useSubstitutes ? DEFAULT_BENCH_SIZE : 0,
@@ -347,7 +362,7 @@ export function attributeWCResultScorers(result: WCSeasonResult, poolByClub: Map
 // too — the whole competition, not just the league phase + knockouts.
 async function computeCLRunStatsNow(
   result: CLSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2025, qualTies?: QualTie[], useSubstitutes = true,
-): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
+): Promise<RunStatsResult | null> {
   const standings = result.leaguePhaseStandings
   if (!standings?.length) return null
   const playerClubId = result.playerTeam.clubId
@@ -361,7 +376,7 @@ async function computeCLRunStatsNow(
   const matches = clRunMatches(result, qualTies)
 
   const finalPositionByClub = new Map(standings.map((t, i) => [t.clubId, i + 1]))
-  return computeRunStats({
+  return computeRunStatsChunked({
     matches, rosters, playerPool, playerClubId, finalPositionByClub,
     teamsInComp: standings.length, benchSize: useSubstitutes ? DEFAULT_BENCH_SIZE : 0,
   })
@@ -372,7 +387,7 @@ const WC_ROUND_POS: Record<string, number> = { r32: 17, r16: 9, qf: 5, sf: 3, fi
 
 async function computeWCRunStatsNow(
   result: WCSeasonResult, draftedPlayers: DraftedPlayer[], yearStart = 2026, useSubstitutes = true,
-): Promise<{ stats: CompetitionStats; awards: SeasonAwards; matchLog: PlayerMatchLog; rounds: RoundLines; matches: RunMatch[] } | null> {
+): Promise<RunStatsResult | null> {
   const allTeams = result.groups.flatMap(g => g.teams)
   if (!allTeams.length) return null
   const playerClubId = result.playerTeam.clubId
@@ -390,7 +405,7 @@ async function computeWCRunStatsNow(
   if (result.winner) pos.set(result.winner.clubId, 1)
   for (const t of allTeams) if (!pos.has(t.clubId)) pos.set(t.clubId, 33)
 
-  return computeRunStats({
+  return computeRunStatsChunked({
     matches, rosters, playerPool, playerClubId, finalPositionByClub: pos,
     teamsInComp: allTeams.length, benchSize: useSubstitutes ? DEFAULT_BENCH_SIZE : 0,
   })

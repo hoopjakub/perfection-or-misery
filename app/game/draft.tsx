@@ -1,12 +1,12 @@
 import { t } from '@/i18n'
 import { timeAsync } from '@/diag/perf'
-import { log } from '@/diag/log'
+import { log, runEnded, currentRunTag } from '@/diag/log'
 import { getFlag } from '@/lib/flagMap'
 import { surname } from '@/lib/format'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, cancelAnimation } from 'react-native-reanimated'
-import { Loader } from '@/components/kit'
+import { LoadingScreen } from '@/components/kit'
 import { useSizeClass } from '@/hooks/useSizeClass'
 import { WebKeys } from '@/lib/webKeys'
 import { View, ScrollView, StyleSheet, Platform } from 'react-native'
@@ -25,10 +25,10 @@ import { ROLES, space, border, colourwayFor, prim } from '@/theme'
 import {
   KitScreen, KitText, RunHeader, Plate, Tag, Chips, StripedNotice, InlineConfirm, Pitch, Tape,
 } from '@/components/kit'
-import { RackSpin, ClubCard, Hanger, PlayerTag, MarkBackdrop, type SpinItem } from '@/components/setup/DraftParts'
+import { RackSpin, ClubCard, Hanger, PlayerTag, MarkBackdrop, type SpinItem, type HangerState } from '@/components/setup/DraftParts'
 import { openConfirm } from '@/lib/confirm'
 import type { PositionSlot, DraftedPlayer } from '@/types/game'
-import type { ClubSeasonRow } from '@/engine/draft'
+import { spinItem as spinItemFor, seasonLabel, type ClubSeasonRow } from '@/engine/draft'
 import { EVERYDAY } from '@/lib/appearance'
 
 // Stage 4 · The draft — docs/ui-overhaul/07b B4 and B5.
@@ -62,7 +62,6 @@ const CURSED_LETTERS = 0.35
 // A small stable tilt per player for Chaos's cards (never the same twice in a
 // row, never enough to hurt reading).
 const tiltOf = (id: string) => { let h = 7; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 7) - 3) * 0.6 }
-const seasonLabel = (y: number) => `${y}/${String(y + 1).slice(-2)}`
 const POS_ORDER = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST']
 
 function toDrafted(p: PlayerRow, club: ClubSeasonRow, slotIndex: number, isBench = false): DraftedPlayer {
@@ -215,13 +214,8 @@ export default function DraftScreen() {
     setPhase('spinning')
   }
 
-  // P8-163: every item carries its mark, so the reel wears crests and flags
-  // (and their own colours) in every mode — a World Cup spin was a grey strip.
-  function spinItem(c: ClubSeasonRow): SpinItem {
-    return mode === 'world_cup'
-      ? { title: c.club_name, clubId: c.id, flag: getFlag(c.id) }
-      : { title: c.club_name, sub: seasonLabel(c.year_start), colour: c.primary_color, clubId: c.id }
-  }
+  // The reel's items, built in the engine so verify-spin can read every one.
+  const spinItem = (c: ClubSeasonRow): SpinItem => spinItemFor(mode, c)
 
   async function onLanded() {
     if (!spin) return
@@ -232,7 +226,7 @@ export default function DraftScreen() {
       log.warn('db', 'draft: squad failed', e)
       setSquad([])
     }
-    setFact(getRandomFact(spin.club.id))
+    setFact(getRandomFact(spin.club.club_id ?? spin.club.id))
     setPhase('picking')
   }
 
@@ -424,6 +418,15 @@ export default function DraftScreen() {
       .filter((s): s is PositionSlot => s !== null))
   }, [slots, formation])
 
+  // L-4 (R3-12): left with no picks, the run is over in the log, not still
+  // tagging every line of the history screens you go to next. Only the run
+  // this draft opened: by the time an old draft unmounts, a new one may be on.
+  const runTag = useRef(currentRunTag())
+  useEffect(() => () => {
+    const st = useGameStore.getState()
+    if (!st.draftedPlayers.length && !st.benchPlayers.length && currentRunTag() === runTag.current) runEnded('left')
+  }, [])
+
   // Every footballer already in the XI or on the bench, in any season (P8-30).
   const taken = useMemo(
     () => new Set([...draftedPlayers, ...benchPlayers].map(d => footballerKey(d.name, d.birthYear, d.nationality))),
@@ -471,11 +474,45 @@ export default function DraftScreen() {
   const nobodyFits = phase === 'picking' && squad.length > 0
     && squad.every(p => taken.has(footballerKey(p.name, p.birth_year, p.nationality)) || (!toBench && fitsFor(p.primary_position).length === 0))
 
-  function hangerFor(slot: PositionSlot) {
+  // P9.75-03 (R3-09): one builder for every hanger, the eleven's and the
+  // bench's. The bench drew its own: no club mark, no position, and nothing
+  // stepping back while you held someone, so the phone's "hard to see where to
+  // swap" had a cause. Now a held player lights every place that can take him
+  // and everything else steps back (`dim`), on the pitch and the bench alike.
+  type Place = { kind: 'slot'; slot: PositionSlot } | { kind: 'bench'; i: number }
+  function hangerFor(place: Place) {
+    let state: HangerState
+    let note: string | undefined
+    if (place.kind === 'bench') {
+      const i = place.i
+      const sub = benchPlayers[i]
+      const lit = !!sub && holding?.kind === 'starter' && benchCanCover(sub, holding.player)
+      // An empty spot takes a held starter (P8-06).
+      const open = !sub && holding?.kind === 'starter' && benchNeeded > 0
+      const held = !!sub && holding?.kind === 'sub' && holding.player.playerId === sub.playerId
+      state = held ? 'holding' : lit || open ? 'target' : sub ? 'filled' : 'empty'
+      note = lit ? t('parts.swap') : open ? t('parts.benchNote') : undefined
+      return (
+        <Hanger
+          key={`bench${i}`}
+          roles={roles}
+          label={sub ? `${t('draft.sub', { n: i + 1 })} · ${sub.primaryPosition}` : t('draft.sub', { n: i + 1 })}
+          surname={sub ? surname(sub.name) : undefined}
+          rating={sub ? ratingText(sub.ovr) : undefined}
+          state={state}
+          note={note}
+          dim={!!holding && (state === 'filled' || state === 'empty')}
+          mark={sub ? { clubId: sub.clubId, clubName: sub.clubName, nationality: sub.nationality } : undefined}
+          onPress={sub || open ? () => tapBench(sub) : undefined}
+          swingKey={sub && justFilled === `bench:${sub.playerId}` ? justFilled : undefined}
+          a11y={(sub ? t('draft.subA11y', { n: i + 1, name: sub.name, pos: sub.primaryPosition }) : t('draft.subEmptyA11y', { n: i + 1 })) + (note ? `. ${note}` : '')}
+        />
+      )
+    }
+    const slot = place.slot
     const p = slot.filledBy
     const pen = p ? positionPenalty(p.primaryPosition, slot.primary) : null
-    let state: 'empty' | 'filled' | 'holding' | 'target' | 'focus' = p ? 'filled' : 'empty'
-    let note: string | undefined
+    state = p ? 'filled' : 'empty'
     if (holding?.kind === 'starter' && holding.player.slotIndex === slot.slotIndex) state = 'holding'
     else if (holding?.kind === 'starter') { const target = starterTarget(holding.player, slot); if (target) { state = 'target'; note = target } }
     else if (holding?.kind === 'sub') { const target = subTarget(holding.player, slot); if (target) { state = 'target'; note = target } }
@@ -498,6 +535,7 @@ export default function DraftScreen() {
         outOfPosition={!!pen}
         state={state}
         note={note}
+        dim={!!holding && (state === 'filled' || state === 'empty')}
         swingKey={p && justFilled === `${slot.slotIndex}:${p.playerId}` ? justFilled : undefined}
         mark={p ? { clubId: p.clubId, clubName: p.clubName, nationality: p.nationality } : undefined}
         onPress={() => tapHanger(slot)}
@@ -509,14 +547,7 @@ export default function DraftScreen() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <KitScreen ground={EVERYDAY} scroll={false} contentStyle={styles.center}>
-        <Loader color={roles.text} />
-        <KitText t="tag" color={roles.textMuted}>{t('draft.loadingPool')}</KitText>
-      </KitScreen>
-    )
-  }
+  if (loading) return <LoadingScreen ground={EVERYDAY} label={t('draft.loadingPool')} back={false} />
 
   const next = ratingsHidden ? '/game/reveal' : '/game/placement'
 
@@ -527,7 +558,7 @@ export default function DraftScreen() {
     <>
       {/* The pitch */}
       {/* P8-50: the same pitch as every other formation in the app. */}
-      <Pitch rows={lines.map(row => row.map(hangerFor))} footer={
+      <Pitch rows={lines.map(row => row.map(slot => hangerFor({ kind: 'slot', slot })))} footer={
         <View style={styles.pitchFoot}>
           <KitText t="tag" color={prim.cottonMuted}>{`${slots.length - openSlots.length}/11`}</KitText>
           <KitText t="tag" color={prim.cotton}>
@@ -539,27 +570,7 @@ export default function DraftScreen() {
       {/* The bench rail */}
       {useSubstitutes && (
         <View style={styles.benchRow}>
-          {Array.from({ length: BENCH_SIZE }, (_, i) => {
-            const sub = benchPlayers[i]
-            const lit = !!sub && holding?.kind === 'starter' && benchCanCover(sub, holding.player)
-            // An empty spot takes a held starter (P8-06).
-            const open = !sub && holding?.kind === 'starter' && benchNeeded > 0
-            const held = !!sub && holding?.kind === 'sub' && holding.player.playerId === sub.playerId
-            return (
-              <Hanger
-                key={i}
-                roles={roles}
-                label={t('draft.sub', { n: i + 1 })}
-                surname={sub ? surname(sub.name) : undefined}
-                rating={sub ? ratingText(sub.ovr) : undefined}
-                state={held ? 'holding' : lit || open ? 'target' : sub ? 'filled' : 'empty'}
-                note={lit ? t('parts.swap') : open ? t('parts.benchNote') : undefined}
-                onPress={sub || open ? () => tapBench(sub) : undefined}
-                swingKey={sub && justFilled === `bench:${sub.playerId}` ? justFilled : undefined}
-                a11y={sub ? t('draft.subA11y', { n: i + 1, name: sub.name, pos: sub.primaryPosition }) : t('draft.subEmptyA11y', { n: i + 1 })}
-              />
-            )
-          })}
+          {Array.from({ length: BENCH_SIZE }, (_, i) => hangerFor({ kind: 'bench', i }))}
         </View>
       )}
 

@@ -57,7 +57,7 @@ export function LeagueResult({ runId, run }: { runId?: string; run: any | null }
       .catch(e => log.warn('stats', 'result: stats failed', e))
       .finally(() => setStatsDone(true))
   }, [])
-  const runSave = useRunSave({ applies: isFreshRun && !quickSim, signedIn: !!user && !isGuest, ready: statsDone })
+  const runSave = useRunSave({ applies: isFreshRun && !quickSim, history: !isFreshRun, signedIn: !!user && !isGuest, ready: statsDone })
   // A double tap (or both buttons) used to save twice; above the early returns.
   const submittingRef = useRef(false)
   const [submitting, setSubmitting] = useState(false)

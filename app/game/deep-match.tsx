@@ -111,7 +111,7 @@ export default function DeepMatchScreen() {
     const r = request
     const won = r.playerWon
     const kind: CeremonyKind = r.competitionLabel.toLowerCase().includes('world cup') ? 'globe' : 'cup'
-    const home = r.detail.homeName, away = r.detail.awayName
+    const home = countryName(r.detail.homeName), away = countryName(r.detail.awayName)
     return (
       <Ceremony
         won={won}
@@ -193,8 +193,8 @@ function LineupsStep({ request, detail, timeline, onStart }: {
   // ratings on show — it gave away the result before the whistle.
   const kickoffPlayers = useMemo(() => timeline.playersAt(0), [timeline])
   const sides = [
-    { key: 'home' as const, name: request.detail.homeName, shape: detail.homeShape, isHome: true },
-    { key: 'away' as const, name: request.detail.awayName, shape: detail.awayShape, isHome: false },
+    { key: 'home' as const, name: countryName(request.detail.homeName), shape: detail.homeShape, isHome: true },
+    { key: 'away' as const, name: countryName(request.detail.awayName), shape: detail.awayShape, isHome: false },
   ]
   return (
     <View style={styles.container}>
@@ -300,7 +300,7 @@ function LivePlayback({ request, detail, timeline, onFinished }: {
 
   // Commentary: every event as a line, newest first, with a quiet line read
   // from the state of play whenever nothing has happened for a while.
-  const home = request.detail.homeName, away = request.detail.awayName
+  const home = countryName(request.detail.homeName), away = countryName(request.detail.awayName)
   // P8-33: the chances, fouls and corners too, each placed on a minute where
   // this match's own frames moved that number, so the line lands as the stat does.
   const chances = useMemo(

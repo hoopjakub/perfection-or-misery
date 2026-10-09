@@ -1596,6 +1596,41 @@ From Wave D on, the maintainer tests on the web only: each native build costs a 
 
 **Done when** · the audit's steps are built and checked; the full audit's findings are fixed or written down with a reason; the checklist has a row for everything built.
 
+### Phase 9.5's results (the maintainer, 7 October 2026, first dev build on the POCO X6)
+
+The checklist went through on the phone ([`../PHASE-9.5-CHECKLIST.md`](../PHASE-9.5-CHECKLIST.md), statuses written there). Most of it works ("it looks better", Phase 9 "všetko funguje, a pekne"); these are what didn't, and they come **first** in 9.75, before the centralisation audit. Most of them are on the web too, so each fix is for both.
+
+**P9.75-01 · The live match on the season screen in light mode.** "The live match thing in season normal isn't applied for light mode, it just does not have the other component. Other screens as well." The live match card keeps its dark (floodlit) look, or loses a part, on the everyday ground in light mode, on the season screen and others. Find every live-match surface and check both grounds. *(Done 8 Oct 2026, step 3: `LiveMatch` takes the screen's ground; `verify-grounds` lists the pins that stay. Checklist 975-7.)*
+
+**P9.75-02 · The World Cup spin has no flags** (S1-3 failed on the phone; it passed on the web on 3 Oct). The draft's World Cup spin card shows empty where the nation's flag should be. *(Done 8 Oct 2026, step 3: the reel keyed by club, not season; `verify-spin`. Checklist 975-9.)*
+
+**P9.75-03 · Subs look different from the starting eleven, and swapping from the bench is hard to read.** "The subs don't have the things as the players in the starting eleven, make it the same; hard to see swapping from bench, like where you can swap to." A bench player's tag should carry what a starter's does, and while a bench player is picked, the slots they can go into must be marked. *(Done 8 Oct 2026, step 7: one hanger builder; the bench carries the mark and position; what can't take the held player steps back. Checklist 975-18.)*
+
+**P9.75-04 · The knockouts' press is at the bottom of a long scroll.** "Why do I have to scroll all the way down, just put it so you can just switch like a normal person." The press under the knockouts becomes a tab beside the rounds, the way the table and group stages have it (the Press tab). *(Done 8 Oct 2026, step 6: Rounds · Bracket · Press. Checklist 975-16.)*
+
+**P9.75-05 · You can't find your own knockouts.** "If you were in the Europa League you cannot find it, or at least I can't." On the full path (and wherever your competition isn't the first one shown), your own competition's knockout phase isn't reachable, or not visibly. *(Done 8 Oct 2026, step 6: the Europe tab lists your competition first; the Bracket tab names it. Checklist 975-17.)*
+
+**P9.75-06 · Offline runs never go up (D-1, D-2, D-3 failed).** D-1: a run finished offline does say queued, "but it doesn't seem to appear again. Stuck somewhere." It never reached Supabase or Runs. D-2: turning the network back on doesn't send it. D-3: reopening the app online doesn't either. The queue (`src/lib/runQueue.ts`, `flushSavedRuns` in `src/db/queries/runs.ts`) needs tracing on the phone with the log: whether a flush starts at all (online events, the foreground event, start-up), what `send` answers (the queue only sends under the account that played the run, and drops a run the server refuses with a log line), and whether the run is still in storage. D-4 (the date) worked. *(Done 8 Oct 2026, step 2: every queue step logged, the sign-in race, a 20 s send limit, refused runs kept and shown. The phone's retest decides it. Checklist 975-4 to 975-6.)*
+
+**P9.75-07 · The keyboard covers the clubs' invite field.** On inviting someone to a club, the keyboard sits over the field (as the chat's did before P8.5-06). *(Done 8 Oct 2026, step 5: `KitScreen` keeps every field above the keyboard; `verify-diag` rule 2e. Checklist 975-14.)*
+
+**P9.75-08 · One Slovak slip.** A pundit, Pavúk, shows his country as "Croatia", not "Chorvátsko": one place prints a pundit's country without `countryName()`. *(Done 8 Oct 2026, step 3: "Pavúk" is the bracket; 22 lines in 13 files printed names raw, now through `countryName()`, and `verify-i18n` fails on a new one. Checklist 975-8.)*
+
+**P9.75-09 · The press needs another pass.** S7 works, "but needs another pass, since the stories are not handmade": the cup stories read generated. A writing pass on every story kind, by hand, in both languages. *(Done 8 Oct 2026, step 9: three or more variants for every kind and branch, the cups' standfirsts too, turning with the matchday. Checklist 975-22.)*
+
+**P9.75-10 · Achievement toasts (C-3) couldn't be confirmed.** Nothing was earned during the session. Check on the next build, or with a run that earns one.
+
+**From the phone's first reading** ([`../PERF-LOG.md`](../PERF-LOG.md), 7 Oct, a development build, so slower than release):
+- **P9.75-11 · The run hub's Stats tab freezes the phone for 3.9 to 4.7 s** (`ui:tab` 3,856 and 4,692 ms, stalls of 3,775 and 4,557 ms on `/game/run`). The worst thing measured, by far. The Teams tab took 1.8 s, and switching back to Table once 2.6 s. *(Built 8 Oct 2026, step 4: `BoardList` mounts a page of rows at a time; `stats:board` and `hub:teams` time the rest. Waits for the phone's reading. Checklist 975-11.)*
+- **P9.75-12 · Opening the run hub takes 0.8 to 1.6 s** (`ui:navigate` 778–1,631 ms, budget 150/350), with a 0.9–2.4 s stall as it mounts. *(Built 8 Oct 2026, step 4: header first, body a frame later; the knockout worked out once. Checklist 975-12.)*
+- **P9.75-13 · A cup run's stats take 1.7 s and freeze the result screen for 1.4 s** (`stats:ucl` 1,656 ms with a 1,446 ms stall). World Cup stats 0.7–0.85 s. *(Built 8 Oct 2026, step 4: the pass gives the screen a turn every 20 sheets, D2. Checklist 975-13.)*
+- **P9.75-14 · The JS heap grows from 20 MB to 104 MB in a 10-minute session and never falls**, in steps of about 8–16 MB each time the run hub's tabs open. Could be caches doing their job or a leak: measure it in a release build first.
+- **P9.75-15 · Smaller:** a draft spin 448 ms (budget 150/400), and 270–360 ms stalls on opening mode select, difficulty and formation.
+
+*Audited 7 Oct 2026 (documents only, no code):* [`../audit-9.75/00-README.md`](../audit-9.75/00-README.md). Every P9.75 item traced to its cause (7 confirmed, the offline queue partly, 5 hypotheses with their probes), centralisation round three ([`../centralisation/13-RE-AUDIT-3.md`](../centralisation/13-RE-AUDIT-3.md), R3-01 to -13), the independent audit (logic, security, the interface re-scored with the phone's evidence: 32/40), and one build order in ten steps ([`06-BUILD-ORDER.md`](../audit-9.75/06-BUILD-ORDER.md)). Before coding: check `submit-run`'s deployed version on the dashboard.
+
+**Then the order.** (1) P9.75-01 to -15, each fix behind a check where one can be written; (2) the centralisation audit, round three, as the scope above says; (3) **the independent audit**, as usual and from scratch: the whole app looked at as if for the first time, deliberately not working from the earlier documents' lists, to find what they don't (the maintainer, 7 Oct: "completely independent of everything, to find issues or other stuff"). Measured first, logic, security, performance, the interface re-scored, then its findings fixed or written down with a reason.
+
 ## Phase 10 · The landing page (added 19 September 2026)
 
 *(27 September 2026: P8-154's website brief, [`docs/website/WEBSITE-BRIEF.md`](../website/WEBSITE-BRIEF.md), is this phase's creative brief: the live counter, the design bar and the prompts are there. Where this section and the brief differ, the brief is newer.)*

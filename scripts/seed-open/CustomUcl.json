@@ -447,7 +447,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 94,
+   "historical_ovr": 90,
    "players": [
     {
      "id": "kepa_arrizabalaga_cucl",
@@ -912,7 +912,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 94,
+   "historical_ovr": 90,
    "players": [
     {
      "id": "rayan_ait_nouri_cucl",
@@ -1413,7 +1413,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 93,
+   "historical_ovr": 88,
    "players": [
     {
      "id": "altay_bayindir_cucl",
@@ -1914,7 +1914,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 92,
+   "historical_ovr": 88,
    "players": [
     {
      "id": "tammy_abraham_cucl",
@@ -2469,7 +2469,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 91,
+   "historical_ovr": 88,
    "players": [
     {
      "id": "alisson_becker_cucl",
@@ -2916,7 +2916,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 90,
+   "historical_ovr": 87,
    "players": [
     {
      "id": "tyler_adams_cucl",
@@ -3435,7 +3435,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 89,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "simon_adingra_cucl",
@@ -3972,7 +3972,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 88,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "yasin_ayari_cucl",
@@ -4473,7 +4473,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 88,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "kristoffer_ajer_cucl",
@@ -4938,7 +4938,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 87,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "josh_acheampong_cucl",
@@ -5493,7 +5493,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 86,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "joachim_andersen_footballer_cucl",
@@ -5940,7 +5940,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "harvey_barnes_cucl",
@@ -6423,7 +6423,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "charly_alcaraz_cucl",
@@ -6834,7 +6834,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "brenden_aaronson_cucl",
@@ -7281,7 +7281,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "walter_benitez_footballer_cucl",
@@ -7818,7 +7818,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 83,
+   "historical_ovr": 82,
    "players": [
     {
      "id": "zach_abbott_cucl",
@@ -8391,7 +8391,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 82,
+   "historical_ovr": 81,
    "players": [
     {
      "id": "rodrigo_bentancur_cucl",
@@ -9573,7 +9573,7 @@
    "league_position": 19,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 80,
+   "historical_ovr": 81,
    "players": [
     {
      "id": "zeki_amdouni_cucl",
@@ -10056,7 +10056,7 @@
    "league_position": 20,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 80,
+   "historical_ovr": 81,
    "players": [
     {
      "id": "emmanuel_agbadou_cucl",
@@ -10593,7 +10593,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 93,
+   "historical_ovr": 88,
    "players": [
     {
      "id": "francesco_acerbi_cucl",
@@ -11076,7 +11076,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 92,
+   "historical_ovr": 88,
    "players": [
     {
      "id": "giuseppe_ambrosino_cucl",
@@ -11613,7 +11613,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 91,
+   "historical_ovr": 88,
    "players": [
     {
      "id": "angelino_cucl",
@@ -12150,7 +12150,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 91,
+   "historical_ovr": 87,
    "players": [
     {
      "id": "jayden_addai_cucl",
@@ -12597,7 +12597,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 90,
+   "historical_ovr": 87,
    "players": [
     {
      "id": "zachary_athekame_cucl",
@@ -13080,7 +13080,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 89,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "vasilije_adzic_cucl",
@@ -13599,7 +13599,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 88,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "honest_ahanor_cucl",
@@ -14118,7 +14118,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 86,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "federico_bernardeschi_cucl",
@@ -14673,7 +14673,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "toma_basic_cucl",
@@ -15228,7 +15228,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "arthur_atta_cucl",
@@ -15693,7 +15693,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "domenico_berardi_cucl",
@@ -16695,7 +16695,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "pontus_almqvist_cucl",
@@ -18861,7 +18861,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "lameck_banda_cucl",
@@ -19272,7 +19272,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "emil_audero_cucl",
@@ -19683,7 +19683,7 @@
    "league_position": 19,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "jean_daniel_akpa_akpro_cucl",
@@ -20148,7 +20148,7 @@
    "league_position": 20,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "michel_aebischer_cucl",
@@ -20649,7 +20649,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 91,
+   "historical_ovr": 87,
    "players": [
     {
      "id": "ronald_araujo_cucl",
@@ -21186,7 +21186,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 90,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "diego_aguado_cucl",
@@ -21813,7 +21813,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 90,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "ilias_akhomach_cucl",
@@ -22404,7 +22404,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 88,
+   "historical_ovr": 86,
    "players": [
     {
      "id": "thiago_almada_cucl",
@@ -22941,7 +22941,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 87,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "adrian_footballer_cucl",
@@ -23144,7 +23144,7 @@
     {
      "id": "junior_firpo_cucl",
      "name": "Junior Firpo",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1996,
      "primary_position": "LB",
      "secondary_positions": [],
@@ -23424,7 +23424,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 86,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "marcos_alonso_footballer_born_1990_cucl",
@@ -23907,7 +23907,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "abdel_abqar_cucl",
@@ -24282,7 +24282,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "ilias_akhomach__rayo_vallecano_cucl_cucl",
@@ -25068,7 +25068,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "ibai_aguirre_cucl",
@@ -25713,7 +25713,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "leandro_cabrera_cucl",
@@ -25980,7 +25980,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 82,
+   "historical_ovr": 81,
    "players": [
     {
      "id": "yeray_alvarez_cucl",
@@ -27018,7 +27018,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "abde_rebbach_cucl",
@@ -27077,7 +27077,7 @@
     {
      "id": "mariano_diaz_cucl",
      "name": "Mariano Díaz",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1993,
      "primary_position": "ST",
      "secondary_positions": [],
@@ -27303,7 +27303,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "david_affengruber_footballer_born_2001_cucl",
@@ -27732,7 +27732,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "carlos_alvarez_footballer_born_2003_cucl",
@@ -28071,7 +28071,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "kike_barja_cucl",
@@ -28374,7 +28374,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "takuma_asano_cucl",
@@ -28893,7 +28893,7 @@
    "league_position": 19,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "juan_arango_jr_cucl",
@@ -29484,7 +29484,7 @@
    "league_position": 20,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "rahim_alhassane_cucl",
@@ -29769,7 +29769,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 91,
+   "historical_ovr": 87,
    "players": [
     {
      "id": "tom_bischof_cucl",
@@ -30342,7 +30342,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 90,
+   "historical_ovr": 87,
    "players": [
     {
      "id": "karim_adeyemi_cucl",
@@ -30843,7 +30843,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 88,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "johan_bakayoko_cucl",
@@ -31380,7 +31380,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 88,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "chema_andres_cucl",
@@ -31881,7 +31881,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 87,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "kevin_akpoguma_cucl",
@@ -32364,7 +32364,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "amine_adli__bayer_04_leverkusen_cucl_cucl",
@@ -32901,7 +32901,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "junior_adamu_cucl",
@@ -33366,7 +33366,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 83,
+   "historical_ovr": 82,
    "players": [
     {
      "id": "ayoube_amaimouni_cucl",
@@ -33903,7 +33903,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 83,
+   "historical_ovr": 82,
    "players": [
     {
      "id": "noahkai_banks_cucl",
@@ -34440,7 +34440,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 82,
+   "historical_ovr": 81,
    "players": [
     {
      "id": "nadiem_amiri_cucl",
@@ -35997,7 +35997,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "fabio_balde_cucl",
@@ -37053,7 +37053,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "felix_agu_cucl",
@@ -37572,7 +37572,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "jonas_adjetey_cucl",
@@ -38127,7 +38127,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "adrian_beck_cucl",
@@ -38628,7 +38628,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "dapo_afolayan_cucl",
@@ -39093,7 +39093,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 87,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "bradley_barcola_cucl",
@@ -39612,7 +39612,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 87,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "saud_abdulhamid_cucl",
@@ -40167,7 +40167,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "alexsandro_footballer_born_1999_cucl",
@@ -40740,7 +40740,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 85,
+   "historical_ovr": 84,
    "players": [
     {
      "id": "abner_vinicius_cucl",
@@ -41385,7 +41385,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 83,
+   "historical_ovr": 82,
    "players": [
     {
      "id": "kassim_abdallah_cucl",
@@ -44322,7 +44322,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "izak_akakpo_cucl",
@@ -44625,7 +44625,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "mathieu_cafaro_cucl",
@@ -44982,7 +44982,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "justin_bourgault_cucl",
@@ -45321,7 +45321,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "himad_abdelli__angers_sco_cucl_cucl",
@@ -45786,7 +45786,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "sofiane_boufal_cucl",
@@ -46359,7 +46359,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "clement_akpa_cucl",
@@ -46788,7 +46788,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "ali_abdi_footballer_cucl",
@@ -47369,7 +47369,7 @@
     {
      "id": "pablo_rosario_cucl",
      "name": "Pablo Rosario",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1997,
      "primary_position": "CM",
      "secondary_positions": [],
@@ -47469,7 +47469,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "matthis_abline_cucl",
@@ -48114,7 +48114,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "giorgi_abuashvili_cucl",
@@ -48759,7 +48759,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 86,
+   "historical_ovr": 85,
    "players": [
     {
      "id": "jakub_kiwior_cucl",
@@ -48908,7 +48908,7 @@
     {
      "id": "pablo_rosario__fc_porto_cucl_cucl",
      "name": "Pablo Rosario",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1997,
      "primary_position": "CM",
      "secondary_positions": [],
@@ -49296,7 +49296,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "rui_silva_footballer_born_1994_cucl",
@@ -49833,7 +49833,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 83,
    "players": [
     {
      "id": "anatoliy_trubin_cucl",
@@ -50334,7 +50334,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 83,
+   "historical_ovr": 82,
    "players": [
     {
      "id": "victor_gomez_footballer_cucl",
@@ -50835,7 +50835,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "ivan_zlobin_cucl",
@@ -51873,7 +51873,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "aranha__moreirense_fc_cucl_cucl",
@@ -52893,7 +52893,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "miguel_maga_footballer_born_2002_cucl",
@@ -53448,7 +53448,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "joel_robles_cucl",
@@ -54021,7 +54021,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "noah_raveyre_cucl",
@@ -54630,7 +54630,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "cezary_miszta_cucl",
@@ -55239,7 +55239,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "lucas_franca_footballer_cucl",
@@ -55740,7 +55740,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "renato_marin__cd_nacional_cucl_cucl",
@@ -56331,7 +56331,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "lucas_mincarelli_cucl",
@@ -56886,7 +56886,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "patrick_sequeira_cucl",
@@ -57423,7 +57423,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "lucas_canizares_cucl",
@@ -57960,7 +57960,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "dani_rebollo_cucl",
@@ -58443,7 +58443,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 84,
+   "historical_ovr": 82,
    "players": [
     {
      "id": "vic_chambaere_cucl",
@@ -60519,7 +60519,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "ortwin_de_wolf_cucl",
@@ -61146,7 +61146,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "zoumana_keita_cucl",
@@ -61773,7 +61773,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "tobe_leysen_cucl",
@@ -62328,7 +62328,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "matthieu_epolo_cucl",
@@ -63243,7 +63243,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "bill_lathouwers_cucl",
@@ -63780,7 +63780,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "alvaro_cortes__royal_antwerp_fc_cucl_cucl",
@@ -64893,7 +64893,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "martin_delavallee_cucl",
@@ -65358,7 +65358,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "dani_van_den_heuvel_cucl",
@@ -65985,7 +65985,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "louis_bostyn_cucl",
@@ -66486,7 +66486,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "gaetan_coucke_cucl",
@@ -67005,7 +67005,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "nolan_gillot__raal_la_louviere_cucl_cucl",
@@ -67542,7 +67542,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "louis_fortin__fcv_dender_eh_cucl_cucl",
@@ -69033,24 +69033,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__feyenoord_rotterdam_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 77,
-     "attack": 40,
-     "defense": 77,
-     "physical": 69,
-     "pace": 49,
-     "technical": 63,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "liam_bossin_cucl",
      "name": "Liam Bossin",
      "nationality": "Irish",
@@ -69336,24 +69318,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__nec_nijmegen_cucl_cucl",
-     "name": "",
-     "nationality": "Moroccan",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 76,
-     "attack": 80,
-     "defense": 40,
-     "physical": 74,
-     "pace": 77,
-     "technical": 70,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "noe_lebreton_cucl",
      "name": "Noé Lebreton",
      "nationality": "French",
@@ -69426,24 +69390,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__nec_nijmegen_cucl__nec_nijmegen_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 76,
-     "attack": 72,
-     "defense": 71,
-     "physical": 71,
-     "pace": 71,
-     "technical": 79,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "bryan_linssen_cucl",
      "name": "Bryan Linssen",
      "nationality": "Dutch",
@@ -69459,24 +69405,6 @@
      "goals": 11,
      "assists": 0,
      "appearances": 32,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__nec_nijmegen_cucl__nec_nijmegen_cucl_2_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 76,
-     "attack": 80,
-     "defense": 40,
-     "physical": 74,
-     "pace": 77,
-     "technical": 70,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -69510,24 +69438,6 @@
      "physical": 67,
      "pace": 47,
      "technical": 61,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__nec_nijmegen_cucl__nec_nijmegen_cucl_3_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 76,
-     "attack": 72,
-     "defense": 71,
-     "physical": 71,
-     "pace": 71,
-     "technical": 79,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -69654,7 +69564,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "lars_unnerstall_cucl",
@@ -69888,24 +69798,6 @@
      "goals": 0,
      "assists": 0,
      "appearances": 3,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fc_twente_enschede_cucl_cucl",
-     "name": "",
-     "nationality": "Belgian",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 75,
-     "attack": 71,
-     "defense": 70,
-     "physical": 70,
-     "pace": 70,
-     "technical": 78,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -70692,7 +70584,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "vasilis_barkas_cucl",
@@ -71073,24 +70965,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fc_utrecht_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 74,
-     "attack": 40,
-     "defense": 74,
-     "physical": 66,
-     "pace": 46,
-     "technical": 60,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "per_kloosterboer__fc_utrecht_cucl_cucl",
      "name": "Per Kloosterboer",
      "nationality": "Dutch",
@@ -71103,24 +70977,6 @@
      "physical": 77,
      "pace": 64,
      "technical": 62,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fc_utrecht_cucl__fc_utrecht_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 74,
-     "attack": 40,
-     "defense": 74,
-     "physical": 66,
-     "pace": 46,
-     "technical": 60,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -71247,7 +71103,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "rome_jayden_owusu_oduro_cucl",
@@ -71766,7 +71622,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "mees_hilgers_cucl",
@@ -71910,24 +71766,6 @@
      "goals": 0,
      "assists": 0,
      "appearances": 2,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__sc_heerenveen_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 45,
-     "defense": 77,
-     "physical": 76,
-     "pace": 63,
-     "technical": 61,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -72147,24 +71985,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__sc_heerenveen_cucl__sc_heerenveen_cucl_cucl",
-     "name": "",
-     "nationality": "Congolese",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 69,
-     "defense": 68,
-     "physical": 68,
-     "pace": 68,
-     "technical": 76,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "andries_noppert_cucl",
      "name": "Andries Noppert",
      "nationality": "Dutch",
@@ -72213,7 +72033,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "etienne_vaessen_cucl",
@@ -72396,24 +72216,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fc_groningen_cucl_cucl",
-     "name": "",
-     "nationality": "Slovenia",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 40,
-     "defense": 73,
-     "physical": 65,
-     "pace": 45,
-     "technical": 59,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "jorg_schreuders_cucl",
      "name": "Jorg Schreuders",
      "nationality": "Dutch",
@@ -72444,24 +72246,6 @@
      "physical": 66,
      "pace": 53,
      "technical": 51,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fc_groningen_cucl__fc_groningen_cucl_cucl",
-     "name": "",
-     "nationality": "Swedish",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 69,
-     "defense": 68,
-     "physical": 68,
-     "pace": 68,
-     "technical": 76,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -72519,24 +72303,6 @@
      "goals": 3,
      "assists": 0,
      "appearances": 16,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fc_groningen_cucl__fc_groningen_cucl_2_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 77,
-     "defense": 40,
-     "physical": 71,
-     "pace": 74,
-     "technical": 67,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -72630,24 +72396,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fc_groningen_cucl__fc_groningen_cucl_3_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 40,
-     "defense": 73,
-     "physical": 65,
-     "pace": 45,
-     "technical": 59,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "hans_hateboer__fc_groningen_cucl_cucl",
      "name": "Hans Hateboer",
      "nationality": "Dutch",
@@ -72664,24 +72412,6 @@
      "assists": 0,
      "appearances": 26,
      "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fc_groningen_cucl__fc_groningen_cucl_4_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 73,
-     "attack": 77,
-     "defense": 40,
-     "physical": 71,
-     "pace": 74,
-     "technical": 67,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
     }
    ]
   },
@@ -72696,7 +72426,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "filip_bednarek_cucl",
@@ -72711,24 +72441,6 @@
      "physical": 59,
      "pace": 39,
      "technical": 53,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__sparta_rotterdam_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 72,
-     "attack": 40,
-     "defense": 72,
-     "physical": 64,
-     "pace": 44,
-     "technical": 58,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -72858,42 +72570,6 @@
      "goals": 0,
      "assists": 0,
      "appearances": 13,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__sparta_rotterdam_cucl__sparta_rotterdam_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 72,
-     "attack": 44,
-     "defense": 76,
-     "physical": 75,
-     "pace": 62,
-     "technical": 60,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__sparta_rotterdam_cucl__sparta_rotterdam_cucl_2_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 72,
-     "attack": 44,
-     "defense": 76,
-     "physical": 75,
-     "pace": 62,
-     "technical": 60,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -73143,7 +72819,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "luuk_koopmans_cucl",
@@ -73326,24 +73002,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fortuna_sittard_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 72,
-     "attack": 68,
-     "defense": 67,
-     "physical": 67,
-     "pace": 67,
-     "technical": 75,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "nick_de_groot_cucl",
      "name": "Nick de Groot",
      "nationality": "Dutch",
@@ -73488,24 +73146,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fortuna_sittard_cucl__fortuna_sittard_cucl_cucl",
-     "name": "",
-     "nationality": "Belgian",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 72,
-     "attack": 68,
-     "defense": 67,
-     "physical": 67,
-     "pace": 67,
-     "technical": 75,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "ivan_marquez_footballer_cucl",
      "name": "Iván Márquez",
      "nationality": "Spanish",
@@ -73554,7 +73194,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "kjetil_haug__go_ahead_eagles_cucl_cucl",
@@ -73644,24 +73284,6 @@
      "goals": 1,
      "assists": 0,
      "appearances": 26,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__go_ahead_eagles_cucl_cucl",
-     "name": "",
-     "nationality": "Croatian",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 43,
-     "defense": 75,
-     "physical": 74,
-     "pace": 61,
-     "technical": 59,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -73806,24 +73428,6 @@
      "goals": 1,
      "assists": 0,
      "appearances": 22,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__go_ahead_eagles_cucl__go_ahead_eagles_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 43,
-     "defense": 75,
-     "physical": 74,
-     "pace": 61,
-     "technical": 59,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -74007,24 +73611,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__go_ahead_eagles_cucl__go_ahead_eagles_cucl_2_cucl",
-     "name": "",
-     "nationality": "Ghanaian",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 75,
-     "defense": 40,
-     "physical": 69,
-     "pace": 72,
-     "technical": 65,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "nando_verdoni__go_ahead_eagles_cucl_cucl",
      "name": "Nando Verdoni",
      "nationality": "Dutch",
@@ -74037,24 +73623,6 @@
      "physical": 63,
      "pace": 43,
      "technical": 57,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__go_ahead_eagles_cucl__go_ahead_eagles_cucl_3_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 67,
-     "defense": 66,
-     "physical": 66,
-     "pace": 66,
-     "technical": 74,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -74091,7 +73659,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "stijn_van_gassel_cucl",
@@ -74163,24 +73731,6 @@
      "goals": 0,
      "assists": 0,
      "appearances": 33,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__excelsior_rotterdam_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 67,
-     "defense": 66,
-     "physical": 66,
-     "pace": 66,
-     "technical": 74,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -74364,24 +73914,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__excelsior_rotterdam_cucl__excelsior_rotterdam_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 75,
-     "defense": 40,
-     "physical": 69,
-     "pace": 72,
-     "technical": 65,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "lennard_hartjes_cucl",
      "name": "Lennard Hartjes",
      "nationality": "Dutch",
@@ -74415,42 +73947,6 @@
      "goals": 5,
      "assists": 0,
      "appearances": 33,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__excelsior_rotterdam_cucl__excelsior_rotterdam_cucl_2_cucl",
-     "name": "",
-     "nationality": "German",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 43,
-     "defense": 75,
-     "physical": 74,
-     "pace": 61,
-     "technical": 59,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__excelsior_rotterdam_cucl__excelsior_rotterdam_cucl_3_cucl",
-     "name": "",
-     "nationality": "Swedish",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 75,
-     "defense": 40,
-     "physical": 69,
-     "pace": 72,
-     "technical": 65,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -74490,24 +73986,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__excelsior_rotterdam_cucl__excelsior_rotterdam_cucl_4_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 75,
-     "defense": 40,
-     "physical": 69,
-     "pace": 72,
-     "technical": 65,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "agust_orri_thorsteinsson_cucl",
      "name": "Ágúst Orri Þorsteinsson",
      "nationality": "Iceland",
@@ -74524,24 +74002,6 @@
      "assists": 0,
      "appearances": 5,
      "is_icon": 0
-    },
-    {
-     "id": "pztntfp__excelsior_rotterdam_cucl__excelsior_rotterdam_cucl_5_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 71,
-     "attack": 40,
-     "defense": 71,
-     "physical": 63,
-     "pace": 43,
-     "technical": 57,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
     }
    ]
   },
@@ -74556,7 +74016,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "ronald_koeman_jr_cucl",
@@ -74703,24 +74163,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__sc_telstar_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 74,
-     "defense": 40,
-     "physical": 68,
-     "pace": 71,
-     "technical": 64,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "tyrone_owusu_cucl",
      "name": "Tyrone Owusu",
      "nationality": "Dutch",
@@ -74811,24 +74253,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__sc_telstar_cucl__sc_telstar_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 42,
-     "defense": 74,
-     "physical": 73,
-     "pace": 60,
-     "technical": 58,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "nils_rossen_cucl",
      "name": "Nils Rossen",
      "nationality": "Dutch",
@@ -74865,24 +74289,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__sc_telstar_cucl__sc_telstar_cucl_2_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 66,
-     "defense": 65,
-     "physical": 65,
-     "pace": 65,
-     "technical": 73,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "daan_reiziger_cucl",
      "name": "Daan Reiziger",
      "nationality": "Dutch",
@@ -74898,42 +74304,6 @@
      "goals": 0,
      "assists": 0,
      "appearances": 2,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__sc_telstar_cucl__sc_telstar_cucl_3_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 74,
-     "defense": 40,
-     "physical": 68,
-     "pace": 71,
-     "technical": 64,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__sc_telstar_cucl__sc_telstar_cucl_4_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 66,
-     "defense": 65,
-     "physical": 65,
-     "pace": 65,
-     "technical": 73,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
      "is_icon": 0
     },
     {
@@ -74991,24 +74361,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__sc_telstar_cucl__sc_telstar_cucl_5_cucl",
-     "name": "",
-     "nationality": "Suriname",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 66,
-     "defense": 65,
-     "physical": 65,
-     "pace": 65,
-     "technical": 73,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "ar_jany_martha_cucl",
      "name": "Ar'jany Martha",
      "nationality": "Curaçao",
@@ -75057,7 +74409,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "jasper_schendelaar_cucl",
@@ -75294,24 +74646,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__pec_zwolle_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 66,
-     "defense": 65,
-     "physical": 65,
-     "pace": 65,
-     "technical": 73,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "ibrahim_cissoko_cucl",
      "name": "Ibrahim Cissoko",
      "nationality": "Guinean",
@@ -75420,24 +74754,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__pec_zwolle_cucl__pec_zwolle_cucl_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 42,
-     "defense": 74,
-     "physical": 73,
-     "pace": 60,
-     "technical": 58,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "nick_fichtinger_cucl",
      "name": "Nick Fichtinger",
      "nationality": "Dutch",
@@ -75474,42 +74790,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__pec_zwolle_cucl__pec_zwolle_cucl_2_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 66,
-     "defense": 65,
-     "physical": 65,
-     "pace": 65,
-     "technical": 73,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__pec_zwolle_cucl__pec_zwolle_cucl_3_cucl",
-     "name": "",
-     "nationality": "Dutch",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 70,
-     "attack": 40,
-     "defense": 70,
-     "physical": 62,
-     "pace": 42,
-     "technical": 56,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "filip_krastev_cucl",
      "name": "Filip Krastev",
      "nationality": "Bulgaria",
@@ -75540,7 +74820,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "hidde_jurjus_cucl",
@@ -76041,7 +75321,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "michael_verrips_cucl",
@@ -76470,7 +75750,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "fabian_de_keijzer_cucl",
@@ -76835,7 +76115,7 @@
     {
      "id": "manny_rodriguez_footballer_cucl",
      "name": "Manny Rodríguez",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1998,
      "primary_position": "CB",
      "secondary_positions": [],
@@ -77025,7 +76305,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 82,
+   "historical_ovr": 81,
    "players": [
     {
      "id": "ugurcan_cakir_cucl",
@@ -78654,7 +77934,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "alexander_nubel__besiktas_jk_cucl_cucl",
@@ -79227,7 +78507,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "volkan_babacan_cucl",
@@ -79764,7 +79044,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "arda_ozcimen_cucl",
@@ -80247,7 +79527,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "okan_kocuk_cucl",
@@ -80748,7 +80028,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "husniddin_aliqulov_cucl",
@@ -81321,7 +80601,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "deniz_ertas_cucl",
@@ -81840,7 +81120,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "aleksandar_jovanovic_footballer_born_december_1992_cucl",
@@ -82341,7 +81621,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "nuno_lima_cucl",
@@ -82878,7 +82158,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "luis_perez_footballer_born_1995_cucl",
@@ -83415,7 +82695,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "andreas_gianniotis_cucl",
@@ -84042,7 +83322,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "thalisson_cucl",
@@ -84615,7 +83895,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "emre_bilgin_cucl",
@@ -85152,7 +84432,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "julian_cuesta_cucl",
@@ -85689,7 +84969,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "jemal_tabidze_cucl",
@@ -86298,7 +85578,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "marco_silvestri__fatih_karagumruk_cucl_cucl",
@@ -87264,7 +86544,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "martin_suchomel_cucl",
@@ -87801,7 +87081,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "dominik_tapaj_cucl",
@@ -88320,7 +87600,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "jan_hanus_footballer_cucl",
@@ -88893,7 +88173,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "patrik_vizek__fc_hradec_kralove_cucl_cucl",
@@ -89376,7 +88656,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "jan_mikula_cucl",
@@ -89931,7 +89211,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "patrik_berka__sk_sigma_olomouc_cucl_cucl",
@@ -90504,7 +89784,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "jachym_serak__fk_pardubice_cucl_cucl",
@@ -91041,7 +90321,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "yahaya_lawali__mfk_karvina_cucl_cucl",
@@ -91542,7 +90822,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "matej_kadlec__bohemians_prague_1905_cucl_cucl",
@@ -92061,7 +91341,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "marek_obdrzalek__fk_mlada_boleslav_cucl_cucl",
@@ -92598,7 +91878,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "tom_ulbrich__fc_zlin_cucl_cucl",
@@ -93117,7 +92397,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "ludek_nemecek__fk_teplice_cucl_cucl",
@@ -93708,7 +92988,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "daniel_basta__fk_dukla_prague_cucl_cucl",
@@ -94281,7 +93561,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "gigli_ndefe_cucl",
@@ -94818,7 +94098,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "viktor_budinsky_cucl",
@@ -95892,7 +95172,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "philipp_schulze__gornik_zabrze_cucl_cucl",
@@ -96095,7 +95375,7 @@
     {
      "id": "peter_gonzalez_footballer_cucl",
      "name": "Peter González",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 2002,
      "primary_position": "RW",
      "secondary_positions": [],
@@ -96411,7 +95691,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "michal_perchel__jagiellonia_bialystok_cucl_cucl",
@@ -97056,7 +96336,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "kacper_trelowski_cucl",
@@ -97629,7 +96909,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "maciej_kikolski_cucl",
@@ -98184,7 +97464,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "ivan_brkic_footballer_cucl",
@@ -98739,7 +98019,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "jasmin_buric_cucl",
@@ -99330,7 +98610,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "marcin_flis_cucl",
@@ -99903,7 +99183,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "kellyn_acosta_cucl",
@@ -100476,7 +99756,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "filip_majchrowicz_cucl",
@@ -101085,7 +100365,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "xavier_dziekonski_cucl",
@@ -101640,7 +100920,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "paskal_meyer__motor_lublin_cucl_cucl",
@@ -102123,7 +101403,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "gustav_henriksson_cucl",
@@ -102732,7 +102012,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "bartlomiej_dragowski_cucl",
@@ -103269,7 +102549,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "elton_fikaj_cucl",
@@ -103734,7 +103014,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "axel_holewinski__lechia_gdansk_cucl_cucl",
@@ -104361,7 +103641,7 @@
    "league_position": 17,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "serafin_szota_cucl",
@@ -104898,7 +104178,7 @@
    "league_position": 18,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "adrian_chovan_cucl",
@@ -105453,7 +104733,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "thomas_strakosha_cucl",
@@ -106527,7 +105807,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "jiri_pavlenka_cucl",
@@ -107082,7 +106362,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "inaki_pena__panathinaikos_cucl_cucl",
@@ -107619,7 +106899,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "alexandru_pantea_cucl",
@@ -108210,7 +107490,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "klidman_lilo_cucl",
@@ -108765,7 +108045,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "marios_siampanis_cucl",
@@ -109338,7 +108618,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "sokratis_dioudis_cucl",
@@ -109929,7 +109209,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "lefteris_choutesiotis_cucl",
@@ -110484,7 +109764,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "filippos_roberts__ae_kifisia_cucl_cucl",
@@ -111111,7 +110391,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "michalis_pardalos__panetolikos_cucl_cucl",
@@ -111684,7 +110964,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "nikos_melissas_cucl",
@@ -112239,7 +111519,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "stefanos_souloukos_cucl",
@@ -112920,7 +112200,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "nikos_papadopoulos_footballer_born_1990_cucl",
@@ -114012,7 +113292,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 77,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "elias_olafsson_cucl",
@@ -114531,7 +113811,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "nicolai_flo_cucl",
@@ -115086,7 +114366,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "patrick_pentz_cucl",
@@ -115587,7 +114867,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "lucas_lund_cucl",
@@ -116052,7 +115332,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "peter_ankersen_cucl",
@@ -116589,7 +115869,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "diant_ramaj__fc_copenhagen_cucl_cucl",
@@ -117036,7 +116316,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "martin_hansen_footballer_cucl",
@@ -117519,7 +116799,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "paul_izzo_cucl",
@@ -118038,7 +117318,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "adam_nygaard_cucl",
@@ -118521,7 +117801,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "aske_andresen_cucl",
@@ -118986,7 +118266,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "nicolai_larsen_cucl",
@@ -120024,7 +119304,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 79,
+   "historical_ovr": 80,
    "players": [
     {
      "id": "julian_faye_lund_cucl",
@@ -120489,7 +119769,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "jakob_haugaard_cucl",
@@ -120990,7 +120270,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "mathias_dyngeland_cucl",
@@ -121491,7 +120771,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "alf_lukas_gronneberg__sandefjord_fotball_cucl_cucl",
@@ -122046,7 +121326,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "oscar_hedvall_cucl",
@@ -122547,7 +121827,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "leopold_wahlstedt_cucl",
@@ -123066,7 +122346,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "kennedy_okpaleke_cucl",
@@ -123549,7 +122829,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "jacob_pryts_cucl",
@@ -123996,7 +123276,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "mads_kikkenborg_cucl",
@@ -124515,7 +123795,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "martin_gjone_cucl",
@@ -125016,7 +124296,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "emil_odegaard_cucl",
@@ -125589,7 +124869,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "michael_lansing_cucl",
@@ -126453,7 +125733,7 @@
     }
    ],
    "league_position": 14,
-   "historical_ovr": 63
+   "historical_ovr": 69
   },
   {
    "id": "stromsgodset_toppfotball_cucl",
@@ -126865,7 +126145,7 @@
     }
    ],
    "league_position": 15,
-   "historical_ovr": 64
+   "historical_ovr": 70
   },
   {
    "id": "fotballklubben_haugesund_cucl",
@@ -127349,7 +126629,7 @@
     }
    ],
    "league_position": 16,
-   "historical_ovr": 62
+   "historical_ovr": 68
   },
   {
    "id": "omonia_nicosia_cucl",
@@ -127362,7 +126642,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 78,
+   "historical_ovr": 79,
    "players": [
     {
      "id": "thomas_kaminski_cucl",
@@ -127863,7 +127143,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "vedad_muftic_cucl",
@@ -128418,7 +127698,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "emanuel_aiwu_cucl",
@@ -128883,7 +128163,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "jay_gorter_cucl",
@@ -129384,7 +128664,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "oliver_zelenika_cucl",
@@ -129921,7 +129201,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "vana_cucl",
@@ -130386,7 +129666,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "gabriel_pereira__omonia_aradippou_cucl_cucl",
@@ -130959,7 +130239,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "stefanos_kapino_cucl",
@@ -131496,7 +130776,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "konstantinos_panagi_cucl",
@@ -131979,12 +131259,12 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "luiyi_de_lucas_cucl",
      "name": "Luiyi de Lucas",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1994,
      "primary_position": "CB",
      "secondary_positions": [],
@@ -132516,7 +131796,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "christos_talichmanidis_cucl",
@@ -132945,7 +132225,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "benson_anang_cucl",
@@ -133374,7 +132654,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "demetris_stylianides__ethnikos_achna_cucl_cucl",
@@ -133875,7 +133155,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "panagiotis_panagiotou__enosis_neon_paralimni_cucl_cucl",
@@ -134322,7 +133602,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "niklas_steffen_cucl",
@@ -134877,7 +134157,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "lawrence_ati_zigi_cucl",
@@ -135432,7 +134712,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "bekhruz_karimov_cucl",
@@ -136005,7 +135285,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "anthony_racioppi_cucl",
@@ -136470,7 +135750,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "jonas_omlin_cucl",
@@ -136953,7 +136233,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "marvin_keller_footballer_cucl",
@@ -137418,7 +136698,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "simon_simoni_cucl",
@@ -137955,7 +137235,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "edvinas_gertmonas_cucl",
@@ -138546,7 +137826,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "thomas_castella_cucl",
@@ -139065,7 +138345,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "silas_huber_cucl",
@@ -139620,7 +138900,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "marvin_hubel__grasshopper_club_zurich_cucl_cucl",
@@ -140193,7 +139473,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "markus_kuster_cucl",
@@ -140676,7 +139956,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "sebastian_hansen__mjallby_aif_cucl_cucl",
@@ -141195,7 +140475,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 78,
    "players": [
     {
      "id": "warner_hahn_cucl",
@@ -141642,7 +140922,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "mergim_krasniqi_cucl",
@@ -142143,7 +141423,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "jonathan_rasheed_cucl",
@@ -142644,7 +141924,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "piotr_johansson_cucl",
@@ -143127,7 +142407,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "robin_olsen_cucl",
@@ -143736,7 +143016,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "eskil_edh_cucl",
@@ -144309,7 +143589,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "thomas_isherwood_cucl",
@@ -144774,7 +144054,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "ismael_diawara_cucl",
@@ -145221,7 +144501,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "andreas_linde_cucl",
@@ -145722,7 +145002,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "tim_ronning_cucl",
@@ -146133,7 +145413,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "leo_cavallius__if_brommapojkarna_cucl_cucl",
@@ -146688,7 +145968,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "wille_jakobsson__degerfors_if_cucl_cucl",
@@ -147588,7 +146868,7 @@
     }
    ],
    "league_position": 14,
-   "historical_ovr": 62
+   "historical_ovr": 68
   },
   {
    "id": "oster_cucl",
@@ -148072,7 +147352,7 @@
     }
    ],
    "league_position": 15,
-   "historical_ovr": 62
+   "historical_ovr": 69
   },
   {
    "id": "ifk_varnamo_cucl",
@@ -148556,7 +147836,7 @@
     }
    ],
    "league_position": 16,
-   "historical_ovr": 62
+   "historical_ovr": 68
   },
   {
    "id": "eto_fc_cucl",
@@ -148569,7 +147849,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "stefan_vladoiu_cucl",
@@ -149160,7 +148440,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "adam_varga_footballer_cucl",
@@ -149841,7 +149121,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "adam_kovacsik_cucl",
@@ -150414,7 +149694,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "plamen_andreev_cucl",
@@ -151149,7 +150429,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "bence_gundel_takacs_cucl",
@@ -151686,7 +150966,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "tamas_markek_cucl",
@@ -152205,7 +151485,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "david_banai_cucl",
@@ -152616,7 +151896,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "marcell_kovacs_cucl",
@@ -153135,7 +152415,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "yuriy_toma_cucl",
@@ -153618,7 +152898,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "patrik_demjen_cucl",
@@ -154137,7 +153417,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "bogdan_banhegyi__diosgyori_vtk_cucl_cucl",
@@ -154638,7 +153918,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 76,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "viljami_sinisalo_cucl",
@@ -155175,7 +154455,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "beau_reus_cucl",
@@ -155784,7 +155064,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "ivor_pandur_cucl",
@@ -156303,7 +155583,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "alex_paulsen_cucl",
@@ -156786,7 +156066,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "raphael_sallinger_cucl",
@@ -157269,7 +156549,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "nicky_hogarth_cucl",
@@ -157842,7 +157122,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "jack_walton_footballer_cucl",
@@ -158325,7 +157605,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "owen_goodman_cucl",
@@ -158790,7 +158070,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "nicky_devlin_cucl",
@@ -159291,7 +158571,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "max_stryjek_cucl",
@@ -159738,7 +159018,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "jacob_chapman_cucl",
@@ -160293,7 +159573,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "cammy_kerr_cucl",
@@ -160794,7 +160074,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "jon_gorenc_stankovic_cucl",
@@ -161277,7 +160557,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "christian_fruchtl_cucl",
@@ -161832,7 +161112,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "lukas_jungwirth_cucl",
@@ -162333,7 +161613,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "samuel_sahin_radlinger_cucl",
@@ -162852,7 +162132,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "niklas_hedl_cucl",
@@ -163407,7 +162687,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "luca_pazourek_cucl",
@@ -163944,7 +163224,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "salko_hamzic_cucl",
@@ -164427,7 +163707,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "dejan_stojanovic_footballer_cucl",
@@ -164910,7 +164190,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "andreas_leitner_cucl",
@@ -165483,7 +164763,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "lukas_gutlbauer_cucl",
@@ -165984,7 +165264,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "jakob_meierhofer__grazer_ak_1902_cucl_cucl",
@@ -166449,7 +165729,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "valentin_oelz__fc_blau_weiss_linz_cucl_cucl",
@@ -166788,7 +166068,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "lassina_traore_cucl",
@@ -167415,7 +166695,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "dmytro_ledviy_cucl",
@@ -167880,7 +167160,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "oleh_kudryk_cucl",
@@ -168435,7 +167715,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "heorhiy_bushchan_cucl",
@@ -169080,7 +168360,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "heorhiy_yermakov_cucl",
@@ -169527,7 +168807,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "dmytro_matsapura_cucl",
@@ -170046,7 +169326,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "bohdan_khoma_cucl",
@@ -170475,7 +169755,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "oleksandr_saputin_cucl",
@@ -170976,7 +170256,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "denys_marchenko__karpaty_lviv_cucl_cucl",
@@ -171495,7 +170775,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "stepan_hryhorashchuk__epicentr_kamyanets_podilskyi_cucl_cucl",
@@ -171942,7 +171222,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "pavlo_stefanyuk__nk_veres_rivne_cucl_cucl",
@@ -172371,7 +171651,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "nazariy_fedorivskyi_cucl",
@@ -172908,7 +172188,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "kyrylo_lavuta__fc_kudrivka_cucl_cucl",
@@ -173481,7 +172761,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "klayver__rukh_lviv_cucl_cucl",
@@ -173892,7 +173172,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "viktor_dolhyi__fc_oleksandriya_cucl_cucl",
@@ -174339,7 +173619,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "mykyta_minchev__sc_poltava_cucl_cucl",
@@ -174750,7 +174030,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 75,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "alexandru_maxim_footballer_born_2007_cucl",
@@ -175305,7 +174585,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "alexandru_pascanu_cucl",
@@ -176094,7 +175374,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "stefan_lefter_cucl",
@@ -176631,7 +175911,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "rares_gal__cfr_cluj_cucl_cucl",
@@ -177366,7 +176646,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "devis_epassy_cucl",
@@ -177867,7 +177147,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "catalin_straton_cucl",
@@ -178422,7 +177702,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "rares_andrei__fcsb_cucl_cucl",
@@ -178977,7 +178257,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "marcio_rosa_cucl",
@@ -179478,7 +178758,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "david_dinca__fc_botosani_cucl_cucl",
@@ -180051,7 +179331,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "cosmin_dur_bozoanca_cucl",
@@ -180570,7 +179850,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "alexandru_buzbuchi_cucl",
@@ -181287,7 +180567,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "stefan_radulescu__petrolul_ploiesti_cucl_cucl",
@@ -181752,7 +181032,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "zsombor_deaky__fk_csikszereda_miercurea_ciuc_cucl_cucl",
@@ -182325,7 +181605,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "hunor_albert__afc_unirea_04_slobozia_cucl_cucl",
@@ -182826,7 +182106,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "dragos_albu_cucl",
@@ -183255,7 +182535,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "george_gavrilas_cucl",
@@ -183702,7 +182982,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 74,
+   "historical_ovr": 77,
    "players": [
     {
      "id": "danijel_zagorac_cucl",
@@ -184257,7 +183537,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "ivica_ivusic_cucl",
@@ -184884,7 +184164,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "robby_mccrorie_cucl",
@@ -185421,7 +184701,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "moreno_zivkovic_cucl",
@@ -186012,7 +185292,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "krunoslav_hendija__nk_lokomotiva_zagreb_cucl_cucl",
@@ -186639,7 +185919,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "franko_kolic__nk_istra_1961_cucl_cucl",
@@ -187086,7 +186366,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "renato_josipovic_cucl",
@@ -187659,7 +186939,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "vinko_medimorec_cucl",
@@ -188376,7 +187656,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "nikola_curcija__nk_osijek_cucl_cucl",
@@ -188913,7 +188193,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "adrian_hrvojevic__hnk_vukovar_1991_cucl_cucl",
@@ -189450,7 +188730,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "zan_luk_leban_cucl",
@@ -189951,7 +189231,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "luka_bas__fc_koper_cucl_cucl",
@@ -190470,7 +189750,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "christalino_atemona_cucl",
@@ -191025,7 +190305,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "jost_urbancic_cucl",
@@ -191562,7 +190842,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "azbe_jug_cucl",
@@ -192081,7 +191361,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "samo_pridgar__nk_radomlje_cucl_cucl",
@@ -192546,7 +191826,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "anej_mrezar__nk_aluminij_kidricevo_cucl_cucl",
@@ -193065,7 +192345,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "faad_sana_cucl",
@@ -193620,7 +192900,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 72,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "ofir_marciano_cucl",
@@ -194121,7 +193401,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "nana_kwame_antwi__beitar_jerusalem_cucl_cucl",
@@ -194622,7 +193902,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "james_tavernier_cucl",
@@ -195177,7 +194457,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "dor_binyamini__hapoel_tel_aviv_cucl_cucl",
@@ -195660,7 +194940,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "zohar_zasno_cucl",
@@ -196269,7 +195549,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "omer_katz__hapoel_petah_tikva_cucl_cucl",
@@ -196752,7 +196032,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "niv_antman_cucl",
@@ -197289,7 +196569,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "raul_balbarau_cucl",
@@ -197754,7 +197034,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "nikola_durkovic_footballer_born_2002_cucl",
@@ -198237,7 +197517,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "yoav_gerafi_cucl",
@@ -198756,7 +198036,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "roy_shohat__fc_ashdod_cucl_cucl",
@@ -199329,7 +198609,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "ben_gordin__hapoel_jerusalem_cucl_cucl",
@@ -199812,7 +199092,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "gad_amos_cucl",
@@ -200421,7 +199701,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "sagi_pinhas__maccabi_bnei_reineh_cucl_cucl",
@@ -200904,7 +200184,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "amin_ramazanov_cucl",
@@ -201459,7 +200739,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "shakhruddin_magomedaliyev_cucl",
@@ -201924,7 +201204,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "oleg_baklov_cucl",
@@ -202335,7 +201615,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "emil_balayev_cucl",
@@ -202782,7 +202062,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "maycon_cleiton_cucl",
@@ -203319,7 +202599,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "arthur_footballer_born_august_1999_cucl",
@@ -203748,7 +203028,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "jeimes_cucl",
@@ -203879,7 +203159,7 @@
     {
      "id": "ronaldo_vasquez_cucl",
      "name": "Ronaldo Vásquez",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 1999,
      "primary_position": "ST",
      "secondary_positions": [],
@@ -204249,7 +203529,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "ricardo_fernandes_footballer_born_1994_cucl",
@@ -204678,7 +203958,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "yusif_imanov_cucl",
@@ -205071,7 +204351,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "rogerio__kapaz_pfk_cucl_cucl",
@@ -205608,7 +204888,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "s_lah_t_agayev_cucl",
@@ -205632,24 +204912,6 @@
      "id": "aqsin_yaqubov__fk_gabala_cucl_cucl",
      "name": "Aqşin Yaqubov",
      "nationality": "Azerbaijan",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 64,
-     "attack": 40,
-     "defense": 68,
-     "physical": 67,
-     "pace": 54,
-     "technical": 52,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fk_gabala_cucl_cucl",
-     "name": "",
-     "nationality": "Brazilian",
      "birth_year": null,
      "primary_position": "CB",
      "secondary_positions": [],
@@ -205989,24 +205251,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fk_gabala_cucl__fk_gabala_cucl_cucl",
-     "name": "",
-     "nationality": "Brazilian",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 64,
-     "attack": 40,
-     "defense": 64,
-     "physical": 56,
-     "pace": 36,
-     "technical": 50,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "salman_alasgarov__fk_gabala_cucl_cucl",
      "name": "Salman Alasgarov",
      "nationality": "Azerbaijan",
@@ -206127,7 +205371,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "kamran_ibrahimov_cucl",
@@ -206556,7 +205800,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "aleksandar_popovic_footballer_born_1999_cucl",
@@ -207111,7 +206355,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "filipe__dac_dunajska_streda_cucl_cucl",
@@ -207648,7 +206892,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "jakub_badzgon_cucl",
@@ -208149,7 +207393,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "patrick_nwadike_cucl",
@@ -208668,7 +207912,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "rene_lampreht__zeleziarne_podbrezova_cucl_cucl",
@@ -209097,7 +208341,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "patrik_lukac_cucl",
@@ -209616,7 +208860,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "ivan_krajcirik_cucl",
@@ -210135,7 +209379,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "andrija_katic_cucl",
@@ -210690,7 +209934,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "jakub_marko__fc_kosice_cucl_cucl",
@@ -211173,7 +210417,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "filip_dlubac__kfc_komarno_cucl_cucl",
@@ -211674,7 +210918,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "adrian_knurovsky__fc_tatran_presov_cucl_cucl",
@@ -212121,7 +211365,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "richard_ludha_cucl",
@@ -212586,7 +211830,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 73,
+   "historical_ovr": 76,
    "players": [
     {
      "id": "ognyan_vladimirov_cucl",
@@ -213105,7 +212349,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "joel_andersson_cucl",
@@ -213570,7 +212814,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "petar_marinov_cucl",
@@ -214089,7 +213333,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "pastor_footballer_cucl",
@@ -214590,7 +213834,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "bojan_milosavljevic_cucl",
@@ -215055,7 +214299,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 68,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "zhivko_atanasov_cucl",
@@ -215556,7 +214800,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "anatoli_gospodinov_cucl",
@@ -215967,7 +215211,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "hristiyan_slavkov_cucl",
@@ -216504,7 +215748,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "georgi_petkov_footballer_born_1976_cucl",
@@ -216969,7 +216213,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "miroslav_tsonev__botev_vratsa_cucl_cucl",
@@ -217452,7 +216696,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "kaloyan_kostov_cucl",
@@ -217917,7 +217161,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "pedro_victor__spartak_varna_cucl_cucl",
@@ -218382,7 +217626,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "dimitar_iliev__dobrudzha_cucl_cucl",
@@ -218847,7 +218091,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "aleksandar_radkov__septemvri_sofia_cucl_cucl",
@@ -219366,7 +218610,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "ivan_goshev__beroe_cucl_cucl",
@@ -219759,7 +219003,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "marcio_rosa__montana_cucl_cucl",
@@ -220206,7 +219450,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "matheus_footballer_born_march_1992_cucl",
@@ -220815,7 +220059,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "matija_gocmanac_cucl",
@@ -221388,7 +220632,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "marko_milosevic_footballer_cucl",
@@ -222087,7 +221331,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "zoran_popovic_cucl",
@@ -222588,7 +221832,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "bogdan_matijasevic__fk_novi_pazar_cucl_cucl",
@@ -223215,7 +222459,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "stefan_despotovski_cucl",
@@ -223806,7 +223050,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "dorde_nikolic_cucl",
@@ -224451,7 +223695,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "filip_samurovic__fk_radnik_surdulica_cucl_cucl",
@@ -225042,7 +224286,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "ognjen_cancarevic_cucl",
@@ -225597,7 +224841,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "muhamed_sahinovic_cucl",
@@ -226152,7 +225396,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "nikola_vasiljevic_footballer_born_1996_cucl",
@@ -226689,7 +225933,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "nikola_simic_footballer_born_1996_cucl",
@@ -227172,7 +226416,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "marko_mijailovic_cucl",
@@ -227709,7 +226953,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "sasa_stamenkovic_cucl",
@@ -228318,7 +227562,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "dimitrije_minic__fk_spartak_subotica_cucl_cucl",
@@ -228873,7 +228117,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "lazar_balevic__fk_napredak_krusevac_cucl_cucl",
@@ -229428,7 +228672,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "ingvar_jonsson_cucl",
@@ -229947,7 +229191,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "hordur_ingi_gunnarsson_cucl",
@@ -230376,7 +229620,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "darri_bergmann_gylfason__stjarnan_gardabaer_cucl_cucl",
@@ -230841,7 +230085,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "anton_ari_einarsson_cucl",
@@ -231234,7 +230478,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "jokull_andresson_cucl",
@@ -231717,7 +230961,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "sigurjon_dadi_hardarson__fram_reykjavik_cucl_cucl",
@@ -232092,7 +231336,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "sigurdur_arnar_magnusson__ibv_vestmannaeyjar_cucl_cucl",
@@ -232503,7 +231747,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "ivar_arnbro_thorhallsson__ka_akureyri_cucl_cucl",
@@ -233421,7 +232665,7 @@
     }
    ],
    "league_position": 9,
-   "historical_ovr": 60
+   "historical_ovr": 65
   },
   {
    "id": "kr_reykjavik_cucl",
@@ -233434,7 +232678,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "sigurpall_soren_ingolfsson__kr_reykjavik_cucl_cucl",
@@ -233809,7 +233053,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "arni_marino_einarsson__ia_akranes_cucl_cucl",
@@ -234691,7 +233935,7 @@
     }
    ],
    "league_position": 12,
-   "historical_ovr": 60
+   "historical_ovr": 64
   },
   {
    "id": "shamrock_rovers_cucl",
@@ -234704,7 +233948,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 71,
+   "historical_ovr": 75,
    "players": [
     {
      "id": "edward_mcginty_cucl",
@@ -235277,7 +234521,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "brian_maher_footballer_cucl",
@@ -235742,7 +234986,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "sean_gannon_footballer_cucl",
@@ -236261,7 +235505,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "kacper_chorazka_cucl",
@@ -236762,7 +236006,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "danny_rogers_cucl",
@@ -237317,7 +236561,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "luke_dennison_cucl",
@@ -237764,7 +237008,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "liam_hughes_footballer_born_2001_cucl",
@@ -238355,7 +237599,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "anthony_o_connor_footballer_cucl",
@@ -238802,7 +238046,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "stephen_mcmullan_cucl",
@@ -239630,7 +238874,7 @@
     }
    ],
    "league_position": 10,
-   "historical_ovr": 60
+   "historical_ovr": 64
   },
   {
    "id": "fc_ararat_armenia_cucl",
@@ -239643,7 +238887,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 69,
+   "historical_ovr": 73,
    "players": [
     {
      "id": "arman_nersesyan__fc_ararat_armenia_cucl_cucl",
@@ -240198,7 +239442,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "sergey_muradyan_cucl",
@@ -240681,7 +239925,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "nikos_kenourgios_cucl",
@@ -241164,7 +240408,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "vlad_chatunts__alashkert_yerevan_fc_cucl_cucl",
@@ -241179,24 +240423,6 @@
      "physical": 57,
      "pace": 37,
      "technical": 51,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__alashkert_yerevan_fc_cucl_cucl",
-     "name": "",
-     "nationality": "Brazilian",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 66,
-     "attack": 40,
-     "defense": 70,
-     "physical": 69,
-     "pace": 56,
-     "technical": 54,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -241647,7 +240873,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "erik_piloyan_cucl",
@@ -242166,7 +241392,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "javier_torres__fc_van_cucl_cucl",
@@ -242649,7 +241875,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "gor_arakelyan__bkma_yerevan_cucl_cucl",
@@ -243060,7 +242286,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "grigori_matevosyan__gandzasar_kapan_cucl_cucl",
@@ -243507,7 +242733,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "adel_anzimati_aboudou_cucl",
@@ -243870,24 +243096,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__fc_ararat_yerevan_cucl_cucl",
-     "name": "",
-     "nationality": "Ivorian",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 63,
-     "attack": 59,
-     "defense": 58,
-     "physical": 58,
-     "pace": 58,
-     "technical": 66,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "mohamed_lamin_fofana__fc_ararat_yerevan_cucl_cucl",
      "name": "Mohamed Lamin Fofana",
      "nationality": "Ivorian",
@@ -244026,7 +243234,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "hovhannes_pahlevanyan__fc_shirak_gyumri_cucl_cucl",
@@ -244491,7 +243699,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 70,
+   "historical_ovr": 74,
    "players": [
     {
      "id": "damjan_shishkovski_cucl",
@@ -245064,7 +244272,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "matej_bogdan__hsk_zrinjski_mostar_cucl_cucl",
@@ -245601,7 +244809,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "shane_maroodza_cucl",
@@ -246210,7 +245418,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "faris_ribic__fk_velez_mostar_cucl_cucl",
@@ -246801,7 +246009,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "mateo_barac__nk_siroki_brijeg_cucl_cucl",
@@ -247338,7 +246546,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "tarik_abdulahovic__fk_zeljeznicar_sarajevo_cucl_cucl",
@@ -247911,7 +247119,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "dusan_markovic_footballer_born_1998_cucl",
@@ -248502,7 +247710,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "pere_garcia__fk_sloga_meridian_cucl_cucl",
@@ -249039,7 +248247,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "antonio_soldo__hsk_posusje_cucl_cucl",
@@ -249576,7 +248784,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "duro_giulio_dekic_cucl",
@@ -250023,7 +249231,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "faton_maloku_cucl",
@@ -250542,7 +249750,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "ilir_avdyli_cucl",
@@ -251025,7 +250233,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "ardit_nika__fc_ballkani_cucl_cucl",
@@ -251598,7 +250806,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "egzon_lekaj__kf_dukagjini_cucl_cucl",
@@ -252099,7 +251307,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "marijan_coric_cucl",
@@ -252582,7 +251790,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "arion_ymeri__fc_drenica_cucl_cucl",
@@ -253155,7 +252363,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "altin_gjokaj_cucl",
@@ -253746,7 +252954,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "tein_troost_cucl",
@@ -254373,7 +253581,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "donart_llabjani__fc_ferizaj_cucl_cucl",
@@ -254856,7 +254064,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "maycon_morales__kf_prishtina_e_re_cucl_cucl",
@@ -255375,7 +254583,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "temirlan_anarbekov_cucl",
@@ -255876,7 +255084,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "karlo_bartolec_cucl",
@@ -256359,7 +255567,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "sultan_busurmanov__tobol_kostanay_cucl_cucl",
@@ -256824,7 +256032,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "egor_tsuprikov__yelimay_semey_cucl_cucl",
@@ -257343,7 +256551,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "igor_trofimets__fc_aktobe_cucl_cucl",
@@ -257790,7 +256998,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "ilya_sotnik__zhenis_astana_cucl_cucl",
@@ -258183,7 +257391,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "bekkhan_shayzada__ordabasy_shymkent_cucl_cucl",
@@ -258666,7 +257874,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "mikhail_golubnichiy__okzhetpes_kokshetau_cucl_cucl",
@@ -259602,7 +258810,7 @@
     }
    ],
    "league_position": 9,
-   "historical_ovr": 60
+   "historical_ovr": 65
   },
   {
    "id": "fc_ulytau_zhezkazgan_cucl",
@@ -259615,7 +258823,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "dmytro_nepohodov_cucl",
@@ -260098,7 +259306,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "nurymzhan_salaidin__kaysar_kyzylorda_cucl_cucl",
@@ -260635,7 +259843,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "artur_egorov__zhetysu_taldykorgan_cucl_cucl",
@@ -261010,7 +260218,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "yegor_khatkevich_cucl",
@@ -262108,7 +261316,7 @@
     }
    ],
    "league_position": 14,
-   "historical_ovr": 60
+   "historical_ovr": 62
   },
   {
    "id": "fc_inter_turku_cucl",
@@ -262121,7 +261329,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "eetu_huuhtanen_cucl",
@@ -262676,7 +261884,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "matias_rale_cucl",
@@ -263069,7 +262277,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "jesse_ost_cucl",
@@ -263606,7 +262814,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 64,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "johannes_kreidl_cucl",
@@ -264179,7 +263387,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "roope_paunio_cucl",
@@ -264698,7 +263906,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "otso_virtanen_cucl",
@@ -265199,7 +264407,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "aleksi_piispa__vaasan_palloseura_cucl_cucl",
@@ -265736,7 +264944,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "senne_vits_cucl",
@@ -266291,7 +265499,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "kevin_lund__ifk_mariehamn_cucl_cucl",
@@ -266792,7 +266000,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "sami_sipola_cucl",
@@ -267746,7 +266954,7 @@
     }
    ],
    "league_position": 11,
-   "historical_ovr": 60
+   "historical_ovr": 66
   },
   {
    "id": "kotkan_tyovaen_palloilijat_cucl",
@@ -268176,7 +267384,7 @@
     }
    ],
    "league_position": 12,
-   "historical_ovr": 60
+   "historical_ovr": 62
   },
   {
    "id": "riga_fc_cucl",
@@ -268189,7 +267397,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 67,
+   "historical_ovr": 72,
    "players": [
     {
      "id": "krisjanis_zviedris_cucl",
@@ -268744,7 +267952,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 65,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "victor_osuagwu__fc_rfs_cucl_cucl",
@@ -269227,7 +268435,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "alvis_sorokins__fk_liepaja_cucl_cucl",
@@ -269746,7 +268954,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "jurijs_saveljevs__bfc_daugavpils_cucl_cucl",
@@ -270229,7 +269437,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "raivo_sturins__fk_auda_cucl_cucl",
@@ -270802,7 +270010,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "adam_dvorak__fs_jelgava_cucl_cucl",
@@ -271249,7 +270457,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "sergejs_vilkovs__fk_tukums_2000_cucl_cucl",
@@ -271696,7 +270904,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "kristers_augusts__sk_super_nova_cucl_cucl",
@@ -272143,7 +271351,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "vjaceslavs_kudrjavcevs_cucl",
@@ -272989,7 +272197,7 @@
     }
    ],
    "league_position": 10,
-   "historical_ovr": 60
+   "historical_ovr": 61
   },
   {
    "id": "fc_petrocub_hincesti_cucl",
@@ -273002,7 +272210,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "silviu_smalenea__fc_petrocub_hincesti_cucl_cucl",
@@ -273413,7 +272621,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "dan_rusu__fc_zimbru_chisinau_cucl_cucl",
@@ -273932,7 +273140,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "emil_timbur_cucl",
@@ -274055,24 +273263,6 @@
      "physical": 51,
      "pace": 73,
      "technical": 61,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__fc_sheriff_tiraspol_cucl_cucl",
-     "name": "",
-     "nationality": "Brazilian",
-     "birth_year": null,
-     "primary_position": "ST",
-     "secondary_positions": [],
-     "ovr": 65,
-     "attack": 69,
-     "defense": 40,
-     "physical": 63,
-     "pace": 66,
-     "technical": 59,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -274387,7 +273577,7 @@
     {
      "id": "juanca_pineda_cucl",
      "name": "Juanca Pineda",
-     "nationality": "Dominican Republic",
+     "nationality": "Dominican",
      "birth_year": 2000,
      "primary_position": "CM",
      "secondary_positions": [],
@@ -274451,7 +273641,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "veaceslav_posmac_cucl",
@@ -274790,7 +273980,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "victor_vesca__fc_balti_cucl_cucl",
@@ -275147,7 +274337,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "doru_calestru__dacia_buiucani_cucl_cucl",
@@ -275612,7 +274802,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "igor_arhirii_cucl",
@@ -275699,24 +274889,6 @@
      "physical": 56,
      "pace": 56,
      "technical": 64,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__politehnica_utm_hisinau_cucl_cucl",
-     "name": "",
-     "nationality": "Cameroonian",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 62,
-     "attack": 58,
-     "defense": 57,
-     "physical": 57,
-     "pace": 57,
-     "technical": 65,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -275987,7 +275159,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "daniel_virlan__csf_spartanii_sportul_selemet_cucl_cucl",
@@ -276380,7 +275552,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 66,
+   "historical_ovr": 71,
    "players": [
     {
      "id": "sebastian_john__ki_klaksvik_cucl_cucl",
@@ -276935,7 +276107,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "bjarti_mork__hb_torshavn_cucl_cucl",
@@ -277364,7 +276536,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "kristian_joensen__nsi_runavik_cucl_cucl",
@@ -277811,7 +276983,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "bardur_a_reynatrod_cucl",
@@ -278168,7 +277340,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "silas_eydsteinsson__b36_torshavn_cucl_cucl",
@@ -278651,7 +277823,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "tordur_thomsen_cucl",
@@ -279080,7 +278252,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "joanes_e_davidsen__eb_streymur_cucl_cucl",
@@ -279455,7 +278627,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "sebastian_wille__07_vestur_cucl_cucl",
@@ -280265,7 +279437,7 @@
     }
    ],
    "league_position": 9,
-   "historical_ovr": 60
+   "historical_ovr": 62
   },
   {
    "id": "vardar_skopje_cucl",
@@ -280278,7 +279450,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "daniel_dikovski__vardar_skopje_cucl_cucl",
@@ -280833,7 +280005,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "aleksander_trumci_cucl",
@@ -281316,7 +280488,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "andrej_jovchevski__struga_trim_lum_cucl_cucl",
@@ -281745,7 +280917,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "daniel_bozhinovski__sileks_kratovo_cucl_cucl",
@@ -282174,7 +281346,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "hristijan_stevkovski__tikves_kavadarci_cucl_cucl",
@@ -282711,7 +281883,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "eronik_tahiri__arsimi_cucl_cucl",
@@ -283194,7 +282366,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "yahaya_fawzi__bashkimi_cucl_cucl",
@@ -283623,7 +282795,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "nataniel_dimovski__pelister_bitola_cucl_cucl",
@@ -284124,7 +283296,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "slave_vrgov__ap_brera_strumica_cucl_cucl",
@@ -284571,7 +283743,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "darko_jovchev__makedonija_gjorce_petrov_cucl_cucl",
@@ -284946,7 +284118,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "venis_enuz__fc_shkupi_cucl_cucl",
@@ -285411,7 +284583,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "myles_beerman_cucl",
@@ -285822,7 +284994,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "rafael_compri__hamrun_spartans_cucl_cucl",
@@ -286359,7 +285531,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "julani_archibald_cucl",
@@ -286752,7 +285924,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "henry_bonello_cucl",
@@ -287199,7 +286371,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "andrea_cassar_cucl",
@@ -287682,7 +286854,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "fabrice_ondoa_cucl",
@@ -288111,7 +287283,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "matteo_cardinali_cucl",
@@ -288594,7 +287766,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "karl_sargent__gzira_united_fc_cucl_cucl",
@@ -289041,7 +288213,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "anse_ngoubi_demba_cucl",
@@ -289959,7 +289131,7 @@
     }
    ],
    "league_position": 10,
-   "historical_ovr": 60
+   "historical_ovr": 62
   },
   {
    "id": "tarxien_rainbows_football_club_cucl",
@@ -290407,7 +289579,7 @@
     }
    ],
    "league_position": 11,
-   "historical_ovr": 60
+   "historical_ovr": 62
   },
   {
    "id": "naxxar_lions_fc_cucl",
@@ -290420,7 +289592,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "matthias_debono__naxxar_lions_fc_cucl_cucl",
@@ -290921,7 +290093,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 61,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "aron_jukaj__kf_vllaznia_cucl_cucl",
@@ -291566,7 +290738,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "klevi_totoshi__af_elbasani_cucl_cucl",
@@ -292103,7 +291275,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "levan_tandilashvili_cucl",
@@ -292604,7 +291776,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "edmir_sali_cucl",
@@ -293159,7 +292331,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "darius_zadeja__fk_partizani_cucl_cucl",
@@ -293696,7 +292868,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "luciano_vera_cucl",
@@ -294161,7 +293333,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "henri_zuna__kf_vora_cucl_cucl",
@@ -294644,7 +293816,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "vasilios_zogos_cucl",
@@ -295127,7 +294299,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "renato_beqaj__fk_bylis_cucl_cucl",
@@ -295718,7 +294890,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "sinan_dani__flamurtari_fc_cucl_cucl",
@@ -296237,7 +295409,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "pavel_pavlyuchenko_cucl",
@@ -296738,7 +295910,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 62,
+   "historical_ovr": 69,
    "players": [
     {
      "id": "ivan_shimakovich__dinamo_minsk_cucl_cucl",
@@ -297239,7 +296411,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "konstantin_veretynskiy__slavia_mozyr_cucl_cucl",
@@ -297704,7 +296876,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "maksim_belov_cucl",
@@ -298169,7 +297341,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "valentin_dikhtiyevskiy__fk_minsk_cucl_cucl",
@@ -298724,7 +297896,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "sergey_ignatovich_cucl",
@@ -299315,7 +298487,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "andrey_klimovich_cucl",
@@ -299852,7 +299024,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "artur_maliyevsky_cucl",
@@ -300371,7 +299543,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "sergey_matveychik_cucl",
@@ -300908,7 +300080,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "maksim_sakuta__bate_borisov_cucl_cucl",
@@ -301427,7 +300599,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "ivan_sanko__arsenal_dzerzhinsk_cucl_cucl",
@@ -301892,7 +301064,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "ivan_novichkov__ml_vitebsk_cucl_cucl",
@@ -302393,7 +301565,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "andrey_lebedzew_cucl",
@@ -303365,7 +302537,7 @@
     }
    ],
    "league_position": 14,
-   "historical_ovr": 60
+   "historical_ovr": 61
   },
   {
    "id": "fc_sluck_cucl",
@@ -303849,7 +303021,7 @@
     }
    ],
    "league_position": 15,
-   "historical_ovr": 60
+   "historical_ovr": 61
   },
   {
    "id": "fc_zabudova_molodechno_cucl",
@@ -304364,7 +303536,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 63,
+   "historical_ovr": 70,
    "players": [
     {
      "id": "joris_aliukonis__fk_kauno_zalgiris_cucl_cucl",
@@ -304883,7 +304055,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "lukas_paukste__fc_hegelmann_cucl_cucl",
@@ -305312,7 +304484,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "carlos_olses_cucl",
@@ -305849,7 +305021,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "henry_uzochukwu_cucl",
@@ -306332,7 +305504,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "vilius_sivickas__fa_siauliai_cucl_cucl",
@@ -306815,7 +305987,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "vytautas_cerniauskas_cucl",
@@ -307352,7 +306524,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "marius_paukste__fc_dziugas_telsiai_cucl_cucl",
@@ -307799,7 +306971,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "armantas_vitkauskas_cucl",
@@ -308609,7 +307781,7 @@
     }
    ],
    "league_position": 9,
-   "historical_ovr": 60
+   "historical_ovr": 61
   },
   {
    "id": "dfk_dainava_cucl",
@@ -309039,7 +308211,7 @@
     }
    ],
    "league_position": 10,
-   "historical_ovr": 60
+   "historical_ovr": 61
   },
   {
    "id": "lincoln_red_imps_fc_cucl",
@@ -309052,7 +308224,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "nauzet_santana_cucl",
@@ -309553,7 +308725,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "bradley_banda_cucl",
@@ -310036,7 +309208,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "oli_oleksiewicz__mons_calpe_sc_cucl_cucl",
@@ -310609,7 +309781,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "christian_lopez__europa_fc_cucl_cucl",
@@ -311110,7 +310282,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "konrad_skuza__lions_gibraltar_fc_cucl_cucl",
@@ -311557,7 +310729,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "robert_rae__lynx_fc_cucl_cucl",
@@ -312040,7 +311212,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "marcos_zappacosta__fc_bruno_s_magpies_cucl_cucl",
@@ -312541,7 +311713,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "alex_jerner__europa_point_fc_cucl_cucl",
@@ -313150,7 +312322,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "lolo_soler__fc_college_1975_cucl_cucl",
@@ -313651,7 +312823,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "harry_victor__glacis_united_cucl_cucl",
@@ -314332,7 +313504,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "jake_victor__manchester_62_fc_cucl_cucl",
@@ -315247,7 +314419,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "vladan_giljen_cucl",
@@ -315802,7 +314974,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "marko_vucic_cucl",
@@ -316231,7 +315403,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "suad_licina__ofk_petrovac_cucl_cucl",
@@ -316696,7 +315868,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "dardan_lulgjuraj__fk_decic_tuzi_cucl_cucl",
@@ -317161,7 +316333,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "milan_mijatovic_cucl",
@@ -317698,7 +316870,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "matije_badnjar__fk_mladost_donja_gorica_cucl_cucl",
@@ -318163,7 +317335,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "bojan_zogovic_cucl",
@@ -318754,7 +317926,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "saban_kolic__fk_jezero_cucl_cucl",
@@ -319237,7 +318409,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "dragan_cetkovic__fk_bokelj_cucl_cucl",
@@ -319666,7 +318838,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "nihad_balic__jedinstvo_bijelo_polje_cucl_cucl",
@@ -320149,7 +319321,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "rohan_ferguson_cucl",
@@ -320650,7 +319822,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "andrew_mills_english_footballer_cucl",
@@ -321169,7 +320341,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "ryan_schofield_cucl",
@@ -321616,7 +320788,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "chris_johns_footballer_cucl",
@@ -322171,7 +321343,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "lewis_ridd__cliftonville_fc_cucl_cucl",
@@ -322726,7 +321898,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "declan_dunne__dungannon_swifts_fc_cucl_cucl",
@@ -323227,7 +322399,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "nathan_gartside__carrick_rangers_fc_cucl_cucl",
@@ -323710,7 +322882,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "gareth_deane__bangor_fc_cucl_cucl",
@@ -324193,7 +323365,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "aaron_mccarey_cucl",
@@ -324730,7 +323902,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "david_walsh__ballymena_united_fc_cucl_cucl",
@@ -325195,7 +324367,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "kurtis_forsythe__crusaders_fc_cucl_cucl",
@@ -326125,7 +325297,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "louis_marasi__fc_atert_bissen_cucl_cucl",
@@ -326554,7 +325726,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "felipe_footballer_born_february_1984_cucl",
@@ -327073,7 +326245,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 67,
    "players": [
     {
      "id": "joao_machado__us_mondorf_les_bains_cucl_cucl",
@@ -327628,7 +326800,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "kino_delorge_cucl",
@@ -328147,7 +327319,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "dylan_magalhaes__f91_dudelange_cucl_cucl",
@@ -328684,7 +327856,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "kevin_sommer_cucl",
@@ -329221,7 +328393,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "marcelo_cruz__racing_fc_union_luxembourg_cucl_cucl",
@@ -329686,7 +328858,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "christopher_gonzalez__un_kaerjeng_97_cucl_cucl",
@@ -330187,7 +329359,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "teddy_da_silva__us_hostert_cucl_cucl",
@@ -330634,7 +329806,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "tim_schilz__fc_victoria_rosport_cucl_cucl",
@@ -331063,7 +330235,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "andre_barrela__fc_progres_niederkorn_cucl_cucl",
@@ -331831,7 +331003,7 @@
    "league_position": 13,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "valentin_roulez__fc_jeunesse_canach_cucl_cucl",
@@ -332350,7 +331522,7 @@
    "league_position": 14,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "pepe_bonet_cucl",
@@ -332833,7 +332005,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "andre_barrela__union_titus_petange_cucl_cucl",
@@ -333334,7 +332506,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "kevin_apolinario__fc_rodange_91_cucl_cucl",
@@ -333781,7 +332953,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "adria_munoz_cucl",
@@ -334264,7 +333436,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "marcos_olmo__ue_santa_coloma_cucl_cucl",
@@ -334693,7 +333865,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "raul_gudino_cucl",
@@ -335140,7 +334312,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "mauro_rabelo__fc_santa_coloma_cucl_cucl",
@@ -335551,7 +334723,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "adria_munoz__atletic_club_d_escaldes_cucl_cucl",
@@ -335980,7 +335152,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "alejandro_maqueda__penya_encarnada_d_andorra_cucl_cucl",
@@ -336217,24 +335389,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__penya_encarnada_d_andorra_cucl_cucl",
-     "name": "",
-     "nationality": "France",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 61,
-     "attack": 57,
-     "defense": 56,
-     "physical": 56,
-     "pace": 56,
-     "technical": 64,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "donovan_tchamba__penya_encarnada_d_andorra_cucl_cucl",
      "name": "Donovan Tchamba",
      "nationality": "French",
@@ -336409,7 +335563,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "xisco_pires_cucl",
@@ -336982,7 +336136,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "andersson_caceres__club_esportiu_carroi_cucl_cucl",
@@ -337876,7 +337030,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "tornike_megrelishvili__iberia_1999_tbilisi_cucl_cucl",
@@ -338449,7 +337603,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "davit_kereselidze_cucl",
@@ -338914,7 +338068,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "oto_goshadze__torpedo_kutaisi_cucl_cucl",
@@ -339379,7 +338533,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "giorgi_loria_cucl",
@@ -339454,24 +338608,6 @@
      "is_icon": 0
     },
     {
-     "id": "pztntfp__dinamo_tbilisi_cucl_cucl",
-     "name": "",
-     "nationality": "Brazilian",
-     "birth_year": null,
-     "primary_position": "CB",
-     "secondary_positions": [],
-     "ovr": 62,
-     "attack": 40,
-     "defense": 66,
-     "physical": 65,
-     "pace": 52,
-     "technical": 50,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
      "id": "halid_doltmurziev__dinamo_tbilisi_cucl_cucl",
      "name": "Halid Doltmurziev",
      "nationality": "Georgian",
@@ -339484,24 +338620,6 @@
      "physical": 60,
      "pace": 63,
      "technical": 56,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__dinamo_tbilisi_cucl__dinamo_tbilisi_cucl_cucl",
-     "name": "",
-     "nationality": "Brazilian",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 62,
-     "attack": 58,
-     "defense": 57,
-     "physical": 57,
-     "pace": 57,
-     "technical": 65,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -339682,24 +338800,6 @@
      "physical": 66,
      "pace": 53,
      "technical": 51,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__dinamo_tbilisi_cucl__dinamo_tbilisi_cucl_2_cucl",
-     "name": "",
-     "nationality": "Brazilian",
-     "birth_year": null,
-     "primary_position": "GK",
-     "secondary_positions": [],
-     "ovr": 62,
-     "attack": 40,
-     "defense": 62,
-     "physical": 54,
-     "pace": 34,
-     "technical": 48,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -340060,7 +339160,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "oleksandr_vorobey__fc_gagra_cucl_cucl",
@@ -340561,7 +339661,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "lazare_kupatadze_cucl",
@@ -341116,7 +340216,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "luka_kutaladze_cucl",
@@ -342948,7 +342048,7 @@
     }
    ],
    "league_position": 10,
-   "historical_ovr": 60
+   "historical_ovr": 59
   },
   {
    "id": "fc_flora_tallinn_cucl",
@@ -342961,7 +342061,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "nikita_kalmokov__fc_flora_tallinn_cucl_cucl",
@@ -343372,7 +342472,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 66,
    "players": [
     {
      "id": "oliver_ani__fci_levadia_cucl_cucl",
@@ -343783,7 +342883,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "henri_perk__kalju_fc_cucl_cucl",
@@ -344284,7 +343384,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "michael_lilander_cucl",
@@ -344677,7 +343777,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "mark_zahharov__jk_trans_narva_cucl_cucl",
@@ -345178,7 +344278,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "hendrik_vainu__parnu_jk_vaprus_cucl_cucl",
@@ -345679,7 +344779,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "jan_martti_vainula__harju_jk_laagri_cucl_cucl",
@@ -346234,7 +345334,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "pedro_manoel__jalgpallikool_tammeka_cucl_cucl",
@@ -347581,7 +346681,7 @@
     }
    ],
    "league_position": 10,
-   "historical_ovr": 60
+   "historical_ovr": 59
   },
   {
    "id": "the_new_saints_cucl",
@@ -347594,7 +346694,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 68,
    "players": [
     {
      "id": "nathan_shepperd_cucl",
@@ -348041,7 +347141,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 65,
    "players": [
     {
      "id": "chris_renshaw__connah_s_quay_nomads_cucl_cucl",
@@ -348488,7 +347588,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "dan_higgs__penybont_fc_cucl_cucl",
@@ -349007,7 +348107,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "connor_roberts_footballer_born_1992_cucl",
@@ -349418,7 +348518,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "joe_thomas__barry_town_united_cucl_cucl",
@@ -349811,7 +348911,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "mark_halstead_cucl",
@@ -350240,7 +349340,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "arron_davies__cardiff_metropolitan_university_cucl_cucl",
@@ -351134,7 +350234,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "ifan_knott__haverfordwest_county_cucl_cucl",
@@ -352082,7 +351182,7 @@
    "league_position": 11,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 59,
    "players": [
     {
      "id": "jack_flint__flint_town_united_cucl_cucl",
@@ -352547,7 +351647,7 @@
    "league_position": 12,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 59,
    "players": [
     {
      "id": "joseph_massaro__llanelli_town_afc_cucl_cucl",
@@ -352958,7 +352058,7 @@
    "league_position": 1,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "alessandro_d_addario_cucl",
@@ -353153,24 +352253,6 @@
      "physical": 66,
      "pace": 53,
      "technical": 51,
-     "goals": 0,
-     "assists": 0,
-     "appearances": 0,
-     "is_icon": 0
-    },
-    {
-     "id": "pztntfp__tre_fiori_fc_cucl_cucl",
-     "name": "",
-     "nationality": "San Marino",
-     "birth_year": null,
-     "primary_position": "CM",
-     "secondary_positions": [],
-     "ovr": 64,
-     "attack": 60,
-     "defense": 59,
-     "physical": 59,
-     "pace": 59,
-     "technical": 67,
      "goals": 0,
      "assists": 0,
      "appearances": 0,
@@ -353405,7 +352487,7 @@
    "league_position": 2,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "mirco_de_angelis__ac_virtus_acquaviva_cucl_cucl",
@@ -353852,7 +352934,7 @@
    "league_position": 3,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "alessandro_d_addario__sp_tre_penne_cucl_cucl",
@@ -354263,7 +353345,7 @@
    "league_position": 4,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "davide_colonna__la_fiorita_1967_cucl_cucl",
@@ -354710,7 +353792,7 @@
    "league_position": 5,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 64,
    "players": [
     {
      "id": "mirco_de_angelis__ss_folgore_falciano_cucl_cucl",
@@ -355157,7 +354239,7 @@
    "league_position": 6,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 63,
    "players": [
     {
      "id": "alessandro_maggioli__fc_domagnano_cucl_cucl",
@@ -355658,7 +354740,7 @@
    "league_position": 7,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "michele_berardi__fc_fiorentino_cucl_cucl",
@@ -356087,7 +355169,7 @@
    "league_position": 8,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 62,
    "players": [
     {
      "id": "daniele_grieco__ss_cosmos_cucl_cucl",
@@ -356552,7 +355634,7 @@
    "league_position": 9,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "matteo_ronci__ac_juvenes_dogana_cucl_cucl",
@@ -356999,7 +356081,7 @@
    "league_position": 10,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 61,
    "players": [
     {
      "id": "enea_senja__ac_libertas_cucl_cucl",
@@ -358751,7 +357833,7 @@
    "league_position": 15,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 59,
    "players": [
     {
      "id": "eddine_ir_nasr__sp_cailungo_cucl_cucl",
@@ -359126,7 +358208,7 @@
    "league_position": 16,
    "year_start": 2025,
    "year_end": 2026,
-   "historical_ovr": 60,
+   "historical_ovr": 58,
    "players": [
     {
      "id": "raffaele_bracconi__ss_murata_cucl_cucl",

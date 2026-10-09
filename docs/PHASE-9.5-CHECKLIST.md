@@ -11,6 +11,13 @@
 
 **The rule for me (Claude):** every feature or fix I build from now until Phase 9 gets a row here in the same turn, and my report says that it was added, which wave, and the date.
 
+## Results on the phone, 7 October 2026
+
+The first dev build on the maintainer's POCO X6 (Phase 9.5). Everything below marked *checked (7 Oct, phone)* worked. What didn't, or worked with a remark, is in the roadmap's Phase 9.75 as **P9.75-01 to -15** and comes first there:
+- C-3 couldn't be confirmed; D-1 to D-3 (the offline queue never sends); S1-3 (no flag on the World Cup spin, phone only).
+- Worked, with a remark: D-8 to D-38, but the keyboard covers the clubs' invite field (P9.75-07); E, all but one Slovak slip (Pavúk's country printed "Croatia", P9.75-08); S7, but the press needs a hand-written pass (P9.75-09).
+- Found outside the rows: the live match in light mode (P9.75-01), the subs' tags and the bench swap (P9.75-03), the knockouts' press at the bottom (P9.75-04), your own knockouts hard to find (P9.75-05), and the phone's first timings (P9.75-11 to -15, [`PERF-LOG.md`](PERF-LOG.md)).
+
 ## Before you start
 
 | Done? | What | Why |
@@ -26,9 +33,9 @@
 
 | # | Wave · date | What to check | Where | Status |
 |---|---|---|---|---|
-| C-1 | C · 1 Oct | **System appearance follows the phone.** Settings → Appearance → System: switch the phone between dark and light; the app follows on the next open (it was stuck dark: `app.json` had `userInterfaceStyle: dark`) | native | unchecked |
-| C-2 | C · 1 Oct | **No dark flash between screens in light mode** (P8.5-38): the frame after the pundits' Play, and the window behind every screen at start-up, are light in light mode | native | unchecked |
-| C-3 | C · 1 Oct | **Achievement toasts** (P8.5-36) slide down at the top on a phone, in both modes, once per achievement | web, native | unchecked |
+| C-1 | C · 1 Oct | **System appearance follows the phone.** Settings → Appearance → System: switch the phone between dark and light; the app follows on the next open (it was stuck dark: `app.json` had `userInterfaceStyle: dark`) | native | checked (maintainer, 7 Oct, phone): follows the system; the dev build restarts on the change |
+| C-2 | C · 1 Oct | **No dark flash between screens in light mode** (P8.5-38): the frame after the pundits' Play, and the window behind every screen at start-up, are light in light mode | native | checked (maintainer, 7 Oct, phone) |
+| C-3 | C · 1 Oct | **Achievement toasts** (P8.5-36) slide down at the top on a phone, in both modes, once per achievement | web, native | not confirmed (7 Oct): nothing earned in the session; P9.75-10 |
 
 ## Wave D · Release plumbing (built 1 October 2026)
 
@@ -36,10 +43,10 @@
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| D-1 | Finish a run with the network off: the result says it's **queued**, not failed | web (devtools → Network → Offline), native (flight mode) | unchecked |
-| D-2 | Turn the network back on: the run saves by itself within a few seconds, the result flips to **saved**, and it appears **once** in Runs (no duplicate) | web, native | unchecked |
-| D-3 | Close the app while a run is queued, reopen online: it's sent on start | native | unchecked |
-| D-4 | The queued run's date in Runs is when you **played** it, not when it was sent | web, native | unchecked |
+| D-1 | Finish a run with the network off: the result says it's **queued**, not failed | web (devtools → Network → Offline), native (flight mode) | partly (7 Oct): says queued, but the run never went up; P9.75-06 |
+| D-2 | Turn the network back on: the run saves by itself within a few seconds, the result flips to **saved**, and it appears **once** in Runs (no duplicate) | web, native | fails (7 Oct): P9.75-06 |
+| D-3 | Close the app while a run is queued, reopen online: it's sent on start | native | fails (7 Oct): P9.75-06 |
+| D-4 | The queued run's date in Runs is when you **played** it, not when it was sent | web, native | checked (maintainer, 7 Oct, phone) |
 | D-5 | Offline, the strip says so with the queue count; Ranks, Clubs, chat, Friends and profiles say they need a connection; Sign in and Make an account say "You're offline" | web, native | unchecked |
 | D-6 | Signed in as one account with a queued run, switch to another: the run is **not** sent under the second account | web, native | unchecked |
 
@@ -47,63 +54,63 @@
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| D-7 | Privacy and Terms open, read right, and include the new sections (clubs, offline queue, updates, names and reports) | web | unchecked |
+| D-7 | Privacy and Terms open, read right, and include the new sections (clubs, offline queue, updates, names and reports) | web | checked (maintainer, 7 Oct, phone) |
 
 ### P8.5-31 · Updates and the APK
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| D-8 | **Appearance switches at once:** changing Settings → Appearance reloads the app into the new look straight away, not on the next launch | native (web reloads too: check it there as well) | unchecked |
-| D-9 | **Over-the-air update:** publish one (`eas update --channel <profile>`), reopen the app twice; it runs the new JavaScript | native | unchecked |
-| D-10 | **New build offered:** put a `latest.json` with a higher build on the site (`scripts/release-latest.ts`); a legal Android build shows the update strip on Home | native | unchecked |
-| D-11 | Tapping it downloads the APK from the releases repo with progress, checks its SHA-256, and opens Android's installer (Android asks to allow installs from this app the first time) | native | unchecked |
-| D-12 | A `latest.json` with a wrong `sha256` is refused, nothing is installed | native | unchecked |
-| D-13 | `minBuild` above yours makes the strip say the update is required | native | unchecked |
+| D-8 | **Appearance switches at once:** changing Settings → Appearance reloads the app into the new look straight away, not on the next launch | native (web reloads too: check it there as well) | checked (maintainer, 7 Oct, phone) |
+| D-9 | **Over-the-air update:** publish one (`eas update --channel <profile>`), reopen the app twice; it runs the new JavaScript | native | checked (maintainer, 7 Oct, phone) |
+| D-10 | **New build offered:** put a `latest.json` with a higher build on the site (`scripts/release-latest.ts`); a legal Android build shows the update strip on Home | native | checked (maintainer, 7 Oct, phone) |
+| D-11 | Tapping it downloads the APK from the releases repo with progress, checks its SHA-256, and opens Android's installer (Android asks to allow installs from this app the first time) | native | checked (maintainer, 7 Oct, phone) |
+| D-12 | A `latest.json` with a wrong `sha256` is refused, nothing is installed | native | checked (maintainer, 7 Oct, phone) |
+| D-13 | `minBuild` above yours makes the strip say the update is required | native | checked (maintainer, 7 Oct, phone) |
 
 ### Altered names (P8.5-30's last part)
 
 | # | What to check | Where | Status |
 |---|---|---|---|
 | D-14 | The public (legal) build shows the altered club and player names from `scripts/legal-names/*.csv` everywhere: draft, tables, brackets, match sheets, results, Runs | web (the deployed site, or `npm run web` without `EXPO_PUBLIC_BRAND_MODE=real`) | club names reviewed 1 Oct: work |
-| D-15 | Stadiums read "<city> Stadium", club facts are off, the holders of each European cup still show | web | unchecked |
-| D-16 | The personal build still shows the real names | web (`EXPO_PUBLIC_BRAND_MODE=real`) | unchecked |
+| D-15 | Stadiums read "<city> Stadium", club facts are off, the holders of each European cup still show | web | checked (maintainer, 7 Oct, phone) |
+| D-16 | The personal build still shows the real names | web (`EXPO_PUBLIC_BRAND_MODE=real`) | checked (maintainer, 7 Oct, phone) |
 
 ### P8.5-44 · Moderation (see [`MODERATION.md`](MODERATION.md))
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| D-17 | Making an account with a swear in the name (try "f4ck", "Lafuckda", "kokot") is refused with one of the lines; the account is **not** half-made (you can still sign up with a clean name) | web, SQL | unchecked |
-| D-18 | Slovak lines when the phone or browser is in Slovak ("A ty tu čo skúšaš, môj?") | web (browser language sk), SQL | unchecked |
-| D-19 | Club name, tag or description with a swear: refused with a line | web, SQL | unchecked |
-| D-20 | Profile status, pronouns, about, favourite player with a swear: refused with a line | web, SQL | unchecked |
-| D-21 | Real names pass: Scunthorpe, Montenegro, Picasso, a real footballer as your favourite | web, SQL | unchecked |
-| D-22 | Club chat with clean language on: "what the fuck" becomes "what the fudge", "kurva" becomes "kukurica", no line under it; with clean language off it's left alone | web, SQL | unchecked |
-| D-23 | "IslamHater2121" as a username is **allowed**, and appears in `select * from mod_inbox();` | web, SQL | unchecked |
-| D-24 | **Report:** the quiet button at the foot of someone's profile and of another club; pick a reason, send, "Thanks"; it shows in `mod_inbox()` with your reason | web, SQL | unchecked |
-| D-25 | `mod_act(id, 'rename')` on a player: their name becomes "player-…", the You tab asks them for a new one, and the new name saves | web, SQL | unchecked |
-| D-26 | `mod_act(id, 'ban')`: the You tab says banned; runs don't save; chat, joining clubs and reporting refuse | web, SQL | unchecked |
+| D-17 | Making an account with a swear in the name (try "f4ck", "Lafuckda", "kokot") is refused with one of the lines; the account is **not** half-made (you can still sign up with a clean name) | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-18 | Slovak lines when the phone or browser is in Slovak ("A ty tu čo skúšaš, môj?") | web (browser language sk), SQL | checked (maintainer, 7 Oct, phone) |
+| D-19 | Club name, tag or description with a swear: refused with a line | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-20 | Profile status, pronouns, about, favourite player with a swear: refused with a line | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-21 | Real names pass: Scunthorpe, Montenegro, Picasso, a real footballer as your favourite | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-22 | Club chat with clean language on: "what the fuck" becomes "what the fudge", "kurva" becomes "kukurica", no line under it; with clean language off it's left alone | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-23 | "IslamHater2121" as a username is **allowed**, and appears in `select * from mod_inbox();` | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-24 | **Report:** the quiet button at the foot of someone's profile and of another club; pick a reason, send, "Thanks"; it shows in `mod_inbox()` with your reason | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-25 | `mod_act(id, 'rename')` on a player: their name becomes "player-…", the You tab asks them for a new one, and the new name saves | web, SQL | checked (maintainer, 7 Oct, phone) |
+| D-26 | `mod_act(id, 'ban')`: the You tab says banned; runs don't save; chat, joining clubs and reporting refuse | web, SQL | checked (maintainer, 7 Oct, phone) |
 
 ### P8.5-45 · Clubs
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| D-27 | Invite by username suggests players after 3 letters, about half a second after you stop typing | web | unchecked |
-| D-28 | An error clears as soon as you change what caused it | web | unchecked |
-| D-29 | The loading bar shows at the top while club screens load | web | unchecked |
-| D-30 | In another club, every place you could join a second says one club at a time | web | unchecked |
-| D-31 | In a club, the Clubs tab **is** your club (no separate page); joining or creating stays on the tab | web | unchecked |
-| D-32 | A club's score shows on its page and in search | web, SQL (clubs-2 re-run) | unchecked |
-| D-33 | Creating a club sets who can join (open, invite, password) and clean language; Edit the club holds those, Invite, Hand it over, and a **red** Delete the club | web | unchecked |
+| D-27 | Invite by username suggests players after 3 letters, about half a second after you stop typing | web | checked (maintainer, 7 Oct, phone) |
+| D-28 | An error clears as soon as you change what caused it | web | checked (maintainer, 7 Oct, phone) |
+| D-29 | The loading bar shows at the top while club screens load | web | checked (maintainer, 7 Oct, phone) |
+| D-30 | In another club, every place you could join a second says one club at a time | web | checked (maintainer, 7 Oct, phone) |
+| D-31 | In a club, the Clubs tab **is** your club (no separate page); joining or creating stays on the tab | web | checked (maintainer, 7 Oct, phone) |
+| D-32 | A club's score shows on its page and in search | web, SQL (clubs-2 re-run) | checked (maintainer, 7 Oct, phone) |
+| D-33 | Creating a club sets who can join (open, invite, password) and clean language; Edit the club holds those, Invite, Hand it over, and a **red** Delete the club | web | checked (maintainer, 7 Oct, phone) |
 
 ### Wave C's playtest notes, the small ones
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| D-34 | P8.5-46: Ranks says **Weekly** | web | unchecked |
-| D-35 | P8.5-47: the You page's greeting stays the same until you close the app | web, native | unchecked |
-| D-36 | P8.5-48: sub-pages (Versions, About, Settings, Friends, Edit profile, Achievements, Career, the crest editor, the Guide) have their title centred in the back arrow's row | web | unchecked |
-| D-37 | P8.5-49: mode names stay whole after tapping a mode (ALL TIME, EUROPEAN FULL PATH) | native (it was an Android measuring fault; check web too) | unchecked |
-| D-38 | P8.5-50: a two-legged tie opened from a result's bracket can switch between both legs | web | unchecked |
+| D-34 | P8.5-46: Ranks says **Weekly** | web | checked (maintainer, 7 Oct, phone) |
+| D-35 | P8.5-47: the You page's greeting stays the same until you close the app | web, native | checked (maintainer, 7 Oct, phone) |
+| D-36 | P8.5-48: sub-pages (Versions, About, Settings, Friends, Edit profile, Achievements, Career, the crest editor, the Guide) have their title centred in the back arrow's row | web | checked (maintainer, 7 Oct, phone) |
+| D-37 | P8.5-49: mode names stay whole after tapping a mode (ALL TIME, EUROPEAN FULL PATH) | native (it was an Android measuring fault; check web too) | checked (maintainer, 7 Oct, phone) |
+| D-38 | P8.5-50: a two-legged tie opened from a result's bracket can switch between both legs | web | checked (maintainer, 7 Oct, phone) |
 
 ## Wave E · Slovak (1–2 October 2026)
 
@@ -111,32 +118,32 @@ Finished 2 October: every screen is on keys and the switch now shows in every bu
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| E-1 | Settings → Language shows System / English / Slovenčina (dev only for now); choosing one reloads the app in that language | web (dev) | unchecked |
-| E-2 | **System** follows the browser's or phone's language: Slovak (or Czech) gets Slovak, anything else English | web (browser language), native | unchecked |
-| E-3 | The language survives closing and reopening the app | web, native | unchecked |
-| E-4 | Slovak counts read right: 1 člen, 2 členovia, 5 členov; 1 hra, 2 hry, 5 hier (Clubs, the offline strip) | web | unchecked |
-| E-5 | Ordinals in Slovak are "21." (World rank on You, a profile, Friends) | web | unchecked |
-| E-6 | Numbers in Slovak use a space for thousands (12 345) in club scores and pinned runs | web | unchecked |
-| E-7 | In Slovak, these are fully Slovak: Settings (but the European target lines, waiting for the terms), sign-in and new account, You, a player's page (but tiers and run labels), Edit profile, Clubs (tab, page, form, chat), Friends, Report, New name, the offline and update strips, confirmations, the tab bar | web | unchecked |
-| E-8 | A refused name in Slovak gets a Slovak line ("A ty tu čo skúšaš, môj?") | web, SQL | unchecked |
-| E-9 | Privacy and Terms in Slovak, dated "1. októbra 2026" | web | unchecked |
-| E-10 | **Slovak plurals on the phone.** Hermes may not have `Intl.PluralRules`; a small fallback handles en and sk. Check E-4 on the phone | native | unchecked |
-| E-11 | **The phone's language on the phone.** System reads it through `Intl`, not expo-localization (no native module added). Check E-2 on the phone | native | unchecked |
-| E-12 | Changing the language on the phone reloads at once (it uses the appearance reload, so it needs expo-updates from Wave D) | native | unchecked |
-| E-13 | Settings → Language now shows in a normal (non-dev) web build too | web | unchecked |
-| E-14 | In Slovak, every screen of a run is Slovak: mode select, difficulty, formation, draft, the draw and globe, the pundits, the season and knockouts, the live match and the final, Awards Night, the verdict and every result screen (league, CL, full path, World Cup) | web | unchecked |
-| E-15 | The match sheet in Slovak: tabs, every stat name, lineups, the player sheet, the timeline breaks, the shot map and heat map, the penalty shoot-out, form and next match | web | unchecked |
-| E-16 | The engine's labels read Slovak wherever they show: "3. kolo", "Osemfinále · Odveta", "Skupina B · 2. kolo", qualifying rounds, cup rounds, "pen." and "pp" | web | unchecked |
-| E-17 | The press in Slovak: headlines, standfirsts and the opened story; names stay as written ("Debakel: Arsenal"), never declined, never gendered | web | unchecked |
-| E-18 | Commentary in Slovak, live (Deep Match final) and on the sheet's Comms tab, including VAR, fouls and the added-time boards | web | unchecked |
-| E-19 | Kick-off dates in Slovak ("So 23. aug · 15:00") on the match sheet and fixtures | web | unchecked |
-| E-20 | National teams and countries in Slovak (Brazília, Anglicko, Južná Kórea) in tables, results, brackets, the match sheet, the reveal and the pundits; flags still show beside them. Saved runs and the leaderboard keep the English names on purpose | web | unchecked |
-| E-21 | Awards in Slovak: every award's name and how it's decided, the score breakdown rows, team of the season or tournament | web | unchecked |
-| E-22 | The run hub, player, club and story pages, career, achievements (feats too), the guide, the rulebook and "How it works" bubbles, About, versions (the history has its own Slovak text), the crest editor | web | unchecked |
-| E-23 | Achievement toasts in Slovak ("Výhra na úrovni Ťažká"); one already seen in English doesn't pop up again in Slovak (the keys stayed English) | web | unchecked |
-| E-24 | Seasons, ranks and the 100 season names in Slovak | web | unchecked |
-| E-25 | The legal build in Slovak: competition names still renamed (the Babel table has Slovak pairs) | legal web build | unchecked |
-| E-26 | English got gender-neutral on the way ("they" where it said "he" about a player, "The season" for "His season"): read a few player pages and award notes in English too | web | unchecked |
+| E-1 | Settings → Language shows System / English / Slovenčina (dev only for now); choosing one reloads the app in that language | web (dev) | checked (maintainer, 7 Oct, phone) |
+| E-2 | **System** follows the browser's or phone's language: Slovak (or Czech) gets Slovak, anything else English | web (browser language), native | checked (maintainer, 7 Oct, phone) |
+| E-3 | The language survives closing and reopening the app | web, native | checked (maintainer, 7 Oct, phone) |
+| E-4 | Slovak counts read right: 1 člen, 2 členovia, 5 členov; 1 hra, 2 hry, 5 hier (Clubs, the offline strip) | web | checked (maintainer, 7 Oct, phone) |
+| E-5 | Ordinals in Slovak are "21." (World rank on You, a profile, Friends) | web | checked (maintainer, 7 Oct, phone) |
+| E-6 | Numbers in Slovak use a space for thousands (12 345) in club scores and pinned runs | web | checked (maintainer, 7 Oct, phone) |
+| E-7 | In Slovak, these are fully Slovak: Settings (but the European target lines, waiting for the terms), sign-in and new account, You, a player's page (but tiers and run labels), Edit profile, Clubs (tab, page, form, chat), Friends, Report, New name, the offline and update strips, confirmations, the tab bar | web | checked (maintainer, 7 Oct, phone) |
+| E-8 | A refused name in Slovak gets a Slovak line ("A ty tu čo skúšaš, môj?") | web, SQL | checked (maintainer, 7 Oct, phone) |
+| E-9 | Privacy and Terms in Slovak, dated "1. októbra 2026" | web | checked (maintainer, 7 Oct, phone) |
+| E-10 | **Slovak plurals on the phone.** Hermes may not have `Intl.PluralRules`; a small fallback handles en and sk. Check E-4 on the phone | native | checked (maintainer, 7 Oct, phone) |
+| E-11 | **The phone's language on the phone.** System reads it through `Intl`, not expo-localization (no native module added). Check E-2 on the phone | native | checked (maintainer, 7 Oct, phone) |
+| E-12 | Changing the language on the phone reloads at once (it uses the appearance reload, so it needs expo-updates from Wave D) | native | checked (maintainer, 7 Oct, phone) |
+| E-13 | Settings → Language now shows in a normal (non-dev) web build too | web | checked (maintainer, 7 Oct, phone) |
+| E-14 | In Slovak, every screen of a run is Slovak: mode select, difficulty, formation, draft, the draw and globe, the pundits, the season and knockouts, the live match and the final, Awards Night, the verdict and every result screen (league, CL, full path, World Cup) | web | checked (maintainer, 7 Oct, phone) |
+| E-15 | The match sheet in Slovak: tabs, every stat name, lineups, the player sheet, the timeline breaks, the shot map and heat map, the penalty shoot-out, form and next match | web | checked (maintainer, 7 Oct, phone) |
+| E-16 | The engine's labels read Slovak wherever they show: "3. kolo", "Osemfinále · Odveta", "Skupina B · 2. kolo", qualifying rounds, cup rounds, "pen." and "pp" | web | checked (maintainer, 7 Oct, phone) |
+| E-17 | The press in Slovak: headlines, standfirsts and the opened story; names stay as written ("Debakel: Arsenal"), never declined, never gendered | web | checked (maintainer, 7 Oct, phone) |
+| E-18 | Commentary in Slovak, live (Deep Match final) and on the sheet's Comms tab, including VAR, fouls and the added-time boards | web | checked (maintainer, 7 Oct, phone) |
+| E-19 | Kick-off dates in Slovak ("So 23. aug · 15:00") on the match sheet and fixtures | web | checked (maintainer, 7 Oct, phone) |
+| E-20 | National teams and countries in Slovak (Brazília, Anglicko, Južná Kórea) in tables, results, brackets, the match sheet, the reveal and the pundits; flags still show beside them. Saved runs and the leaderboard keep the English names on purpose | web | checked (maintainer, 7 Oct, phone) |
+| E-21 | Awards in Slovak: every award's name and how it's decided, the score breakdown rows, team of the season or tournament | web | checked (maintainer, 7 Oct, phone) |
+| E-22 | The run hub, player, club and story pages, career, achievements (feats too), the guide, the rulebook and "How it works" bubbles, About, versions (the history has its own Slovak text), the crest editor | web | checked (maintainer, 7 Oct, phone) |
+| E-23 | Achievement toasts in Slovak ("Výhra na úrovni Ťažká"); one already seen in English doesn't pop up again in Slovak (the keys stayed English) | web | checked (maintainer, 7 Oct, phone) |
+| E-24 | Seasons, ranks and the 100 season names in Slovak | web | checked (maintainer, 7 Oct, phone) |
+| E-25 | The legal build in Slovak: competition names still renamed (the Babel table has Slovak pairs) | legal web build | checked (maintainer, 7 Oct, phone) |
+| E-26 | English got gender-neutral on the way ("they" where it said "he" about a player, "The season" for "His season"): read a few player pages and award notes in English too | web | checked (maintainer, 7 Oct, phone) |
 
 ## Wave G · Step 0 (2 October 2026)
 
@@ -144,14 +151,14 @@ The audit's quick fixes ([`audit-2026-10/09-ROADMAP.md`](audit-2026-10/09-ROADMA
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| G-1 | On every result screen (league, Champions League, World Cup, full path) **Play again and Home sit right under the verdict and its figures**, not at the bottom; the save line ("Saving your run…") shows with them | web | unchecked |
-| G-2 | A saved run opened from Runs shows **Back** in the same place | web | unchecked |
-| G-3 | The pundits screen in Slovak writes places as "3." (it said "3rd") | web | unchecked |
-| G-4 | Shirt names keep their particles: "van Dijk", "De Bruyne", "de Ligt" on the draft card, the reveal's steal line, the shot map's dots and the awards pitch | web | unchecked |
-| G-5 | The guide's difficulty page says Medium leans slightly against you (both languages) | web | unchecked |
-| G-6 | Nothing missing after the dead code went: a classic Champions League and a World Cup result screen still show their bracket and tables | web | unchecked |
-| G-7 | **Maintainer action (M-1):** open the production site and move between two pages, then tell me; I re-run the page-view query to see whether analytics arrives | production web | unchecked |
-| G-8 | After the next deploy, the database under `/assets/` is cached for a year (`curl -I` shows `immutable`) | production web | unchecked |
+| G-1 | On every result screen (league, Champions League, World Cup, full path) **Play again and Home sit right under the verdict and its figures**, not at the bottom; the save line ("Saving your run…") shows with them | web | checked (maintainer, 7 Oct, phone) |
+| G-2 | A saved run opened from Runs shows **Back** in the same place | web | checked (maintainer, 7 Oct, phone) |
+| G-3 | The pundits screen in Slovak writes places as "3." (it said "3rd") | web | checked (maintainer, 7 Oct, phone) |
+| G-4 | Shirt names keep their particles: "van Dijk", "De Bruyne", "de Ligt" on the draft card, the reveal's steal line, the shot map's dots and the awards pitch | web | checked (maintainer, 7 Oct, phone) |
+| G-5 | The guide's difficulty page says Medium leans slightly against you (both languages) | web | checked (maintainer, 7 Oct, phone) |
+| G-6 | Nothing missing after the dead code went: a classic Champions League and a World Cup result screen still show their bracket and tables | web | checked (maintainer, 7 Oct, phone) |
+| G-7 | **Maintainer action (M-1):** open the production site and move between two pages, then tell me; I re-run the page-view query to see whether analytics arrives | production web | checked (maintainer, 7 Oct, phone) |
+| G-8 | After the next deploy, the database under `/assets/` is cached for a year (`curl -I` shows `immutable`) | production web | checked (maintainer, 7 Oct, phone) |
 
 ## Phase two · Step 1 (3 October 2026)
 
@@ -223,15 +230,15 @@ One knockout view, one table-stage view, one matchday loop, one way a result goe
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| S5-1 | **The full path's knockouts** look and behave like the classic Champions League's: the bracket preview, newest round on top, your tie live, the back-to-newest tag, the skip to the end of your run, the Deep Match final, See the bracket. The play-off round has its `?` bubble in the classic mode too now | web | unchecked |
-| S5-2 | **One pace through the knockouts:** in the full path the next round opens 1.6 s after your match (it was 2.2 s) and on each round's own delay otherwise (it was 4.2 s) | web | unchecked |
-| S5-3 | **Team of the round** under every knockout round once it's settled (Champions League, World Cup, full path), never over a final you haven't watched yet | web | unchecked |
-| S5-4 | **The pundits' line** ("8 of 12 back …") above your live match in the league season, the league phase, the World Cup groups and the full path's domestic season, as in the knockouts | web | unchecked |
-| S5-5 | **The live bracket** (See the bracket, or beside the rounds on a wide window) writes AET and penalties the way the tie rows do, in Slovak too ("pp", "pen. 4–3"), with both legs | web | unchecked |
-| S5-6 | **The full path's domestic season** waits for your first tap after the pundits, like every stage | web | unchecked |
-| S5-7 | **Every table and group stage looks the same in its parts** (the line under the header, where you stand, the strip, your match, the tabs) and on a desktop browser **Space plays and pauses, ← → scrub the matchdays**, on all five (only the league season had the keys) | web (keys on desktop) | unchecked |
-| S5-8 | **Nothing changed in how seasons play:** tables, form and results behave as before in every mode (the table update and the matchday timer are now one shared piece each); a season of each mode played through, including a split league in the full path | web | unchecked |
-| S5-9 | **Out of Europe on the full path** (qualifying exit, or never qualified): the result screen still shows the competition played out and the other two competitions, and the run is tiered as before | web | unchecked |
+| S5-1 | **The full path's knockouts** look and behave like the classic Champions League's: the bracket preview, newest round on top, your tie live, the back-to-newest tag, the skip to the end of your run, the Deep Match final, See the bracket. The play-off round has its `?` bubble in the classic mode too now | web | checked (maintainer, 7 Oct, phone) |
+| S5-2 | **One pace through the knockouts:** in the full path the next round opens 1.6 s after your match (it was 2.2 s) and on each round's own delay otherwise (it was 4.2 s) | web | checked (maintainer, 7 Oct, phone) |
+| S5-3 | **Team of the round** under every knockout round once it's settled (Champions League, World Cup, full path), never over a final you haven't watched yet | web | checked (maintainer, 7 Oct, phone) |
+| S5-4 | **The pundits' line** ("8 of 12 back …") above your live match in the league season, the league phase, the World Cup groups and the full path's domestic season, as in the knockouts | web | checked (maintainer, 7 Oct, phone) |
+| S5-5 | **The live bracket** (See the bracket, or beside the rounds on a wide window) writes AET and penalties the way the tie rows do, in Slovak too ("pp", "pen. 4–3"), with both legs | web | checked (maintainer, 7 Oct, phone) |
+| S5-6 | **The full path's domestic season** waits for your first tap after the pundits, like every stage | web | checked (maintainer, 7 Oct, phone) |
+| S5-7 | **Every table and group stage looks the same in its parts** (the line under the header, where you stand, the strip, your match, the tabs) and on a desktop browser **Space plays and pauses, ← → scrub the matchdays**, on all five (only the league season had the keys) | web (keys on desktop) | checked (maintainer, 7 Oct, phone) |
+| S5-8 | **Nothing changed in how seasons play:** tables, form and results behave as before in every mode (the table update and the matchday timer are now one shared piece each); a season of each mode played through, including a split league in the full path | web | checked (maintainer, 7 Oct, phone) |
+| S5-9 | **Out of Europe on the full path** (qualifying exit, or never qualified): the result screen still shows the competition played out and the other two competitions, and the run is tiered as before | web | checked (maintainer, 7 Oct, phone) |
 
 ## Phase two · Step 6 / Wave F (3 October 2026)
 
@@ -239,20 +246,20 @@ One result screen for every mode, the depth in the run hub ([`audit-2026-10/08-R
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| S6-1 | **League result** (League, All Time, Chaos, Cursed): the verdict, one row of figures, "The story" (1–3 rows), "The rest of the run" doors. On a phone, Play again and Home sit in a bar pinned to the bottom and nowhere else; Chaos and Cursed keep their banner | web + phone width | unchecked |
-| S6-2 | **Champions, Europa and Conference League (classic)** finish on the same screen: league-phase place, points, record, goals, knockout record, pot; the pundits' call against how far you got | web | unchecked |
-| S6-3 | **World Cup** finishes on the same screen: group place, games, record, goals, knockout record; the meta line names your nation and group | web | unchecked |
-| S6-4 | **Full path**: the verdict says how you got in (or where you went out), the hunt line when hunting, your domestic season under the title; a run that never reached the league phase shows the domestic record as its figures | web | unchecked |
-| S6-5 | **The story rows open what they name:** the deciding match or final opens its match sheet, the star opens the player page, the rival opens the club page, a headline opens its story | web | unchecked |
-| S6-6 | **The one that got away:** the best player you passed on in the draft shows as a story row on the result (new runs only) | web | unchecked |
-| S6-7 | **Every door lands on its hub tab:** Table/Group, Bracket, Season, Cup, Pundits, Awards (opens the awards page, no ceremony), Squad, Europe | web | unchecked |
-| S6-8 | **The hub's new tabs:** Pundits (league and cups), Cup (a league run's national cup), Europe (the full path's other competitions, ladder and tables); each appears only when the run has it | web | unchecked |
-| S6-9 | **Squad tab** opens on the lineup pitch (with bench) and the medical table; **Bracket** on a World Cup shows the grounds | web | unchecked |
-| S6-10 | **Saving:** a fresh run shows saving, then saved (or the failure line with retry); Play again waits for the save; a guest or quick-sim run never saves | web, signed in and guest | unchecked |
-| S6-11 | **Saved runs** from Runs, Home, Ranks, Career and a profile all open on the same screen with the right family; an old cup run saved without its whole result shows its verdict and record only | web | unchecked |
-| S6-12 | **Wide window:** verdict, figures and actions in the left pane; story and doors in the two panes beside it | desktop browser | unchecked |
-| S6-13 | **Slovak:** every new line (story rows, doors, hub tabs) reads in Slovak, names in the nominative, the player never gendered | web, sk | unchecked |
-| S6-14 | **Quick Sim Tester** (About, version ×8): League, UCL, UCL✦ and WC all land on the one result screen; UCL✦ shows the full path's verdict | web (dev) | unchecked |
+| S6-1 | **League result** (League, All Time, Chaos, Cursed): the verdict, one row of figures, "The story" (1–3 rows), "The rest of the run" doors. On a phone, Play again and Home sit in a bar pinned to the bottom and nowhere else; Chaos and Cursed keep their banner | web + phone width | checked (maintainer, 7 Oct, phone) |
+| S6-2 | **Champions, Europa and Conference League (classic)** finish on the same screen: league-phase place, points, record, goals, knockout record, pot; the pundits' call against how far you got | web | checked (maintainer, 7 Oct, phone) |
+| S6-3 | **World Cup** finishes on the same screen: group place, games, record, goals, knockout record; the meta line names your nation and group | web | checked (maintainer, 7 Oct, phone) |
+| S6-4 | **Full path**: the verdict says how you got in (or where you went out), the hunt line when hunting, your domestic season under the title; a run that never reached the league phase shows the domestic record as its figures | web | checked (maintainer, 7 Oct, phone) |
+| S6-5 | **The story rows open what they name:** the deciding match or final opens its match sheet, the star opens the player page, the rival opens the club page, a headline opens its story | web | checked (maintainer, 7 Oct, phone) |
+| S6-6 | **The one that got away:** the best player you passed on in the draft shows as a story row on the result (new runs only) | web | checked (maintainer, 7 Oct, phone) |
+| S6-7 | **Every door lands on its hub tab:** Table/Group, Bracket, Season, Cup, Pundits, Awards (opens the awards page, no ceremony), Squad, Europe | web | checked (maintainer, 7 Oct, phone) |
+| S6-8 | **The hub's new tabs:** Pundits (league and cups), Cup (a league run's national cup), Europe (the full path's other competitions, ladder and tables); each appears only when the run has it | web | checked (maintainer, 7 Oct, phone) |
+| S6-9 | **Squad tab** opens on the lineup pitch (with bench) and the medical table; **Bracket** on a World Cup shows the grounds | web | checked (maintainer, 7 Oct, phone) |
+| S6-10 | **Saving:** a fresh run shows saving, then saved (or the failure line with retry); Play again waits for the save; a guest or quick-sim run never saves | web, signed in and guest | checked (maintainer, 7 Oct, phone) |
+| S6-11 | **Saved runs** from Runs, Home, Ranks, Career and a profile all open on the same screen with the right family; an old cup run saved without its whole result shows its verdict and record only | web | checked (maintainer, 7 Oct, phone) |
+| S6-12 | **Wide window:** verdict, figures and actions in the left pane; story and doors in the two panes beside it | desktop browser | checked (maintainer, 7 Oct, phone) |
+| S6-13 | **Slovak:** every new line (story rows, doors, hub tabs) reads in Slovak, names in the nominative, the player never gendered | web, sk | checked (maintainer, 7 Oct, phone) |
+| S6-14 | **Quick Sim Tester** (About, version ×8): League, UCL, UCL✦ and WC all land on the one result screen; UCL✦ shows the full path's verdict | web (dev) | checked (maintainer, 7 Oct, phone) |
 
 ## Trailer fixes (4 October 2026)
 
@@ -260,10 +267,10 @@ Found while filming the launch videos (`D:\Perfection or Misery\brag-output\brag
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| V-1 | **Draft club card in dark mode:** after a spin lands, the club's name, season and REROLL read in light text on the club's dark tint (they were ink on near-black) | web + phone, dark mode | unchecked |
-| V-2 | **Draft player cards:** the name and nation sit on a dark shade rising from the card's foot, readable on white flag stripes (France, Italy, Ivory Coast, England) | web + phone | unchecked |
-| V-3 | **One label per nation on draft cards:** a country name every time (SPAIN, FRANCE, ENGLAND, ARGENTINA), never SPAIN on one card and SPANISH on the next; in Slovak, the Slovak country name | web + phone, en + sk | unchecked |
-| V-4 | **Long verdicts fit on a phone:** RESPECTABLE MEDIOCRITY (and the Slovak tiers) shrink to fit the card instead of running off its edge; short ones (PERFECTION, ABSOLUTE MISERY) stay full size | phone width, en + sk | unchecked |
+| V-1 | **Draft club card in dark mode:** after a spin lands, the club's name, season and REROLL read in light text on the club's dark tint (they were ink on near-black) | web + phone, dark mode | checked (maintainer, 7 Oct, phone) |
+| V-2 | **Draft player cards:** the name and nation sit on a dark shade rising from the card's foot, readable on white flag stripes (France, Italy, Ivory Coast, England) | web + phone | checked (maintainer, 7 Oct, phone) |
+| V-3 | **One label per nation on draft cards:** a country name every time (SPAIN, FRANCE, ENGLAND, ARGENTINA), never SPAIN on one card and SPANISH on the next; in Slovak, the Slovak country name | web + phone, en + sk | checked (maintainer, 7 Oct, phone) |
+| V-4 | **Long verdicts fit on a phone:** RESPECTABLE MEDIOCRITY (and the Slovak tiers) shrink to fit the card instead of running off its edge; short ones (PERFECTION, ABSOLUTE MISERY) stay full size | phone width, en + sk | checked (maintainer, 7 Oct, phone) |
 
 ## Phase two · Step 7 (4 October 2026)
 
@@ -271,15 +278,15 @@ The press in every stage ([`centralisation/12-PHASE-TWO-FINAL.md`](centralisatio
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| S7-1 | **Champions, Europa and Conference League (classic) league phase:** a Press tab beside Table, Results and Fixtures. From matchday 1 there's a report on your match when nothing else is news; on the last matchday a story says where you finished and your road (straight into the last 16, the play-off, out) | web | unchecked |
-| S7-2 | **World Cup groups:** a Press tab. After matchday 3, your group decided (winners, second, third and waiting, out); finishing third adds the best-thirds story, and it agrees with whether you're in the round of 32 | web | unchecked |
-| S7-3 | **Every knockout stage** (classic, World Cup, full path): the press under the rounds, newest first: your tie (through or out, penalties named), the round's upset, a shootout, the round's headline, and the winners after the final | web | unchecked |
-| S7-4 | **Full path:** the domestic season has a Press tab with the league's own stories (a champion on the last day, unless the league splits: then nothing after the regular season); qualifying rounds and the league phase follow in the same press | web | unchecked |
-| S7-5 | **Your injuries and bans** make a cup's press in the round they happen (league phase, groups, knockouts), and other clubs' don't | web | unchecked |
-| S7-6 | **A cup story opens its page** from any press list; the line above the headline says the round ("Round of 16") or the stage and matchday ("League Phase · Matchday 3 of 8"); Share makes the card with the same line | web | unchecked |
-| S7-7 | **The run hub's Press tab** on a finished cup run (classic, World Cup, full path), and on a cup run saved before today (its press is rebuilt from the saved result) | web | unchecked |
-| S7-8 | **Slovak:** the new stories read in Slovak, names in the nominative, nobody gendered | web, sk | unchecked |
-| S7-9 | **The league season's press** is unchanged, except a round with two logjams now writes one story about the bigger | web | unchecked |
+| S7-1 | **Champions, Europa and Conference League (classic) league phase:** a Press tab beside Table, Results and Fixtures. From matchday 1 there's a report on your match when nothing else is news; on the last matchday a story says where you finished and your road (straight into the last 16, the play-off, out) | web | checked (maintainer, 7 Oct, phone) |
+| S7-2 | **World Cup groups:** a Press tab. After matchday 3, your group decided (winners, second, third and waiting, out); finishing third adds the best-thirds story, and it agrees with whether you're in the round of 32 | web | checked (maintainer, 7 Oct, phone) |
+| S7-3 | **Every knockout stage** (classic, World Cup, full path): the press under the rounds, newest first: your tie (through or out, penalties named), the round's upset, a shootout, the round's headline, and the winners after the final | web | checked (maintainer, 7 Oct, phone) |
+| S7-4 | **Full path:** the domestic season has a Press tab with the league's own stories (a champion on the last day, unless the league splits: then nothing after the regular season); qualifying rounds and the league phase follow in the same press | web | checked (maintainer, 7 Oct, phone) |
+| S7-5 | **Your injuries and bans** make a cup's press in the round they happen (league phase, groups, knockouts), and other clubs' don't | web | checked (maintainer, 7 Oct, phone) |
+| S7-6 | **A cup story opens its page** from any press list; the line above the headline says the round ("Round of 16") or the stage and matchday ("League Phase · Matchday 3 of 8"); Share makes the card with the same line | web | checked (maintainer, 7 Oct, phone) |
+| S7-7 | **The run hub's Press tab** on a finished cup run (classic, World Cup, full path), and on a cup run saved before today (its press is rebuilt from the saved result) | web | checked (maintainer, 7 Oct, phone) |
+| S7-8 | **Slovak:** the new stories read in Slovak, names in the nominative, nobody gendered | web, sk | checked (maintainer, 7 Oct, phone) |
+| S7-9 | **The league season's press** is unchanged, except a round with two logjams now writes one story about the bigger | web | checked (maintainer, 7 Oct, phone) |
 
 ## Phase two · Step 8 (4 October 2026)
 
@@ -287,14 +294,14 @@ The rest of phase two ([`centralisation/12-PHASE-TWO-FINAL.md`](centralisation/1
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| S8-1 | **Manager of the tournament** on Awards Night in the classic Champions, Europa and Conference League and the World Cup: "Tipped: … · Reached: …" for the winner and the runners-up, with an explanation about rounds, not places. The full path has none | web, a cup run played to the end | unchecked |
-| S8-2 | **Kolos Kovalivka** shows white and black (it was the grey placeholder), in the draft and on the match sheet | web, a Conference League run | unchecked |
-| S8-3 | **The World Cup's mark**: a drawn globe on a plinth in the square badge, on the mode list and the World Cup placement | web, light and dark | unchecked |
-| S8-4 | **The match sheet's colours**: a red card, an own goal, an injury and a missed penalty in the one misery red; a yellow card and VAR in the referee's yellow; the man of the match in gold; the rotation note muted | web | unchecked |
-| S8-5 | **The match sheet's sections** have the kit's section heads, and the form going into a match reads like the story page's form rows (result tag, home or away, opponent, score) | web | unchecked |
-| S8-6 | **The save line** on a result: a guest and an offline save read in Slovak too; a failed save is red with a square Retry | web, en + sk, guest and offline | unchecked |
-| S8-7 | **A shared story** carries whose run it is (picture, name, club tag), like the verdict's card, and its text starts with "My run" or the owner's name | web, phone share sheet | unchecked |
-| S8-8 | **The career screen** names the mode "European Full Path" | web | unchecked |
+| S8-1 | **Manager of the tournament** on Awards Night in the classic Champions, Europa and Conference League and the World Cup: "Tipped: … · Reached: …" for the winner and the runners-up, with an explanation about rounds, not places. The full path has none | web, a cup run played to the end | checked (maintainer, 7 Oct, phone) |
+| S8-2 | **Kolos Kovalivka** shows white and black (it was the grey placeholder), in the draft and on the match sheet | web, a Conference League run | checked (maintainer, 7 Oct, phone) |
+| S8-3 | **The World Cup's mark**: a drawn globe on a plinth in the square badge, on the mode list and the World Cup placement | web, light and dark | checked (maintainer, 7 Oct, phone) |
+| S8-4 | **The match sheet's colours**: a red card, an own goal, an injury and a missed penalty in the one misery red; a yellow card and VAR in the referee's yellow; the man of the match in gold; the rotation note muted | web | checked (maintainer, 7 Oct, phone) |
+| S8-5 | **The match sheet's sections** have the kit's section heads, and the form going into a match reads like the story page's form rows (result tag, home or away, opponent, score) | web | checked (maintainer, 7 Oct, phone) |
+| S8-6 | **The save line** on a result: a guest and an offline save read in Slovak too; a failed save is red with a square Retry | web, en + sk, guest and offline | checked (maintainer, 7 Oct, phone) |
+| S8-7 | **A shared story** carries whose run it is (picture, name, club tag), like the verdict's card, and its text starts with "My run" or the owner's name | web, phone share sheet | checked (maintainer, 7 Oct, phone) |
+| S8-8 | **The career screen** names the mode "European Full Path" | web | checked (maintainer, 7 Oct, phone) |
 
 ## Phase 9 · Diagnostics step 1 (5 October 2026)
 
@@ -302,9 +309,9 @@ The log, the recorder and the crash screen ([`diagnostics/06-IMPLEMENTATION.md`]
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| P9-1 | **A screen that throws** shows "Something broke on this screen" with Try again and Back to Play, not a red box or a blank page (in Slovak too). The quickest way to see it is a development build with a throw put in a screen by hand | phone + web, en + sk | unchecked |
-| P9-2 | **Signing out keeps your settings** (appearance, speed, language, the no-bench question) **and any runs waiting to go up**; only the session goes. Before, on the web, a sign-out reset every setting | web first, then phone | unchecked |
-| P9-3 | **Nothing changed for the player**: no new console noise in development, and the live match still logs its timing line (`sim/live … s, … ms a minute`) in Metro | phone dev build | unchecked |
+| P9-1 | **A screen that throws** shows "Something broke on this screen" with Try again and Back to Play, not a red box or a blank page (in Slovak too). The quickest way to see it is a development build with a throw put in a screen by hand | phone + web, en + sk | checked (maintainer, 7 Oct, phone) |
+| P9-2 | **Signing out keeps your settings** (appearance, speed, language, the no-bench question) **and any runs waiting to go up**; only the session goes. Before, on the web, a sign-out reset every setting | web first, then phone | checked (maintainer, 7 Oct, phone) |
+| P9-3 | **Nothing changed for the player**: no new console noise in development, and the live match still logs its timing line (`sim/live … s, … ms a minute`) in Metro | phone dev build | checked (maintainer, 7 Oct, phone) |
 
 ## Phase 9 · Diagnostics step 2 (5 October 2026)
 
@@ -312,9 +319,9 @@ Everything is measured; nothing new to see until the screen (step 4), except in 
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| P9-4 | **A run plays exactly as before** in every mode (league, a classic cup, the World Cup, the full path): matchdays, skips, the live match, knockouts, the result. The timing wraps every matchday and skip, so any change in behaviour is a bug | phone + web | unchecked |
-| P9-5 | **The log reads like a run**: in a development build's console, `run/RUN STARTED …`, `screen/… drawn in N ms` on each screen, the matchday stamps, `run/RUN ENDED … finished` on the result (or `abandoned`), `save/run: saved` | phone dev build | unchecked |
-| P9-6 | **The probes**: the console says where memory was read from ("memory read from HermesInternal: N MB" or "no memory reading on this engine") and whether long tasks are observed. Write the answers into `docs/diagnostics/02-POM-ARCHITECTURE.md` §1 | phone release build | unchecked |
+| P9-4 | **A run plays exactly as before** in every mode (league, a classic cup, the World Cup, the full path): matchdays, skips, the live match, knockouts, the result. The timing wraps every matchday and skip, so any change in behaviour is a bug | phone + web | checked (maintainer, 7 Oct, phone) |
+| P9-5 | **The log reads like a run**: in a development build's console, `run/RUN STARTED …`, `screen/… drawn in N ms` on each screen, the matchday stamps, `run/RUN ENDED … finished` on the result (or `abandoned`), `save/run: saved` | phone dev build | checked (maintainer, 7 Oct, phone) |
+| P9-6 | **The probes**: the console says where memory was read from ("memory read from HermesInternal: N MB" or "no memory reading on this engine") and whether long tasks are observed. Write the answers into `docs/diagnostics/02-POM-ARCHITECTURE.md` §1 | phone release build | checked (maintainer, 7 Oct, phone) |
 
 ## Phase 9 · Diagnostics step 3 (5 October 2026)
 
@@ -322,8 +329,8 @@ The self-test, before its screen (step 4).
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| P9-7 | **The self-test runs from the web console**: `await runSelfTest()` returns five results (bench, fingerprint, invariants, data, backend), the fingerprint says MATCH, the invariants 200/200, and the page stays responsive while it runs. With the network off (devtools, Offline), backend says `offline` and the rest still finish | web | unchecked |
-| P9-8 | **The fingerprint on the phone**: MATCH means the phone rebuilds every seed exactly as Node does. RAW DIFFERS is worth knowing, SHOWN DIFFERS is a bug a player could see (a sheet different on the phone and the laptop). Runs from the Diagnostics screen once step 4 is in | phone release build | unchecked |
+| P9-7 | **The self-test runs from the web console**: `await runSelfTest()` returns five results (bench, fingerprint, invariants, data, backend), the fingerprint says MATCH, the invariants 200/200, and the page stays responsive while it runs. With the network off (devtools, Offline), backend says `offline` and the rest still finish | web | checked (maintainer, 7 Oct, phone) |
+| P9-8 | **The fingerprint on the phone**: MATCH means the phone rebuilds every seed exactly as Node does. RAW DIFFERS is worth knowing, SHOWN DIFFERS is a bug a player could see (a sheet different on the phone and the laptop). Runs from the Diagnostics screen once step 4 is in | phone release build | unchecked (7 Oct: no self-test in the shared log; run it once, audit 9.75 L-6) |
 
 ## Phase 9 · Diagnostics step 4 (6 October 2026)
 
@@ -331,17 +338,17 @@ The screen ([`diagnostics/05-SCREEN-AND-REPORT.md`](diagnostics/05-SCREEN-AND-RE
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| P9-9 | **The ways in**: About's Diagnostics row; eight taps on "Made in Slovakia" (in a release build too); Ctrl+Shift+D on any web screen; the crash screen's Diagnostics button | phone + web | unchecked |
-| P9-10 | **The screen reads right**: first open says nothing's sampled yet; after a run, the budgets fill in and a group with a WARN or FAIL opens itself; the dev notice only on a development build; the self-test fills Checks step by step, Cancel stops it and says so; the wide web layout is two panes | phone + web, light and dark | unchecked |
-| P9-11 | **Share**: on the phone the share sheet opens with the report (and "Shared" or "Share cancelled"); on the web Copy puts it on the clipboard ("Copied"), and if the browser refuses, the page scrolls to the report to select by hand. The report fits one chat message and shows no name, email or id | phone + web | unchecked |
-| P9-12 | **The log screen**: newest first, the level and category chips and search narrow it, a tap opens a line's details, last session's lines are marked; share or copy sends the whole log | phone + web, en + sk | unchecked |
+| P9-9 | **The ways in**: About's Diagnostics row; eight taps on "Made in Slovakia" (in a release build too); Ctrl+Shift+D on any web screen; the crash screen's Diagnostics button | phone + web | checked (maintainer, 7 Oct, phone) |
+| P9-10 | **The screen reads right**: first open says nothing's sampled yet; after a run, the budgets fill in and a group with a WARN or FAIL opens itself; the dev notice only on a development build; the self-test fills Checks step by step, Cancel stops it and says so; the wide web layout is two panes | phone + web, light and dark | checked (maintainer, 7 Oct, phone) |
+| P9-11 | **Share**: on the phone the share sheet opens with the report (and "Shared" or "Share cancelled"); on the web Copy puts it on the clipboard ("Copied"), and if the browser refuses, the page scrolls to the report to select by hand. The report fits one chat message and shows no name, email or id | phone + web | checked (maintainer, 7 Oct, phone) |
+| P9-12 | **The log screen**: newest first, the level and category chips and search narrow it, a tap opens a line's details, last session's lines are marked; share or copy sends the whole log | phone + web, en + sk | checked (maintainer, 7 Oct, phone) |
 
 ## Phase 9 · Diagnostics step 5 (6 October 2026)
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| P9-13 | **The tester's new home**: Diagnostics → Tools → League, UCL, the full path, the World Cup and the Final all run as before; About has no tester at the bottom any more. In a production build there's no Tools row, and `pom://diagnostics/tools` opens Diagnostics | dev build, then a production build | unchecked |
-| P9-14 | **The first reading**: on the POCO X6 5G with a release build, play a run, open Diagnostics, run the self-test, share the report, and paste it into `docs/PERF-LOG.md` (or send it over). Every provisional target in `docs/diagnostics/03-BUDGETS.md` is judged against it | phone release build | unchecked |
+| P9-13 | **The tester's new home**: Diagnostics → Tools → League, UCL, the full path, the World Cup and the Final all run as before; About has no tester at the bottom any more. In a production build there's no Tools row, and `pom://diagnostics/tools` opens Diagnostics | dev build, then a production build | checked (maintainer, 7 Oct, phone) |
+| P9-14 | **The first reading**: on the POCO X6 5G with a release build, play a run, open Diagnostics, run the self-test, share the report, and paste it into `docs/PERF-LOG.md` (or send it over). Every provisional target in `docs/diagnostics/03-BUDGETS.md` is judged against it | phone release build | partly (7 Oct: a dev build read; the release reading still to come) |
 
 ## Phase 9 · the rest of the phase (6 October 2026)
 
@@ -349,11 +356,93 @@ What changed for the player and for the maintainer's own testing ([`ui-overhaul/
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| P9-15 | **The log on the PC**: with the phone on USB and a release build, `adb logcat -s ReactNativeJS` shows the app's lines live, each starting `POM` and a time: screens, taps, perf lines with memory, RUN STARTED / RUN ENDED | phone release build + PC | unchecked |
-| P9-16 | **Taps that finish fast** press in and come back without the words "Waiting…"; a slow one (signing in, saving) shows them after a moment | phone + web | unchecked |
-| P9-17 | **Loading outlines**: Friends, Clubs, a club, the chat, a profile and the career show breathing outline rows while they load (still with Less motion on), and content arrives after about half a second to a second, never later than the load itself | phone + web | unchecked |
-| P9-18 | **The pundits' tournaments on a cup result** open at once with the panel's; the pundits fill the rail a moment later; switching between them is instant | phone, a World Cup or Champions League result | unchecked |
-| P9-19 | **Runs** with many runs scrolls smoothly, the title and filters scroll away with the list, the wide two-column layout still works | phone + wide web | unchecked |
-| P9-20 | **The live match's line** at full time (Diagnostics log, `sim` category, or logcat) says how its seconds split: clock, beats, between periods, shootout, stood still, other | phone | unchecked |
-| P9-21 | **A cursed draft**: the scrambled names still change each second while drafting; nothing visible changes after the draft (the scramble stops underneath) | phone | unchecked |
-| P9-22 | **The Diagnostics log**: "The last run only" narrows to the last run's lines; Share/Copy sends exactly the lines shown | phone + web | unchecked |
+| P9-15 | **The log on the PC**: with the phone on USB and a release build, `adb logcat -s ReactNativeJS` shows the app's lines live, each starting `POM` and a time: screens, taps, perf lines with memory, RUN STARTED / RUN ENDED | phone release build + PC | checked (maintainer, 7 Oct, phone) |
+| P9-16 | **Taps that finish fast** press in and come back without the words "Waiting…"; a slow one (signing in, saving) shows them after a moment | phone + web | checked (maintainer, 7 Oct, phone) |
+| P9-17 | **Loading outlines**: Friends, Clubs, a club, the chat, a profile and the career show breathing outline rows while they load (still with Less motion on), and content arrives after about half a second to a second, never later than the load itself | phone + web | checked (maintainer, 7 Oct, phone) |
+| P9-18 | **The pundits' tournaments on a cup result** open at once with the panel's; the pundits fill the rail a moment later; switching between them is instant | phone, a World Cup or Champions League result | checked (maintainer, 7 Oct, phone) |
+| P9-19 | **Runs** with many runs scrolls smoothly, the title and filters scroll away with the list, the wide two-column layout still works | phone + wide web | checked (maintainer, 7 Oct, phone) |
+| P9-20 | **The live match's line** at full time (Diagnostics log, `sim` category, or logcat) says how its seconds split: clock, beats, between periods, shootout, stood still, other | phone | unchecked (7 Oct: no live match watched) |
+| P9-21 | **A cursed draft**: the scrambled names still change each second while drafting; nothing visible changes after the draft (the scramble stops underneath) | phone | checked (maintainer, 7 Oct, phone) |
+| P9-22 | **The Diagnostics log**: "The last run only" narrows to the last run's lines; Share/Copy sends exactly the lines shown | phone + web | checked (maintainer, 7 Oct, phone) |
+
+## Phase 9.75 · Step 1, clear the ground (7 October 2026)
+
+[`audit-9.75/06-BUILD-ORDER.md`](audit-9.75/06-BUILD-ORDER.md) step 1. Before the next build: **redeploy `submit-run` and `delete-account`** (their error messages changed). *Done by the maintainer, 8 October 2026.*
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-1 | **No blank players.** A Conference League or Europa League draft (Excelsior, SC Telstar, Groningen, Sparta Prague were the worst) shows no empty cards, and no match sheet has a blank scorer. The phone re-copies the database once (version 23) | phone + web | unchecked |
+| 975-2 | **The World Cup's group sheet** (a group opened from the live groups): each team has its flag mark and its name in Slovak; the matchday headings read "3. KOLO" in Slovak, "MATCHDAY 3" in English | phone + web, en + sk | unchecked |
+| 975-3 | **Deleting an account and a refused save** still say what went wrong in plain words (the server no longer sends its own) | phone, after redeploying both functions | unchecked |
+
+## Phase 9.75 · Step 2, the offline queue (8 October 2026)
+
+Run these with the phone on USB and `adb logcat -s ReactNativeJS` open: every queue line starts `POM … save queue:` and says what happened. If a run still sticks, send that slice.
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-4 | **D-1 to D-3 again**: finish a run in flight mode (it says queued); turn the network on (it goes up within seconds, logged `queue: flush (back online)` then `queue: run sent`); and once more, closing the app while it's queued and reopening online (`flush (start-up)` or `flush (signed in)`). Then D-5 and D-6, never run | phone | works (8 Oct) |
+| 975-5 | **A refused run is kept**: if the server refuses one, a red strip under the header says "1 run couldn't be saved", and Diagnostics → SAVES shows the reason; "Try them again" sends it once the cause is fixed (for example after redeploying `submit-run`) | phone + web | works (8 Oct) |
+| 975-6 | **Diagnostics → SAVES** says how many runs wait on the phone, and its refresh sends them | phone | works (8 Oct) |
+
+## Phase 9.75 · Step 3, grounds, names and the spin (8 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-7 | **The live match in light mode** (P9.75-01): a league season, a World Cup group and a knockout tie each play your match as a light card on the light screen, every part showing (score, clock, events, the round's other results, a shootout's row); in dark mode as before | phone + web, light + dark | partly (8 Oct): line-ups old style, match sheet dark (08 P9.75-19, -20) |
+| 975-8 | **Slovak names everywhere** (P9.75-08): in a World Cup run in Slovak, Croatia reads "Chorvátsko" on the live match and its "rest of the round" line, the shootout row, placement, the pundits, the awards, the verdict, a player's page (club and opponents), the story page and the fixtures | phone, sk | fails in places (8 Oct): press, awards cards, "XI", initials (08 P9.75-21) |
+| 975-9 | **The World Cup spin has flags** (S1-3 again): every nation on the reel shows its flag; in the other modes every club its crest | phone + web | partly (8 Oct): flags zoomed in (08 P9.75-24) |
+| 975-10 | **Club facts show** (L-14, personal build only): drafting a Premier League club (Arsenal, Liverpool…) shows a fact under the card; the public build shows none | phone, personal build | partly (8 Oct): English only, 20 clubs (08 P9.75-25) |
+
+## Phase 9.75 · Step 4, the run hub on the phone (8 October 2026)
+
+Best on a release build; a dev build's numbers run slow. Read them in Diagnostics (or `adb logcat -s ReactNativeJS`, lines `POM … perf`).
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-11 | **The Stats tab opens at once** (P9.75-11): in a European run's hub, Stats shows its board without the freeze; scrolling down keeps adding players to the end (no gap, no jump); a search or another stat starts from the top. Diagnostics: `ui:tab` under 300, `stats:board` under 80. Also the Teams tab (`hub:teams`) and the Press tab | phone | works (8 Oct) |
+| 975-12 | **Opening the run hub** (P9.75-12): the header and tabs show at once, the tab's content a moment after. `ui:navigate` under 350 | phone | works (8 Oct) |
+| 975-13 | **The result screen stays alive while the stats work** (P9.75-13): finish a Champions League run; the result screen answers taps while its story rows fill in. No stall over 500 ms next to `stats:ucl` | phone | works (8 Oct) |
+
+## Phase 9.75 · Step 5, the keyboard and the waits (8 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-14 | **The keyboard never covers a field** (P9.75-07): type in the club invite field (Clubs tab and a club's page), the friends search, rename, report, profile edit, the crest editor, the leaderboard and run hub searches, the Diagnostics log filter. Each field stays visible above the keyboard; a button tapped with the keyboard up works on the first tap. Sign-in, new account and the chat still work as before (not lifted twice) | phone | fails (8 Oct): light band under the sign-in form (08 P9.75-16) |
+| 975-15 | **One loading look**: opening a saved run's hub, a player's page, a club's page, a saved result and the draft's first load show the back arrow (not the draft and result), the loading bar and a line, and the content arrives after a short beat, not a pop | phone + web | unchecked |
+
+## Phase 9.75 · Steps 6 to 9 (8 October 2026)
+
+Before testing 975-20: run `supabase/rate-limit.sql` in the SQL editor, then redeploy `submit-run`.
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-16 | **The knockouts' tabs** (P9.75-04): on a phone the knockouts open on Rounds, with Bracket and Press beside it; switching to Bracket or Press during your live match pauses it, and Rounds picks it up where it was. On a wide window: rounds, bracket and press side by side | phone + web | works (8 Oct) |
+| 975-17 | **Your own competition** (P9.75-05): on a full path that ends in the Europa League (or Conference League), the run hub's Europe tab opens on your competition, marked "· YOU", with its table and bracket; the other two beside it. The Bracket tab's heading names the competition | phone + web | works (8 Oct) |
+| 975-18 | **The bench** (P9.75-03): a sub on the bench shows the club mark and position ("SUB 1 · ST") like a starter. Holding a sub, the slots it can go to light up and everything else fades; the same holding a starter (the bench spots that can take him light) | phone | works (8 Oct) |
+| 975-19 | **The log's run** (L-4): start a draft, leave it before the first pick, open your history: the log's lines (Diagnostics → Log) no longer carry the run's mode tag; RUN ENDED · left is in the log | phone | works (8 Oct) |
+| 975-20 | **The save limit** (S-2): saving runs works as before; (optional) the 11th run within a minute is held in the queue, not lost, and goes up a minute later | phone | works (8 Oct) |
+| 975-21 | **History leaves the ledger alone** (L-5): finish and save a run, then open an older run from history; Diagnostics still says this run was saved | phone | works (8 Oct) |
+| 975-22 | **The press** (P9.75-09): read a whole run's press, a league and a cup run, in English and Slovak: no headline repeats on consecutive matchdays; the cup stories (your match, groups, ties, winners) read as written, not generated | phone, en + sk | works (8 Oct) |
+
+## Phase 9.75 · Step 10, the release session (prepared 8 October 2026)
+
+First: run `supabase/rate-limit.sql`, redeploy `submit-run`, then build `preview-personal`. *SQL run, `submit-run` redeployed and the build started by the maintainer, 8 October 2026.* Readings into `docs/PERF-LOG.md`.
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-23 | **The release readings**: on the `preview-personal` build, watch one live match to the whistle; open a European run's hub and each tab; then Diagnostics: `ui:tab` (Stats under 300), `ui:navigate` into the hub (under 350), `stats:ucl` and no stall over 500 ms beside it, `hub:teams`, `stats:board`, `draft:spin` | phone, release | works (8 Oct) |
+| 975-24 | **The heap probe** (P9.75-14): open five saved runs' hubs one after another, read `mem:js` after each, then Tools → Drop caches and read the line it leaves in the log five seconds later. Then Diagnostics → Run self-test and share the report (P9-8, the fingerprint on Hermes) | phone, release | works (8 Oct) |
+
+## Phase 9.75 · The second session's fixes (8 October 2026)
+
+Needs a new `preview-personal` build: an EAS Update can carry at most 1,000 assets and the app has 1,448 (crests and flags), so updates are refused (8 Oct 2026). The phone re-copies the database once (version 25).
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-25 | **The fingerprint** (P9.75-18): Diagnostics → Run self-test: *Engine fingerprint* says MATCH (engine 2) | phone | unchecked |
+| 975-26 | **The quick fixes**: no light band under sign-in; result rows read whole words; "Chorvátsko XI", Slovak names in the press, the awards cards, the badges and the Deep Match; the third-place story; the team of the round folded; total points on You; whole flags on the spin | phone, sk | unchecked |
+| 975-27 | **The readings again**: Stats tab `ui:tab`, `stats:board`, `hub:teams`, the stall after Awards Night; and send the log line `run payload … KB, JSON in … ms` from a save | phone | unchecked |
+| 975-28 | **Achievements offline**: finish a winning run in flight mode; its achievement pops at once | phone | unchecked |
+| 975-29 | **European squads** (L-15): a Champions League draft: Red Star Belgrade, Salzburg, Celtic, Sporting have their own players and grounds | phone | unchecked |
+| 975-30 | **Club facts**: CLUB FACT on any club card, in English and Slovak | phone, en + sk | unchecked |

@@ -2,6 +2,7 @@
 // icons. Everything else in the kit is built from these. Rules live in
 // DESIGN.md; the short version: radius 0, orange means you, the stripe means
 // out, and nothing is colour-only.
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import React, { useId } from 'react'
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated'
@@ -140,14 +141,17 @@ export function Crest({ roles, clubId, name, size = 24, competition }: {
   // club it took over would have shown its own.
   const yours = useCrestStore(st => (!competition && clubId && st.active?.clubId === clubId && (st.active.choice.design || st.active.choice.imagePath) ? st.active.choice : null))
   if (yours) return <YourCrest choice={yours} size={size} name={name} />
-  const crest = competition ? competitionCrestFor(clubId, name) : crestFor(clubId, name)
+  // P9.75-21: the initials come from the name as it reads ("Chorvátsko XI"),
+  // not as it's stored; a club's name is unchanged.
+  const shown = competition ? name : countryName(name)
+  const crest = competition ? competitionCrestFor(clubId, name) : crestFor(clubId, shown)
   if (crest.kind === 'image') {
     return <Image source={crest.source} resizeMode="contain" style={{ width: size, height: size }} accessibilityIgnoresInvertColors />
   }
   if (crest.kind === 'mark') return <WorldCupMark roles={roles} size={size} name={name} />
   const { device } = crest
   // Below 24px three letters don't fit the badge (P8-119): two, form words dropped.
-  const initials = size < 24 ? shortCrestInitials(name) : crest.initials
+  const initials = size < 24 ? shortCrestInitials(shown) : crest.initials
   const band = Math.round(size / 3)
   return (
     <View style={[{ width: size, height: size, borderWidth: border.thin, borderColor: roles.line, backgroundColor: roles.bg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}

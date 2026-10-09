@@ -282,12 +282,14 @@ export function ListRow({ label, sub, roles, onPress, value, icon, tier = 't2', 
     <>
       {icon && <Icon name={icon} size={20} color={danger ? roles.lossText : roles.text} />}
       {sub ? (
-        <View style={{ flex: 1, paddingVertical: space[2] }}>
+        <View style={[styles.rowLabel, { paddingVertical: space[2] }]}>
           <KitText t={tier === 't1' ? 'bodyL' : 'body'} color={danger ? roles.lossText : roles.text}>{label}</KitText>
           <KitText t="tag" color={roles.textMuted}>{sub}</KitText>
         </View>
-      ) : <KitText t={tier === 't1' ? 'bodyL' : 'body'} color={danger ? roles.lossText : roles.text} style={{ flex: 1 }}>{label}</KitText>}
-      {value ? <KitText t="tag" color={roles.textMuted}>{value}</KitText> : null}
+      ) : <KitText t={tier === 't1' ? 'bodyL' : 'body'} color={danger ? roles.lossText : roles.text} style={styles.rowLabel}>{label}</KitText>}
+      {/* P9.75-17: the value gives way, two lines at most, and the label keeps
+          a readable width ("You r riv al" letter by letter before). */}
+      {value ? <KitText t="tag" color={roles.textMuted} numberOfLines={2} style={styles.rowValue}>{value}</KitText> : null}
       {trailing}
       {chevron && <Icon name="chevron" size={16} color={roles.textMuted} />}
     </>
@@ -561,6 +563,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space[2],
   },
   rowStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6 },
+  // P9.75-17: the label holds a third of the row; the value takes the rest and wraps.
+  rowLabel: { flex: 1, minWidth: '34%' },
+  rowValue: { flexShrink: 1, maxWidth: '62%', textAlign: 'right' },
   toggle: { minWidth: 56, height: 32, borderWidth: border.thin, alignItems: 'center', justifyContent: 'center' },
   fieldWrap: { gap: space[1] },
   fieldLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

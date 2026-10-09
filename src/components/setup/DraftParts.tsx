@@ -157,7 +157,9 @@ function SpinCard({ roles, item, x, i = 0, start = 0 }: { roles: Roles; item: Sp
   return (
     <Animated.View style={[styles.spinCard, { borderColor: roles.line, backgroundColor: bg }, lens]}>
       {flagImage != null ? (
-        <Image source={flagImage} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+        // P9.75-24: the whole flag, not its middle: "cover" cut a 3:2 flag to the
+        // reel's wide card, so it read zoomed in.
+        <Image source={flagImage} style={StyleSheet.absoluteFill} resizeMode="contain" accessibilityIgnoresInvertColors />
       ) : crest?.kind === 'image' ? (
         <Image source={crest.source} style={styles.spinCrest} resizeMode="contain" accessibilityIgnoresInvertColors />
       ) : null}
@@ -267,7 +269,7 @@ export function MarkBackdrop({ roles, clubId, clubName, nationality, full }: Pla
 // holding can go here, and `note` says what that would do ("IN 84").
 export type HangerState = 'empty' | 'filled' | 'holding' | 'target' | 'focus'
 
-export function Hanger({ roles, label, surname, rating, outOfPosition, state, note, onPress, swingKey, a11y, onPitch, mark }: {
+export function Hanger({ roles, label, surname, rating, outOfPosition, state, note, onPress, swingKey, a11y, onPitch, mark, dim }: {
   roles: Roles
   label: string
   surname?: string
@@ -283,6 +285,9 @@ export function Hanger({ roles, label, surname, rating, outOfPosition, state, no
   onPitch?: boolean
   /** P8-125: whose he is, drawn faintly behind him. */
   mark?: PlayerMark
+  /** P9.75-03: something is held and this can't take it, so it steps back
+   *  and the places that can read at a glance. */
+  dim?: boolean
   a11y: string
 }) {
   const holding = state === 'holding'
@@ -307,6 +312,7 @@ export function Hanger({ roles, label, surname, rating, outOfPosition, state, no
           borderStyle: filled || lit || holding ? 'solid' : 'dashed',
           backgroundColor: holding ? prim.orange : filled ? roles.surface : 'transparent',
         },
+        dim && { opacity: 0.35 },
         pressed && { opacity: 0.8 },
       ]}
     >

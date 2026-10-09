@@ -181,7 +181,7 @@ function Rivals({ teams, teamOvr }: { teams: { clubName: string; ovr: number }[]
         return (
           <View key={team.clubName} style={[styles.row, { borderBottomColor: roles.rule }]} accessible
             accessibilityLabel={t('draw.rivalA11y', { name: team.clubName, ovr: team.ovr }) + (gap > 0 ? t('draw.better', { gap }) : gap < 0 ? t('draw.worse', { gap: -gap }) : t('draw.levelWithYou'))}>
-            <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{team.clubName}</KitText>
+            <KitText t="body" color={roles.text} style={{ flex: 1 }} numberOfLines={1}>{countryName(team.clubName)}</KitText>
             <KitText t="figure" color={roles.text}>{t('draw.ovr', { ovr: team.ovr })}</KitText>
             {gap > 0 ? <Tag roles={roles} variant="loss">{words}</Tag> : <Tag roles={roles}>{words}</Tag>}
           </View>

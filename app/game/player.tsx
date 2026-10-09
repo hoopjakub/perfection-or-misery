@@ -1,3 +1,4 @@
+import { countryName } from '@/data/countries-sk'
 import { t, dec } from '@/i18n'
 import { label } from '@/i18n/labels'
 import { ordinal } from '@/lib/format'
@@ -8,7 +9,7 @@ import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet, ScrollView } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { ROLES, space, border, prim, ratingColor, formatRating } from '@/theme'
-import { KitScreen, KitText, Tag, SectionTag, Chips, BackControl, EmptyState, InlineError, Icon, Plate, RatingSquare, EventMark, VenueMark, TeamMark } from '@/components/kit'
+import { KitScreen, LoadingScreen, KitText, Tag, SectionTag, Chips, BackControl, EmptyState, InlineError, Icon, Plate, RatingSquare, EventMark, VenueMark, TeamMark } from '@/components/kit'
 import { useRunData } from '@/lib/runData'
 import { openClub, openRunMatch } from '@/lib/runNav'
 import { buildAwardsNight } from '@/engine/awards'
@@ -96,14 +97,7 @@ export default function PlayerScreen() {
     scrollRef.current?.scrollTo({ y: Math.max(0, matchesY.current + (rowY.current[i] ?? 0) - 96), animated: true })
   }
 
-  if (loading) {
-    return (
-      <KitScreen ground={EVERYDAY}>
-        <BackControl roles={roles} />
-        <KitText t="bodyL" color={roles.textMuted}>{t('hub.reading')}</KitText>
-      </KitScreen>
-    )
-  }
+  if (loading) return <LoadingScreen ground={EVERYDAY} label={t('hub.reading')} />
   if (failed || !data) {
     return (
       <KitScreen ground={EVERYDAY}>
@@ -135,7 +129,7 @@ export default function PlayerScreen() {
           {/* P8-171: his club's crest (a nation's flag at the World Cup) beside its name. */}
           <Pressable onPress={() => openClub(p.clubId, runId)} accessibilityRole="link" hitSlop={8} style={styles.clubLink}>
             <TeamMark roles={roles} clubId={p.clubId} name={p.clubName} size={16} />
-            <KitText t="tag" color={roles.text} style={styles.link}>{p.clubName}</KitText>
+            <KitText t="tag" color={roles.text} style={styles.link}>{countryName(p.clubName)}</KitText>
           </Pressable>
           <KitText t="tag" color={roles.textMuted}>{p.seasonLabel}</KitText>
           {p.isPlayerClub && <Tag roles={roles} variant="you">{t('hub.draftedByYou')}</Tag>}
@@ -228,7 +222,7 @@ export default function PlayerScreen() {
                 {/* P8-134: home or away as the mark, the opponent's name beside it. */}
                 <View style={styles.opp}>
                   <VenueMark roles={roles} home={e.isHome} />
-                  <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{e.opponentName}</KitText>
+                  <KitText t="body" color={roles.text} numberOfLines={1} style={{ flexShrink: 1 }}>{countryName(e.opponentName)}</KitText>
                 </View>
                 <View style={styles.marks}>
                   <KitText t="tag" color={roles.textMuted}>{`${l.minutes}'`}</KitText>

@@ -11,6 +11,7 @@
 // it's played (an open draw, as the real cups are), from the run's seed, and
 // every tie is one match with extra time and penalties (simulateKnockout).
 // The cup is an honour, not points: the run's score still comes from the league.
+import { cmpStr } from '@/lib/pmath'
 import { t as tr } from '../i18n'
 import { label } from '../i18n/labels'
 import { simulateKnockout, simulateTwoLegs, type LegScore } from './knockout-match'
@@ -67,7 +68,7 @@ export function planCup(teams: { clubId: string; clubName: string; isPlayer: boo
   const extra = n - size
   // The first round is the clubs rated lowest, two for each place too many:
   // the big clubs join later, as they do in the real cups.
-  const ranked = [...teams].sort((a, b) => b.ovr - a.ovr || a.clubId.localeCompare(b.clubId)).map(sideOf)
+  const ranked = [...teams].sort((a, b) => b.ovr - a.ovr || cmpStr(a.clubId, b.clubId)).map(sideOf)
   const keys: CupRoundKey[] = [...(extra > 0 ? ['r1' as const] : []), ...(size === 16 ? ['r16' as const] : []), ...(size >= 8 ? ['qf' as const] : []), 'sf', 'final']
   const before = keys.length - 1
   const rounds: CupRound[] = keys.map((key, i) => ({

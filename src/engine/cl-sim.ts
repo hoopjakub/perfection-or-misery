@@ -69,6 +69,25 @@ export type OtherCompetition = Pick<CLSeasonResult, 'leaguePhaseStandings' | 'pl
   comp: import('@/data/uefa-coefficients').EuroComp
 }
 
+/**
+ * P9.75-05 (R3-10): every competition of a full-path run, the one the run
+ * followed first. The run hub's Europe tab listed only `others`, the two
+ * played out headless, so a Europa League player opening it found the
+ * Champions and Conference Leagues and not their own ("you cannot find your
+ * own knockout phase"). The result itself is the third competition: its own
+ * table and bracket. Empty when the run has no other competitions (a classic
+ * mode, whose Table and Bracket tabs are the whole story).
+ */
+export function europeCompetitions(r: Pick<CLSeasonResult, 'leaguePhaseStandings' | 'playoffRound' | 'r16' | 'qf' | 'sf' | 'final' | 'winner' | 'competition' | 'others'>): (OtherCompetition & { yours: boolean })[] {
+  const others = r.others ?? []
+  if (!others.length) return []
+  // The result names its competition; a run out before any league phase may
+  // not, and then it's the one the others aren't.
+  const own = r.competition ?? (['ucl', 'uel', 'uecl'] as const).find(c => !others.some(o => o.comp === c)) ?? 'ucl'
+  const yours = { comp: own, leaguePhaseStandings: r.leaguePhaseStandings, playoffRound: r.playoffRound, r16: r.r16, qf: r.qf, sf: r.sf, final: r.final, winner: r.winner, yours: true }
+  return [yours, ...others.filter(o => o.comp !== own).map(o => ({ ...o, yours: false }))]
+}
+
 export type CLSeasonResult = {
   leaguePhaseStandings: CLTeam[]
   playoffRound:         CLKnockoutMatch[]
