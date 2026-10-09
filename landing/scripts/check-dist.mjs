@@ -73,7 +73,7 @@ for (const f of walk(path.join(process.cwd(), 'src'))) {
 // the build makes (no sitemap, robots, link, script), and the admin screens'
 // code is reachable from no public page, not even the admin page's own first
 // download (it's fetched only after the database says yes).
-const ADMIN = process.env.ADMIN_ROUTE ?? ''
+const ADMIN = (process.env.ADMIN_ROUTE ?? '').trim().replace(/^["']|["']$/g, '').replace(/^\/+|\/+$/g, '')   // as [route].astro reads it
 const adminPage = ADMIN ? path.join(DIST, ADMIN, 'index.html') : ''
 if (ADMIN) {
   if (!fs.existsSync(adminPage)) fail(`ADMIN_ROUTE is set but the build has no page at it`)

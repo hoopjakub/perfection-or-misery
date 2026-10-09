@@ -21,15 +21,22 @@ declare
   c uuid := gen_random_uuid();   -- the admin
   d uuid := gen_random_uuid();   -- a player for the breaker
   n uuid := gen_random_uuid();   -- a member with no saved run
-  qa_ uuid; qb uuid; qd uuid; cnt int; st text; cols text; exprs text; u uuid;
+  qa_ uuid; qb uuid; qd uuid; cnt int; st text; cols text; exprs text; u uuid; nm text;
 begin
   -- ── Fixtures, as the project owner ────────────────────────────────────────
   if not exists (select 1 from runs) then raise exception 'TEST SETUP: needs at least one run in public.runs to copy'; end if;
   foreach u in array array[g, a, b, c, d, n] loop
+    -- A random name the game's own name check passes: random hex can spell
+    -- something the word lists refuse (it did, 10 Oct: BAD_WORD on sign-up).
+    -- 14 characters, under the 38-character limit (profiles_username_length).
+    loop
+      nm := 'qt' || substr(md5(random()::text), 1, 12);
+      exit when mod_check_name(nm) = 'ok';
+    end loop;
     insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_anonymous)
-    values ('00000000-0000-0000-0000-000000000000', u, 'authenticated', 'authenticated', 'qt' || substr(replace(u::text, '-', ''), 1, 12) || '@pom.internal', '',
+    values ('00000000-0000-0000-0000-000000000000', u, 'authenticated', 'authenticated', nm || '@pom.internal', '',
             now(), now(), '{}', '{}', u = g);
-    insert into profiles (id, username, is_guest) values (u, 'qatest' || substr(replace(u::text, '-', ''), 1, 10), u = g)
+    insert into profiles (id, username, is_guest) values (u, nm, u = g)
     on conflict (id) do update set username = excluded.username, is_guest = excluded.is_guest;
   end loop;
   -- A saved run each for A, B, C, D (not G, not N): a copy of any run's columns.

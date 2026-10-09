@@ -14,9 +14,14 @@
 import '../styles/global.css'
 
 export function getStaticPaths() {
-  const route = process.env.ADMIN_ROUTE ?? ''
+  // Pasted values carry spaces, a newline, quotes or a leading slash (the
+  // first deploy failed on one, 10 Oct 2026): those are dropped, not fatal.
+  const route = (process.env.ADMIN_ROUTE ?? '').trim().replace(/^["']|["']$/g, '').replace(/^\/+|\/+$/g, '')
   if (!route) return []
-  if (!/^[A-Za-z0-9_-]{32,}$/.test(route)) throw new Error('ADMIN_ROUTE must be 32 or more letters, digits, - or _ (docs/website/03 §4)')
+  // What's wrong, never the value: the build log is readable by anyone on the project.
+  const bad = [...route].findIndex(ch => !/[A-Za-z0-9_-]/.test(ch))
+  if (route.length < 32 || bad >= 0) throw new Error(`ADMIN_ROUTE must be 32 or more letters, digits, - or _ (docs/website/03 §4). It has ${route.length} characters` +
+    (bad >= 0 ? `, and character ${bad + 1} isn't one of those.` : '.'))
   return [{ params: { route } }]
 }
 ---
