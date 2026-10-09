@@ -49,6 +49,19 @@ const spun = [...clubs].filter(id => !id.endsWith('_nt'))
 const withFact = spun.filter(id => (hand.en?.[id]?.length ?? 0) + (open.en?.[id]?.length ?? 0) > 0)
 check(withFact.length / spun.length >= 0.95, `only ${withFact.length} of ${spun.length} clubs have a fact`)
 console.log(`club facts: ${withFact.length} of ${spun.length} clubs, in English and Slovak`)
+// P9.75 (the phone, 9 Oct): the nations had none, and the clubs' were "all
+// either club is in {city} or club was created in {year}". Most sides now
+// have something a fan would know: a title, a famous name, a nickname.
+const nations = [...clubs].filter(id => id.endsWith('_nt'))
+const nationFacts = nations.filter(id => (open.en?.[id]?.length ?? 0) > 0)
+check(nationFacts.length >= 40, `only ${nationFacts.length} of ${nations.length} nations have a fact`)
+const PLAIN = /^(Founded|Based|Plays at|Has played)/
+const rich = spun.filter(id => (hand.en?.[id]?.length ?? 0) > 0 || (open.en?.[id] ?? []).some(f => !PLAIN.test(f)))
+check(rich.length / spun.length >= 0.7, `only ${rich.length} of ${spun.length} clubs have more than founded, city and ground`)
+// A second tier's title isn't a club's headline (AC Milan read "Serie B").
+for (const [id, fs] of Object.entries(open.en ?? {})) for (const f of fs)
+  check(!/^(Serie [B-D]|Ligue [23]|Segunda División|EFL Championship|2\. Bundesliga)\b/.test(f), `${id}: a lower tier's title: ${f}`)
+console.log(`nation facts: ${nationFacts.length} of ${nations.length}; clubs with more than the plain facts: ${rich.length} of ${spun.length}`)
 
 console.log(`${items} reel items, ${facts.length} fact keys`)
 console.log(failures === 0 ? '✅ ALL CHECKS PASSED' : `${failures} check(s) failed`)

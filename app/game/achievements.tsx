@@ -1,11 +1,11 @@
 import { t, dec } from '@/i18n'
-import { useSettledOnce } from '@/lib/loading'
-import { log } from '@/diag/log'
-import React, { useEffect, useState } from 'react'
+import { useKept } from '@/lib/kept'
+import { settingsStorage } from '@/lib/mmkv'
+import React, { useMemo } from 'react'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet } from 'react-native'
 import { useUserStore } from '@/store/userStore'
-import { fetchAchievementRuns, isRunWon } from '@/db/queries/leaderboard'
+import { fetchAchievementRuns, isRunWon, type AchievementRun } from '@/db/queries/leaderboard'
 import { MODE_META, computeAchievements, emptyAch, TROPHIES, trophyKey, type ModeAch } from '@/lib/achievements'
 import { FEATS, featCounts } from '@/lib/feats'
 import { EUROPE } from '@/data/europe'
@@ -20,40 +20,27 @@ import { EVERYDAY } from '@/lib/appearance'
 const roles = ROLES[EVERYDAY]
 
 export default function AchievementsScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
-  const [loading, setLoading] = useState(true)
-  const [ach, setAch] = useState<Record<string, ModeAch>>({})
-  const [totalWins, setTotalWins] = useState(0)
-  const [hardestWon, setHardestWon] = useState<number | null>(null)
-  const [feats, setFeats] = useState<Map<string, number>>(new Map())
-
-  useEffect(() => {
-    let active = true
-    async function load() {
-      if (!user || isGuest) { setLoading(false); return }
-      try {
-        const runs = await once(fetchAchievementRuns(user.id))
-        if (!active) return
-        const computed = computeAchievements(runs)
-        setAch(computed)
-        const wins = runs.filter(isRunWon)
-        setTotalWins(wins.length)
-        const hardest = wins.reduce<number | null>((max, r) => {
-          const h = r.difficulty_meta?.hardness
-          return typeof h === 'number' ? Math.max(max ?? -1, h) : max
-        }, null)
-        setHardestWon(hardest)
-        setFeats(featCounts(runs))
-      } catch (e) {
-        log.warn('net', 'achievements: load failed', e)
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    load()
-    return () => { active = false }
-  }, [user, isGuest])
+  // P9.75: your runs as last seen, at once, refreshed on each visit
+  // (src/lib/kept.ts). Before this screen's own first load, the copy the
+  // achievement toasts keep (src/lib/achievementJudge.ts) stands in: the same
+  // runs from the same query, so the counts are right from the first frame.
+  const me = user && !isGuest ? user.id : null
+  const kept = useKept<AchievementRun[]>(me && `ach:${me}`, () => fetchAchievementRuns(me!), 'achievements')
+  const runs = useMemo(() => {
+    if (kept.data || !me) return kept.data
+    try { const raw = settingsStorage.readNow(`pom-ach-runs-${me}`); return raw ? JSON.parse(raw) as AchievementRun[] : undefined } catch { return undefined }
+  }, [kept.data, me])
+  const loading = !isGuest && runs === undefined && !kept.failed
+  const { ach, totalWins, hardestWon, feats } = useMemo(() => {
+    const rs = runs ?? []
+    const wins = rs.filter(isRunWon)
+    const hardest = wins.reduce<number | null>((max, r) => {
+      const h = r.difficulty_meta?.hardness
+      return typeof h === 'number' ? Math.max(max ?? -1, h) : max
+    }, null)
+    return { ach: computeAchievements(rs) as Record<string, ModeAch>, totalWins: wins.length, hardestWon: hardest, feats: featCounts(rs) }
+  }, [runs])
 
   const cleared = MODE_META.filter(m => ach[m.mode]?.conquered).length
   return (

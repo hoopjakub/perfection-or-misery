@@ -47,7 +47,7 @@ const GROUPS: [string, (k: string) => boolean][] = [
 ]
 const STEP_NAME: Record<StepKey, string> = {
   bench: t('diag.stepBench'), fingerprint: t('diag.stepFingerprint'), invariants: t('diag.stepInvariants'),
-  data: t('diag.stepData'), backend: t('diag.stepBackend'),
+  data: t('diag.stepData'), backend: t('diag.stepBackend'), limits: t('diag.stepLimits'),
 }
 
 const fig = (v: number, unit = 'ms') => `${v >= 100 ? Math.round(v).toLocaleString('en') : v.toFixed(1)}${unit === 'ms' ? '' : ` ${unit}`}`
@@ -217,6 +217,13 @@ export default function DiagnosticsScreen() {
               <StatusTag status={c.verdict} />
             </View>
             <KitText t="tag" color={roles.textMuted} selectable>{c.line}</KitText>
+            {/* The limit test's every budget, with its number against the target. */}
+            {c.step === 'limits' && c.rows?.map(r => (
+              <View key={r.label} style={styles.rowHead}>
+                <KitText t="tag" color={roles.textMuted} style={{ flex: 1 }} selectable>{`${r.label} · ${r.value}`}</KitText>
+                {r.verdict ? <StatusTag status={r.verdict} /> : null}
+              </View>
+            ))}
           </View>
         ))}
         {testing && <KitText t="body" color={roles.textMuted}>{t('diag.running')}</KitText>}

@@ -104,7 +104,7 @@ export function buildShotMap(detail: MatchStats, seed: number): Shot[] {
     // almost always come from inside), then the rest at random.
     const needInside = Math.max(0, Math.min(team.shotsInsideBox ?? side.length, side.length))
     let inside = side.filter(s => s.insideBox).length
-    const order = side.map((s, i) => ({ s, i, key: (s.outcome === 'goal' ? 0 : 1) + rng() })).sort((a, b) => a.key - b.key)
+    const order = side.map((s, i) => ({ s, i, key: (s.outcome === 'goal' ? 0 : 1) + rng() })).sort((a, b) => a.key - b.key || a.i - b.i)
     for (const { s } of order) {
       if (s.penalty || s.insideBox) continue
       if (inside < needInside) { s.insideBox = true; inside++ }

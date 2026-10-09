@@ -234,6 +234,11 @@ function Failed({ noSquad, message }: { noSquad: boolean; message: string }) {
 
 const season = (y: number) => `${y}/${String(y + 1).slice(-2)}`
 const toPundits = () => { router.push('/game/pundits') }
+// P9.75 (the phone, 9 Oct): a cup's draw comes before the pundits. Their own
+// tournament put you in a group of their making first, which read as yours and
+// spoiled the real one, so the real draw shows first and the pundits after it
+// (app/game/simulation.tsx opens them from the draw).
+const toCupDraw = () => { router.push('/game/simulation') }
 
 // ── League ──────────────────────────────────────────────────────────────────
 
@@ -415,7 +420,7 @@ function CLPlacement() {
 
   return (
     <DrawScreen title={t('draw.theDraw')}
-      cta={revealed ? <Plate label={t('draw.pundits')} icon="forward" roles={roles} onPress={toPundits} /> : null}>
+      cta={revealed ? <Plate label={t('draw.seeDraw')} icon="forward" roles={roles} onPress={toCupDraw} /> : null}>
       <GlobePanel targetId={isoForCountryName(info.country)} targetName={info.country} flag={flagForCountry(info.country)} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (
@@ -579,7 +584,7 @@ function WCPlacement() {
 
   return (
     <DrawScreen title={t('draw.theDraw')}
-      cta={revealed ? <Plate label={t('draw.pundits')} icon="forward" roles={roles} onPress={toPundits} /> : null}>
+      cta={revealed ? <Plate label={t('draw.seeDraw')} icon="forward" roles={roles} onPress={toCupDraw} /> : null}>
       <GlobePanel targetId={isoForNationId(info.id)} flag={getFlag(info.id) ?? ''} spinMs={spinMs}
         onLock={() => { setRevealed(true) }} locked={revealed} />
       {revealed && (

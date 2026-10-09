@@ -45,6 +45,9 @@ let activeTilt = 0
 export function setMatchTilt(tilt: number): void {
   activeTilt = Number.isFinite(tilt) ? tilt : 0
 }
+/** For the self-test's limit test, which runs the quick-sims (they set the
+ *  tilt to neutral) and puts back whatever a run in progress had. */
+export const getMatchTilt = (): number => activeTilt
 
 /**
  * The odds of one match from the two effective ratings. Exported because the

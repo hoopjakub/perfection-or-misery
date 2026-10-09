@@ -200,7 +200,7 @@ export function selectLineup(pool: RosterPlayer[], opts: SelectLineupOpts): Sele
     const restCount = Math.round(rotation * 5)
     const order = chosen
       .map((c, i) => ({ i, w: c.player.ovr + rng() * 10 }))
-      .sort((a, b) => b.w - a.w)
+      .sort((a, b) => b.w - a.w || a.i - b.i)   // a full order: no engine's sort can break a tie its own way
       .slice(0, restCount)
     for (const { i } of order) {
       const slot = slots[i]
@@ -219,8 +219,8 @@ export function selectLineup(pool: RosterPlayer[], opts: SelectLineupOpts): Sele
   const benchSize = opts.benchSize ?? 9
   const bench = benchSize <= 0 ? [] : available
     .filter(p => !taken.has(p.playerId))
-    // A bench is a keeper plus the best of the rest.
-    .sort((a, b) => b.ovr - a.ovr)
+    // A bench is a keeper plus the best of the rest (ties by id: a full order).
+    .sort((a, b) => b.ovr - a.ovr || (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0))
     .slice(0, benchSize)
 
   return { formation, slots: chosen, starters, bench, rotated }

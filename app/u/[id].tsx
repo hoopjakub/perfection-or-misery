@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { useSettledOnce } from '@/lib/loading'
+import { arrive, readKept } from '@/lib/kept'
 import { log } from '@/diag/log'
 import { t, num } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
@@ -27,36 +27,40 @@ import { OfflineNotice } from '@/components/OfflineStrip'
 const roles = ROLES[EVERYDAY]
 
 export default function ProfileScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { id } = useLocalSearchParams<{ id: string }>()
   const me = useUserStore(s => (s.isGuest ? null : s.user?.id ?? null))
-  const [profile, setProfile] = useState<PublicProfile | null>(null)
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [place, setPlace] = useState<number | null>(null)
-  const [pins, setPins] = useState<any[]>([])
-  const [badges, setBadges] = useState<SeasonBadge[]>([])
-  const [club, setClub] = useState<Club | null>(null)
-  const [state, setState] = useState<'loading' | 'ready' | 'failed' | 'missing'>('loading')
+  // P9.75: a profile you've opened before opens as you saw it, at once, and
+  // refreshes (src/lib/kept.ts): the card, then the numbers, pins and badges.
+  type Rest = { s: UserStats | null; place: number | null; runs: any[]; seasons: SeasonBadge[]; club: Club | null }
+  const [seedP] = useState(() => readKept<PublicProfile | null>(`user:${id}`))
+  const [seedR] = useState(() => readKept<Rest>(`user-rest:${id}`))
+  const [profile, setProfile] = useState<PublicProfile | null>(seedP ?? null)
+  const [stats, setStats] = useState<UserStats | null>(seedR?.s ?? null)
+  const [place, setPlace] = useState<number | null>(seedR?.place ?? null)
+  const [pins, setPins] = useState<any[]>(seedR?.runs ?? [])
+  const [badges, setBadges] = useState<SeasonBadge[]>(seedR?.seasons ?? [])
+  const [club, setClub] = useState<Club | null>(seedR?.club ?? null)
+  const [state, setState] = useState<'loading' | 'ready' | 'failed' | 'missing'>(seedP ? 'ready' : 'loading')
   const [attempt, setAttempt] = useState(0)
 
   useFocusEffect(useCallback(() => {
     let active = true
     ;(async () => {
       try {
-        const p = await once(fetchPublicProfile(id))
+        const p = await arrive(`user:${id}`, fetchPublicProfile(id))
         if (!active) return
         if (!p) { setState('missing'); return }
         setProfile(p)
         setState('ready')
-        const [s, rank, runs, seasons, clubOf] = await Promise.all([
+        const rest = await arrive<Rest>(`user-rest:${id}`, Promise.all([
           fetchUserStats(id).catch(() => null),
           fetchMyPlace(id, {}).catch(() => null),
           fetchRunsByIds(p.pinned_run_ids ?? []).catch(() => []),
-          fetchSeasonBadges(id).catch(e => { log.warn('net', 'profile: season badges failed', e); return [] }),
+          fetchSeasonBadges(id).catch(e => { log.warn('net', 'profile: season badges failed', e); return [] as SeasonBadge[] }),
           fetchClubOf(id).catch(() => null),
-        ])
+        ]).then(([s, rank, runs, seasons, club]) => ({ s, place: rank?.place ?? null, runs, seasons, club })))
         if (!active) return
-        setStats(s); setPlace(rank?.place ?? null); setPins(runs); setBadges(seasons); setClub(clubOf)
+        setStats(rest.s); setPlace(rest.place); setPins(rest.runs); setBadges(rest.seasons); setClub(rest.club)
       } catch (e) {
         log.warn('net', 'profile: load failed', e)
         if (active) setState('failed')

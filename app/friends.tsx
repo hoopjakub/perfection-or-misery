@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { useSettledOnce } from '@/lib/loading'
+import { arrive, readKept } from '@/lib/kept'
 import { log } from '@/diag/log'
 import { t } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
@@ -32,21 +32,28 @@ const openProfile = (id: string) => router.push({ pathname: '/u/[id]', params: {
 
 export default function FriendsScreen() {
   const isGuest = useUserStore(s => s.isGuest)
+  const uid = useUserStore(s => s.user?.id ?? null)
+  // P9.75: the lists as you saw them last, at once, while they refresh
+  // (src/lib/kept.ts). Notices are left out: they're marked read on arrival.
+  const keyFor = `friends:${uid ?? ''}`
+  const [seed] = useState(() => (uid ? readKept<{ req: { incoming: FriendRequest[]; outgoing: FriendRequest[] }; fr: Friend[] }>(keyFor) : undefined))
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<PlayerRef[]>([])
-  const [incoming, setIncoming] = useState<FriendRequest[]>([])
-  const [outgoing, setOutgoing] = useState<FriendRequest[]>([])
-  const [friends, setFriends] = useState<Friend[]>([])
+  const [incoming, setIncoming] = useState<FriendRequest[]>(seed?.req.incoming ?? [])
+  const [outgoing, setOutgoing] = useState<FriendRequest[]>(seed?.req.outgoing ?? [])
+  const [friends, setFriends] = useState<Friend[]>(seed?.fr ?? [])
   const [notices, setNotices] = useState<Notice[]>([])
-  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [state, setState] = useState<'loading' | 'ready' | 'failed'>(seed ? 'ready' : 'loading')
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
 
-  const once = useSettledOnce()
   const load = useCallback(async () => {
     try {
-      const [req, fr, ns] = await once(Promise.all([getRequests(), getFriends(), getNotifications()]))
+      const [{ req, fr }, ns] = await Promise.all([
+        arrive(keyFor, Promise.all([getRequests(), getFriends()]).then(([req, fr]) => ({ req, fr }))),
+        getNotifications(),
+      ])
       setIncoming(req.incoming); setOutgoing(req.outgoing); setFriends(fr); setNotices(ns)
       setState('ready')
       // Seen now: the badge on You clears.
@@ -55,7 +62,7 @@ export default function FriendsScreen() {
       log.warn('net', 'friends: load failed', e)
       setState('failed')
     }
-  }, [once])
+  }, [keyFor])
   useFocusEffect(useCallback(() => { if (!isGuest) load() }, [isGuest, attempt, load]))
 
   // The search answers as you type (debounced so it isn't a query per key).

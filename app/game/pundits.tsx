@@ -34,19 +34,23 @@ import { EVERYDAY } from '@/lib/appearance'
 // seed is kept on the run so the verdict can check it. "Start the season"
 // cuts the ground to nylon (06 §4, lights on) and opens the season.
 //
-// Champions League and World Cup keep their own pre-season step after this
-// one, because that's where their fixtures and group draw are made.
+// The cups (the Champions League family and the World Cup) open this on top of
+// their own draw (?from=draw), which comes first since 9 Oct (P9.75): the
+// pundits' tournament is drawn their own way and read as yours when it came
+// first. "Prove them wrong" then goes back to the draw, which starts.
 const roles = ROLES[EVERYDAY]
 
 
 export default function PunditsScreen() {
   const { mode, placedLeague, clTeams, wcTeams, predictionSeed, clYear, draftedPlayers, benchPlayers } = useGameStore()
   // P8.5-15: the full path's domestic league, handed over by its own screen.
-  const params = useLocalSearchParams<{ field?: string }>()
+  const params = useLocalSearchParams<{ field?: string; from?: string }>()
   const [field] = useState(() => (params.field ? takePundits() : null))
+  const fromDraw = params.from === 'draw'
   // The draw already happened; there's nothing to go back and re-roll. The
-  // full path's pre-season has nothing decided yet, so back simply returns.
-  useSimBackGuard(!field)
+  // full path's pre-season has nothing decided yet, so back simply returns,
+  // as it does to a cup's draw (nothing is played until you start it there).
+  useSimBackGuard(!field && !fromDraw)
   const [seed] = useState(() => predictionSeed ?? randomSeed())
   const [lights, setLights] = useState(false)
 
@@ -138,6 +142,7 @@ export default function PunditsScreen() {
 
   function afterLights() {
     if (field) { field.onStart(seed); router.back(); return }
+    if (fromDraw) { router.back(); return }   // the draw starts on its return
     // L-16 / D5: every stage waits for your first tap. A league used to start
     // on arrival (?start=1) while the cups, which open on a draw, waited.
     router.replace('/game/simulation')

@@ -55,6 +55,7 @@ export function SwingTag({ size = 14, style }: { size?: number; style?: any }) {
 export type SpinItem = { title: string; sub?: string; colour?: string; clubId?: string; flag?: string | null }
 const ITEM_W = 156
 const TAIL = 5
+const FLAG_CARD_H = Math.round((ITEM_W - 8) / 1.5)   // a flag's 3:2
 const LENS = 0.12       // how much the card under the marker swells
 const FLAP_DEG = 22     // how far the flapper kicks as a card passes
 
@@ -111,13 +112,15 @@ export function RackSpin({ roles, items, durationMs, onLanded }: {
   }
 
   const last = items[items.length - 1]
+  // A nation's reel (the World Cup) stands taller: its cards are flag-shaped.
+  const nations = flagLargeOf(last.flag ?? getFlag(last.clubId)) != null
   return (
     <Pressable
       onPress={skip}
       onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
       accessibilityRole="button"
       accessibilityLabel={t('draft.spinningA11y')}
-      style={[styles.spinFrame, { borderColor: roles.line, backgroundColor: roles.sunken }]}
+      style={[styles.spinFrame, nations && styles.spinFrameFlags, { borderColor: roles.line, backgroundColor: roles.sunken }]}
     >
       {reduced ? (
         <View style={styles.spinCenter}><SpinCard roles={roles} item={last} /></View>
@@ -155,11 +158,14 @@ function SpinCard({ roles, item, x, i = 0, start = 0 }: { roles: Roles; item: Sp
     return { transform: [{ scale: 1 + LENS * Math.max(0, 1 - d) }] }
   })
   return (
-    <Animated.View style={[styles.spinCard, { borderColor: roles.line, backgroundColor: bg }, lens]}>
+    <Animated.View style={[styles.spinCard, flagImage != null && styles.spinCardFlag, { borderColor: roles.line, backgroundColor: bg }, lens]}>
       {flagImage != null ? (
-        // P9.75-24: the whole flag, not its middle: "cover" cut a 3:2 flag to the
-        // reel's wide card, so it read zoomed in.
-        <Image source={flagImage} style={StyleSheet.absoluteFill} resizeMode="contain" accessibilityIgnoresInvertColors />
+        // P9.75-24, second pass (the phone, 9 Oct: still zoomed, on the middle
+        // or the top right): the flag fills the card as a player's tag does,
+        // sized the same way (an Android Image given only absoluteFill drew at
+        // its own 640 px), on a card that is itself a flag's shape (3:2), so
+        // "cover" cuts nothing from a 3:2 flag and only the ends of a 2:1 one.
+        <Image source={flagImage} style={styles.playerFlag} resizeMode="cover" accessibilityIgnoresInvertColors />
       ) : crest?.kind === 'image' ? (
         <Image source={crest.source} style={styles.spinCrest} resizeMode="contain" accessibilityIgnoresInvertColors />
       ) : null}
@@ -435,9 +441,11 @@ function alsoOf(also?: string): string | null {
 
 const styles = StyleSheet.create({
   spinFrame: { height: 84, borderWidth: border.thin, overflow: 'hidden', justifyContent: 'center' },
+  spinFrameFlags: { height: 84 + FLAG_CARD_H - 60 },
   strip: { flexDirection: 'row', alignItems: 'center' },
   spinCenter: { alignItems: 'center' },
   spinCard: { width: ITEM_W - 8, marginHorizontal: 4, height: 60, borderWidth: border.thin, flexDirection: 'row', overflow: 'hidden' },
+  spinCardFlag: { height: FLAG_CARD_H, alignItems: 'flex-end' },
   spinCardBody: { flex: 1, paddingHorizontal: space[2], justifyContent: 'center', alignItems: 'flex-start', gap: 2 },
   // The crest, big and off the right edge: a background, not a badge.
   spinCrest: { position: 'absolute', right: -18, top: -14, width: 88, height: 88 },

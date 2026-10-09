@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { useSettledOnce } from '@/lib/loading'
+import { arrive, readKept } from '@/lib/kept'
 import { log } from '@/diag/log'
 import { t, num } from '@/i18n'
 import { View, Pressable, StyleSheet } from 'react-native'
@@ -26,25 +26,26 @@ const roles = ROLES[EVERYDAY]
 const openClubPage = (id: string) => router.push({ pathname: '/club/[id]', params: { id } })
 
 export default function ClubsScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
   const me = !isGuest ? user?.id ?? null : null
-  const [mine, setMine] = useState<{ club: Club; members: number } | null>(null)
-  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed'>('loading')
+  // P9.75: your club as you saw it last, at once (src/lib/kept.ts).
+  const keptClub = me ? readKept<Club | null>(`club-of:${me}`) : undefined
+  const [mine, setMine] = useState<{ club: Club; members: number } | null>(keptClub ? { club: keptClub, members: 0 } : null)
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed'>(keptClub !== undefined ? 'ready' : 'loading')
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<(Club & { members: number })[]>([])
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   // P8.5-08: invites to invite-only clubs, waiting for you here.
-  const [invites, setInvites] = useState<Club[]>([])
+  const [invites, setInvites] = useState<Club[]>(() => (me ? readKept<Club[]>(`invites:${me}`) ?? [] : []))
   const [scores, setScores] = useState<Map<string, { score: number; runs: number }>>(new Map())
 
   const load = useCallback(async () => {
     if (!me) return
     try {
-      fetchMyInvites(me).then(setInvites).catch(() => setInvites([]))
-      const club = await trackWork(once(fetchClubOf(me)))
+      arrive(`invites:${me}`, fetchMyInvites(me)).then(setInvites).catch(() => {})
+      const club = await trackWork(arrive(`club-of:${me}`, fetchClubOf(me)))
       setMine(club ? { club, members: 0 } : null)
       setState('ready')
     } catch (e) {

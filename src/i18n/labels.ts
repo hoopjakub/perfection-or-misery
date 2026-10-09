@@ -123,6 +123,8 @@ const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^team rated (\d+) \(over 80\)$/i, m => `Tím s OVR ${m[1]} (nad 80)`],
   [/^finished (\d+) of (\d+)$/i, m => `${m[1]}. miesto z ${m[2]}`],
   [/^big matches ×(.+)$/i, m => `Veľké zápasy ×${m[1].replace('.', ',')}`],
+  // An award's rating term (src/engine/stats.ts): "Rating 6.60 over 4 games".
+  [/^rating ([\d.]+) over (\d+) games?$/i, m => `Hodnotenie ${m[1].replace('.', ',')} v ${m[2]} ${Number(m[2]) === 1 ? 'zápase' : 'zápasoch'}`],
 ]
 
 function one(part: string): string {

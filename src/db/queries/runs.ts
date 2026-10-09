@@ -1,4 +1,6 @@
 import { fullPathTier } from '@/engine/europe-path'
+import { keepUpdate } from '@/lib/kept'
+import type { RunHistoryEntry, UserStats } from './leaderboard'
 import { noteSchemaRetry } from '@/diag/log'
 import { timeAsync } from '@/diag/perf'
 import { log } from '@/diag/log'
@@ -19,7 +21,7 @@ import { shownRun } from '@/lib/shownNames'
 import { settingsStorage } from '@/lib/mmkv'
 import { useUserStore } from '@/store/userStore'
 import { isOnline } from '@/lib/online'
-import { setRunQueueDeps, queueRun, flushRunQueue, RUN_QUEUE_KEY, RUN_REFUSED_KEY, type QueuedRun } from '@/lib/runQueue'
+import { setRunQueueDeps, queueRun, flushRunQueue, RUN_QUEUE_KEY, RUN_REFUSED_KEY, SEND_TIMEOUT_MS, type QueuedRun } from '@/lib/runQueue'
 
 // Build the difficulty columns saved on every run so the achievements/leaderboard/
 // run-history screens can read back exactly how hard a run was. `difficulty` is
@@ -169,6 +171,29 @@ const onQueueSent = (item: QueuedRun, id?: string) => { if (item.clientId === cu
 /** Send what's waiting on the phone (on start, back online, back in the foreground). */
 export const flushSavedRuns = (why?: string) => flushRunQueue(onQueueSent, why)
 
+// P9.75 (the phone, 9 Oct: finishing a run "seems to reset" the kept screens).
+// Home, Runs and You show what they kept (src/lib/kept.ts); a run just played
+// goes into those copies the moment it's saved, before any refetch, so Home's
+// recent runs and You's totals already have it when the tabs come back (and
+// still have it offline, while the run waits in the queue). The next fetch
+// replaces the lot with the server's own rows.
+function keepJustPlayed(p: Record<string, unknown>, clientId: string, playedAt: string) {
+  const uid = p.user_id as string | undefined
+  if (!uid) return
+  const entry = {
+    id: clientId, score: Number(p.score) || 0, tier: p.tier, mode: p.mode, league_name: p.league_name,
+    year_start: p.year_start ?? null, final_position: p.final_position, created_at: playedAt,
+    wins: p.wins ?? 0, draws: p.draws ?? 0, losses: p.losses ?? 0,
+    difficulty: p.difficulty ?? null, difficulty_meta: p.difficulty_meta ?? null,
+  } as unknown as RunHistoryEntry
+  keepUpdate<RunHistoryEntry[]>(`runs:${uid}`, l => [entry, ...l.filter(r => r.id !== clientId)])
+  keepUpdate<{ stats: UserStats | null; runs: RunHistoryEntry[] }>(`home:${uid}`, h => ({
+    stats: h.stats && { ...h.stats, totalRuns: h.stats.totalRuns + 1, totalPoints: h.stats.totalPoints + entry.score, bestScore: Math.max(h.stats.bestScore ?? 0, entry.score) },
+    runs: [entry, ...h.runs].slice(0, 3),
+  }))
+  keepUpdate<UserStats | null>(`stats:${uid}`, st => st && { ...st, totalRuns: st.totalRuns + 1, totalPoints: st.totalPoints + entry.score, bestScore: Math.max(st.bestScore ?? 0, entry.score) })
+}
+
 async function insertRun(row: Record<string, unknown>): Promise<void> {
   // duration_seconds is optional like the other late columns: dropped and
   // retried below if the database doesn't have it yet (supabase/profile.sql).
@@ -192,6 +217,7 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   t0 = Date.now()
   const kb = Math.round(JSON.stringify(payload).length / 1024)
   log.info('save', `run payload ${kb} KB, JSON in ${Date.now() - t0} ms; the saved row reached the screen in ${stateMs} ms`)
+  keepJustPlayed(payload, clientId, playedAt)
   const invalid = invalidRun(row as RunRow)
   if (invalid) log.warn('save', `saveRun: this run would be refused by the server: ${invalid}`)
   currentClientId = clientId
@@ -199,7 +225,13 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   // Offline already: straight onto the phone, no attempt that's bound to fail.
   if (!isOnline()) return queue()
   try {
-    remember(await sendPayload(payload))
+    // P9.75-23: a request that never answers (the connection lost mid-save)
+    // left the run "saving" for as long as Android waited. Past the queue's own
+    // limit it's queued like any offline save, and its achievements are judged.
+    remember(await new Promise<Awaited<ReturnType<typeof sendPayload>>>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('save timed out')), SEND_TIMEOUT_MS)
+      sendPayload(payload).then(v => { clearTimeout(timer); resolve(v) }, e => { clearTimeout(timer); reject(e) })
+    }))
   } catch (e) {
     if (offlineError(e)) return queue()
     throw e

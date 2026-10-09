@@ -33,6 +33,7 @@ This set does what Phase 9.75 asks before any code: it traces each of those to i
 | 06 | [`06-BUILD-ORDER.md`](06-BUILD-ORDER.md) | One order for the coding: ten steps, each with a check that fails today |
 | 07 | [`07-SECOND-PASS.md`](07-SECOND-PASS.md) | The second pass: three hypotheses measured (one confirmed, two ruled out), three new findings (57 nameless players, an English "Pause", a blind spot in the Slovak check) |
 | 08 | [`08-PHONE-SESSION-2.md`](08-PHONE-SESSION-2.md) | The release build on the phone, 8 Oct: rows 975-x, P9.75-16 to -30, the first release readings, the fingerprint failing on Hermes, decisions D6–D9 |
+| 09 | [`09-PHONE-SESSION-3.md`](09-PHONE-SESSION-3.md) | The third session, 9 Oct: the fingerprint's second cause (a random comparator, engine 3), achievements on a dead network, rich club and nation facts, the cups' draw before the pundits, the limit test, screens that keep what they showed |
 
 ## Worth knowing up front
 

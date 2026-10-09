@@ -12,4 +12,7 @@
 // atan2 and hypot moved to src/lib/pmath.ts, the same bits on every JS engine.
 // The phone (Hermes) computed different sheets from the web (V8) for the same
 // seed; past runs' sheets change once, by a hair, and then agree everywhere.
-export const ENGINE_VERSION = 2
+// 3 (9 Oct 2026, P9.75-18 again): engine 2 still failed on the phone. The
+// cause was a sort that drew random numbers inside its comparator
+// (match-detail's bench order): the draw count followed the engine's sort.
+export const ENGINE_VERSION = 3

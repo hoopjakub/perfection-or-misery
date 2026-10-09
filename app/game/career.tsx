@@ -1,7 +1,6 @@
 import { t, num, dec } from '@/i18n'
-import { useSettledOnce } from '@/lib/loading'
-import { log } from '@/diag/log'
-import React, { useEffect, useMemo, useState } from 'react'
+import { useKept } from '@/lib/kept'
+import React, { useMemo, useState } from 'react'
 import { isTournament } from '@/data/competition'
 import { PageMeta } from '@/components/PageMeta'
 import { View, Pressable, StyleSheet } from 'react-native'
@@ -38,30 +37,20 @@ const COMPS: { id: Comp; label: string }[] = [{ id: 'all', label: t('career.comp
 const TABS: { id: Tab; label: string }[] = [{ id: 'goals', label: t('career.tabGoals') }, { id: 'assists', label: t('career.tabAssists') }, { id: 'cleanSheets', label: t('career.tabCleanSheets') }, { id: 'matchesPlayed', label: t('career.tabApps') }]
 
 export default function CareerScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
-  const [career, setCareer] = useState<CareerStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
-  const [attempt, setAttempt] = useState(0)
   const [tab, setTab] = useState<Tab>('goals')
   const [comp, setComp] = useState<Comp>('all')
-  const [runs, setRuns] = useState<CareerRun[]>([])
+  // P9.75: the career as last seen, at once, refreshed on each visit (src/lib/kept.ts).
+  const me = user && !isGuest ? user.id : null
+  const kept = useKept<{ career: CareerStats | null; runs: CareerRun[] }>(me && `career:${me}`, async () => {
+    const [career, runs] = await Promise.all([fetchCareer(me!), fetchCareerRuns(me!)])
+    return { career, runs }
+  }, 'career')
+  const career = kept.data?.career ?? null
+  const runs = useMemo(() => kept.data?.runs ?? [], [kept.data])
+  const failed = kept.failed && !kept.data
+  const loading = !!me && kept.data === undefined && !kept.failed
   const summary = useMemo(() => summarise(runs), [runs])
-
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      if (!user || isGuest) { setLoading(false); return }
-      try {
-        const [c, rs] = await once(Promise.all([fetchCareer(user.id), fetchCareerRuns(user.id)]))
-        if (alive) { setCareer(c); setRuns(rs); setFailed(false) }
-      }
-      catch (e) { log.warn('net', 'career: load failed', e); if (alive) setFailed(true) }
-      finally { if (alive) setLoading(false) }
-    })()
-    return () => { alive = false }
-  }, [user, isGuest, attempt])
 
   const shell = (children: React.ReactNode) => (
     <KitScreen ground={EVERYDAY}>
@@ -72,7 +61,7 @@ export default function CareerScreen() {
   )
   if (loading) return shell(<><KitText t="bodyL" color={roles.textMuted}>{t('career.reading')}</KitText><GhostRows roles={roles} /></>)
   if (isGuest || !user) return shell(<EmptyState roles={roles} icon="lock" title={t('career.signIn')} body={t('career.guestBody')} />)
-  if (failed) return shell(<InlineError roles={roles} message={t('career.failed')} onRetry={() => { setLoading(true); setAttempt(a => a + 1) }} />)
+  if (failed) return shell(<InlineError roles={roles} message={t('career.failed')} onRetry={kept.reload} />)
   if (runs.length === 0 && (!career || career.players.length === 0)) return shell(<EmptyState roles={roles} title={t('career.none')} body={t('career.noneBody')} />)
 
   const players = career?.players ?? []

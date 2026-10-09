@@ -514,8 +514,18 @@ const REGULAR = 10   // matches rated: the medians are regulars', not bit-parts'
 // shown is the real one.
 export const POTS_EVEN = 1
 
+// P9.75 (the phone, 9 Oct: Player of the Tournament went to a full-back with
+// one goal, the runners-up in alphabetical order). A regular was rated in ten
+// matches, and nobody plays ten at a World Cup (seven at most) or in most
+// European runs: no regulars, every standing 0, and with POTS_EVEN at 1 the
+// ranking fell to the tie-break, the player id. A regular is now one rated in
+// half the matches of the busiest player (ten at most), and a line with too
+// few regulars to measure a spread is judged against everyone instead.
+const MIN_LINE = 4
 function evenLines(candidates: AwardCandidate[]): AwardCandidate[] {
-  const regulars = candidates.filter(c => (c.matchesRated ?? 0) >= REGULAR && c.score > 0)
+  const most = candidates.reduce((m, c) => Math.max(m, c.matchesRated ?? 0), 0)
+  const regularAt = Math.min(REGULAR, Math.max(1, Math.ceil(most / 2)))
+  const regulars = candidates.filter(c => (c.matchesRated ?? 0) >= regularAt && c.score > 0)
   // Each line's regulars: their mean and spread. A player's standing is how far
   // above his own line he is, in its spreads (a z-score).
   const stat = new Map<string, { mean: number; sd: number }>()
@@ -523,18 +533,19 @@ function evenLines(candidates: AwardCandidate[]): AwardCandidate[] {
     const xs = regulars.filter(c => lineOf(c.position) === line).map(c => c.score)
     const mean = xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length)
     const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) * (b - mean), 0) / Math.max(1, xs.length))
-    stat.set(line, { mean, sd })
-  }
-  const z = (c: AwardCandidate) => {
-    const st = stat.get(lineOf(c.position))
-    return st && st.sd > 0 ? (c.score - st.mean) / st.sd : 0
+    if (xs.length >= MIN_LINE && sd > 0) stat.set(line, { mean, sd })
   }
   // The blend: POTS_EVEN of his standing in his line, the rest his raw score
   // against everyone's (both as z-scores, so they add up).
-  const all = regulars.map(c => c.score)
+  const all = (regulars.length ? regulars : candidates).map(c => c.score)
   const mean = all.reduce((a, b) => a + b, 0) / Math.max(1, all.length)
   const sd = Math.sqrt(all.reduce((a, b) => a + (b - mean) * (b - mean), 0) / Math.max(1, all.length)) || 1
-  const value = (c: AwardCandidate) => POTS_EVEN * z(c) + (1 - POTS_EVEN) * (c.score - mean) / sd
+  const overall = (c: AwardCandidate) => (c.score - mean) / sd
+  const z = (c: AwardCandidate) => {
+    const st = stat.get(lineOf(c.position))
+    return st ? (c.score - st.mean) / st.sd : overall(c)
+  }
+  const value = (c: AwardCandidate) => POTS_EVEN * z(c) + (1 - POTS_EVEN) * overall(c)
   return [...candidates].sort((a, b) => value(b) - value(a) || cmpStr(a.playerId, b.playerId))
 }
 

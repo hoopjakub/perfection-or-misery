@@ -178,7 +178,11 @@ for (const f of EXTRACTED) {
     fs.readFileSync(path.join(ROOT, f), 'utf8').split(/\r?\n/).forEach((line, i) => {
       const code = line.replace(/(^|\s)\/\/.*$/, '')
       if (/^\s*(\*|\/\*|import )/.test(code) || /\blog\.\w+\(/.test(code)) return
-      if (CHILD.test(code) || (HOLE.test(code) && /accessibilityLabel|>\{`|^\s*\{?`/.test(code)))
+      // P9.75 (the share card, 9 Oct: "URUGUAY XI" in Slovak): a name in a
+      // template prop (meta={`… ${x.clubName}`}). A name handed to t() as a
+      // parameter is translated by t() itself (src/i18n/index.ts, checked below).
+      const PROP_HOLE = new RegExp(String.raw`\w+=\{\`[^\`]*\$\{${NAME}\}`)
+      if (CHILD.test(code) || PROP_HOLE.test(code) || (HOLE.test(code) && /accessibilityLabel|>\{`|^\s*\{?`/.test(code)))
         fail(`${f}:${i + 1}: a team name printed without countryName(): ${code.trim().slice(0, 90)}`)
       if (TERNARY.test(code) || BARE.test(code)) fail(`${f}:${i + 1}: English words aren't through t(): ${code.trim().slice(0, 90)}`)
     })
@@ -193,12 +197,21 @@ for (const f of EXTRACTED) {
   for (const [en, want] of cases) { const got = f ? f(en, 'sk') : en; if (got !== want) fail(`countryName("${en}") in Slovak is "${got}", expected "${want}"`) }
 }
 
+// t() shows a nation's name in Slovak whatever passes it in (POM_LANGUAGE=sk).
+if (process.env.POM_LANGUAGE === 'sk') {
+  const { t } = require('../src/i18n') as typeof import('../src/i18n')
+  const got = t('result.wcMeta' as never, { team: 'Uruguay XI', group: 'G', place: '1.' } as never) as unknown as string
+  if (!got.includes('Uruguaj XI')) fail(`t() printed "${got}": a nation's name in a parameter wasn't translated`)
+}
+
 // ── The engine's labels (src/i18n/labels.ts) ───────────────────────────────
 {
   const { labelIn } = require('../src/i18n/labels') as typeof import('../src/i18n/labels')
   const cases: [string, string][] = [
     ['Round of 16 · Leg 2', 'Osemfinále · Odveta'], ['Matchday 3', '3. kolo'], ['Group B · MD 2', 'Skupina B · 2. kolo'],
     ['ROUND OF 16', 'OSEMFINÁLE'], ['First Qualifying Round · Leg 1', '1. predkolo · Prvý zápas'], ['Final', 'Finále'],
+    // P9.75 (the phone, 9 Oct): the award's rating term stayed English.
+    ['Rating 6.60 over 4 games', 'Hodnotenie 6,60 v 4 zápasoch'],
   ]
   for (const [en, want] of cases) { const got = labelIn(en, 'sk'); if (got !== want) fail(`label "${en}" → "${got}", expected "${want}"`) }
   if (labelIn('Round of 16 · Leg 2', 'en') !== 'Round of 16 · Leg 2') fail('label() changes English')

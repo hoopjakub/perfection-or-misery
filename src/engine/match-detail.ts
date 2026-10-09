@@ -406,7 +406,16 @@ function resolveSide(
   // sharpens both halves of that: less shuffle, so the genuinely best rested
   // players come on, and the windows themselves move earlier (see subWindows).
   const jitter = chasing ? 2 : 6
-  const restRanked = [...optional].sort((a, b) => (b.ovr + rng() * jitter) - (a.ovr + rng() * jitter))
+  // P9.75-18 (the phone's fingerprint, still failing on engine 2): the jitter
+  // is drawn once per player, in the pool's order, then sorted. It was drawn
+  // inside the comparator, so the number of draws was however many
+  // comparisons the engine's sort made: V8 and Hermes sort differently, the
+  // streams parted here, and every sheet after it differed (seed 1's yellow
+  // cards, 2 against 0).
+  const restRanked = optional
+    .map((p, i) => ({ p, i, key: p.ovr + rng() * jitter }))
+    .sort((a, b) => b.key - a.key || a.i - b.i)
+    .map(x => x.p)
   const fill = restRanked.slice(0, Math.max(0, targetSubs - chosen.length))
   // Half-time is a real beat, not a rounding of "about 46 minutes": a side makes
   // an interval change some of the time, and much more often when it's chasing

@@ -7,7 +7,7 @@ import { t } from '@/i18n'
 import { label } from '@/i18n/labels'
 import { ordinal } from '@/lib/format'
 import { compOfMode, isClassicEurope, EUROPE } from '@/data/europe'
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { BracketTree } from '@/components/BracketTree'
 import { liveBracket } from '@/lib/liveBracket'
 import { kickoffFor } from '@/engine/schedule'
@@ -20,7 +20,7 @@ import { KnockoutStage, knockoutTieToCLMatch, clKnockoutRounds, wcKnockoutRounds
 import { usePauseOnBlur } from '@/hooks/usePauseOnBlur'
 import { useSizeClass } from '@/hooks/useSizeClass'
 import { View, StyleSheet } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { calcTeamOvr } from '@/engine/rating'
 import { getSlotsForFormation } from '@/engine/formations'
@@ -115,6 +115,21 @@ function sortByStats(teams: SimTeam[]): SimTeam[] {
 }
 
 // Top-level router — delegates to the right simulation per mode
+// P9.75 (the phone, 9 Oct): a cup's draw first, then the pundits. The draw's
+// button opens them on top (?from=draw); "Prove them wrong" sets the run's
+// predictionSeed and comes back, and the stage starts on that return, since
+// that press was the start (D5: every stage waits for a tap, and it had one).
+// predictionSeed is cleared when a run begins, so a set one means heard.
+function usePunditsFirst(start: () => void) {
+  const asked = useRef(false)
+  const startRef = useRef(start)
+  startRef.current = start
+  useFocusEffect(useCallback(() => {
+    if (asked.current && useGameStore.getState().predictionSeed != null) { asked.current = false; startRef.current() }
+  }, []))
+  return () => { asked.current = true; router.push('/game/pundits?from=draw') }
+}
+
 export default function SimulationScreen() {
   const mode = useGameStore(s => s.mode)
   const difficulty = useGameStore(s => s.difficulty)
@@ -151,6 +166,7 @@ function CLSimulation() {
 
   const [phase,                  setPhase]                  = useState<SimPhase>('review')
   useSimBackGuard(phase !== 'review')   // §3 — active once the league phase starts simulating
+  const openPunditsFromDraw = usePunditsFirst(() => { setPhase('simulating'); setIsPlaying(true) })
   const [currentMD,              setCurrentMD]              = useState(1)
   const [simTeams,               setSimTeams]               = useState<CLTeam[]>([])
   const [fixtures,               setFixtures]               = useState<{ matchday: number; home: CLTeam; away: CLTeam }[]>([])
@@ -587,7 +603,9 @@ function CLSimulation() {
           <StageControls roles={GR} skip={{ label: t('sim.skipLastMd'), consequence: t('sim.mdsAtOnce', { from: currentMD, to: totalMatchdays }),
             pause: () => setIsPlaying(false), run: () => clSkipRef.current() }} />
         )}
-        {!clStarted ? (
+        {!clStarted && predictionSeed == null ? (
+          <Plate label={t('draw.pundits')} icon="forward" roles={GR} onPress={openPunditsFromDraw} />
+        ) : !clStarted ? (
           <Plate label={t('sim.startLeaguePhase')} icon="play" roles={GR}
             onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
         ) : clDone ? (
@@ -619,6 +637,7 @@ function WCSimulation() {
 
   const [phase,         setPhase]         = useState<SimPhase>('review')
   useSimBackGuard(phase !== 'review')   // §3 — active once the group stage starts simulating
+  const openPunditsFromDraw = usePunditsFirst(() => { setPhase('simulating'); setIsPlaying(true) })
   const [currentMD,     setCurrentMD]     = useState(1)
   const [simTeams,      setSimTeams]      = useState<WCTeam[]>([])
   const [groups,        setGroups]        = useState<WCGroup[]>([])
@@ -1182,8 +1201,9 @@ function WCSimulation() {
       </KitScreen>
 
       <ThumbBar>
-        {wcStage === 'draw' && (
-          <Plate label={t('sim.startGroups')} icon="play" roles={GR} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
+        {wcStage === 'draw' && (predictionSeed == null
+          ? <Plate label={t('draw.pundits')} icon="forward" roles={GR} onPress={openPunditsFromDraw} />
+          : <Plate label={t('sim.startGroups')} icon="play" roles={GR} onPress={() => { setPhase('simulating'); setIsPlaying(true) }} />
         )}
         {wcStage === 'live' && (
           <StageControls roles={GR} skip={{ label: t('sim.skipGroups'), consequence: t('sim.groupsAtOnce'),

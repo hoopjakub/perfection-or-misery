@@ -4,6 +4,7 @@
 // wc-result.tsx and custom-ucl-result.tsx, 14 to 20 blocks each; the tournament's detail
 // (the league phase, the groups, the bracket, the grounds, the pundits'
 // tournament) now lives in the run hub, behind the screen's doors.
+import { countryName } from '@/data/countries-sk'
 import { t } from '@/i18n'
 import { log } from '@/diag/log'
 import React, { useEffect, useRef, useState } from 'react'
@@ -121,7 +122,7 @@ export function ClassicCupResult({ runId, run, result }: { runId?: string; run: 
     <ResultShell mode={run?.mode ?? store.mode} runId={runId} night={night}
       verdict={
         <VerdictBlock tone={verdictOf(playerFinalRound)} title={title}
-          meta={`${comp.fullName} · ${playerTeam.clubName} · ` + t('result.inLeaguePhase', { place: ordinal(pos) })}
+          meta={`${comp.fullName} · ${countryName(playerTeam.clubName)} · ` + t('result.inLeaguePhase', { place: ordinal(pos) })}
           punditsText={punditsText}
           shareText={t('result.shareCup', { title, comp: comp.fullName })}
           runId={runId} ownerId={runId ? run?.user_id ?? null : undefined} scoreRow={runId ? run ?? null : undefined} />
@@ -182,7 +183,7 @@ export function WorldCupResult({ runId, run, result }: { runId?: string; run: an
     <ResultShell mode="world_cup" runId={runId} night={night}
       verdict={
         <VerdictBlock tone={verdictOf(playerFinalRound)} title={title}
-          meta={t('result.wcMeta', { team: playerTeam.clubName, group: playerGroup, place: ordinal(playerGroupPos) })}
+          meta={t('result.wcMeta', { team: countryName(playerTeam.clubName), group: playerGroup, place: ordinal(playerGroupPos) })}
           punditsText={punditsText}
           shareText={t('result.wcShare', { title })}
           runId={runId} ownerId={runId ? run?.user_id ?? null : undefined} scoreRow={runId ? run ?? null : undefined} />
@@ -291,7 +292,7 @@ export function FullPathResult({ runId, run, result }: { runId?: string; run: an
       verdict={
         <VerdictBlock tone={verdictOf(tier)} title={title}
           // P8.5-21: a hunting run says so (its target is on the saved run too).
-          meta={t('result.fullPath', { comp: comp.fullName }) + (huntedComp ? t('result.hunted', { comp: huntedComp }) : huntMissed ? t('result.huntMissed', { comp: huntMissed }) : '') + `${playerTeam.clubName} · ${entryText}`}
+          meta={t('result.fullPath', { comp: comp.fullName }) + (huntedComp ? t('result.hunted', { comp: huntedComp }) : huntMissed ? t('result.huntMissed', { comp: huntMissed }) : '') + `${countryName(playerTeam.clubName)} · ${entryText}`}
           line={domesticLine}
           punditsText={punditsText}
           shareText={t('result.pathShare', { title, comp: comp.fullName })}

@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react'
-import { log } from '@/diag/log'
+import React from 'react'
+import { useKept } from '@/lib/kept'
 import { t, num } from '@/i18n'
 import { en } from '@/i18n/en'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, Pressable } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
+import { router } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { useNoticeStore } from '@/store/noticeStore'
 import { signOut, deleteAccount } from '@/lib/auth'
@@ -47,25 +47,19 @@ const launchGreeting = (name: string | null) => {
 
 export default function YouScreen() {
   const { profile, isGuest, user } = useUserStore()
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [place, setPlace] = useState<number | null>(null)
-  const [pub, setPub] = useState<PublicProfile | null>(null)
+  // P9.75: your numbers and your card's look as you saw them last, at once,
+  // refreshed each time the tab comes into view (src/lib/kept.ts). They were
+  // zeros and the default banner for a second or two on every visit.
+  const me = user && !isGuest ? user.id : null
+  const stats = useKept<UserStats | null>(me && `stats:${me}`, () => fetchUserStats(me!), 'you: stats').data ?? null
+  const place = useKept<number | null>(me && `place:${me}`, async () => (await fetchMyPlace(me!, {}))?.place ?? null, 'you: place').data ?? null
+  const pub = useKept<PublicProfile | null>(me && `pub:${me}`, () => fetchPublicProfile(me!), 'you: profile').data ?? null
   const pin = useCrestStore(st => st.pin)
   // P8-181: your club's tag, in your pin's colour (the club's own colour is on its page).
   const clubTag = profile?.club_tag ? { text: profile.club_tag, colour: pin?.hex ?? '#ff5a00' } : null
   const name = isGuest ? t('you.guest') : profile?.username ?? '—'
   const greeting = launchGreeting(isGuest ? null : profile?.username ?? null)
   const unread = useNoticeStore(st => st.unread)
-
-  useFocusEffect(useCallback(() => {
-    let active = true
-    if (user && !isGuest) {
-      fetchUserStats(user.id).then(s => { if (active) setStats(s) }).catch(e => log.warn('net', 'you: stats failed', e))
-      fetchMyPlace(user.id, {}).then(p => { if (active) setPlace(p?.place ?? null) }).catch(() => {})
-      fetchPublicProfile(user.id).then(p => { if (active) setPub(p) }).catch(() => {})
-    }
-    return () => { active = false }
-  }, [user, isGuest, profile?.username]))
 
   function confirmSignOut() {
     openConfirm({

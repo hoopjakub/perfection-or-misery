@@ -11,7 +11,7 @@ import { PunditRail } from '@/components/season/PunditRail'
 import { GroupWall, LeagueTable, SegmentSwitch, CL_PHASE_ZONES, type MiniGroup, type TableRowVM } from '@/components/season/SeasonParts'
 import { BracketTree, type BracketColumn } from '@/components/BracketTree'
 import { View, Pressable, StyleSheet, Platform } from 'react-native'
-import Animated, { FadeIn } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { ROLES, space, border, prim, type Roles } from '@/theme'
 import { KitText, Plate, Tag, Tape, Rivets, H2, Icon, TeamMark, Twinkle } from '@/components/kit'
 import { useRunOwner, RunOwnerLine, ShareOwner, ownerPrefix } from '@/components/profile/ProfileParts'
@@ -53,6 +53,13 @@ export function VerdictBlock({
 }) {
   const reduced = useReducedMotion()
   const card = useRef<View>(null)
+  // P9.75 (the phone, 9 Oct: a saved run's card was a blank space, its share
+  // still worked): the card faded in with a layout animation (entering=FadeIn),
+  // which on Android can stay at its first frame when the card mounts as the
+  // loading screen gives way. A fade it drives itself always ends at 1.
+  const shown = useSharedValue(reduced ? 1 : 0)
+  useEffect(() => { shown.value = withTiming(1, { duration: reduced ? 0 : 220 }) }, [])
+  const fade = useAnimatedStyle(() => ({ opacity: shown.value }))
   const [shared, setShared] = useState<null | 'shared' | 'copied' | 'unavailable'>(null)
 
   // P8-89: every run says whose it is, on the page, on the card and in the
@@ -87,8 +94,7 @@ export function VerdictBlock({
       <RunOwnerLine roles={roles} owner={owner} />
       <Animated.View
         ref={card}
-        entering={reduced ? undefined : FadeIn.duration(220)}
-        style={[styles.card, { borderColor: roles.line, backgroundColor: roles.surface }]}
+        style={[styles.card, { borderColor: roles.line, backgroundColor: roles.surface }, fade]}
         accessible
         accessibilityRole="header"
         accessibilityLabel={t('verdict.cardA11y', { title, line: line ?? '', points: score != null ? t('verdict.pointsA11y', { n: score }) : '' })}

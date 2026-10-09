@@ -164,6 +164,7 @@ Never written by the game. Shown in their own section with the time the test ran
 |---|---|---|
 | `bench:match` | 0.2 / 1 | one `simulateMatch` between two fixed synthetic teams, averaged over 2,000 |
 | `bench:detail` | 15 / 40 | one `generateMatchDetail` from a fixed input, averaged over 200 |
+| `bench:pmath` | 1 / 3 | one sheet's portable maths (650 `pexp`, 275 `ppow`, 228 `plog`, 97 `ptanh`, as counted in Node), averaged over 50. A probe (Phase 9.75, 9 Oct): near `bench:detail` means the maths is the sheet's cost on Hermes |
 | `bench:timeline` | 40 / 120 | one `buildDeepMatchTimeline` from a fixed sheet, averaged over 20 |
 | `bench:leagueSeason` | 400 / 1200 | a full 20-team season of `simulateMatch` with fixtures from `generateFixtures` |
 | `bench:stats` | 700 / 2000 | `computeRunStats` over that season with synthetic squads |
@@ -179,7 +180,7 @@ Never written by the game. Shown in their own section with the time the test ran
 | Runtime | 37 (30 in the plan; 31 after step 2's re-cut; then `ui:tab`, `screen:result`, `pundits:build` and `query:rosters` with Phase 9's own work; `stats:board` and `hub:teams` in Phase 9.75 step 4) |
 | Planned | 3 |
 | Build-time | 4 |
-| Self-test | 7 |
+| Self-test | 8 (`bench:pmath` added in Phase 9.75) |
 
 ---
 

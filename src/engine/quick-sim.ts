@@ -73,6 +73,19 @@ function toDrafted(p: PlayerRow, slotIndex: number): DraftedPlayer {
   }
 }
 
+// P9.75 (the limit test, src/diag/checks.ts): each phase reports how long it
+// took, under the budget it's the same work as. Only timed, never recorded:
+// the self-test judges the numbers itself, so the app's own readings stay the
+// app's (and a budget keeps its two sites, verify-budgets).
+export type Lap = (key: string, ms: number) => void
+const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+function lapped<T>(lap: Lap | undefined, key: string, fn: () => T): T {
+  const t0 = clock(); const v = fn(); lap?.(key, clock() - t0); return v
+}
+async function lappedAsync<T>(lap: Lap | undefined, key: string, fn: () => Promise<T>): Promise<T> {
+  const t0 = clock(); const v = await fn(); lap?.(key, clock() - t0); return v
+}
+
 // Draft a random, position-legal XI from the domestic pool.
 async function autoDraftXI(formation: Formation): Promise<DraftedPlayer[]> {
   const slots = getSlotsForFormation(formation)
@@ -224,13 +237,13 @@ export type QuickLeagueRun = {
 // ── Champions League quick-sim ──────────────────────────────────────────────
 export type QuickCLRun = { formation: Formation; draftedPlayers: DraftedPlayer[]; clTeams: CLTeam[]; clResult: CLSeasonResult }
 
-export async function quickSimCL(): Promise<QuickCLRun> {
+export async function quickSimCL(lap?: Lap): Promise<QuickCLRun> {
   setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
   const teamOvr = calcTeamOvr(draftedPlayers, getSlotsForFormation(formation))
 
-  const rows = await getClubSeasonsForMode('champions_league')
+  const rows = await lappedAsync(lap, 'query:pool', () => getClubSeasonsForMode('champions_league'))
   if (rows.length === 0) throw new Error('No UCL data seeded.')
   const latest  = Math.max(...rows.map(r => r.year_start))
   const edition = rows.filter(r => r.year_start === latest).sort((a, b) => a.historical_ovr - b.historical_ovr)
@@ -242,6 +255,7 @@ export async function quickSimCL(): Promise<QuickCLRun> {
   const fixtures = drawCLLeaguePhase(teams, t => countryForClClub(t.clubName)).fixtures
   const leagueMatchdays: CLLeagueMatch[] = []
   const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
+  lapped(lap, 'sim:skip:ucl', () => {
   for (let md = 1; md <= maxMd; md++) {
     for (const fx of fixtures.filter(f => f.matchday === md)) {
       const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
@@ -250,8 +264,9 @@ export async function quickSimCL(): Promise<QuickCLRun> {
       leagueMatchdays.push({ matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
     }
   }
+  })
   const sorted = sortCompTeams(teams)
-  const ko = simulateCLKnockoutsOnly(sorted)
+  const ko = lapped(lap, 'sim:knockouts', () => simulateCLKnockoutsOnly(sorted))
   const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays }
   // Attribute scorers ONCE and store them on the result (deterministic).
   const pools = await loadLeaguePools(teams, draftedPlayers, latest)
@@ -265,7 +280,7 @@ export async function quickSimCL(): Promise<QuickCLRun> {
 // Logs an access/qualifying summary to the console for verification.
 export type QuickCustomUclRun = QuickCLRun & { qual: QualifyingResult; tables: SimLeagueTable[] }
 
-export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
+export async function quickSimCustomUcl(lap?: Lap): Promise<QuickCustomUclRun> {
   setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
@@ -279,7 +294,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   // Europa and Conference Leagues' league phases too.
   const assocs = tables.map(t => ({ rank: t.rank, name: t.name, country: t.country, format: t.format, clubs: t.standings.map(r => ({ clubId: r.clubId, clubName: r.clubName, ovr: r.ovr })) }))
   const held = await getEuropeHolders()
-  const qual = playEuropeanSeason(access, assocs, held, { seed: Math.floor(Math.random() * 2147483648) })
+  const qual = lapped(lap, 'sim:europe', () => playEuropeanSeason(access, assocs, held, { seed: Math.floor(Math.random() * 2147483648) }))
   const compPick = pick<'ucl' | 'uel' | 'uecl'>(['ucl', 'uel', 'uecl'])
   const comp = EUROPE[compPick]
   const field = qual.europe!.fields[compPick]
@@ -301,6 +316,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
   const fixtures = drawCLLeaguePhase(teams, t => countryByClub.get(t.clubId), { pots: comp.pots, perPot: comp.perPot }).fixtures
   const leagueMatchdays: CLLeagueMatch[] = []
   const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
+  lapped(lap, 'sim:skip:ucl', () => {
   for (let md = 1; md <= maxMd; md++) {
     for (const fx of fixtures.filter(f => f.matchday === md)) {
       const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
@@ -309,8 +325,9 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
       leagueMatchdays.push({ matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
     }
   }
+  })
   const sorted = sortCompTeams(teams)
-  const ko = simulateCLKnockoutsOnly(sorted)
+  const ko = lapped(lap, 'sim:knockouts', () => simulateCLKnockoutsOnly(sorted))
   const clResult: CLSeasonResult = { leaguePhaseStandings: sorted, ...ko, leagueMatchdays, competition: compPick }
   const pools = await loadLeaguePools(teams, draftedPlayers, 2025)   // cucl season = 2025/26
   attributeCLResultScorers(clResult, pools.poolByClub, lineupCtxOf(pools))
@@ -332,7 +349,7 @@ export async function quickSimCustomUcl(): Promise<QuickCustomUclRun> {
 // ── World Cup quick-sim ─────────────────────────────────────────────────────
 export type QuickWCRun = { formation: Formation; draftedPlayers: DraftedPlayer[]; wcTeams: WCTeam[]; wcResult: WCSeasonResult }
 
-export async function quickSimWC(): Promise<QuickWCRun> {
+export async function quickSimWC(lap?: Lap): Promise<QuickWCRun> {
   setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
@@ -350,6 +367,7 @@ export async function quickSimWC(): Promise<QuickWCRun> {
   const fixtures = generateWCGroupFixtures(groups)
   const groupMatchdays: WCGroupMatch[] = []
   const maxMd = fixtures.reduce((m, f) => Math.max(m, f.matchday), 0)
+  lapped(lap, 'sim:skip:wc', () => {
   for (let md = 1; md <= maxMd; md++) {
     for (const fx of fixtures.filter(f => f.matchday === md)) {
       const home = teams.find(t => t.clubId === fx.home.clubId)!, away = teams.find(t => t.clubId === fx.away.clubId)!
@@ -358,8 +376,9 @@ export async function quickSimWC(): Promise<QuickWCRun> {
       groupMatchdays.push({ groupId: home.groupId, matchday: md, home: { clubId: home.clubId, clubName: home.clubName, isPlayer: home.isPlayer }, away: { clubId: away.clubId, clubName: away.clubName, isPlayer: away.isPlayer }, homeGoals: r.homeGoals, awayGoals: r.awayGoals })
     }
   }
+  })
   const clonedGroups: WCGroup[] = groups.map(g => ({ id: g.id, teams: g.teams.map(t => ({ ...t, stats: { ...t.stats } })) }))
-  const result = simulateWCKnockoutsOnly(clonedGroups, teams)
+  const result = lapped(lap, 'sim:knockouts', () => simulateWCKnockoutsOnly(clonedGroups, teams))
   const wcResult: WCSeasonResult = { groups: clonedGroups, ...result, groupMatchdays }
   // Attribute scorers ONCE and store them on the result (deterministic).
   const pools = await loadLeaguePools(teams, draftedPlayers, latest)
@@ -469,18 +488,18 @@ export function simulateWCKnockoutsForceToFinal(groups: WCGroup[], allTeams: WCT
   }
 }
 
-export async function quickSimLeague(): Promise<QuickLeagueRun> {
+export async function quickSimLeague(lap?: Lap): Promise<QuickLeagueRun> {
   setMatchTilt(0)   // headless tester: neutral, never inherit a real run's tilt
   const formation = pick(FORMATIONS)
   const draftedPlayers = await autoDraftXI(formation)
   const slots  = getSlotsForFormation(formation)
   const teamOvr = calcTeamOvr(draftedPlayers, slots)
 
-  const eligible = await eligibleLeagues(teamOvr)
+  const eligible = await lappedAsync(lap, 'query:pool', () => eligibleLeagues(teamOvr))
   if (eligible.length === 0) throw new Error('No eligible league to place into.')
-  const placedLeague = buildLeagueSeason(spinPlacement(eligible), teamOvr)
-  const pools        = await loadLeaguePools(placedLeague.teams, draftedPlayers, placedLeague.yearStart)
-  const simResult    = runLeagueWithHistory(placedLeague, pools)
+  const placedLeague = lapped(lap, 'placement:build', () => buildLeagueSeason(spinPlacement(eligible), teamOvr))
+  const pools        = await lappedAsync(lap, 'query:rosters', () => loadLeaguePools(placedLeague.teams, draftedPlayers, placedLeague.yearStart))
+  const simResult    = lapped(lap, 'sim:skip:league', () => runLeagueWithHistory(placedLeague, pools))
 
   return { formation, draftedPlayers, placedLeague, teamOvr, simResult }
 }

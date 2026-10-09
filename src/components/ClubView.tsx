@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { useSettledOnce } from '@/lib/loading'
+import { arrive, readKept } from '@/lib/kept'
 import { log } from '@/diag/log'
 import { t } from '@/i18n'
 import { View, Pressable, StyleSheet } from 'react-native'
@@ -38,12 +38,14 @@ export function ClubView({ id, onLeft }: {
   /** You left or closed the club (the Clubs tab goes back to joining one). */
   onLeft?: () => void
 }) {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const me = useUserStore(s => (s.isGuest ? null : s.user?.id ?? null))
-  const [data, setData] = useState<{ club: Club; members: ClubMember[] } | null>(null)
-  const [score, setScore] = useState<{ score: number; runs: number } | null>(null)
-  const [myClub, setMyClub] = useState<string | null>(null)
-  const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'unavailable' | 'failed'>('loading')
+  // P9.75: a club you've opened before opens as you saw it, at once, and
+  // refreshes (src/lib/kept.ts).
+  const [seed] = useState(() => readKept<{ d: { club: Club; members: ClubMember[] } | null; mine: string | null }>(`club:${id}:${me ?? ''}`))
+  const [data, setData] = useState<{ club: Club; members: ClubMember[] } | null>(seed?.d ?? null)
+  const [score, setScore] = useState<{ score: number; runs: number } | null>(() => readKept<{ score: number; runs: number } | null>(`club-score:${id}`) ?? null)
+  const [myClub, setMyClub] = useState<string | null>(seed?.mine ?? null)
+  const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'unavailable' | 'failed'>(seed?.d ? 'ready' : 'loading')
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -52,10 +54,11 @@ export function ClubView({ id, onLeft }: {
 
   const load = useCallback(async () => {
     try {
-      const [d, mine] = await trackWork(once(Promise.all([fetchClub(id), me ? fetchClubOf(me) : Promise.resolve(null)])))
-      setData(d); setMyClub(mine?.id ?? null)
+      const { d, mine } = await trackWork(arrive(`club:${id}:${me ?? ''}`, Promise.all([fetchClub(id), me ? fetchClubOf(me) : Promise.resolve(null)])
+        .then(([d, c]) => ({ d, mine: c?.id ?? null }))))
+      setData(d); setMyClub(mine)
       setState(d ? 'ready' : 'missing')
-      if (d) fetchClubScores([d.club.id]).then(m => setScore(m.get(d.club.id) ?? null)).catch(() => {})
+      if (d) arrive(`club-score:${id}`, fetchClubScores([d.club.id]).then(m => m.get(d.club.id) ?? null)).then(setScore).catch(() => {})
     } catch (e) {
       log.warn('net', 'club: load failed', e)
       setState(e instanceof ClubsUnavailable ? 'unavailable' : 'failed')

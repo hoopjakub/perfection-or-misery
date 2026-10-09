@@ -22,6 +22,7 @@
 // The check that can fail: scripts/verify-i18n.ts (missing or extra Slovak
 // keys, placeholders that differ, plain English left in a finished area).
 import i18n from 'i18next'
+import { countryNameIn } from '@/data/countries-sk'
 import { en } from './en'
 import { sk } from './sk'
 import type { LanguageChoice } from '@/store/settingsStore'
@@ -93,7 +94,24 @@ i18n.init({
 })
 
 /** The translation function, usable anywhere (see the top). */
-export const t = i18n.t
+// P9.75 (9 Oct: "URUGUAY XI" on the share card, after 22 names fixed by hand
+// the day before): a nation's name handed to t() as a parameter is shown in
+// the app's language, here, once. The data keeps the English names (they key
+// the flags, the venues, the saved runs); a parameter is always display text,
+// and no club's or player's name is exactly a nation's. Screens that print a
+// name outside t() still use countryName() (verify-i18n).
+const rawT = i18n.t.bind(i18n)
+function shownParams(opts: unknown): unknown {
+  if (LANGUAGE !== 'sk' || !opts || typeof opts !== 'object' || Array.isArray(opts)) return opts
+  let out: Record<string, unknown> | null = null
+  for (const [k, v] of Object.entries(opts as Record<string, unknown>)) {
+    if (typeof v !== 'string') continue
+    const shown = countryNameIn(v, 'sk')
+    if (shown !== v) (out ??= { ...(opts as Record<string, unknown>) })[k] = shown
+  }
+  return out ?? opts
+}
+export const t = ((key: any, opts?: any, ...rest: any[]) => (rawT as any)(key, shownParams(opts), ...rest)) as unknown as typeof i18n.t
 
 /** True when a new choice would change this launch's language. */
 export const languageChanges = (next: LanguageChoice) => resolveLanguage(next) !== LANGUAGE

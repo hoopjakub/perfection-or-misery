@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useSettledOnce } from '@/lib/loading'
+import { arrive, readKept } from '@/lib/kept'
 import { log } from '@/diag/log'
 import { t, LOCALE } from '@/i18n'
 import { View, FlatList, TextInput, Platform, Pressable, StyleSheet } from 'react-native'
@@ -40,25 +40,29 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(LOCALE, { hour: '
 const day = (iso: string) => new Date(iso).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }).toUpperCase()
 
 export default function ClubChatScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { id } = useLocalSearchParams<{ id: string }>()
   const me = useUserStore(s => (s.isGuest ? null : s.user?.id ?? null))
-  const [club, setClub] = useState<Club | null>(null)
-  const [members, setMembers] = useState<Map<string, ClubMember>>(new Map())
-  const [messages, setMessages] = useState<ClubMessage[]>([])
-  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed' | 'outside'>('loading')
+  // P9.75: the chat as you left it, at once, while new messages load
+  // (src/lib/kept.ts). Only for a member: the kept messages are theirs to see.
+  const [seedClub] = useState(() => readKept<{ club: Club; members: ClubMember[] } | null>(`chat-club:${id}`))
+  const [seedMsgs] = useState(() => readKept<ClubMessage[]>(`chat:${id}:${me ?? ''}`))
+  const member = !!me && !!seedClub?.members.some(m => m.user_id === me)
+  const [club, setClub] = useState<Club | null>(seedClub?.club ?? null)
+  const [members, setMembers] = useState<Map<string, ClubMember>>(() => new Map((seedClub?.members ?? []).map(m => [m.user_id, m])))
+  const [messages, setMessages] = useState<ClubMessage[]>(member ? seedMsgs ?? [] : [])
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed' | 'outside'>(member && seedMsgs ? 'ready' : 'loading')
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const list = useRef<FlatList<ClubMessage>>(null)
 
   const load = useCallback(async () => {
     try {
-      const d = await once(fetchClub(id))
+      const d = await arrive(`chat-club:${id}`, fetchClub(id))
       if (!d) { setState('failed'); return }
       setClub(d.club)
       setMembers(new Map(d.members.map(m => [m.user_id, m])))
       if (!me || !d.members.some(m => m.user_id === me)) { setState('outside'); return }
-      setMessages(await fetchMessages(id))
+      setMessages(await arrive(`chat:${id}:${me}`, fetchMessages(id)))
       setState('ready')
     } catch (e) {
       log.warn('net', 'chat: load failed', e)

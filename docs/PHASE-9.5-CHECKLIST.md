@@ -440,9 +440,29 @@ Needs a new `preview-personal` build: an EAS Update can carry at most 1,000 asse
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| 975-25 | **The fingerprint** (P9.75-18): Diagnostics → Run self-test: *Engine fingerprint* says MATCH (engine 2) | phone | unchecked |
-| 975-26 | **The quick fixes**: no light band under sign-in; result rows read whole words; "Chorvátsko XI", Slovak names in the press, the awards cards, the badges and the Deep Match; the third-place story; the team of the round folded; total points on You; whole flags on the spin | phone, sk | unchecked |
+| 975-25 | **The fingerprint** (P9.75-18): Diagnostics → Run self-test: *Engine fingerprint* says MATCH (engine 2) | phone | fails (9 Oct, engine 2): fixed in engine 3, see 975-34 |
+| 975-26 | **The quick fixes**: no light band under sign-in; result rows read whole words; "Chorvátsko XI", Slovak names in the press, the awards cards, the badges and the Deep Match; the third-place story; the team of the round folded; total points on You; whole flags on the spin | phone, sk | works (9 Oct), except the flags: see 975-31 |
 | 975-27 | **The readings again**: Stats tab `ui:tab`, `stats:board`, `hub:teams`, the stall after Awards Night; and send the log line `run payload … KB, JSON in … ms` from a save | phone | unchecked |
-| 975-28 | **Achievements offline**: finish a winning run in flight mode; its achievement pops at once | phone | unchecked |
+| 975-28 | **Achievements offline**: finish a winning run in flight mode; its achievement pops at once | phone | fails mid-session (9 Oct): see 975-36 |
 | 975-29 | **European squads** (L-15): a Champions League draft: Red Star Belgrade, Salzburg, Celtic, Sporting have their own players and grounds | phone | unchecked |
-| 975-30 | **Club facts**: CLUB FACT on any club card, in English and Slovak | phone, en + sk | unchecked |
+| 975-30 | **Club facts**: CLUB FACT on any club card, in English and Slovak | phone, en + sk | partly (9 Oct): bland, no nations; see 975-35 |
+
+## Phase 9.75 · The third session's fixes (9 October 2026)
+
+A new `preview-personal` build (EAS Update can't carry the 1,448 assets). Database unchanged (version 25). Findings and causes: [`audit-9.75/09`](audit-9.75/09-PHONE-SESSION-3.md).
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-31 | **Whole flags on the spin** (P9.75-31): a World Cup draft's reel shows each nation's whole flag, filling a flag-shaped card, as the player tags do | phone | unchecked |
+| 975-32 | **The draw before the pundits** (P9.75-32): World Cup, a Champions/Europa/Conference League: after the globe, *See the draw* shows your group or league phase; *What the pundits think* opens them; *Prove them wrong* comes back and the stage starts. A league goes straight to the pundits as before | phone | unchecked |
+| 975-33 | **The share card in Slovak** (P9.75-33): a World Cup run's card says *Uruguaj XI*, not URUGUAY XI | phone, sk | unchecked |
+| 975-34 | **The fingerprint** (P9.75-34): Diagnostics → Run self-test: *Engine fingerprint* says MATCH (engine 3) | phone | works (9 Oct): MATCH, engine 3 |
+| 975-35 | **Club and nation facts** (P9.75-35): a club card's fact names titles, famous players or the ground's opening year; a World Cup nation has one too; both languages | phone, en + sk | unchecked |
+| 975-36 | **Achievements on a dead network** (P9.75-36): start online, turn the connection off mid-run, win; the achievement pops at once, and not again when the connection returns | phone | unchecked |
+| 975-37 | **The limit test** (P9.75-37): Run self-test; the *Limit test* row lists each budget with its number, and what needs a screen; share the report | phone | works (9 Oct): 12 of 36 run; stats:league 2,915 ms FAIL, stats:ucl and :wc WARN, see 975-43 |
+| 975-38 | **Screens that keep what they showed** (P9.75-38): open Runs, You, Ranks, leave, come back, and after restarting the app: everything is there at once (sort chips, numbers, the banner's colours), then refreshes in place | phone | unchecked |
+| 975-39 | **Kept everywhere, and a finished run already there** (P9.75-39): finish a run and go home: Home shows the run at once in its recent runs, with the totals counted; Runs and You too; then open Clubs, Friends, Achievements, Career, a player's profile, a club, its chat, twice each: the second time opens whole at once | phone | unchecked |
+| 975-40 | **EAS Update works again**: after installing this build, `eas update --channel preview-personal --message "…"` publishes (no 1,000-asset error) and the phone picks it up on its next start | phone + PC | unchecked |
+| 975-41 | **Player of the Tournament** (P9.75-40): a World Cup or European run's award goes to a standout (goals, assists, rating), and the runners-up aren't in alphabetical order; the breakdown's rating line reads *Hodnotenie 6,60 v 4 zápasoch* in Slovak | phone, sk | unchecked |
+| 975-42 | **A saved run's card** (P9.75-41): open a saved run from Runs; the verdict card shows above the share buttons (it was a blank space) | phone | unchecked |
+| 975-43 | **The maths probe** (P9.75-42): Run self-test, read *bench:pmath* beside *detail* in the first row and send both | phone | unchecked |

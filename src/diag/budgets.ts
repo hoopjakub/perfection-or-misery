@@ -82,6 +82,10 @@ export const BUDGETS = {
   // 5. Self-test: written only by src/diag/checks.ts, never by the game
   'bench:match':       ms(0.2, 1, 'one match, averaged over 2,000'),
   'bench:detail':      ms(15, 40, 'one match sheet, averaged over 200'),
+  // P9.75 probe (the phone, 9 Oct: the stats passes 50% slower since engine 2):
+  // one sheet's portable maths (650 pexp, 275 ppow, 228 plog, 97 ptanh, counted
+  // in Node). Near bench:detail means the maths is the sheet's cost on Hermes.
+  'bench:pmath':       ms(1, 3, "one match sheet's portable maths (1,250 calls)"),
   'bench:timeline':    ms(40, 120, 'one Deep Match timeline, averaged over 20'),
   'bench:leagueSeason': ms(400, 1200, 'a 20-club season'),
   'bench:stats':       ms(700, 2000, "that season's stats"),

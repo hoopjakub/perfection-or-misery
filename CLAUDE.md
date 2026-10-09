@@ -216,6 +216,13 @@ simulates headlessly, and lands on the result screen (stats included).
   in its place, a button on its own `Plate`. A run's first load gets the settle
   floor in `useRunData` (`src/lib/loading.ts`); `verify-diag` 2f fails on a
   screen's wait drawn by hand.
+- **Kept, not refetched from nothing**: a screen's server data goes through
+  `src/lib/kept.ts`: `useKept`, or `arrive` + `readKept` for a screen with its
+  own load(). Last session's answer at once, refreshed quietly; ghosts and the
+  settle floor only when nothing was ever kept. A saved run goes into the kept
+  copies at once (`keepJustPlayed`, runs.ts). `verify-diag` 2i (P9.75-38, -39).
+- **EAS Update carries no crests or flags** (`updates.assetPatternsToBeBundled`
+  in app.json): a new crest or flag needs a new build.
 - **Feedback**: `Plate` for actions (held at once, "Waiting…" only after
   100 ms), `ListRow` for rows, `BackControl` for headers. Every interactive
   element needs press feedback; a bare `Pressable` with no pressed style is a

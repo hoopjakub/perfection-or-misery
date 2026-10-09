@@ -19,9 +19,8 @@ import { create } from 'zustand'
 import { log } from '@/diag/log'
 import { settingsStorage } from '@/lib/mmkv'
 import { fetchAchievementRuns } from '@/db/queries/leaderboard'
-import { earnedList, achievementRunFromRow } from '@/lib/achievements'
+import { judgeAchievements } from '@/lib/achievementJudge'
 import { queuedPayloads } from '@/lib/runQueue'
-import type { AchievementRun } from '@/db/queries/leaderboard'
 
 export type AchievementToastItem = { key: string; title: string; line: string }
 
@@ -31,32 +30,19 @@ export const useAchievementToasts = create<ToastQueue>(set => ({
   shift: () => set(s => ({ queue: s.queue.slice(1) })),
 }))
 
-const keyFor = (userId: string) => `pom-announced-${userId}`
-const runsKeyFor = (userId: string) => `pom-ach-runs-${userId}`
-
-/** Works out what's new since the last announcement and queues it. Never throws. */
+/** Works out what's new since the last announcement and queues it. Never throws.
+ *  The judging is src/lib/achievementJudge.ts (P9.75-23): on the phone first,
+ *  the server second, with a time limit. */
 export async function announceNewAchievements(userId: string, justPlayed?: Record<string, unknown> | null): Promise<void> {
   try {
-    let saved: AchievementRun[]
-    try {
-      saved = await fetchAchievementRuns(userId)
-      await settingsStorage.setItem(runsKeyFor(userId), JSON.stringify(saved))
-    } catch (e) {
-      const kept = await settingsStorage.getItem(runsKeyFor(userId))
-      if (!kept) throw e
-      log.info('ui', 'achievements: offline, judged from the runs kept on the phone')
-      saved = JSON.parse(kept)
-    }
-    const waiting = (await queuedPayloads()).filter(p => p.user_id === userId)
-    const local = [...waiting, ...(justPlayed ? [justPlayed] : [])].map(achievementRunFromRow)
-    // A run both just saved and fetched counts twice; earned is a set of keys, so that's harmless.
-    const earned = earnedList([...saved, ...local])
-    const raw = await settingsStorage.getItem(keyFor(userId))
-    const seen = new Set<string>(raw ? JSON.parse(raw) : [])
-    const fresh = raw ? earned.filter(e => !seen.has(e.key)) : []
-    // Kept as a union: a fetch that comes back short must never make an old one new again.
-    await settingsStorage.setItem(keyFor(userId), JSON.stringify([...new Set([...seen, ...earned.map(e => e.key)])]))
-    if (fresh.length) useAchievementToasts.setState(s => ({ queue: [...s.queue, ...fresh] }))
+    await judgeAchievements({
+      fetchRuns: () => fetchAchievementRuns(userId),
+      get: k => settingsStorage.getItem(k),
+      set: (k, v) => settingsStorage.setItem(k, v),
+      queued: queuedPayloads,
+      show: fresh => useAchievementToasts.setState(s => ({ queue: [...s.queue, ...fresh] })),
+      log: m => log.info('ui', m),
+    }, userId, justPlayed)
   } catch (e) {
     log.warn('ui', 'achievements: announcing failed', e)
   }

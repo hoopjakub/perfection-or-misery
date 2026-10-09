@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useState } from 'react'
+import { keep, readKept } from '@/lib/kept'
 import { log } from '@/diag/log'
 import { t } from '@/i18n'
 import { router } from 'expo-router'
@@ -231,14 +232,16 @@ export function useRunOwner(ownerId?: string | null): RunOwner | null {
   const me = useUserStore(st => (st.isGuest ? null : st.user?.id ?? null))
   const myName = useUserStore(st => st.profile?.username ?? null)
   const id = ownerId ?? me
-  const [p, setP] = useState<PublicProfile | null>(null)
-  const [club, setClub] = useState<{ tag: string; colour: string } | null>(null)
+  // P9.75: as last seen, at once (src/lib/kept.ts); the name and the look
+  // used to pop in a moment after the run opened.
+  const [p, setP] = useState<PublicProfile | null>(() => (id ? readKept<PublicProfile | null>(`user:${id}`) ?? null : null))
+  const [club, setClub] = useState<{ tag: string; colour: string } | null>(() => (id ? readKept<{ tag: string; colour: string } | null>(`owner-club:${id}`) ?? null : null))
   useEffect(() => {
     if (!id) return
     let active = true
-    fetchPublicProfile(id).then(r => { if (active) setP(r) }).catch(e => log.warn('net', 'run owner: failed', e))
+    fetchPublicProfile(id).then(r => { keep(`user:${id}`, r); if (active) setP(r) }).catch(e => log.warn('net', 'run owner: failed', e))
     // P8.5-04: the club tag goes on the shared picture too.
-    fetchClubOf(id).then(c => { if (active && c) setClub({ tag: c.tag, colour: c.colour }) }).catch(() => {})
+    fetchClubOf(id).then(c => { const v = c ? { tag: c.tag, colour: c.colour } : null; keep(`owner-club:${id}`, v); if (active && v) setClub(v) }).catch(() => {})
     return () => { active = false }
   }, [id])
   if (!id) return null

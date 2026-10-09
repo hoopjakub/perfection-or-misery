@@ -1,10 +1,9 @@
 import { t, num, LOCALE } from '@/i18n'
-import { useSettledOnce } from '@/lib/loading'
-import { log } from '@/diag/log'
-import React, { useCallback, useMemo, useState } from 'react'
+import { useKept } from '@/lib/kept'
+import React, { useMemo, useState } from 'react'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, FlatList, Platform } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
+import { router } from 'expo-router'
 import { useUserStore } from '@/store/userStore'
 import { fetchRunHistory, fetchScoreLadder, placeOn, SCORE_LADDER, type RunHistoryEntry } from '@/db/queries/leaderboard'
 import { weekStart } from '@/lib/week'
@@ -37,44 +36,29 @@ const date = (s: string) => new Date(s).toLocaleDateString(LOCALE, { day: 'numer
 const placeLabel = (place: number | null, board: string) => (place ? t('ranks.placeOn', { place: ordinal(place).toUpperCase(), board }) : t('ranks.outsideTop', { n: SCORE_LADDER, board }))
 
 export default function RunsScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
-  const [runs, setRuns] = useState<RunHistoryEntry[]>([])
-  const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState<SortKey>('date')
   // P8-152: every run, or one season's.
   const [seasonN, setSeasonN] = useState('all')
-  const [failed, setFailed] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
-  // P8-99: every run's place on the all-time board, and on this week's when
-  // it's from this week (the week as Ranks counts it, src/lib/week.ts).
-  const [ladders, setLadders] = useState<{ all: number[]; week: number[]; since: string } | null>(null)
   const wide = useSizeClass() === 'expanded'   // two columns of labels (10-ADAPT §2.2)
 
-  // Refetch whenever the screen gains focus: tabs stay mounted, so a mount-only
-  // effect never showed a run finished after the first visit.
-  useFocusEffect(
-    useCallback(() => {
-      let active = true
-      ;(async () => {
-        if (!user || isGuest) { setLoading(false); return }
-        try {
-          const data = await once(fetchRunHistory(user.id, 100))
-          if (active) { setRuns(data); setFailed(false) }
-          const since = weekStart().toISOString()
-          Promise.all([fetchScoreLadder(), fetchScoreLadder(since)])
-            .then(([all, week]) => { if (active) setLadders({ all, week, since }) })
-            .catch(e => log.warn('net', 'runs: places failed', e))
-        } catch (error) {
-          log.warn('net', 'runs: load failed', error)
-          if (active) setFailed(true)
-        } finally {
-          if (active) setLoading(false)
-        }
-      })()
-      return () => { active = false }
-    }, [user, isGuest, reloadKey])
-  )
+  // P9.75: the runs you saw last time at once, refreshed whenever the tab
+  // comes into view (tabs stay mounted, so a mount-only effect never showed a
+  // run finished after the first visit). src/lib/kept.ts.
+  const me = user && !isGuest ? user.id : null
+  const kept = useKept<RunHistoryEntry[]>(me && `runs:${me}`, () => fetchRunHistory(me!, 100), 'runs')
+  const runs = kept.data ?? []
+  const failed = kept.failed
+  // No user yet (signing in still loading) waits like a load: it showed "no
+  // runs yet" for a moment before.
+  const loading = !isGuest && kept.data === undefined && !failed
+  // P8-99: every run's place on the all-time board, and on this week's when
+  // it's from this week (the week as Ranks counts it, src/lib/week.ts).
+  const since = weekStart().toISOString()
+  const ladders = useKept(me && `ladders:${since}`, async () => {
+    const [all, week] = await Promise.all([fetchScoreLadder(), fetchScoreLadder(since)])
+    return { all, week, since }
+  }, 'runs: places').data ?? null
 
   // Best first on every key: descending, except losses, where fewer is better.
   const sorted = useMemo(() => {
@@ -106,16 +90,24 @@ export default function RunsScreen() {
     </>
   )
 
+  // The sort and the seasons from the first frame, so they don't arrive after the runs.
+  const controls = <>
+    <Chips roles={roles} label={t('ranks.sort')} options={SORTS} value={sortBy} onChange={setSortBy} style={styles.sort} />
+    <Chips<string> roles={roles} label={t('ranks.season')} value={seasonN} onChange={setSeasonN}
+      options={[{ id: 'all', label: t('ranks.all') }, ...seasonsSoFar().map(x => ({ id: String(x.n), label: t('ranks.seasonN', { n: x.n }) }))]} />
+  </>
+
   if (isGuest || loading || (failed && runs.length === 0) || runs.length === 0) {
     return (
       <KitScreen ground={EVERYDAY} width={wide ? 'wide' : 'column'}>
         {header}
+        {loading && controls}
         {isGuest ? (
           <EmptyState roles={roles} icon="lock" title={t('ranks.signInKeep')} body={t('ranks.guestNotSaved')} />
         ) : loading ? (
           <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
         ) : failed && runs.length === 0 ? (
-          <InlineError roles={roles} message={t('ranks.runsFailed')} onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+          <InlineError roles={roles} message={t('ranks.runsFailed')} onRetry={kept.reload} />
         ) : runs.length === 0 ? (
           <EmptyState roles={roles} title={t('ranks.noRuns')} body={t('ranks.startSuffering')} />
         ) : null}
@@ -135,9 +127,7 @@ export default function RunsScreen() {
         showsVerticalScrollIndicator={Platform.OS === 'web'}
         initialNumToRender={12}
         ListHeaderComponent={<>{header}
-          <Chips roles={roles} label={t('ranks.sort')} options={SORTS} value={sortBy} onChange={setSortBy} style={styles.sort} />
-          <Chips<string> roles={roles} label={t('ranks.season')} value={seasonN} onChange={setSeasonN}
-            options={[{ id: 'all', label: t('ranks.all') }, ...seasonsSoFar().map(x => ({ id: String(x.n), label: t('ranks.seasonN', { n: x.n }) }))]} />
+          {controls}
           {seasonN !== 'all' && (
             <KitText t="tag" color={roles.textMuted}>
               {`${SEASONS[Number(seasonN)].name.toUpperCase()} · ${seasonDates(SEASONS[Number(seasonN)]).toUpperCase()} · ${t('ranks.runs', { count: sorted.length })}`}

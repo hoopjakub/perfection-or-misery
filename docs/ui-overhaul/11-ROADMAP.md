@@ -1697,6 +1697,8 @@ The checklist went through on the phone ([`../PHASE-9.5-CHECKLIST.md`](../PHASE-
 - The Kit Drop direction ([`../../DESIGN.md`](../../DESIGN.md)) stays the identity unless the maintainer decides otherwise.
 - **The match sheet's redesign** (P8-48, and what centralisation step 8 left of C-15): its 121 interim `ScaleText` lines onto `KitText`, a context table that marks both sides of a match (extend `LeagueTable`, or decide the sheet's table is a different thing), and the knockout road with a button per leg (extend `TieRow`). [`../centralisation/12-PHASE-TWO-FINAL.md`](../centralisation/12-PHASE-TWO-FINAL.md) step 8.
 
+- **The pundits in the cups** (the maintainer, 9 October 2026: "in league they work fine"). In a league the pundits predict a table you then play, and the verdict checks it. In the World Cup and the European cups they play out a whole tournament from a draw of their own (P8-165), which never matches the real one: since 9 Oct the real draw comes first (P9.75-32), so their groups and bracket now sit beside yours and disagree with it. Rethink what a cup's pundits predict: on the real draw (changes the verdict's replay, `cup-calls.ts`), only rounds and a champion, or something else; decided with the maintainer at the start of the phase.
+
 **Done when** · decided at the start of the phase, with the maintainer, from the critique's scores.
 
 ### After Phase 11 · The launch videos, redone (added 4 October 2026)

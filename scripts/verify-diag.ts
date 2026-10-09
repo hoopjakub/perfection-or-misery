@@ -136,6 +136,29 @@ for (const f of walk(path.join(ROOT, 'app'))) {
   })
 }
 
+// 2i · A screen showing the server's data keeps it (Phase 9.75, P9.75-38):
+// Runs, You and Ranks started from nothing on every visit, and finishing a run
+// rebuilds the tabs, so it looked like a reset. A screen that fetches goes
+// through src/lib/kept.ts (useKept, or arrive + readKept for its own load()).
+// The two editors, crest and profile (an editor shouldn't change under your
+// fingers), and a saved run's result (its own cache, src/lib/runData.ts) are
+// left out on purpose.
+{
+  const FETCHES = /\bfetch(UserStats|RunHistory|PublicProfile|ClubOf|Club|Career|CareerRuns|AchievementRuns|Leaderboard|Messages|MyPlace|ClubBoard|MyInvites)\(/
+  const KEPT = /from '@\/lib\/kept'/
+  const EXEMPT = new Set(['app/crest-edit.tsx', 'app/profile-edit.tsx', 'app/game/result.tsx'])
+  check(FETCHES.test('const s = await fetchUserStats(me)') && !KEPT.test("import { x } from '@/lib/loading'"), 'rule 2i: its patterns no longer match')
+  let screens = 0
+  for (const f of [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'src/components'))]) {
+    const rel = path.relative(ROOT, f).replace(/\\/g, '/')
+    const code = fs.readFileSync(f, 'utf8')
+    if (!/\.tsx$/.test(rel) || EXEMPT.has(rel) || !FETCHES.test(code)) continue
+    screens++
+    check(KEPT.test(code), `${rel}: fetches the server's data without keeping it (src/lib/kept.ts)`)
+  }
+  check(screens >= 10, `rule 2i found ${screens} screens that fetch; expected ten or more (is the pattern still right?)`)
+}
+
 // 2g · The draft draws every hanger, the eleven's and the bench's, through one
 // builder (Phase 9.75, P9.75-03, R3-09). The bench drew its own, without the
 // club mark, the position or the step-back while someone was held: "hard to
@@ -167,6 +190,10 @@ for (const f of walk(path.join(ROOT, 'app'))) {
     text.split(/\r?\n/).forEach((line, i) => {
       const code = line.replace(/(^|\s)\/\/.*$/, '')
       if (BANNED.test(code)) check(false, `${rel}:${i + 1}: engine-dependent maths (use src/lib/pmath.ts): ${code.trim().slice(0, 70)}`)
+      // A random draw inside a sort's comparator: the number of draws is the
+      // number of comparisons, which each engine's sort decides for itself
+      // (engine 2's fingerprint still failed on exactly this, 9 Oct).
+      if (/\.sort\(\s*\(\s*\w+\s*,\s*\w+\s*\)\s*=>.*\b(rng|Math\.random)\(\)/.test(code)) check(false, `${rel}:${i + 1}: a random draw inside a sort's comparator (draw the keys first): ${code.trim().slice(0, 70)}`)
     })
   }
 }

@@ -1,6 +1,6 @@
 import { t, num } from '@/i18n'
+import { useKept } from '@/lib/kept'
 import { measure } from '@/diag/perf'
-import { log } from '@/diag/log'
 import React, { useCallback, useEffect, useState } from 'react'
 import { VersionButton } from '@/components/VersionButton'
 import { PageMeta, GAME_JSON_LD } from '@/components/PageMeta'
@@ -39,40 +39,20 @@ export default function HomeScreen() {
   // Phase 9: boot:interactive ends at Home's first frame (once: the mark is used up).
   useEffect(() => { const id = requestAnimationFrame(() => measure('boot:interactive', 'boot')); return () => cancelAnimationFrame(id) }, [])
   const { isGuest, user, guestFinishedRun } = useUserStore()
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [recentRuns, setRecentRuns] = useState<RunHistoryEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
+  // P9.75: what Home showed last time, at once, refreshed every time it comes
+  // into view (src/lib/kept.ts). Finishing a run rebuilds the tabs
+  // (exitToHome), so Home used to start from ghost rows after every run; the
+  // run just saved is already in the kept copy (runs.ts, keepJustPlayed).
+  const me = user && !isGuest ? user.id : null
+  const home = useKept<{ stats: UserStats | null; runs: RunHistoryEntry[] }>(me && `home:${me}`, async () => {
+    const [stats, runs] = await Promise.all([fetchUserStats(me!), fetchRunHistory(me!, 3)])
+    return { stats, runs }
+  }, 'home')
+  const stats = home.data?.stats ?? null
+  const recentRuns = home.data?.runs ?? []
+  const failed = home.failed
+  const loading = !isGuest && home.data === undefined && !failed
   const wide = useSizeClass() === 'expanded'
-
-  // Refetch every time Home gains focus (tabs persist, so a plain mount effect
-  // would go stale) — this is what makes a freshly-finished run show up.
-  useFocusEffect(
-    useCallback(() => {
-      let active = true
-      async function loadData() {
-        if (!user || isGuest) { setLoading(false); return }
-        try {
-          const [userStats, runs] = await Promise.all([
-            fetchUserStats(user.id),
-            fetchRunHistory(user.id, 3),
-          ])
-          if (!active) return
-          setStats(userStats)
-          setRecentRuns(runs)
-          setFailed(false)
-        } catch (error) {
-          log.warn('net', 'home: load failed', error)
-          if (active) setFailed(true)
-        } finally {
-          if (active) setLoading(false)
-        }
-      }
-      loadData()
-      return () => { active = false }
-    }, [user, isGuest, reloadKey])
-  )
 
   // The same "last run" the LAST TIME tags read (settingsStore), so Again and
   // the tags always agree — and a guest, who has no saved runs, gets Again too.
@@ -161,7 +141,7 @@ export default function HomeScreen() {
           <>
             <SectionTag roles={roles}>{t('home.lastRuns')}</SectionTag>
             {failed && recentRuns.length === 0 ? (
-              <InlineError roles={roles} message={t('home.loadFailed')} onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+              <InlineError roles={roles} message={t('home.loadFailed')} onRetry={home.reload} />
             ) : loading && recentRuns.length === 0 ? (
               <View style={styles.labels}>
                 <RunLabelSkeleton roles={roles} />

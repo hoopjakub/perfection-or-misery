@@ -269,6 +269,23 @@ check(mine.clubs.find(c => c.key === 'manager')?.winner.manager === 'MisterMan',
   check(importanceFactor([{ label: 'Final', rating: 5 }], w) === 1, 'a quiet final lifts nobody')
 }
 
+// P9.75 (the phone, 9 Oct): a World Cup's player of the tournament. Nobody is
+// rated in ten matches, so the ranking fell to the player id: alphabetical.
+// Here the alphabetically first is the weakest; the best must still win, and
+// the runners-up must come in their order, not the alphabet's.
+{
+  const lines = ['ST', 'CM', 'CB', 'GK']
+  const cands: AwardCandidate[] = Array.from({ length: 40 }, (_, i) => ({
+    ...season(99).awards.playerOfTheSeason[0],
+    playerId: `p${String(i).padStart(2, '0')}`, name: `P${i}`, position: lines[i % 4],
+    score: 5 + i, matchesRated: 3 + (i % 5), breakdown: [],
+  }))
+  const night = buildAwardsNight({ awards: { playerOfTheSeason: cands, bestU21: [] }, stats: { players: [], teams: [] }, mode: 'world_cup' })
+  const order = [night.playerOfTheSeason!.winner, ...night.playerOfTheSeason!.runnersUp].map(c => c.playerId)
+  check(order[0] !== 'p00' && order[0] >= 'p30', `a seven-match tournament's player went alphabetically: ${order.join(', ')}`)
+  check(order.join() !== [...order].sort().join(), `the runners-up are in alphabetical order: ${order.join(', ')}`)
+}
+
 // Empty inputs don't throw.
 const empty = buildAwardsNight({ awards: { playerOfTheSeason: [], bestU21: [] }, stats: { players: [], teams: [] } })
 check(!empty.playerOfTheSeason && !empty.teamOfTheSeason && empty.players.length === 0, 'an empty season broke the night')

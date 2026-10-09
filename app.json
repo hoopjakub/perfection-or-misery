@@ -89,7 +89,8 @@
     "updates": {
       "url": "https://u.expo.dev/eebf5b96-e62d-478e-89d9-955e71192983",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "assetPatternsToBeBundled": ["assets/db/**/*", "assets/geo/**/*", "assets/fonts/**/*", "assets/*.png"]
     }
   }
 }

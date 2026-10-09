@@ -1,11 +1,11 @@
 import { t, num, dec } from '@/i18n'
-import { useSettledOnce } from '@/lib/loading'
+import { useKept } from '@/lib/kept'
 import { log } from '@/diag/log'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { friendIds } from '@/lib/friends'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, Pressable } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
+import { router } from 'expo-router'
 import { fetchLeaderboard, fetchMyPlace, type LeaderboardEntry, type LeaderboardFilter } from '@/db/queries/leaderboard'
 import { formatTier, verdictOf, runMeta } from '@/data/tiers'
 import { runRoute } from '@/lib/nav'
@@ -66,13 +66,7 @@ const HARD_OPTIONS: { id: HardFilter; label: string }[] = [
 ]
 
 export default function LeaderboardScreen() {
-  const once = useSettledOnce()   // Phase 9: a first load arrives deliberately (src/lib/loading.ts)
   const { user, isGuest } = useUserStore()
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
-  const [mine, setMine] = useState<{ place: number; score: number } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
   const [board, setBoard] = useState<Board>('all')
   const [seasonN, setSeasonN] = useState(() => String(seasonOf().n))
   const season = SEASONS[Number(seasonN)]
@@ -115,29 +109,26 @@ export default function LeaderboardScreen() {
   const aroundPlace = (place: number) => setStart(Math.max(0, place - 26))
 
   // Refetch on focus (tabs stay mounted, so a mount-only effect went stale the
-  // moment you finished another run) and whenever a filter changes.
-  useFocusEffect(
-    useCallback(() => {
-      let active = true
-      ;(async () => {
-        try {
-          const [data, place] = await once(Promise.all([
-            fetchLeaderboard(filter),
-            me ? fetchMyPlace(me, filter).catch(e => { log.warn('net', 'leaderboard: your place failed', e); return null }) : Promise.resolve(null),
-          ]))
-          if (active) { setLeaderboard(data); setMine(place); setFailed(false) }
-          // Friends only centres on you once your place is known.
-          if (active && friendsOnly && place && start === 0 && place.place > 25) aroundPlace(place.place)
-        } catch (error) {
-          log.warn('net', 'leaderboard: load failed', error)
-          if (active) setFailed(true)
-        } finally {
-          if (active) setLoading(false)
-        }
-      })()
-      return () => { active = false }
-    }, [reloadKey, key, me])
-  )
+  // moment you finished another run) and whenever a filter changes. P9.75: a
+  // board you've seen shows at once, as you saw it, while it refreshes; one you
+  // haven't waits on ghost rows (src/lib/kept.ts). Friends only waits for the
+  // list of friends, which its filter needs.
+  const ready = !(friendsOnly && me && friends === null)
+  const kept = useKept(ready ? `board:${me ?? 'guest'}:${key}` : null, async () => {
+    const [data, place] = await Promise.all([
+      fetchLeaderboard(filter),
+      me ? fetchMyPlace(me, filter).catch(e => { log.warn('net', 'leaderboard: your place failed', e); return null }) : Promise.resolve(null),
+    ])
+    return { data, place }
+  }, 'leaderboard')
+  const leaderboard: LeaderboardEntry[] = kept.data?.data ?? []
+  const mine = kept.data?.place ?? null
+  const failed = kept.failed
+  const loading = kept.data === undefined && !failed
+  // Friends only centres on you once your place is known.
+  useEffect(() => {
+    if (friendsOnly && mine && start === 0 && mine.place > 25) aroundPlace(mine.place)
+  }, [friendsOnly, mine?.place])
 
   const filters = (
     <View style={styles.filters}>
@@ -213,7 +204,7 @@ export default function LeaderboardScreen() {
       {loading ? (
         <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
       ) : failed && leaderboard.length === 0 ? (
-        <InlineError roles={roles} message={t('ranks.loadFailed')} onRetry={() => { setLoading(true); setReloadKey(k => k + 1) }} />
+        <InlineError roles={roles} message={t('ranks.loadFailed')} onRetry={kept.reload} />
       ) : leaderboard.length === 0 ? (
         <EmptyState roles={roles} title={t('ranks.nobody')} body={board === 'week' ? t('ranks.nobodyWeek') : t('ranks.nobodyAll')} />
       ) : (
@@ -258,14 +249,14 @@ export default function LeaderboardScreen() {
 // the orange outline.
 function ClubBoard() {
   const myTag = useUserStore(s => s.profile?.club_tag ?? null)
-  const [rows, setRows] = useState<ClubBoardRow[] | null>(null)
-  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed'>('loading')
-  useFocusEffect(useCallback(() => {
-    let active = true
-    fetchClubBoard(50).then(r => { if (active) { setRows(r); setState('ready') } })
-      .catch(e => { if (active) setState(e instanceof ClubsUnavailable ? 'unavailable' : 'failed') })
-    return () => { active = false }
-  }, []))
+  // Kept like the runs' board (P9.75, src/lib/kept.ts). "Not set up" is an
+  // answer, not a failure, so it's kept too.
+  const kept = useKept<ClubBoardRow[] | 'unavailable'>('clubs', () => fetchClubBoard(50).catch(e => {
+    if (e instanceof ClubsUnavailable) return 'unavailable' as const
+    throw e
+  }), 'clubs board')
+  const rows = Array.isArray(kept.data) ? kept.data : null
+  const state = kept.data === 'unavailable' ? 'unavailable' : rows ? 'ready' : kept.failed ? 'failed' : 'loading'
   if (state === 'loading') return <View style={styles.list}>{[0, 1, 2].map(i => <RunLabelSkeleton key={i} roles={roles} />)}</View>
   if (state === 'unavailable') return <EmptyState roles={roles} title={t('ranks.notSetUp')} body={t('ranks.notSetUpBody')} />
   if (state === 'failed') return <EmptyState roles={roles} title={t('ranks.clubsFailed')} body={t('ranks.tryLater')} />
