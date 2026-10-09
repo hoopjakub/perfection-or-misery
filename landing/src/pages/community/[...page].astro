@@ -1,0 +1,7 @@
+---
+import Community from '../../components/Community.astro'
+import { PAGES, type CPage } from '../../community-i18n'
+export const getStaticPaths = () => PAGES.map(p => ({ params: { page: p || undefined } }))
+const page = (Astro.params.page ?? '') as CPage
+---
+<Community lang="en" page={page} />

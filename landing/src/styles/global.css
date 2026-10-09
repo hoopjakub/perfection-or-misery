@@ -33,7 +33,15 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--muted) var(--bg); }
+/* The reel bleeds to 100vw, which counts the scrollbar: clip, or the page
+   scrolls sideways by the scrollbar's width (9 Oct 2026). */
+body { overflow-x: clip; }
+/* The scrollbars in the site's colours: thin, square, the kit's grey. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--muted); border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--text); }
 body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 var(--body); }
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; }
@@ -48,9 +56,97 @@ a { color: inherit; }
 /* ── The bar ─────────────────────────────────────────────────────────── */
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: var(--max); margin: 0 auto; padding: 12px var(--gutter); }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.brand-mark { width: 40px; height: 40px; }
-.brand-name { font-family: var(--super); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 20px; line-height: 1; }
-.lang { font: 500 12px var(--tag); text-transform: uppercase; letter-spacing: .04em; padding: 10px 4px; }
+.brand-mark { width: 44px; height: 44px; flex: none; color: var(--text); transform-origin: left center; transition: transform .42s cubic-bezier(.22,1,.36,1); }
+
+/* The logo that opens (Logo.astro `opens`): at rest the compact mark (each
+   triangle moved 60 units toward the other, the wordmark shut on the seam);
+   hovered or focused, the app's opening (LogoIntro): the triangles part over
+   480 ms, the wordmark unfolds from the seam from 190 ms, the mark grows. SVG
+   lengths in a CSS transform are user units, so --shift is the app's 60. */
+.logo-opens .lg-top, .logo-opens .lg-bottom { transition: transform .48s cubic-bezier(.22,1,.36,1); }
+.logo-opens .lg-top { transform: translateY(var(--shift)); }
+.logo-opens .lg-bottom { transform: translateY(calc(var(--shift) * -1)); }
+.logo-opens .lg-word { transform-box: view-box; transform-origin: 50% var(--seam); transform: scaleY(.02); opacity: 0;
+  transition: transform .2s cubic-bezier(.4,0,1,1), opacity .12s linear; }
+.opens-on-hover:hover .logo-opens .lg-top, .opens-on-hover:focus-visible .logo-opens .lg-top,
+.opens-on-hover:hover .logo-opens .lg-bottom, .opens-on-hover:focus-visible .logo-opens .lg-bottom { transform: none; }
+.opens-on-hover:hover .logo-opens .lg-word, .opens-on-hover:focus-visible .logo-opens .lg-word {
+  transform: none; opacity: 1; transition: transform .3s cubic-bezier(.22,1,.36,1) .19s, opacity .08s linear .19s; }
+/* The mark grows as it opens, from its left edge. */
+.opens-on-hover:hover .brand-mark, .opens-on-hover:focus-visible .brand-mark { transform: scale(1.45); }
+/* The flag, cut round; 44 px to tap, 28 px drawn. */
+.lang { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
+.lang img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--rule);
+  transition: transform .2s cubic-bezier(.22,1,.36,1); }
+.lang:hover img, .lang:focus-visible img { transform: scale(1.12); }
+.lang:active img { transform: scale(.94); }
+/* Slovakia's arms sit left of centre; keep them inside the circle. */
+.lang img[src$="/sk.png"] { object-position: 30% 50%; }
+
+/* The two tabs, the tape under the one you're on (as the community's). */
+.tabs { display: flex; gap: 20px; margin-left: 16px; }
+.tabs a { font: 500 13px/1 var(--tag); text-transform: uppercase; letter-spacing: .04em; text-decoration: none; color: var(--muted);
+  padding: 14px 0 10px; border-bottom: 4px solid transparent; }
+.tabs a[aria-current] { color: var(--text); border-bottom-color: var(--orange); }
+@media (hover: hover) { .tabs a:hover { color: var(--text); } }
+/* Sign in, or who's signed in, pushed right beside the flag. */
+.who { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.who:empty { display: none; }
+.signin-dialog { width: min(440px, calc(100vw - 32px)); box-sizing: border-box; padding: 20px; border: 2px solid var(--line);
+  background: var(--bg); color: var(--text); box-shadow: 4px 4px 0 var(--offset); }
+.signin-dialog::backdrop { background: rgba(0,0,0,.6); }
+.signin-title { font-size: 28px; margin: 0; }
+/* A phone: the tabs take their own row under the logo, sign-in and flag. */
+@media (max-width: 479px) {
+  .bar { flex-wrap: wrap; row-gap: 0; }
+  .tabs { order: 3; width: 100%; margin-left: 0; }
+}
+.who-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14ch; }
+
+/* ── The community (02 §6, 11 §4): a reading column, Operate and Read ──── */
+.community { max-width: 720px; margin: 24px auto 0; }
+.c-title { font-size: 40px; margin: 0 0 16px; }
+.c-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--rule); margin-bottom: 20px; }
+.c-tabs a { font: 500 13px/1 var(--tag); text-transform: uppercase; letter-spacing: .04em; text-decoration: none; padding: 12px 0;
+  color: var(--muted); border-bottom: 4px solid transparent; margin-bottom: -1px; }
+.c-tabs a[aria-current] { color: var(--text); border-bottom-color: var(--orange); }   /* the tape under the active one */
+.c-list { display: grid; }
+.c-item { display: grid; gap: 6px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.c-link { text-decoration: none; color: inherit; }
+@media (hover: hover) { .c-link:hover .c-question { text-decoration: underline; } }
+.c-head { font: 800 20px/1.25 var(--body); margin: 0; }
+.c-text, .c-answer, .c-question { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Answers are bigger than questions (Q24): the question is the prompt. */
+.c-question { font-size: 14px; color: var(--muted); }
+.c-question a { color: inherit; }
+.c-answer { font-size: 17px; line-height: 1.55; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.c-note { margin: 20px 0; }
+.c-error { color: var(--red); margin: 0; min-height: 0; }
+.c-error:empty { display: none; }
+.c-actions { display: grid; gap: 12px; margin: 24px 0; }
+.c-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+.c-row.spread { justify-content: space-between; }
+.c-row .field { flex: 1; min-width: 0; }
+.c-form, .c-search { display: grid; gap: 10px; margin-bottom: 8px; }
+.c-form .plate { width: 100%; }
+.c-form .c-row .plate { width: auto; }
+.field { font: 400 16px/1.4 var(--body); color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 0; padding: 12px; min-height: 48px; width: 100%; box-sizing: border-box; }
+textarea.field { resize: vertical; }
+.field::placeholder { color: var(--muted); }
+.c-vis { display: flex; gap: 16px; border: 0; padding: 0; margin: 0; }
+.c-radio { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--tag); text-transform: uppercase; min-height: 44px; cursor: pointer; }
+.c-radio input { accent-color: var(--orange); width: 18px; height: 18px; margin: 0; }
+.small { font-size: 14px; margin: 0; }
+/* The statuses as tags (02 §3). Orange means you; volt only ever on ink. */
+.st { display: inline-block; padding: 2px 6px; border: 1px solid var(--line); }
+.st-planned { background: var(--orange); color: var(--ink); border-color: var(--ink); }
+.st-answered { background: var(--ink); color: var(--volt); border-color: var(--ink); }
+.st-declined { background: var(--red); color: #fff; border-color: var(--red); }
+.st-new { background: var(--orange); color: var(--ink); border-color: var(--ink); }
+.c-conv { display: grid; gap: 10px; margin-top: 28px; padding-top: 16px; border-top: 2px solid var(--line); }
+.c-msg { padding: 10px 12px; border-left: 4px solid var(--rule); }
+.c-msg.from-admin { border-left-color: var(--orange); }
 
 main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
 
@@ -69,7 +165,7 @@ main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
 /* ── The poster ──────────────────────────────────────────────────────── */
 .poster { padding-top: 8px; }
 /* The reel is always floodlit (09 §3.1), full bleed on any width. */
-.reel { position: relative; height: 96px; margin: 0 calc(50% - 50vw); background: var(--nylon); overflow: hidden; cursor: pointer; }
+.reel { --step: 164px; position: relative; height: 96px; margin: 0 calc(50% - 50vw); background: var(--nylon); overflow: hidden; cursor: pointer; }
 .reel-track { position: absolute; top: 18px; left: 0; display: flex; will-change: transform; }
 .reel-tag { position: relative; flex: none; width: 156px; height: 60px; margin: 0 4px; background: var(--a); border: 1px solid #000;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px; padding: 0 8px; overflow: hidden; }
@@ -78,10 +174,17 @@ main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
 .reel-name { font: 800 13px/1.2 var(--body); text-transform: uppercase; }
 .reel-season { font: 500 10px/1.3 var(--tag); }
 .reel-tag.is-landed { animation: stamp .14s ease-out; }
+/* At rest (built, or no script yet) the landed tag sits under the marker. */
+.reel-track.at-rest { left: calc(50% - (var(--side) + .5) * var(--step)); }
+/* Landed: the rest step back so the one you got reads at a glance. */
+.reel-tag { transition: opacity .25s ease-out; }
+.reel.has-landed .reel-tag:not(.is-landed) { opacity: .4; }
 @keyframes stamp { from { transform: scale(1.04); } to { transform: scale(1); } }
 .reel-edge { position: absolute; left: 0; right: 0; height: 4px; background: var(--rule); z-index: 1; transition: background .05s; }
 .reel-edge.top { top: 0; } .reel-edge.bottom { bottom: 0; }
-.reel-marker { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--orange); z-index: 2; }
+.reel-marker { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; z-index: 2;
+  /* Two ticks, in the gaps above and below the tags, never across a name. */
+  background: linear-gradient(var(--orange) 0 16px, transparent 16px calc(100% - 16px), var(--orange) calc(100% - 16px)); }
 .flapper { position: absolute; top: 0; left: -6px; width: 15px; height: 14px; background: var(--orange); border: 1px solid var(--ink); transform-origin: top; }
 .landed-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 12px 0 28px; }
 .landed { overflow-wrap: anywhere; }
@@ -157,7 +260,7 @@ main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
 /* ── Wide ────────────────────────────────────────────────────────────── */
 @media (min-width: 900px) {
   :root { --gutter: 32px; }
-  .reel { height: 116px; }
+  .reel { --step: 188px; height: 116px; }
   .reel-track { top: 18px; }
   .reel-tag { width: 180px; height: 80px; }
   .reel-name { font-size: 15px; }

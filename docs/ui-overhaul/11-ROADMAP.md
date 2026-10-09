@@ -1703,6 +1703,8 @@ The checklist went through on the phone ([`../PHASE-9.5-CHECKLIST.md`](../PHASE-
 
 - **The pundits in the cups** (the maintainer, 9 October 2026: "in league they work fine"). In a league the pundits predict a table you then play, and the verdict checks it. In the World Cup and the European cups they play out a whole tournament from a draw of their own (P8-165), which never matches the real one: since 9 Oct the real draw comes first (P9.75-32), so their groups and bracket now sit beside yours and disagree with it. Rethink what a cup's pundits predict: on the real draw (changes the verdict's replay, `cup-calls.ts`), only rounds and a champion, or something else; decided with the maintainer at the start of the phase.
 
+- **The website too** (the maintainer, 9 October 2026, after seeing the first build: "the site right now looks kind of bad… even the website will need a redesign"). Phase 10 built it to the shape of [`../website/09-LANDING-SHAPE.md`](../website/09-LANDING-SHAPE.md) so it works and can be measured; Phase 11 redesigns it, UI and UX, with the app, critique first.
+
 **Done when** · decided at the start of the phase, with the maintainer, from the critique's scores.
 
 ### After Phase 11 · The launch videos, redone (added 4 October 2026)

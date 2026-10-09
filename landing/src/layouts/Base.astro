@@ -6,6 +6,8 @@ import '../styles/global.css'
 import Logo from '../components/Logo.astro'
 import Footer from '../components/Footer.astro'
 import { T, other, pathFor, type Lang } from '../i18n'
+import { CT } from '../community-i18n'
+import { AUTH_KEYS } from '../lib/signin-form'
 
 interface Props { lang: Lang; page?: string; title?: string; description?: string; jsonLd?: object; noindex?: boolean }
 const { lang, page = '', title, description, jsonLd, noindex = false } = Astro.props
@@ -15,6 +17,11 @@ const here = `${site}${pathFor(lang, page)}`
 const pair = { en: `${site}${pathFor('en', page)}`, sk: `${site}${pathFor('sk', page)}` }
 const fullTitle = title ?? t.title
 const desc = description ?? t.description
+const c = CT[lang]
+const auth = Object.fromEntries(AUTH_KEYS.map(k => [k, c[k]]))
+// The tabs (the maintainer, 9 Oct 2026: the community is a tab beside home,
+// easy to find, not a footer link).
+const inCommunity = page === 'community' || page.startsWith('community/')
 ---
 <!doctype html>
 <html lang={t.htmlLang}>
@@ -51,15 +58,27 @@ const desc = description ?? t.description
   </head>
   <body>
     <header class="bar">
-      <a class="brand" href={pathFor(lang)} aria-label="Perfection or Misery">
-        <Logo compact class="brand-mark" label="" />
-        <span class="brand-name">Perfection or Misery</span>
+      <a class="brand opens-on-hover" href={pathFor(lang)} aria-label="Perfection or Misery">
+        <Logo opens class="brand-mark" label="" />
       </a>
-      <a class="lang" href={pathFor(other(lang), page)} hreflang={other(lang)} lang={other(lang)}>{t.switchTo}</a>
+      <nav class="tabs" aria-label="Perfection or Misery">
+        <a href={pathFor(lang)} aria-current={page === '' ? 'page' : undefined}>{c.home}</a>
+        <a href={pathFor(lang, 'community')} aria-current={inCommunity ? 'page' : undefined}>{c.title}</a>
+      </nav>
+      <!-- Sign in, or who's signed in (scripts/header.ts). -->
+      <div class="who" data-who></div>
+      <!-- The flag of the language you're reading; a click switches to the other (the maintainer, 9 Oct 2026). -->
+      <a class="lang" href={pathFor(other(lang), page)} hreflang={other(lang)} lang={other(lang)} aria-label={t.switchTo} title={t.switchTo}>
+        <img src={`/flags/${lang}.png`} alt="" width="28" height="28" />
+      </a>
     </header>
     <main id="main">
       <slot />
     </main>
     <Footer lang={lang} />
+    <script type="application/json" id="auth-strings" set:html={JSON.stringify(auth)} />
+    <script>
+      import '../scripts/header'
+    </script>
   </body>
 </html>

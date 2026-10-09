@@ -3,7 +3,7 @@
 // without it: the page is built with a real landed tag, the counter as of the
 // build with its date, and no top five.
 import { readCounters, readTopFive, renameText, liveConfigured } from '../lib/live'
-import { weekStart } from '../../../src/lib/week'
+import { weekStart } from '../lib/game/week'
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -37,19 +37,28 @@ function spin() {
   const landing = pick()
   if (reduced) {
     // No spin: the next club-season cuts in.
-    track.replaceChildren(...[pick(), pick(), pick(), landing, pick(), pick(), pick()].map(tagEl))
-    track.children[3].classList.add('is-landed')
+    // Seven either side, as the built page, so the reel stays full.
+    track.replaceChildren(...[...Array.from({ length: 7 }, pick), landing, ...Array.from({ length: 7 }, pick)].map(tagEl))
+    track.style.setProperty('--side', '7')
+    track.classList.add('at-rest')
+    track.children[7].classList.add('is-landed')
     track.style.transform = ''
+    edges.forEach(e => (e.style.background = landing.a))
     announce(landing)
     return
   }
   spinning = true
-  // Twenty-four tags to pass, the landing one, and a tail so it brakes inside
-  // the reel, not at its end (the app's reel does the same, P8-05).
-  const items = [...Array.from({ length: 24 }, pick), landing, ...Array.from({ length: 4 }, pick)]
+  reelEl.classList.remove('has-landed')
+  track.classList.remove('at-rest')
+  // Twenty-four tags to pass, the landing one, and a tail long enough to
+  // fill the reel's right half at any width, so it brakes inside the reel,
+  // not at its end (four left a gap on a wide screen, 9 Oct 2026).
+  const probe = track.children[0] as HTMLElement
+  const step = probe.offsetWidth + parseFloat(getComputedStyle(probe).marginLeft) * 2
+  const tail = Math.ceil(reelEl.clientWidth / 2 / step) + 1
+  const items = [...Array.from({ length: 24 }, pick), landing, ...Array.from({ length: tail }, pick)]
   track.replaceChildren(...items.map(tagEl))
   const tag = track.children[0] as HTMLElement
-  const step = tag.offsetWidth + parseFloat(getComputedStyle(tag).marginLeft) * 2
   const centre = (reelEl.clientWidth - tag.offsetWidth) / 2 - parseFloat(getComputedStyle(tag).marginLeft)
   const from = centre, to = centre - 24 * step
   const dur = 1800
@@ -70,6 +79,7 @@ function spin() {
     else {
       spinning = false
       track.children[24].classList.add('is-landed')
+      reelEl.classList.add('has-landed')
       announce(landing)
     }
   }

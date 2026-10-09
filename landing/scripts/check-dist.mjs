@@ -56,6 +56,19 @@ for (const f of pages) {
   }
 }
 
+// 2b · Nothing outside landing/ (the site's Vercel build installs only its own
+// dependencies; an import from ../src pulled in the app's tsconfig, which
+// extends Expo's, and the first deploy failed, 9 Oct 2026).
+for (const f of walk(path.join(process.cwd(), 'src'))) {
+  if (!/\.(astro|ts|js|mjs)$/.test(f)) continue
+  const code = fs.readFileSync(f, 'utf8')
+  const depth = path.relative(path.join(process.cwd(), 'src'), path.dirname(f)).split(path.sep).filter(Boolean).length
+  for (const m of code.matchAll(/(?:from|import)\s*\(?\s*['"](\.\.\/[^'"]+)['"]/g)) {
+    const ups = (m[1].match(/\.\.\//g) ?? []).length
+    if (ups > depth + 1) fail(`${path.relative(process.cwd(), f)} imports ${m[1]}, outside landing/`)
+  }
+}
+
 // 3 · The weight (09 §1, roadmap Phase 10: under 100 KB before images): the
 // front page's HTML, CSS and JS, gzipped. Fonts reported beside it.
 const gz = f => zlib.gzipSync(fs.readFileSync(f)).length

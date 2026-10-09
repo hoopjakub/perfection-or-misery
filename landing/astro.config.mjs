@@ -17,10 +17,11 @@ export default defineConfig({
     inlineStylesheets: 'never',
   },
   compressHTML: true,
-  // The game's own modules (the logo's paths, the ranking week) are imported
-  // from the repo, one folder up.
+  // The game's modules the site uses are copied into src/lib/game by
+  // scripts/build-landing-data.cjs: the site never imports from outside
+  // landing/ (its Vercel build has only landing/'s dependencies).
   // assetsInlineLimit 0: Vite inlines small scripts into the HTML, and an
   // inline script is exactly what the CSP's script-src 'self' blocks. It also
   // put the rename table's real names into the page (check-dist caught both).
-  vite: { server: { fs: { allow: ['..'] } }, build: { assetsInlineLimit: 0 } },
+  vite: { build: { assetsInlineLimit: 0 } },
 })

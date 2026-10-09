@@ -483,8 +483,29 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| 975-47 | **The counter's SQL**: run `supabase/site-counters.sql`; `select public.site_counters();` gives the runs and no users figure (under 100 accounts) | Supabase | unchecked |
+| 975-47 | **The counter's SQL**: run `supabase/site-counters.sql`; `select public.site_counters();` gives the runs and no users figure (under 100 accounts) | Supabase | done (9 Oct): run by the maintainer |
 | 975-48 | **The site's project**: a new Vercel project from the repo, Root Directory `landing`, Astro, Node 24.x, *Skip deployments* when `landing/` didn't change, env `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `PUBLIC_SITE_URL` (public values only, no integration), Analytics and Speed Insights enabled, previews protected | Vercel | unchecked |
 | 975-49 | **The page on a phone and a computer, both languages, light and dark**: the reel spins once and lands, *Spin again* works; the counter shows (and flips when a run is saved); the Android plate says *coming soon*; the FAQ opens; the footer's *Copy* copies; `/sk` is Slovak throughout; a wrong address shows the 404 | web | unchecked |
 | 975-50 | **Lighthouse** (throttled mobile) 95+ in every category on the deployed page; a pasted link shows the card in WhatsApp and Discord | web | unchecked |
 | 975-51 | **The screenshots**: the seven of 09 §5 from the legal build, as `landing/public/shots/en/s1.webp`…`s7.webp` (and `sk/`), 390 × 844 or the phone's own size; the tiles turn into them on the next build | maintainer | unchecked |
+
+## Phase 10 · Step 3, the community database (9 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-52 | **The site deploys**: after the fix (the app's files copied into `landing/src/lib/game/`), the site's Vercel build passes | Vercel | unchecked |
+| 975-53 | **The logo on hover**: on the site, hovering the header's mark (or tabbing to it) opens it into the full logo, the triangles parting and the wordmark unfolding; it closes when you leave; with reduced motion it doesn't move | web | unchecked |
+| 975-54 | **`qa.sql`**: run once in the SQL editor; it ends without an error | Supabase | done (9 Oct): passed |
+| 975-55 | **`qa-tests.sql`**: run after it; the only message is `ALL QA TESTS PASSED (this error undoes the test data)`. Any other message (`TEST FAILED: …`) names the rule that broke; send it over | Supabase | done (9 Oct): passed |
+
+## Phase 10 · Step 4, the community pages (9 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-56 | **`qa.sql` again, then `qa-tests.sql`**: two new functions (`qa_can_ask`, `qa_published_one`) and their tests; still `ALL QA TESTS PASSED` | Supabase | unchecked |
+| 975-57 | **Sign in** at `/community/signin` with your game username and password; a wrong password says one line (not which part was wrong); the top bar shows your name and *Sign out* | web | unchecked |
+| 975-58 | **Ask**: as a player with a run, ask a private question; you land on its page, *Open*; `/community/ask` now says you have one waiting; as a guest or a fresh account with no run, the ask page says why you can't | web | unchecked |
+| 975-59 | **Edit and withdraw**: edit it once (works), again at once (the plate says when); withdraw asks with the question's words and it's gone from *Your questions* | web | unchecked |
+| 975-60 | **Search**: answer a public question from the SQL editor (`qa_admin_decide` needs the admin, step 5; or update the row by hand), find it with a sentence on `/community/questions`; a search with no match offers to ask with the text filled in | web | unchecked |
+| 975-61 | **Slovak**: the same pages under `/sk/community`, the flag switches between them | web | unchecked |
+| 975-62 | **Tabs and sign-in everywhere**: the top bar has *Home · Community* (orange tape under the one you're on); *Sign in* opens a box over the page you're on, and after signing in the same page shows your name and *Sign out*; on a phone the tabs sit on their own row | web | unchecked |

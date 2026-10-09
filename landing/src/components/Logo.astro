@@ -1,23 +1,33 @@
 ---
 // The logo, inline, from the same paths as the app's opening and every icon
-// (src/components/brand/logoParts.ts, generated from assets/Group 3.svg). The
+// (lib/game/logoParts.ts, copied from the app's src/components/brand by
+// scripts/build-landing-data.cjs; generated from assets/Group 3.svg). The
 // wordmark takes `currentColor`: white on nylon, ink on cotton (07 F1; white
-// on cotton is 1.11:1). `compact`: the wordmark out and the gap closed, as on
-// the app's icon.
-import { LOGO } from '../../../src/components/brand/logoParts'
-interface Props { compact?: boolean; class?: string; label?: string }
-const { compact = false, class: cls, label = 'Perfection or Misery' } = Astro.props
-const dy = compact ? LOGO.shift : 0
+// on cotton is 1.11:1).
+//   compact   the wordmark out and the gap closed, as on the app's icon
+//   opens     compact at rest; inside a hovered or focused `.opens-on-hover`
+//             it opens into the full logo, the app's opening (LogoIntro):
+//             the triangles part, the wordmark unfolds from the seam
+//             (the maintainer, 9 Oct 2026: "on hover … it would expand, so it
+//             feels a little more alive"). The motion is in global.css.
+import { LOGO } from '../lib/game/logoParts'
+interface Props { compact?: boolean; opens?: boolean; class?: string; label?: string }
+const { compact = false, opens = false, class: cls, label = 'Perfection or Misery' } = Astro.props
+const dy = compact && !opens ? LOGO.shift : 0
+const vbY = Number(LOGO.viewBox.split(' ')[1])
+// The seam, as a share of the square, for the wordmark's unfolding.
+const seam = `${(((LOGO.seamY - vbY) / LOGO.canvas) * 100).toFixed(2)}%`
 ---
-<svg class={cls} viewBox={LOGO.viewBox} role="img" aria-label={label} xmlns="http://www.w3.org/2000/svg">
-  <g transform={`translate(0 ${dy})`}>
+<svg class:list={[cls, opens && 'logo-opens']} viewBox={LOGO.viewBox} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : 'true'}
+  xmlns="http://www.w3.org/2000/svg" style={opens ? `--shift:${LOGO.shift}px;--seam:${seam}` : undefined}>
+  <g class="lg-top" transform={dy ? `translate(0 ${dy})` : undefined}>
     <rect {...LOGO.stick} fill="#FF5A00" />
     <circle {...LOGO.head} fill="#FF5A00" />
     <circle {...LOGO.hole} fill="#000" />
     <path d={LOGO.volt} fill="#D5FF3F" />
   </g>
-  <g transform={`translate(0 ${-dy})`}>
+  <g class="lg-bottom" transform={dy ? `translate(0 ${-dy})` : undefined}>
     <path d={LOGO.red} fill="#E1141F" />
   </g>
-  {!compact && <path class="wordmark" d={LOGO.wordmark} fill="currentColor" />}
+  {(!compact || opens) && <path class="lg-word" d={LOGO.wordmark} fill="currentColor" />}
 </svg>

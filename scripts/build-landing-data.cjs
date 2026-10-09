@@ -106,9 +106,29 @@ console.log('renames.json: the legal rename table')
   console.log('version.json:', version)
 }
 
+// ── The two pieces of the game's code the site uses, copied in ──────────────
+// The site builds on its own (Vercel's project for it installs only landing/'s
+// dependencies). Importing these from ../src made Vite compile them under the
+// app's tsconfig, which extends Expo's: "failed to resolve expo/tsconfig.base"
+// on the site's first deploy (9 Oct 2026). So they're copied, marked as copies.
+{
+  const copyModule = (from, to) => {
+    const body = fs.readFileSync(path.join(ROOT, from), 'utf8')
+    fs.writeFileSync(L(to), `// COPIED from ${from} by scripts/build-landing-data.cjs. Edit the original and run the script.
+` + body)
+    console.log(`${to}: copied from ${from}`)
+  }
+  fs.mkdirSync(L('src/lib/game'), { recursive: true })
+  copyModule('src/components/brand/logoParts.ts', 'src/lib/game/logoParts.ts')
+  copyModule('src/lib/week.ts', 'src/lib/game/week.ts')
+}
+
 // ── Icons and the preview ───────────────────────────────────────────────────
 for (const f of ['og.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, 'public', f), L('public', f))
 fs.copyFileSync(path.join(ROOT, 'assets/favicon.png'), L('public/favicon.png'))
+// The language switch is the current language's flag, cut round (9 Oct 2026).
+fs.mkdirSync(L('public/flags'), { recursive: true })
+for (const [lang, flag] of [['en', 'gb'], ['sk', 'sk']]) fs.copyFileSync(path.join(ROOT, 'assets/flags-large', `${flag}.png`), L('public/flags', `${lang}.png`))
 console.log('icons and og.png copied')
 
 // ── Fonts, subset ───────────────────────────────────────────────────────────

@@ -22,9 +22,12 @@ const counters = await readCounters()
 const builtOn = dateIn(lang, new Date())
 const fmt = (n: number) => n.toLocaleString(lang === 'sk' ? 'sk-SK' : 'en-GB').replace(/\s/g, ' ')
 
-// The spin's resting tag: a real one, chosen at build (09 §4.2).
+// The spin's resting tag: a real one, chosen at build (09 §4.2), with seven
+// either side so the reel is full edge to edge up to a 2,600 px window (seven
+// left a gap on the right of a wide screen, 9 Oct 2026).
+const SIDE = 7
 const landed = reel[Math.floor(Math.random() * reel.length)]
-const around = Array.from({ length: 7 }, (_, i) => reel[(reel.indexOf(landed) + i - 3 + reel.length) % reel.length])
+const around = Array.from({ length: SIDE * 2 + 1 }, (_, i) => reel[(reel.indexOf(landed) + i - SIDE + reel.length) % reel.length])
 
 // The Android plate: only a link once a release exists (the game's
 // latest.json, 07 F3); before that it says so and links nowhere.
@@ -52,16 +55,16 @@ const TAPES: Record<string, string[]> = {
 const tape = (key: string) => (TAPES[key]?.length ? `linear-gradient(90deg, ${TAPES[key].map((c, i, a) => `${c} ${(i / a.length) * 100}% ${((i + 1) / a.length) * 100}%`).join(', ')})` : 'var(--line)')
 ---
 <section class="poster" aria-labelledby="promise">
-  <div class="reel" data-reel data-landed={landed.name} role="img" aria-label={t.reelLabel}>
-    <div class="reel-edge top" aria-hidden="true"></div>
-    <div class="reel-track" aria-hidden="true">
+  <div class="reel has-landed" data-reel data-landed={landed.name} role="img" aria-label={t.reelLabel}>
+    <div class="reel-edge top" aria-hidden="true" style={`background:${landed.a}`}></div>
+    <div class="reel-track at-rest" aria-hidden="true" style={`--side:${SIDE}`}>
       {around.map((c, i) => (
-        <div class={`reel-tag${i === 3 ? ' is-landed' : ''}`} style={`--a:${c.a};--b:${c.b}`}>
+        <div class={`reel-tag${i === SIDE ? ' is-landed' : ''}`} style={`--a:${c.a};--b:${c.b}`}>
           <span class="reel-name">{c.name}</span><span class="reel-season">{c.season}</span>
         </div>
       ))}
     </div>
-    <div class="reel-edge bottom" aria-hidden="true"></div>
+    <div class="reel-edge bottom" aria-hidden="true" style={`background:${landed.a}`}></div>
     <div class="reel-marker" aria-hidden="true"><span class="flapper"></span></div>
   </div>
   <div class="landed-row">

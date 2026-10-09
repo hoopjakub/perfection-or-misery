@@ -3,6 +3,7 @@
 // the language, where it's made, the year, the disclaimer, and the contact
 // address with a copy button. Community and Download join it when they exist
 // (steps 4 and 6): a link to a page that isn't there is a dead link.
+// Community joined on 9 Oct 2026 (step 4).
 import { T, GAME_URL, CONTACT, other, pathFor, type Lang } from '../i18n'
 interface Props { lang: Lang }
 const { lang } = Astro.props
@@ -11,6 +12,7 @@ const year = new Date().getFullYear()
 ---
 <footer class="foot">
   <nav class="foot-links" aria-label="Footer">
+    <a href={pathFor(lang, 'community')}>{t.community}</a>
     <a href={`${GAME_URL}/privacy`}>{t.privacy}</a>
     <a href={`${GAME_URL}/terms`}>{t.terms}</a>
     <a href={pathFor(other(lang))} hreflang={other(lang)} lang={other(lang)}>{t.switchTo}</a>

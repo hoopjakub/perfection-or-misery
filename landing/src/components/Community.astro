@@ -1,0 +1,33 @@
+---
+// Every community page (docs/website/02 §6, 11 §2, §4): the page's heading,
+// the two tabs where they belong, and an empty body the script fills from
+// the database. The lists are read live, never baked in: an answer or an
+// update shows the moment it's written, without a redeploy.
+import Base from '../layouts/Base.astro'
+import { CT, INDEXED, type CPage } from '../community-i18n'
+import { pathFor, type Lang } from '../i18n'
+interface Props { lang: Lang; page: CPage }
+const { lang, page } = Astro.props
+const c = CT[lang]
+const base = pathFor(lang, 'community')
+const heading = { '': c.title, questions: c.title, ask: c.askTitle, mine: c.mine, question: c.questions, signin: c.signIn }[page]
+const tabbed = page === '' || page === 'questions'
+---
+<Base lang={lang} page={page ? `community/${page}` : 'community'} title={`${heading} · Perfection or Misery`}
+  description={page === 'questions' ? c.qaDescription : c.description} noindex={!INDEXED.includes(page)}>
+  <section class="community" data-c-root data-page={page} data-lang={lang} data-base={base}>
+    <h1 class="super c-title">{heading}</h1>
+    {tabbed && (
+      <nav class="c-tabs" aria-label={c.title}>
+        <a href={base} aria-current={page === '' ? 'page' : undefined}>{c.updates}</a>
+        <a href={`${base}/questions`} aria-current={page === 'questions' ? 'page' : undefined}>{c.questions}</a>
+      </nav>
+    )}
+    <div data-c-body aria-live="polite"><p class="muted">{c.loading}</p></div>
+    <noscript><p>{c.noscript}</p></noscript>
+  </section>
+  <script type="application/json" id="c-strings" set:html={JSON.stringify(c)} />
+</Base>
+<script>
+  import '../scripts/community'
+</script>
