@@ -231,7 +231,7 @@ begin
   begin update qa_admin_log set action = 'rewritten'; raise exception 'TEST FAILED: T15 the admin log was rewritten';
   exception when others then if sqlerrm not like '%append-only%' then raise; end if; end;
 
-  -- ── T16 · Cleaning ────────────────────────────────────────────────────────
+  -- ── T16 Cleaning ────────────────────────────────────────────────────────
   if qa_clean(E'a\u200Bb\u202Ec') <> 'abc' then raise exception 'TEST FAILED: T16 qa_clean left an invisible character'; end if;
   if (select body from qa_questions where id = qa_) like E'%\u200B%' then raise exception 'TEST FAILED: T16 a stored question kept a zero-width space'; end if;
 
