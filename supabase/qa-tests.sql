@@ -109,6 +109,11 @@ begin
   if cnt <> 0 then raise exception 'TEST FAILED: T5 A''s question is in B''s list'; end if;
   select count(*) into cnt from qa_published() p where p.id = qa_;
   if cnt <> 0 then raise exception 'TEST FAILED: T5 an unanswered private question is published'; end if;
+  -- The rest of the two-account test (10 §3.1, 10 Oct): its own page, search,
+  -- and the ask form's state never show B anything of A's.
+  if exists (select 1 from qa_published_one(qa_)) then raise exception 'TEST FAILED: T5 B can open A''s private question''s page'; end if;
+  if exists (select 1 from qa_search('keep my runs really') s where s.id = qa_) then raise exception 'TEST FAILED: T5 search found A''s private question'; end if;
+  if (qa_can_ask()->>'activeId') is not null then raise exception 'TEST FAILED: T5 B''s ask form names A''s question'; end if;
 
   -- ── T6 · B isn't the admin; neither is C without the second factor ────────
   begin perform qa_admin_inbox(); raise exception 'TEST FAILED: T6 a player read the inbox';

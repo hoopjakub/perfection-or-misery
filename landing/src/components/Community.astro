@@ -13,7 +13,7 @@ const base = pathFor(lang, 'community')
 const heading = { '': c.title, questions: c.title, ask: c.askTitle, mine: c.mine, question: c.questions, signin: c.signIn }[page]
 const tabbed = page === '' || page === 'questions'
 ---
-<Base lang={lang} page={page ? `community/${page}` : 'community'} title={`${heading} · Perfection or Misery`}
+<Base lang={lang} page={page ? `community/${page}` : 'community'} title={page === 'questions' ? `${c.questions} · ${c.title} · Perfection or Misery` : `${heading} · Perfection or Misery`}
   description={page === 'questions' ? c.qaDescription : c.description} noindex={!INDEXED.includes(page)}>
   <section class="community" data-c-root data-page={page} data-lang={lang} data-base={base}>
     <h1 class="super c-title">{heading}</h1>

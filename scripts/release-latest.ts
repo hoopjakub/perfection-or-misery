@@ -17,7 +17,7 @@
  * web build (public/ is served as is: /latest.json).
  */
 import { createHash } from 'crypto'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, statSync } from 'fs'
 import path from 'path'
 
 const args = process.argv.slice(2)
@@ -34,6 +34,9 @@ const min = arg('min') != null ? Number(arg('min')) : undefined
 if (min != null && !(Number.isInteger(min) && min > 0 && min <= build)) { console.error('--min must be a versionCode no higher than --build'); process.exit(1) }
 
 const sha256 = createHash('sha256').update(readFileSync(apk)).digest('hex')
-const record = { version, build, url, sha256, ...(min != null ? { minBuild: min } : {}), ...(arg('notes') ? { notes: arg('notes') } : {}) }
+// size and released: for the website's download page (docs/website/11 §3);
+// the app reads neither.
+const size = statSync(apk).size, released = new Date().toISOString().slice(0, 10)
+const record = { version, build, url, sha256, size, released, ...(min != null ? { minBuild: min } : {}), ...(arg('notes') ? { notes: arg('notes') } : {}) }
 writeFileSync(path.join(__dirname, '../public/latest.json'), JSON.stringify(record, null, 2) + '\n')
 console.log('wrote public/latest.json:', record)

@@ -1,3 +1,4 @@
+// COPIED from src/data/legal.ts by scripts/build-landing-data.cjs. Edit the original and run the script.
 // P8.5-29 · One legal file. Privacy and Terms, written once, used by the app
 // (app/privacy.tsx, app/terms.tsx through LegalPage) and by the website
 // (scripts/export-legal.ts writes public/legal/*.json from this file).

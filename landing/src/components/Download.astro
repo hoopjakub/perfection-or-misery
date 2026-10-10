@@ -1,0 +1,95 @@
+---
+// /download (docs/website/11 §3): the Android build, how to install it, and
+// its checksum. The record is the game's latest.json, read at build and again
+// in the browser (scripts/download.ts), so a release shows without a
+// redeploy. Never a dead link: no release, no button.
+import Base from '../layouts/Base.astro'
+import { readRelease, megabytes } from '../lib/release'
+import { dateIn, GAME_URL, type Lang } from '../i18n'
+interface Props { lang: Lang }
+const { lang } = Astro.props
+
+const D = {
+  en: {
+    title: 'Download for Android',
+    description: 'Download Perfection or Misery for Android: the APK, how to install it in three steps, and its SHA-256 checksum. Free, no ads, no purchases.',
+    version: 'Version',
+    get: 'Download the APK',
+    playStore: 'Google Play: coming soon',
+    howTitle: 'How to install',
+    how: [
+      'Open the file when the download is done.',
+      'If Android asks, allow installs from your browser (Settings shows where).',
+      'Updates: the game tells you when there’s a new one.',
+    ],
+    sha: 'SHA-256',
+    shaLine: 'To check the file is ours: its SHA-256 must match this.',
+    whatsNew: 'What’s new',
+    none: 'The first Android build is on its way. Until then, the game plays in your browser on any phone.',
+    unreachable: (d: string) => `Couldn’t reach the release record; this is the build of ${d}.`,
+    iphone: 'No iPhone app: on an iPhone, play in the browser. It’s the same game.',
+    play: 'Play in your browser',
+  },
+  sk: {
+    title: 'Stiahnuť pre Android',
+    description: 'Stiahni si Perfection or Misery pre Android: súbor APK, inštalácia v troch krokoch a kontrolný súčet SHA-256. Zadarmo, bez reklám a bez nákupov.',
+    version: 'Verzia',
+    get: 'Stiahnuť APK',
+    playStore: 'Google Play: čoskoro',
+    howTitle: 'Ako nainštalovať',
+    how: [
+      'Po stiahnutí súbor otvor.',
+      'Ak sa Android opýta, povoľ inštaláciu z prehliadača (Nastavenia ukážu kde).',
+      'Aktualizácie: hra ti dá vedieť, keď vyjde nová verzia.',
+    ],
+    sha: 'SHA-256',
+    shaLine: 'Či je súbor náš, overíš tak, že jeho SHA-256 sa zhoduje s týmto.',
+    whatsNew: 'Čo je nové',
+    none: 'Prvá verzia pre Android je na ceste. Dovtedy sa hra dá hrať v prehliadači na každom telefóne.',
+    unreachable: (d: string) => `Záznam o vydaní sa nepodarilo načítať; toto je stav z ${d}.`,
+    iphone: 'Aplikácia pre iPhone nie je: na iPhone hraj v prehliadači. Je to tá istá hra.',
+    play: 'Hrať v prehliadači',
+  },
+}[lang]
+
+const read = await readRelease()
+const r = read === 'unreachable' ? null : read
+const built = dateIn(lang, new Date())
+const meta = (x: NonNullable<typeof r>) => [`${D.version} ${x.version}`, x.size ? megabytes(x.size) : '', x.released ? dateIn(lang, new Date(x.released)) : ''].filter(Boolean).join(' · ')
+---
+<Base lang={lang} page="download" title={`${D.title} · Perfection or Misery`} description={D.description}>
+  <section class="legal download" data-download data-lang={lang} data-build={r?.build ?? ''}>
+    <h1 class="super c-title">{D.title}</h1>
+
+    <div data-has-release hidden={!r}>
+      <p class="tag" data-meta>{r ? meta(r) : ''}</p>
+      <a class="plate primary" href={r?.url} data-apk>{D.get}<span aria-hidden="true">↓</span></a>
+      <p class="tag muted">{D.playStore}</p>
+
+      <h2 class="c-head">{D.howTitle}</h2>
+      <ol class="download-steps">{D.how.map(s => <li>{s}</li>)}</ol>
+
+      <h2 class="c-head">{D.sha}</h2>
+      <p class="muted small">{D.shaLine}</p>
+      <p class="c-row"><code class="download-sha" data-sha>{r?.sha256 ?? ''}</code>
+        <button type="button" class="plate quiet copy" data-copy={r?.sha256 ?? ''} data-done={lang === 'sk' ? 'Skopírované' : 'Copied'}>{lang === 'sk' ? 'Kopírovať' : 'Copy'}</button></p>
+
+      <div data-notes-block hidden={!r?.notes}>
+        <h2 class="c-head">{D.whatsNew}</h2>
+        <p data-notes>{r?.notes ?? ''}</p>
+      </div>
+    </div>
+
+    <div data-no-release hidden={!!r}>
+      <p class="legal-intro">{D.none}</p>
+      <a class="plate primary" href={GAME_URL}>{D.play}<span aria-hidden="true">→</span></a>
+    </div>
+
+    {read === 'unreachable' && <p class="muted small" data-stale>{D.unreachable(built)}</p>}
+    <p class="muted small">{D.iphone}</p>
+  </section>
+  <script type="application/json" id="download-strings" set:html={JSON.stringify({ version: D.version })} />
+</Base>
+<script>
+  import '../scripts/download'
+</script>

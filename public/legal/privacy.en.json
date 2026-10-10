@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-01",
+  "updated": "2026-10-10",
   "contact": "perfectionormisery@gmail.com",
   "title": "Privacy",
   "intro": "Perfection or Misery keeps as little as it can: your username and your runs. No ads, no cookies, no tracking across other sites, and nothing is sold.",
@@ -60,6 +60,15 @@
       ]
     },
     {
+      "heading": "Questions on the website",
+      "body": [
+        "If you ask a question in the website's community, it keeps the question, your account, whether you ticked it Public or Private, when you asked and edited it, and any private conversation the developer opens with you about it.",
+        "The developer can read every question. A Private one is never shown to anyone else. A Public one is shown on the site once it is answered, without your name, and the developer can still take it off the site.",
+        "To keep the limits (one question at a time, a few a day), the site also counts when you asked, edited and replied. Questions are kept until you delete your account, or until the developer deletes one for abuse.",
+        "Signing in on the website keeps your session in that browser's storage, nothing more, and only until you sign out."
+      ]
+    },
+    {
       "heading": "What the website measures",
       "body": [
         "On the website only, Vercel (which hosts it) counts visits and page views and measures how fast pages load for real visitors, so we can see which pages are used and fix the slow ones. It uses no cookies and records no personal identifiers: each data point is anonymous, and what tells one visit from another is discarded after 24 hours.",
@@ -77,7 +86,7 @@
     {
       "heading": "Deleting everything",
       "body": [
-        "You → Delete account removes your account, every run, your career, your friends, your club membership and your place in the ranks, for good. It happens straight away and cannot be undone."
+        "You → Delete account removes your account, every run, your career, your friends, your club membership, your questions on the website and your place in the ranks, for good. It happens straight away and cannot be undone."
       ]
     }
   ]

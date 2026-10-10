@@ -7,8 +7,14 @@ import { defineConfig } from 'astro/config'
 // Node 20.17 (07-FACT-CHECK F9). Vercel builds on Node 24 either way; moving to
 // Astro 7 is this one version once the machine has Node 24.
 export default defineConfig({
-  // The site's own address (06 §1). PUBLIC_SITE_URL on Vercel; this until then.
-  site: process.env.PUBLIC_SITE_URL || 'https://perfectionormisery.vercel.app',
+  // The site's own address (06 §1): canonical links, hreflang, the sitemap,
+  // robots.txt and the preview card are all built from it. PUBLIC_SITE_URL
+  // when set (a custom domain); otherwise Vercel's own production address
+  // (a system variable, VERCEL_PROJECT_PRODUCTION_URL). The audit found every
+  // canonical pointing at perfectionormisery.vercel.app, an address that
+  // doesn't exist (10 Oct 2026): a guessed default is worse than none.
+  site: process.env.PUBLIC_SITE_URL
+    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://perfection-or-misery-website.vercel.app'),
   trailingSlash: 'never',
   build: {
     format: 'directory',

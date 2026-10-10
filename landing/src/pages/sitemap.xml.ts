@@ -4,7 +4,7 @@ export const GET: APIRoute = ({ site }) => {
   const u = (p: string) => new URL(p, site).toString().replace(/\/$/, '') || new URL('/', site).toString()
   // The front page and the community's two public pages (step 4); the rest
   // of the community is a signed-in player's and stays out.
-  const urls = ['', 'community', 'community/questions'].flatMap(p => {
+  const urls = ['', 'community', 'community/questions', 'privacy', 'terms', 'download'].flatMap(p => {
     const en = u(`/${p}`), sk = u(`/sk/${p}`)
     const pair = `<xhtml:link rel="alternate" hreflang="en" href="${en}"/><xhtml:link rel="alternate" hreflang="sk" href="${sk}"/>`
     return [`  <url><loc>${en}</loc>${pair}</url>`, `  <url><loc>${sk}</loc>${pair}</url>`]

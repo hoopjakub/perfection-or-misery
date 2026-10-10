@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-01",
+  "updated": "2026-10-10",
   "contact": "perfectionormisery@gmail.com",
   "title": "Terms",
   "intro": "Perfection or Misery is a free football game made by one person. By playing you accept these few rules.",
@@ -25,6 +25,14 @@
         "A club's name, tag and description follow the same rule as a username: nothing offensive, nobody impersonated.",
         "Be decent in the chat. A club's owner can remove members and delete messages, and clubs or players that harass others can be removed.",
         "Anyone can report a player or a club from its page. Reports are read by the moderator, who can rename, close or ban. Reporting someone to get at them is itself against these rules."
+      ]
+    },
+    {
+      "heading": "The community on the website",
+      "body": [
+        "Asking a question needs an account with at least one saved run, and you need to be 15 or over to write there.",
+        "The same rule as the chat: nothing offensive, nobody impersonated, nothing about other people that they wouldn't want shown. Questions that break it can be deleted, and the account can be banned.",
+        "One question at a time, a few a day. Answers are the developer's, and a Public question may be reworded for the site."
       ]
     },
     {

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-01",
+  "updated": "2026-10-10",
   "contact": "perfectionormisery@gmail.com",
   "title": "Podmienky",
   "intro": "Perfection or Misery je bezplatná futbalová hra, ktorú robí jeden človek. Hraním prijímaš týchto pár pravidiel.",
@@ -25,6 +25,14 @@
         "Pre názov, značku a popis klubu platí to isté ako pre meno: nič urážlivé a nikto sa nevydáva za iného.",
         "V chate sa správaj slušne. Majiteľ klubu môže odobrať členov a mazať správy a kluby alebo hráči, ktorí obťažujú iných, môžu byť odstránení.",
         "Hráča alebo klub môže ktokoľvek nahlásiť z jeho stránky. Nahlásenia číta moderátor, ktorý môže zmeniť meno, zrušiť klub alebo zablokovať účet. Nahlasovať niekoho len preto, aby sa mu uškodilo, je samo osebe proti týmto pravidlám."
+      ]
+    },
+    {
+      "heading": "Komunita na webe",
+      "body": [
+        "Na položenie otázky potrebuješ účet s aspoň jednou uloženou hrou a písať tam môžeš od 15 rokov.",
+        "Platí to isté ako v chate: nič urážlivé, nikto sa nevydáva za iného a nič o iných, čo by nechceli ukázať. Otázky, ktoré to porušia, môžu byť vymazané a účet zablokovaný.",
+        "Jedna otázka naraz, pár za deň. Odpovede sú od vývojára a verejnú otázku môže pre web preformulovať."
       ]
     },
     {

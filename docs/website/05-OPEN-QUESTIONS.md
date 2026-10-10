@@ -113,9 +113,11 @@ The account (created and stored by the maintainer), the row, TOTP, the route, th
 
 ### Step 6 · The APK and updates
 The download page, `latest.json`, GitHub Releases ([`../release/05-UPDATES-AND-THE-APK.md`](../release/05-UPDATES-AND-THE-APK.md)). The releases repo exists: [hoopjakub/perfection-or-misery-release](https://github.com/hoopjakub/perfection-or-misery-release) (1 Oct 2026).
+*(Built 10 Oct 2026: `/download` and `/sk/download` (`landing/src/components/Download.astro`), read from the game's `latest.json` at build and again in the browser (`scripts/download.ts`); no release shows the browser plate, never a dead link. `scripts/release-latest.ts` now also writes `size` and `released`; the game's `vercel.json` serves `/latest.json` with CORS and `no-cache`; the site's CSP allows the game's address. The home page's Android plate opens `/download`. Also 10 Oct: Privacy and Terms are the site's own pages from the app's `src/data/legal.ts` (copied by the data script), both now covering the website's questions; `UPDATED` 2026-10-10.)*
 
 ### Step 7 · The audit
 The upgraded audit, the two-account test, the critique again.
+*(Run 10 Oct 2026: [audit-2026-10-10.md](audit-2026-10-10.md). No blocker in what could be seen; two fixes made on the way (a shared title, a `#` link); the database half is `supabase/audit-phase10.sql` and the live half is checklist rows 975-74 to 975-79, both the maintainer's. The critique waits for Phase 11, where the site is redesigned.)*
 
 ### Step 8 · The app's side
 The community link, the "your question changed" mark, the shared legal file.

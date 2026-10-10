@@ -514,10 +514,31 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| 975-63 | **`qa.sql` again, then `qa-tests.sql`**: one more function (`site_is_admin_account`) and its test; still `ALL QA TESTS PASSED` | Supabase | unchecked |
-| 975-64 | **The admin account**: a new account made in the game (not your play account, a 16+ character password from a password manager), then the commented `insert into site_admins …` line at the end of `qa.sql` with its username, in the SQL editor | game + Supabase | unchecked |
-| 975-65 | **The route**: generate it (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`), keep it in the password manager, add it on Vercel as `ADMIN_ROUTE` (not `PUBLIC_`), redeploy | Vercel | unchecked |
-| 975-66 | **First sign-in**: at the route, sign in, scan the QR into the authenticator, enter a code; the admin screens appear. Sign out and in again: only a code is asked now | web | unchecked |
-| 975-67 | **A stranger**: the route with a normal player account says *Nothing here* and signs out, and never offers an authenticator | web | unchecked |
+| 975-63 | **`qa.sql` again, then `qa-tests.sql`**: one more function (`site_is_admin_account`) and its test; still `ALL QA TESTS PASSED` | Supabase | done (10 Oct) |
+| 975-64 | **The admin account**: a new account made in the game (not your play account, a 16+ character password from a password manager), then the commented `insert into site_admins …` line at the end of `qa.sql` with its username, in the SQL editor | game + Supabase | done (10 Oct) |
+| 975-65 | **The route**: generate it (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`), keep it in the password manager, add it on Vercel as `ADMIN_ROUTE` (not `PUBLIC_`), redeploy | Vercel | done (10 Oct) |
+| 975-66 | **First sign-in**: at the route, sign in, scan the QR into the authenticator, enter a code; the admin screens appear. Sign out and in again: only a code is asked now | web | done (10 Oct) |
+| 975-67 | **A stranger**: the route with a normal player account says *Nothing here* and signs out, and never offers an authenticator | web | done (10 Oct) |
 | 975-68 | **The inbox works end to end**: answer a public question from the admin; the player gets a notice in the game (badge on You), sees it on `/community/mine` marked *New*, and it appears on `/community/questions` and in search; make it private and it's gone from there | web + game | unchecked |
 | 975-69 | **Moderation**: the open flags show (or *No open flags*); *Let it be* on one closes it; the word check answers for a word you know is listed | web | unchecked |
+
+## Phase 10 · Step 6, download, and the legal pages (10 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-70 | **Privacy and Terms on the site**: the footer opens `/privacy` and `/terms` (and `/sk/…`), the same words as the app's pages, with the new *Questions on the website* / *The community on the website* sections; the app's own pages show them too after the next update | web + game | unchecked |
+| 975-71 | **The admin QR**: on a fresh enrolment the QR code shows and scans (the typed key worked on 10 Oct; the image didn't) | web | unchecked |
+| 975-72 | **`/download` before a release**: says the first Android build is on its way, with the browser plate; the home page's Android plate is still *coming soon* | web | unchecked |
+| 975-73 | **`/download` after a release**: run `release-latest.ts` for the APK, deploy the game; without redeploying the site, `/download` shows the version, size, date, the APK button, the SHA-256 (Copy works) and the notes | web | unchecked |
+
+## Phase 10 · Step 7, the audit (10 October 2026, docs/website/audit-2026-10-10.md)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-74 | **`supabase/audit-phase10.sql`**: run it (read-only); every row says `ok:`, none `FAIL:` (failures sort to the top). Send the result either way | Supabase | done (10 Oct): one FAIL, accepted (the log's admin_id, on purpose) |
+| 975-75 | **Two accounts** (10 §3.1): run `qa-tests.sql` once more (T5 now also tries A's question's page, search and the ask form as B); `ALL QA TESTS PASSED` | Supabase | unchecked |
+| 975-76 | **Stored script** (10 §3.2): ask `<img src=x onerror=alert(1)>` and `javascript:alert(1)`; on the question page, in the admin's inbox, and (answered, public) on the Q&A, it shows as text, nothing pops up, nothing is a link | web | done (10 Oct): locally, against a stand-in database; nothing ran |
+| 975-77 | **Headers** (10 §3.3): the live site's response has the CSP, HSTS and the rest of `landing/vercel.json` (devtools → Network → the page → Response headers) | web | done (10 Oct): curl + Mozilla Observatory A+ |
+| 975-78 | **The counter's honesty** (10 §3.8): block `*.supabase.co` in devtools and reload; the counter shows the built number with its date, never 0 or a dash | web | done (10 Oct): locally; keeps the built number and date |
+| 975-79 | **In-app browsers** (10 §3.10): open the site and *Play* from Instagram's and Facebook's browsers on Android; the game opens or says what to do | phone | done (10 Oct): Instagram, by the maintainer |
+| 975-80 | **The site's address**: on Vercel, set `PUBLIC_SITE_URL` to `https://perfection-or-misery-website.vercel.app` or delete it, push today's work, redeploy; `view-source:` on the front page shows that address in `rel="canonical"`, and `/sitemap.xml` uses it | Vercel | unchecked |

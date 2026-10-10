@@ -121,6 +121,8 @@ console.log('renames.json: the legal rename table')
   fs.mkdirSync(L('src/lib/game'), { recursive: true })
   copyModule('src/components/brand/logoParts.ts', 'src/lib/game/logoParts.ts')
   copyModule('src/lib/week.ts', 'src/lib/game/week.ts')
+  // Privacy and Terms: the app's own words, one file for both (P8.5-29).
+  copyModule('src/data/legal.ts', 'src/lib/game/legal.ts')
 }
 
 // ── Icons and the preview ───────────────────────────────────────────────────

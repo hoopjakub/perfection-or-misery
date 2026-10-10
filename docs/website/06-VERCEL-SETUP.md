@@ -18,7 +18,7 @@ Why the game keeps its address: App Links are verified for that host (`app.json:
 3. **Framework preset:** Astro. **Root directory:** `landing`.
 4. **Build command / output:** Astro's defaults (`astro build`, `dist`). **Node.js version: 24.x** (Settings → General), the same as the game's project (07 V2); Astro 7 needs 22.12 or newer ([07](07-FACT-CHECK.md) F9).
 5. **Environment variables** (Production and Preview): `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` (the same public values the app uses). **Never** the service-role key, the secret key, the JWT secret or any `POSTGRES_*`: nothing on the site needs them. Don't connect the Supabase integration to this project; it copies all of them in (it did on the game's, 07 V1).
-6. Also `PUBLIC_SITE_URL` (the site's own address, e.g. `https://perfectionormisery.vercel.app`): canonical links, the sitemap and the preview card are built from it.
+6. `PUBLIC_SITE_URL` only for a custom domain. Without it the build uses Vercel's own production address (`VERCEL_PROJECT_PRODUCTION_URL`, a system variable). *(10 Oct 2026: it had been set to `https://perfectionormisery.vercel.app`, which doesn't exist; the site is `perfection-or-misery-website.vercel.app`, and every canonical link pointed at the dead one.)*
 7. Deploy once to see the address works.
 
 ## 3 · Build only what changed

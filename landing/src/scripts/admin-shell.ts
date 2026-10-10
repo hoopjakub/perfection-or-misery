@@ -43,6 +43,14 @@ function password() {
   name.focus()
 }
 
+// Supabase gives the QR as `data:image/svg+xml;utf-8,<svg …>` with the SVG
+// raw: its '#' colours end the address early, and the image doesn't show (it
+// didn't, 10 Oct 2026; the typed key worked). Encode the SVG part.
+function qrSrc(raw: string) {
+  const i = raw.indexOf(',')
+  return raw.startsWith('data:image/svg+xml') && !raw.includes(';base64,') ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(raw.slice(i + 1))}` : raw
+}
+
 type Factor = { id: string; factor_type: string; status: 'verified' | 'unverified' }
 
 async function secondFactor() {
@@ -60,7 +68,7 @@ async function secondFactor() {
     factor = { id: j.id, factor_type: 'totp', status: 'unverified' }
     enrol = h('div', { class: 'admin-enrol' },
       h('p', {}, 'Scan this with your authenticator app once. Keep it only there.'),
-      h('img', { src: j.totp.qr_code, alt: 'The authenticator QR code', width: '200', height: '200', class: 'admin-qr' }),
+      h('img', { src: qrSrc(j.totp.qr_code), alt: 'The authenticator QR code', width: '200', height: '200', class: 'admin-qr' }),
       h('details', {}, h('summary', { class: 'tag' }, 'Can’t scan? Type the key'), h('code', { class: 'admin-secret' }, j.totp.secret)))
   }
   const code = h('input', { id: 'a-code', class: 'field', inputmode: 'numeric', autocomplete: 'one-time-code', pattern: '[0-9]{6}', maxlength: '6', required: true }) as HTMLInputElement

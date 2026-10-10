@@ -18,6 +18,15 @@
         "cd perfection-or-misery && node_modules\\.bin\\expo.cmd start --web --port 8092"
       ],
       "port": 8092
+    },
+    {
+      "name": "landing-audit",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd perfection-or-misery\\landing && node_modules\\.bin\u0007stro.cmd preview --port 4321"
+      ],
+      "port": 4321
     }
   ]
 }

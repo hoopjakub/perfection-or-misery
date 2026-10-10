@@ -5,11 +5,12 @@
 // out until the updates channel exists (08 H16): never shown empty.
 import fs from 'node:fs'
 import path from 'node:path'
-import { T, GAME_URL, dateIn, type Lang } from '../i18n'
+import { T, GAME_URL, dateIn, pathFor, type Lang } from '../i18n'
 import copy from '../data/copy.json'
 import reel from '../data/reel.json'
 import version from '../data/version.json'
 import { readCounters } from '../lib/live'
+import { readRelease } from '../lib/release'
 
 interface Props { lang: Lang }
 const { lang } = Astro.props
@@ -31,11 +32,8 @@ const around = Array.from({ length: SIDE * 2 + 1 }, (_, i) => reel[(reel.indexOf
 
 // The Android plate: only a link once a release exists (the game's
 // latest.json, 07 F3); before that it says so and links nowhere.
-let apk: string | null = null
-try {
-  const res = await fetch(`${GAME_URL}/latest.json`)
-  if (res.ok) { const j = await res.json(); apk = typeof j.apkUrl === 'string' ? j.apkUrl : typeof j.url === 'string' ? j.url : null }
-} catch { apk = null }
+const release = await readRelease()
+const hasRelease = !!release && release !== 'unreachable'
 
 // A screenshot if the maintainer has supplied it (09 §5: public/shots/<lang>/sN.webp);
 // otherwise an honest tile with the step's number. Never a mock-up.
@@ -83,8 +81,8 @@ const tape = (key: string) => (TAPES[key]?.length ? `linear-gradient(90deg, ${TA
     <div class="poster-actions">
       <a class="plate primary" href={GAME_URL}>{t.play}<span aria-hidden="true">→</span></a>
       <p class="plate-line">{t.playLine}</p>
-      {apk
-        ? <a class="plate secondary" href={apk}>{t.android}<span aria-hidden="true">→</span></a>
+      {hasRelease
+        ? <a class="plate secondary" href={pathFor(lang, 'download')}>{t.android}<span aria-hidden="true">→</span></a>
         : <span class="plate secondary is-disabled" aria-disabled="true">{t.androidSoon}</span>}
       <p class="tag muted">{t.playStore}</p>
     </div>

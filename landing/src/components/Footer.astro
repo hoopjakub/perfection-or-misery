@@ -13,8 +13,9 @@ const year = new Date().getFullYear()
 <footer class="foot">
   <nav class="foot-links" aria-label="Footer">
     <a href={pathFor(lang, 'community')}>{t.community}</a>
-    <a href={`${GAME_URL}/privacy`}>{t.privacy}</a>
-    <a href={`${GAME_URL}/terms`}>{t.terms}</a>
+    <a href={pathFor(lang, 'download')}>{t.downloadLink}</a>
+    <a href={pathFor(lang, 'privacy')}>{t.privacy}</a>
+    <a href={pathFor(lang, 'terms')}>{t.terms}</a>
     <a href={pathFor(other(lang))} hreflang={other(lang)} lang={other(lang)}>{t.switchTo}</a>
   </nav>
   <p class="tag">{t.madeIn} · {year}</p>

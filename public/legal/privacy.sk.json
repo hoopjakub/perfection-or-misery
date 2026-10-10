@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-01",
+  "updated": "2026-10-10",
   "contact": "perfectionormisery@gmail.com",
   "title": "Súkromie",
   "intro": "Perfection or Misery si nechá čo najmenej: tvoje meno a tvoje hry. Žiadne reklamy, žiadne cookies, žiadne sledovanie na iných stránkach a nič sa nepredáva.",
@@ -60,6 +60,15 @@
       ]
     },
     {
+      "heading": "Otázky na webe",
+      "body": [
+        "Ak položíš otázku v komunite na webe, uloží sa otázka, tvoj účet, či je označená ako verejná alebo súkromná, kedy bola položená a upravená a súkromný rozhovor, ak ho k nej vývojár otvorí.",
+        "Vývojár môže čítať všetky otázky. Súkromnú neuvidí nikto iný. Verejná sa po odpovedi ukáže na webe bez tvojho mena a vývojár ju môže z webu stiahnuť.",
+        "Kvôli limitom (jedna otázka naraz, pár za deň) si web pamätá aj časy otázok, úprav a odpovedí. Otázky ostávajú, kým nevymažeš účet alebo kým niektorú vývojár nevymaže pre zneužitie.",
+        "Prihlásenie na webe drží tvoju reláciu v úložisku toho prehliadača, nič viac, a len kým sa neodhlásiš."
+      ]
+    },
+    {
       "heading": "Čo meria web",
       "body": [
         "Iba na webe Vercel (ktorý ho hostí) počíta návštevy a zobrazenia stránok a meria, ako rýchlo sa stránky načítajú skutočným návštevníkom, aby sme videli, ktoré stránky sa používajú, a opravili tie pomalé. Nepoužíva cookies a nezaznamenáva žiadne osobné identifikátory: každý údaj je anonymný a to, čím sa jedna návšteva líši od druhej, sa po 24 hodinách zahodí.",
@@ -77,7 +86,7 @@
     {
       "heading": "Vymazanie všetkého",
       "body": [
-        "Ty → Vymazať účet natrvalo odstráni tvoj účet, všetky hry, kariéru, priateľov, členstvo v klube a miesto v rebríčku. Stane sa to hneď a nedá sa to vrátiť."
+        "Ty → Vymazať účet natrvalo odstráni tvoj účet, všetky hry, kariéru, priateľov, členstvo v klube, otázky na webe a miesto v rebríčku. Stane sa to hneď a nedá sa to vrátiť."
       ]
     }
   ]

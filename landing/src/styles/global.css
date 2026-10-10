@@ -164,6 +164,20 @@ textarea.field { resize: vertical; }
 .admin-qr { background: #fff; padding: 8px; }     /* a QR needs a light quiet zone on either ground */
 .admin-secret { font: 500 14px var(--tag); word-break: break-all; user-select: all; }
 
+/* /download: the steps and the checksum. */
+.download .plate { width: 100%; margin: 12px 0 6px; }
+.download .c-row .plate { width: auto; margin: 0; }
+.download .c-head { margin-top: 28px; }
+.download-steps { padding-left: 20px; }
+.download-steps li { margin: 6px 0; }
+.download-sha { font: 500 13px/1.4 var(--tag); word-break: break-all; flex: 1; min-width: 0; }
+
+/* Privacy and Terms: the community's reading column. */
+.legal { max-width: 720px; margin: 24px auto 0; }
+.legal-intro { font-size: 17px; line-height: 1.55; }
+.legal-section { border-top: 1px solid var(--rule); padding: 16px 0; }
+.legal-section p { color: var(--muted); margin: 8px 0 0; }
+
 main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter) 48px; }
 
 /* ── Plates ──────────────────────────────────────────────────────────── */
