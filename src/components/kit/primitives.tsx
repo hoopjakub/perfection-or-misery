@@ -461,6 +461,7 @@ const ICONS = {
   sparkle: 'sparkles-sharp',   // P8-38: a call exactly right
   settings: 'settings-sharp',   // P8-45
   clubs: 'people-sharp',   // P8.5-07: the Clubs tab
+  community: 'chatbubbles-sharp',   // Phase 10 step 8: the website's community
   // P8-86: one mark per mode, the tournaments included (they had none). The
   // Finals and the Full path share a competition, so the icon is what tells
   // them apart: a star for the competition itself, a signpost for the road to it.

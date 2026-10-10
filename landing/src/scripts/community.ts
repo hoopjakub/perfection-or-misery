@@ -137,6 +137,9 @@ async function question() {
   }
   const p = await rpc<Published[]>('qa_published_one', { p_id: id })
   if (p.error !== undefined) return show(note(said(p.error)))
+  // Not published and not signed in: it may be yours (the app's notice opens
+  // this page, step 8), so offer the sign-in before saying it isn't here.
+  if (!p.data.length && !session()) return show(note(S.signInFirst), h('div', { class: 'c-actions' }, plate(signInHref(), S.signIn)))
   show(p.data.length ? qaItem(p.data[0], false) : note(S.notFound), h('p', {}, h('a', { href: `${BASE}/questions` }, S.allQuestions)))
 }
 

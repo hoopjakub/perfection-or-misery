@@ -4,7 +4,7 @@ import { log } from '@/diag/log'
 import { t } from '@/i18n'
 import { View, StyleSheet } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { KitScreen, KitText, SectionTag, BackControl, Plate, Field, StripedNotice, EmptyState, Tag, GhostRows } from '@/components/kit'
+import { KitScreen, KitText, SectionTag, BackControl, Plate, Field, StripedNotice, EmptyState, Tag, GhostRows, ListRow } from '@/components/kit'
 import { PageMeta } from '@/components/PageMeta'
 import { PlayerName } from '@/components/profile/ProfileParts'
 import {
@@ -18,6 +18,7 @@ import { ordinal } from '@/lib/format'
 import { ROLES, space, border } from '@/theme'
 import { EVERYDAY } from '@/lib/appearance'
 import { OfflineNotice } from '@/components/OfflineStrip'
+import { openCommunity, questionOf, questionNoticeLine } from '@/lib/community'
 
 // P8-90: friends, with the screen they never had. Find a player by username,
 // send a request, answer the ones sent to you, and see each friend's latest
@@ -117,7 +118,14 @@ export default function FriendsScreen() {
       {notices.length > 0 && (
         <>
           <SectionTag roles={roles}>{t('friends.news')}</SectionTag>
-          {notices.slice(0, 5).map(n => (
+          {notices.slice(0, 5).map(n => questionOf(n) ? (
+            // A question on the website: the row opens it there (Phase 10 step 8).
+            <ListRow key={n.id} roles={roles} icon="community"
+              label={questionNoticeLine(n.payload.kind)}
+              value={ago(n.created_at).toUpperCase()}
+              trailing={!n.read ? <Tag roles={roles} variant="you">{t('friends.new')}</Tag> : undefined}
+              onPress={() => openCommunity(`/question?id=${questionOf(n)}`)} />
+          ) : (
             <View key={n.id} style={[styles.row, { borderBottomColor: roles.rule }]}>
               {!n.read && <Tag roles={roles} variant="you">{t('friends.new')}</Tag>}
               <KitText t="body" color={roles.text} style={{ flex: 1 }}>

@@ -135,6 +135,8 @@ Like the app's reel card: a rectangle in the club's first colour with its second
 
 ## 5. The screenshots (08 H15)
 
+*(10 Oct 2026, the maintainer: made after Phase 11, together with the redone launch video. Until then the frames show their numbered tiles.)*
+
 From the **legal build**, at 1170 × 2532 (a phone's native size), light and dark versions of each where the screen follows the setting. The maintainer supplies them (Q11); this is the list.
 
 | # | Screen | State |

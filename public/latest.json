@@ -1,0 +1,9 @@
+{
+  "version": "0.9.0",
+  "build": 17,
+  "url": "https://github.com/hoopjakub/perfection-or-misery-release/releases/download/v0.9.0/perfection-or-misery.apk",
+  "sha256": "49e2900a995ddea77cd2fa515c299ee39409afe7c44e059a44ecd066146ef348",
+  "size": 187035240,
+  "released": "2026-10-10",
+  "notes": "The first Android build: every mode, the community, and updates that install themselves."
+}

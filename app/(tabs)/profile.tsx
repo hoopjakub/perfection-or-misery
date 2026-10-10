@@ -9,6 +9,7 @@ import { useUserStore } from '@/store/userStore'
 import { useNoticeStore } from '@/store/noticeStore'
 import { signOut, deleteAccount } from '@/lib/auth'
 import { openConfirm } from '@/lib/confirm'
+import { openCommunity } from '@/lib/community'
 import { fetchUserStats, fetchMyPlace, type UserStats } from '@/db/queries/leaderboard'
 import { fetchPublicProfile, formatPlaytime, readLook, type PublicProfile } from '@/db/queries/profile'
 import { useCrestStore } from '@/store/crestStore'
@@ -161,6 +162,8 @@ export default function YouScreen() {
       <SectionTag roles={roles}>{t('you.theGame')}</SectionTag>
       <ListRow roles={roles} icon="settings" label={t('you.settings')} onPress={() => router.push('/settings')} />
       <ListRow roles={roles} icon="guide" label={t('you.guide')} onPress={() => router.push('/guide')} />
+      {/* The website's community (Phase 10 step 8): opens in the browser. */}
+      <ListRow roles={roles} icon="community" label={t('you.community')} sub={t('you.communitySub')} onPress={() => openCommunity()} />
       <ListRow roles={roles} icon="about" label={t('you.about')} onPress={() => router.push('/about')} />
       <ListRow roles={roles} icon="privacy" label={t('you.privacy')} onPress={() => router.push('/privacy')} />
       <ListRow roles={roles} icon="terms" label={t('you.terms')} onPress={() => router.push('/terms')} />

@@ -139,7 +139,8 @@ export async function relationshipWith(targetId: string): Promise<{ state: Relat
 }
 
 // ── Notifications ────────────────────────────────────────────────────────────
-export type Notice = { id: string; type: string; payload: { fromUserId?: string; fromUsername?: string }; read: boolean; created_at: string }
+// 'qa' notices carry the website question's id and what happened (supabase/qa.sql qa_notify).
+export type Notice = { id: string; type: string; payload: { fromUserId?: string; fromUsername?: string; questionId?: string; kind?: string }; read: boolean; created_at: string }
 
 export async function getNotifications(limit = 20): Promise<Notice[]> {
   const me = await myId()

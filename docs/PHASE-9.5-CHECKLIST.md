@@ -536,9 +536,23 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 | # | What to check | Where | Status |
 |---|---|---|---|
 | 975-74 | **`supabase/audit-phase10.sql`**: run it (read-only); every row says `ok:`, none `FAIL:` (failures sort to the top). Send the result either way | Supabase | done (10 Oct): one FAIL, accepted (the log's admin_id, on purpose) |
-| 975-75 | **Two accounts** (10 §3.1): run `qa-tests.sql` once more (T5 now also tries A's question's page, search and the ask form as B); `ALL QA TESTS PASSED` | Supabase | unchecked |
+| 975-75 | **Two accounts** (10 §3.1): run `qa-tests.sql` once more (T5 now also tries A's question's page, search and the ask form as B); `ALL QA TESTS PASSED` | Supabase | done (10 Oct) |
 | 975-76 | **Stored script** (10 §3.2): ask `<img src=x onerror=alert(1)>` and `javascript:alert(1)`; on the question page, in the admin's inbox, and (answered, public) on the Q&A, it shows as text, nothing pops up, nothing is a link | web | done (10 Oct): locally, against a stand-in database; nothing ran |
 | 975-77 | **Headers** (10 §3.3): the live site's response has the CSP, HSTS and the rest of `landing/vercel.json` (devtools → Network → the page → Response headers) | web | done (10 Oct): curl + Mozilla Observatory A+ |
 | 975-78 | **The counter's honesty** (10 §3.8): block `*.supabase.co` in devtools and reload; the counter shows the built number with its date, never 0 or a dash | web | done (10 Oct): locally; keeps the built number and date |
 | 975-79 | **In-app browsers** (10 §3.10): open the site and *Play* from Instagram's and Facebook's browsers on Android; the game opens or says what to do | phone | done (10 Oct): Instagram, by the maintainer |
-| 975-80 | **The site's address**: on Vercel, set `PUBLIC_SITE_URL` to `https://perfection-or-misery-website.vercel.app` or delete it, push today's work, redeploy; `view-source:` on the front page shows that address in `rel="canonical"`, and `/sitemap.xml` uses it | Vercel | unchecked |
+| 975-80 | **The site's address**: on Vercel, set `PUBLIC_SITE_URL` to `https://perfection-or-misery-website.vercel.app` or delete it, push today's work, redeploy; `view-source:` on the front page shows that address in `rel="canonical"`, and `/sitemap.xml` uses it | Vercel | done (10 Oct) |
+
+## Phase 10 · Step 8, the app's side (10 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-81 | **Community on You**: a *Community* row after Guide opens the site's community in the browser (English or Slovak, as the app is set) | game | unchecked |
+| 975-82 | **A question notice**: answer one of your questions from the admin page; in the game, the badge on You lights, Friends → News says *Your question has an answer*, and tapping it opens that question on the site (signed out there, it asks you to sign in first) | game + web | unchecked |
+
+## Phase 10 · The first Android release (10 October 2026)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-83 | **The release, in this order**: (1) GitHub release `v0.9.0` on perfection-or-misery-release, the APK attached as `perfection-or-misery.apk`, body from `D:\POM-Release\v0.9.0\RELEASE-NOTES.md`; (2) push the release repo's README; (3) push the game repo (it carries `public/latest.json`, build 17) so `/latest.json` goes live. Then `/download` shows 0.9.0 · 187 MB · 10 Oct, the APK button works, and the SHA-256 matches `certutil -hashfile perfection-or-misery.apk SHA256` | GitHub + Vercel | unchecked |
+| 975-84 | **On a phone**: install from `/download`; it opens, plays, signs in. (The update check needs a build 18 to prove itself: the next release.) | phone | unchecked |

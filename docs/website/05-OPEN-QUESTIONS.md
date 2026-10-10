@@ -121,6 +121,7 @@ The upgraded audit, the two-account test, the critique again.
 
 ### Step 8 · The app's side
 The community link, the "your question changed" mark, the shared legal file.
+*(Built 10 Oct 2026. You has a *Community* row (after Guide) that opens the site's community in the browser, in the app's language (`src/lib/community.ts`; the address is `EXPO_PUBLIC_WEBSITE_URL` or the site's Vercel address). A `qa` notice in Friends → News reads by what happened (answered, planned, declined, a duplicate, read, a conversation, a message) and opens the question on the site; it counts toward the existing badge on You. Signed out, the site's question page now offers the sign-in instead of "not here". The legal file was shared on the same day (Privacy and Terms on the site).)*
 
 ## 4 · Documents to update when this is built
 
