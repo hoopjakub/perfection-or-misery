@@ -65,7 +65,8 @@ function useCupRun(fresh: boolean) {
     useGameStore.getState().resetRun()
     then()
   }
-  return { runStats, statsDone, runSave, submitting, leave, user: user && !isGuest && !quickSim ? user : null }
+  // user: the account, null for a guest; keeps: a fresh, real run, kept for an account or on the phone.
+  return { runStats, statsDone, runSave, submitting, leave, user: user && !isGuest && !quickSim ? user : null, keeps: fresh && !quickSim }
 }
 
 const Tallying = () => (
@@ -76,7 +77,7 @@ const Tallying = () => (
 export function ClassicCupResult({ runId, run, result }: { runId?: string; run: any | null; result: CLSeasonResult }) {
   const store = useGameStore()
   const fresh = !runId && store.draftedPlayers.length > 0
-  const { runStats, statsDone, runSave, submitting, leave, user } = useCupRun(fresh)
+  const { runStats, statsDone, runSave, submitting, leave, user, keeps } = useCupRun(fresh)
   if (!statsDone) return <Tallying />
   // P8-172: which of the three; a saved run says.
   const comp = compOfMode(run?.mode ?? store.mode) ?? EUROPE.ucl
@@ -95,17 +96,17 @@ export function ClassicCupResult({ runId, run, result }: { runId?: string; run: 
   for (const m of yourTies) { const x = koTieLegRecord(m, m.teamA.isPlayer); w += x.w; d += x.d; l += x.l }
 
   async function persistRun() {
-    if (!user || !fresh) return
+    if (!keeps) return
     if (store.formation) {
       await saveCLRun({
-        userId: user.id, formation: store.formation, teamOvr: playerTeam.ovr, result, mode: comp.mode,
+        userId: user?.id ?? null, formation: store.formation, teamOvr: playerTeam.ovr, result, mode: comp.mode,
         squad: [...store.draftedPlayers, ...store.benchPlayers], difficulty: store.difficulty, custom: store.customDifficulty,
         stats: runStats?.stats, awards: runStats?.awards,
         punditsOnYou: punditsOnYouFor(store.clTeams, store.predictionSeed),
         extra: { gotAway: store.gotAway, punditSeed: store.predictionSeed },
       })
     }
-    if (runStats) {
+    if (user && runStats) {   // the career is an account's
       const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
       await mergeCareerFromRun(user.id, {
         competition: comp.mode, yourPlayers: runStats.stats.players.filter(p => p.isPlayerClub),
@@ -143,7 +144,7 @@ export function ClassicCupResult({ runId, run, result }: { runId?: string; run: 
 export function WorldCupResult({ runId, run, result }: { runId?: string; run: any | null; result: WCSeasonResult }) {
   const store = useGameStore()
   const fresh = !runId && store.draftedPlayers.length > 0
-  const { runStats, statsDone, runSave, submitting, leave, user } = useCupRun(fresh)
+  const { runStats, statsDone, runSave, submitting, leave, user, keeps } = useCupRun(fresh)
   if (!statsDone) return <Tallying />
   const { knockoutRounds, playerTeam, playerFinalRound, playerGroup, playerGroupPos } = result
   const title = formatTier(playerFinalRound)
@@ -156,17 +157,17 @@ export function WorldCupResult({ runId, run, result }: { runId?: string; run: an
   const koW = yourKo.filter(m => m.winner.isPlayer).length
 
   async function persistRun() {
-    if (!user || !fresh) return
+    if (!keeps) return
     if (store.formation) {
       await saveWCRun({
-        userId: user.id, formation: store.formation, teamOvr: playerTeam.ovr, result,
+        userId: user?.id ?? null, formation: store.formation, teamOvr: playerTeam.ovr, result,
         squad: [...store.draftedPlayers, ...store.benchPlayers], difficulty: store.difficulty, custom: store.customDifficulty,
         stats: runStats?.stats, awards: runStats?.awards,
         punditsOnYou: punditsOnYouFor(store.wcTeams, store.predictionSeed),
         extra: { gotAway: store.gotAway, punditSeed: store.predictionSeed },
       })
     }
-    if (runStats) {
+    if (user && runStats) {   // the career is an account's
       const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
       await mergeCareerFromRun(user.id, {
         competition: 'world_cup', yourPlayers: runStats.stats.players.filter(p => p.isPlayerClub),
@@ -207,7 +208,7 @@ export function WorldCupResult({ runId, run, result }: { runId?: string; run: an
 export function FullPathResult({ runId, run, result }: { runId?: string; run: any | null; result: CLSeasonResult }) {
   const store = useGameStore()
   const fresh = !runId && store.draftedPlayers.length > 0
-  const { runStats, statsDone, runSave, submitting, leave, user } = useCupRun(fresh)
+  const { runStats, statsDone, runSave, submitting, leave, user, keeps } = useCupRun(fresh)
   if (!statsDone) return <Tallying />
   const { leaguePhaseStandings, playoffRound, r16, qf, sf, final, playerTeam, playerFinalRound, playerPot } = result
   // P8-52: the competition the season went on in, and the tier it earned there.
@@ -256,10 +257,10 @@ export function FullPathResult({ runId, run, result }: { runId?: string; run: an
   for (const m of yourTies) { const x = koTieLegRecord(m, m.teamA.isPlayer); w += x.w; d += x.d; l += x.l }
 
   async function persistRun() {
-    if (!user || !fresh) return
+    if (!keeps) return
     if (store.formation) {
       await saveCustomUclRun({
-        userId: user.id, formation: store.formation, teamOvr: playerTeam.ovr, result,
+        userId: user?.id ?? null, formation: store.formation, teamOvr: playerTeam.ovr, result,
         squad: [...store.draftedPlayers, ...store.benchPlayers],
         difficulty: store.difficulty, custom: store.customDifficulty, weightedPicksOverride: store.weightedPicksOverride,
         target: huntReached ? store.europeanTarget : null,
@@ -274,7 +275,7 @@ export function FullPathResult({ runId, run, result }: { runId?: string; run: an
         extra: { gotAway: store.gotAway, punditSeed: store.predictionSeed },
       })
     }
-    if (runStats) {
+    if (user && runStats) {   // the career is an account's
       const pots = runStats.awards.playerOfTheSeason[0], u21 = runStats.awards.bestU21[0]
       await mergeCareerFromRun(user.id, {
         competition: 'champions_league_custom', yourPlayers: runStats.stats.players.filter(p => p.isPlayerClub),

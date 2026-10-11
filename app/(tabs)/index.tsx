@@ -23,6 +23,7 @@ import {
   KitScreen, KitText, Wordmark, Plate, RunLabel, RunLabelSkeleton, SectionTag, Tag, InlineError, StripedNotice,
 } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
+import { useGuestRuns } from '@/lib/guestRuns'
 
 // Home (Play) — docs/ui-overhaul/07a A2. The poster, your last three
 // verdicts as garment labels, and one orange plate in the thumb zone.
@@ -39,6 +40,8 @@ export default function HomeScreen() {
   // Phase 9: boot:interactive ends at Home's first frame (once: the mark is used up).
   useEffect(() => { const id = requestAnimationFrame(() => measure('boot:interactive', 'boot')); return () => cancelAnimationFrame(id) }, [])
   const { isGuest, user, guestFinishedRun } = useUserStore()
+  // Phase 10.5: a guest's runs kept on this phone, waiting for an account.
+  const guestRuns = useGuestRuns(st => st.count)
   // P9.75: what Home showed last time, at once, refreshed every time it comes
   // into view (src/lib/kept.ts). Finishing a run rebuilds the tabs
   // (exitToHome), so Home used to start from ghost rows after every run; the
@@ -184,9 +187,9 @@ export default function HomeScreen() {
               {t('home.pitch')}
             </KitText>
             <View style={styles.wideActions}>{actions}</View>
-            {isGuest && guestFinishedRun && (
+            {isGuest && (guestFinishedRun || guestRuns > 0) && (
               <View style={styles.guestLine}>
-                <KitText t="body" color={roles.textMuted}>{t('home.guestNotKept')}</KitText>
+                <KitText t="body" color={roles.textMuted}>{t('home.guestNotKept', { count: Math.max(guestRuns, 1) })}</KitText>
                 <Plate label={t('home.keepMyRuns')} variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
               </View>
             )}
@@ -210,9 +213,9 @@ export default function HomeScreen() {
           {t('home.pitch')}
         </KitText>
         {record}
-        {isGuest && guestFinishedRun && (
+        {isGuest && (guestFinishedRun || guestRuns > 0) && (
           <View style={styles.guestLine}>
-            <KitText t="body" color={roles.textMuted}>{t('home.guestNotKept')}</KitText>
+            <KitText t="body" color={roles.textMuted}>{t('home.guestNotKept', { count: Math.max(guestRuns, 1) })}</KitText>
             <Plate label={t('home.keepMyRuns')} variant="quiet" roles={roles} onPress={() => router.push('/auth/register')} />
           </View>
         )}

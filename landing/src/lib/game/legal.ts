@@ -19,7 +19,7 @@ export type LegalPageId = 'privacy' | 'terms'
 
 /** When the text last changed, as a date (the app and the site each write it
  *  out in their language: updatedOn below). */
-export const UPDATED = '2026-10-10'
+export const UPDATED = '2026-10-11'
 export const updatedOn = (lang: LegalLang) =>
   new Date(`${UPDATED}T12:00:00`).toLocaleDateString(lang === 'sk' ? 'sk-SK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 /** The project's address for anything outward (never anyone's personal one). */
@@ -59,7 +59,8 @@ const PRIVACY_EN: LegalDoc = {
     {
       heading: 'Playing as a guest',
       body: [
-        'Opening the app starts an anonymous guest session so the game works straight away. Guest runs are not saved. Nothing identifies you as a person.',
+        'You can play without an account. A guest has no account on our side: nothing is sent about you, and nothing identifies you as a person.',
+        'A guest\'s finished runs wait on your device. If you make an account on that device, they are saved to it then; otherwise they stay on the device and nowhere else.',
       ],
     },
     {
@@ -208,7 +209,8 @@ const PRIVACY_SK: LegalDoc = {
     {
       heading: 'Hra ako hosť',
       body: [
-        'Keď otvoríš appku, začne sa anonymná relácia hosťa, aby hra fungovala hneď. Hry hosťa sa neukladajú. Nič z toho ťa neidentifikuje ako osobu.',
+        'Hrať sa dá aj bez účtu. Hosť u nás nemá žiadny účet: nič sa o tebe neposiela a nič ťa neidentifikuje ako osobu.',
+        'Dohrané hry hosťa čakajú v tvojom zariadení. Ak si v ňom založíš účet, uložia sa k nemu; inak ostanú len v zariadení.',
       ],
     },
     {

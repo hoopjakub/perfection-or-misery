@@ -9,13 +9,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 // same limit (supabase/friends.sql), so it can't be got round.
 export const USERNAME_MAX = 38
 
-export async function ensureGuestSession(): Promise<void> {
+// Phase 10.5 (docs/release/09-GUESTS.md, option C): a guest has no session at
+// all. Every launch used to sign in anonymously, which made an account per
+// install and per browser (99 guests to 11 accounts on 9 Oct), stalled on
+// shared wifi at Supabase's 30 anonymous sign-ins an hour, and blocked the
+// "require current password" setting. Now the app plays signed out, and a
+// guest's runs wait on the phone until sign-up (adoptGuestRuns).
+//
+// An older version's anonymous session is dropped at start-up, locally (no
+// request: on a dead network it mustn't wait). Nothing is lost: a guest's runs
+// were never saved under it.
+export async function dropAnonymousSession(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
-  if (session) {
-    return
-  }
-  const { error } = await supabase.auth.signInAnonymously()
-  if (error) throw error
+  if (!session?.user?.is_anonymous) return
+  await supabase.auth.signOut({ scope: 'local' })
+  await clearSession()
+  log.info('auth', 'auth: an old guest session was dropped')
 }
 
 export async function loginWithUsername(
@@ -37,70 +46,55 @@ export async function loginWithUsername(
 
 }
 
-export async function upgradeGuestAccount(params: {
+/**
+ * Make an account (Phase 10.5): a plain sign-up with the internal address.
+ * The database's trigger (handle_new_user) makes the profile, with the name in
+ * lower case from the address and is_guest false; the name's own casing is
+ * written after. Then the guest's runs kept on this phone become the account's.
+ * Errors: USERNAME_TAKEN, BAD_WORD (the moderation's list), SIGNIN_AFTER_UPGRADE
+ * (the account exists but the session didn't come: sign in by hand).
+ */
+export async function registerAccount(params: {
   username: string
   password: string
 }): Promise<void> {
-  const { username, password } = params
-  const displayUsername = username.trim()           // keep original casing: "Kolka"
-  const trimmed         = displayUsername.toLowerCase() // for email: "kolka"
-  const internalEmail   = `${trimmed}@pom.internal`
+  const displayUsername = params.username.trim()           // keep original casing: "Kolka"
+  const internalEmail   = `${displayUsername.toLowerCase()}@pom.internal`
 
-  // check username taken — case insensitive check
+  // taken, case-insensitively
   const { data: existing } = await supabase
     .from('profiles')
     .select('id')
-    .ilike('username', trimmed)  // ilike = case insensitive LIKE
+    .ilike('username', displayUsername.toLowerCase())
     .maybeSingle()
-
   if (existing) throw new Error('USERNAME_TAKEN')
-  // P8.5-44: asked BEFORE the sign-in email changes below. The username's
-  // own check (supabase/moderation.sql) only runs on the profile, after the
-  // email, so a refused name would leave the account half-renamed.
+  // P8.5-44: before the account exists, so a refused name makes nothing.
   if ((await checkName(displayUsername)) === 'blocked') throw new Error('BAD_WORD')
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('NO_USER')
-
-  const { data: updateData, error: updateError } = await supabase.auth.updateUser({
-    email:    internalEmail,
-    password: password,
-  })
-
-  if (updateError) {
-    log.warn('auth', 'auth: updateUser failed', updateError.status)
-    throw updateError
+  const { data, error } = await supabase.auth.signUp({ email: internalEmail, password: params.password })
+  if (error) {
+    log.warn('auth', 'auth: sign-up failed', error.status)
+    // The address is taken in Auth even if the profile check missed it (a race).
+    if (/registered|already/i.test(error.message)) throw new Error('USERNAME_TAKEN')
+    throw error
+  }
+  // With email confirmation off (the internal address receives no mail) the
+  // session comes with the sign-up. If it doesn't, sign in.
+  let userId = data.session?.user?.id
+  if (!userId) {
+    const { data: signed, error: signInError } = await supabase.auth.signInWithPassword({ email: internalEmail, password: params.password })
+    if (signInError || !signed.user) { log.warn('auth', 'auth: sign in after sign-up failed', signInError?.status); throw new Error('SIGNIN_AFTER_UPGRADE') }
+    userId = signed.user.id
   }
 
-  // store display username with original casing
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ username: displayUsername, is_guest: false })
-    .eq('id', user.id)
+  // The name as typed, casing and all. A failure here leaves the lower-case name: logged, not fatal.
+  const { error: profileError } = await supabase.from('profiles').update({ username: displayUsername, is_guest: false }).eq('id', userId)
+  if (profileError) log.warn('auth', 'auth: keeping the name\'s casing failed', profileError.code)
 
-  if (profileError) throw profileError
-
-  await new Promise(resolve => setTimeout(resolve, 1500))
-
-  await supabase.auth.signOut()
-  await clearSession()
-
-  await new Promise(resolve => setTimeout(resolve, 500))
-
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-    email:    internalEmail,
-    password: password,
-  })
-
-  // The account exists at this point but we're signed out. This used to return
-  // quietly, so the register screen treated it as success and dropped the
-  // player on Home with no session at all. Say so, and send them to sign in.
-  if (signInError) {
-    log.warn('auth', 'auth: sign in after upgrade failed', signInError.status)
-    throw new Error('SIGNIN_AFTER_UPGRADE')
-  }
-
-} 
+  // "Keep my runs": the runs played as a guest on this phone go up now.
+  const { adoptGuestRuns } = await import('@/db/queries/runs')
+  await adoptGuestRuns(userId).catch(e => log.warn('save', 'guest: adopting the runs failed', e))
+}
 
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut()
@@ -119,11 +113,10 @@ async function clearSession(): Promise<void> {
 /**
  * Delete the signed-in account and all its runs (Phase 6). The work happens in
  * the `delete-account` edge function, which needs the service role; the app
- * then signs out and falls back to a fresh guest session, as a new install would.
+ * then signs out and plays on as a guest, with no session (Phase 10.5).
  */
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' })
   if (error) throw error
   await signOut()
-  await ensureGuestSession()
 }

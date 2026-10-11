@@ -26,7 +26,8 @@
 //    saved" list with the server's reason, which Diagnostics shows and can
 //    send again (a server that refused it for being out of date, say, until
 //    it was redeployed). It used to vanish with one log line.
-// A guest's run is never queued (a guest's runs aren't kept at all).
+// A guest's run waits in its own list (src/lib/guestRuns.ts) and joins this
+// queue at sign-up, with the new account's id (Phase 10.5).
 //
 // The core below takes its storage and its sender as arguments, so
 // scripts/verify-run-queue.ts drives it headless with a fake server.
@@ -118,6 +119,18 @@ export function flushOnUserChange(
 ): boolean {
   if (!next.userId) return false
   return next.userId !== prev.userId || (prev.isGuest && !next.isGuest)
+}
+
+// ── A guest's runs (Phase 10.5, docs/release/09-GUESTS.md option C) ────────────
+// Every run is kept, none dropped (the maintainer, 11 Oct 2026: a first version
+// kept the newest ten, and the eleventh silently lost the oldest, which "doesn't
+// make sense" for a button called Keep my runs). submit-run's ten a minute
+// isn't a reason for a cap: the queue takes a 429 as "not now" and sends the
+// rest a minute later (adoptGuestRuns). The list lives in src/lib/guestRuns.ts.
+/** The list with one more run: the same run never twice, oldest first. */
+export function withGuestRun(list: QueuedRun[], item: QueuedRun): QueuedRun[] {
+  return [...list.filter(r => r.clientId !== item.clientId), item]
+    .sort((a, b) => a.playedAt.localeCompare(b.playedAt))
 }
 
 // ── The app's queue ──────────────────────────────────────────────────────────

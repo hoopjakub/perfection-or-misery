@@ -27,7 +27,7 @@ import { getDb } from '@/db/setup'
 import { initAuthListener } from '@/store/userStore'
 import { markBootReady } from '@/lib/bootReady'
 import { LogoIntro } from '@/components/brand/LogoIntro'
-import { ensureGuestSession } from '@/lib/auth'
+import { dropAnonymousSession } from '@/lib/auth'
 import { useFonts } from 'expo-font'
 import { PageMeta } from '@/components/PageMeta'
 import { OfflineStrip } from '@/components/OfflineStrip'
@@ -191,10 +191,11 @@ export default function RootLayout() {
       initAuthListener()
       if (Platform.OS !== 'web') await getDb()
       // Phase 10 (step 1a): the opening logo loops until this (src/lib/bootReady.ts).
-      // Before the guest session on purpose: Home doesn't need it, and on a dead
-      // network it can hang.
       markBootReady()
-      await ensureGuestSession()
+      // Phase 10.5: no guest sign-in any more (a guest has no session); an old
+      // version's anonymous one is dropped, locally. Its failure can't stop the
+      // rest of start-up (09-GUESTS G3: it used to skip the web chrome and keys).
+      await dropAnonymousSession().catch(e => log.warn('auth', 'dropping an old guest session failed', e))
 
       if (Platform.OS === 'web') {
         // Warm the db once Home has painted, so starting a run doesn't wait on it.

@@ -18,7 +18,13 @@ export function asRelease(x: unknown): Release | null {
 /** The record, null when there's no release yet, 'unreachable' when it couldn't be read. */
 export async function readRelease(): Promise<Release | null | 'unreachable'> {
   try {
-    const res = await fetch(LATEST_URL, { headers: { 'Cache-Control': 'no-cache' } })
+    // No request headers: a Cache-Control header made the browser ask the
+    // game's server first (a CORS preflight), which allows no headers, so the
+    // browser's read always failed and the page kept the build's answer; the
+    // site had to be redeployed for a release to show (10 Oct 2026). `cache`
+    // is a fetch option, not a header: no preflight. In the browser only; the
+    // build's fetch (Node) reads fresh anyway.
+    const res = await fetch(LATEST_URL, typeof window === 'undefined' ? undefined : { cache: 'no-store' })
     if (res.status === 404) return null
     if (!res.ok) return 'unreachable'
     // The game's web build answers an unknown path with its app page (200,

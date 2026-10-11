@@ -119,9 +119,9 @@ export function LeagueResult({ runId, run }: { runId?: string; run: any | null }
   // Handed to useRunSave, which runs it once and shows a failure rather than
   // pretending it worked.
   async function saveCurrentRun() {
-    if (user && !isGuest && !quickSim && mode && formation && placedLeague && simResult) {
+    if (!quickSim && mode && formation && placedLeague && simResult) {
       await saveRun({
-        userId: user.id, mode, formation, teamOvr: simResult.playerTeam.ovr,
+        userId: user && !isGuest ? user.id : null, mode, formation, teamOvr: simResult.playerTeam.ovr,
         leagueId: placedLeague.leagueId, leagueName: placedLeague.leagueName, yearStart: placedLeague.yearStart,
         seasonResult: simResult, squad: fullSquad, matchdayHistory: simResult.matchdayHistory,
         difficulty, custom: customDifficulty, stats: runStats?.stats, awards: runStats?.awards,

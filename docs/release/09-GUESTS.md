@@ -38,11 +38,21 @@
 
 **Decided (9 Oct): C.** It removes every cost in §2 and makes the one promise the guest flow makes (*Keep my runs*) true. It reuses what already exists: the offline queue (Phase 9.75), its user check and `submit-run`'s limits. B alone is the same work minus the queue step, and leaves the button's promise to be reworded.
 
-**A limit for C:** keep at most the last 10 finished guest runs on the phone (a guest who plays fifty before signing up keeps the ten newest), so the first batch after sign-up stays inside `submit-run`'s rate limit, and the phone doesn't hold an unbounded queue.
+**A limit for C** *(dropped 11 Oct, see §4a)*: the plan kept at most the last 10. Built that way, the eleventh run lost the oldest; the maintainer: it "doesn't make quite a lot of sense". The rate limit was never a reason (the queue takes a 429 as "not now" and sends the rest a minute later), so every run is kept.
 
 ## 4. Where it fits
 
 Not Phase 10: the website plan doesn't depend on it (the site has sign-in only, [`../website/08-HOLES.md`](../website/08-HOLES.md) H21). **Decided: Phase 10.5**, the PC sweep, because it changes start-up on the web, which that phase walks screen by screen anyway. Until then: "require current password when updating" stays **off** (decided 9 Oct), and a one-off clean-up of guest accounts with no runs can be run by hand whenever it's wanted.
+
+## 4a. As built (11 October 2026)
+
+- **No guest session.** Start-up no longer signs in; an older version's anonymous session is signed out locally (`dropAnonymousSession`, `src/lib/auth.ts`), and its failure can't stop the rest of start-up. Deleting an account leaves you a guest with no session.
+- **Sign-up is a new account** (`registerAccount`): the taken and moderation checks first, then `signUp` with the internal address; the profile comes from `handle_new_user`, the name's casing is written after.
+- **A guest's runs wait on the phone.** Every save passes `insertRun` (`src/db/queries/runs.ts`); with no account the run goes into the guest list (`src/lib/guestRuns.ts`, the rule `withGuestRun` in `src/lib/runQueue.ts`: every run, never twice, oldest first; no cap, changed 11 Oct after the maintainer: a first version kept the newest 10 and dropped older ones, which makes no sense for *Keep my runs*; a full browser storage fails the save with a retry instead of losing a run; checked in `verify-run-queue`, 25 runs sent in three rounds of ten a minute), and the result's save line says it's waiting on the phone. At sign-up `adoptGuestRuns` gives each the new account's id and puts it in the ordinary run queue, which sends it once the account is known, dated when it was played (submit-run keeps that date up to 14 days back).
+- **Only at sign-up**, not when signing in to an existing account: on a shared phone a stranger's runs mustn't land on someone's account. Runs waiting when someone signs in stay on the phone for the next sign-up.
+- **Not carried over:** the career (`mergeCareerFromRun`) of a guest's runs; the career counts from the first run played on the account.
+- **Words:** Home's guest line now shows while runs wait, with the count; Runs, Career, Achievements and the save line say the runs wait on the phone; the privacy page's guest section is rewritten (both languages, `UPDATED` 2026-10-11).
+- **The clean-up:** `supabase/guests-cleanup.sql`, look first, then one transaction, run after the new version is out everywhere.
 
 ## 5. Done when (for C)
 

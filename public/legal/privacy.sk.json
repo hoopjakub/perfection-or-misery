@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-10",
+  "updated": "2026-10-11",
   "contact": "perfectionormisery@gmail.com",
   "title": "Súkromie",
   "intro": "Perfection or Misery si nechá čo najmenej: tvoje meno a tvoje hry. Žiadne reklamy, žiadne cookies, žiadne sledovanie na iných stránkach a nič sa nepredáva.",
@@ -33,7 +33,8 @@
     {
       "heading": "Hra ako hosť",
       "body": [
-        "Keď otvoríš appku, začne sa anonymná relácia hosťa, aby hra fungovala hneď. Hry hosťa sa neukladajú. Nič z toho ťa neidentifikuje ako osobu."
+        "Hrať sa dá aj bez účtu. Hosť u nás nemá žiadny účet: nič sa o tebe neposiela a nič ťa neidentifikuje ako osobu.",
+        "Dohrané hry hosťa čakajú v tvojom zariadení. Ak si v ňom založíš účet, uložia sa k nemu; inak ostanú len v zariadení."
       ]
     },
     {

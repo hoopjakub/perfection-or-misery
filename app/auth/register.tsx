@@ -6,7 +6,7 @@ import { USERNAME_MAX } from '@/lib/auth'
 import { PageMeta } from '@/components/PageMeta'
 import { View, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
-import { upgradeGuestAccount } from '@/lib/auth'
+import { registerAccount } from '@/lib/auth'
 import { ROLES, space } from '@/theme'
 import { KitScreen, KitText, Field, Plate, StripedNotice, Checkbox, BackControl } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
@@ -43,7 +43,7 @@ export default function RegisterScreen() {
 
     setLoading(true)
     try {
-      await upgradeGuestAccount({ username: username.trim(), password })
+      await registerAccount({ username: username.trim(), password })
       router.replace('/(tabs)')
     } catch (e: any) {
       // The spinner used to stay up forever after any error — loading was only

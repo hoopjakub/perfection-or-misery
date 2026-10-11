@@ -554,5 +554,17 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 
 | # | What to check | Where | Status |
 |---|---|---|---|
-| 975-83 | **The release, in this order**: (1) GitHub release `v0.9.0` on perfection-or-misery-release, the APK attached as `perfection-or-misery.apk`, body from `D:\POM-Release\v0.9.0\RELEASE-NOTES.md`; (2) push the release repo's README; (3) push the game repo (it carries `public/latest.json`, build 17) so `/latest.json` goes live. Then `/download` shows 0.9.0 · 187 MB · 10 Oct, the APK button works, and the SHA-256 matches `certutil -hashfile perfection-or-misery.apk SHA256` | GitHub + Vercel | unchecked |
-| 975-84 | **On a phone**: install from `/download`; it opens, plays, signs in. (The update check needs a build 18 to prove itself: the next release.) | phone | unchecked |
+| 975-83 | **The release, in this order**: (1) GitHub release `v0.9.0` on perfection-or-misery-release, the APK attached as `perfection-or-misery.apk`, body from `D:\POM-Release\v0.9.0\RELEASE-NOTES.md`; (2) push the release repo's README; (3) push the game repo (it carries `public/latest.json`, build 17) so `/latest.json` goes live. Then `/download` shows 0.9.0 · 187 MB · 10 Oct, the APK button works, and the SHA-256 matches `certutil -hashfile perfection-or-misery.apk SHA256` | GitHub + Vercel | done (10 Oct): v0.9.0 published, latest.json live |
+| 975-84 | **On a phone**: install from `/download`; it opens, plays, signs in. (The update check needs a build 18 to prove itself: the next release.) | phone | done (11 Oct): installs on the maintainer's phone |
+
+## Phase 10.5 · Guests, option C (11 October 2026, docs/release/09-GUESTS.md §4a)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-85 | **No account on start**: a fresh browser (private window) and a fresh install play as a guest; Supabase → Authentication → Users shows no new anonymous user | web + phone | unchecked |
+| 975-86 | **Runs wait**: as a guest, finish two runs; each result's save line says it waits on this phone; Home says *Your runs are waiting on this phone (2)* | web | unchecked |
+| 975-87 | **Keep my runs**: make an account from that guest; within a minute both runs are in Runs and on Ranks, dated when they were played; Home's guest line is gone | web | unchecked |
+| 975-88 | **Signing in doesn't take them**: as a guest with a run waiting, sign in to an existing account instead; the run isn't added to it | web | unchecked |
+| 975-89 | **An old guest session**: on a phone that still has build 17's guest session, after the update it starts as a guest with no errors | phone | unchecked |
+| 975-90 | **The clean-up**: after the update is everywhere, `supabase/guests-cleanup.sql` step 1, then step 2; `guests_left` 0 | Supabase | unchecked |
+| 975-91 | **The settings**: then turn on *Require current password when updating* (Authentication → Providers → Email) and, optionally, turn **off** anonymous sign-ins; sign-up and sign-in still work | Supabase | unchecked |

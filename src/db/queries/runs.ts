@@ -8,6 +8,7 @@ import { compOfMode, EUROPE } from '@/data/europe'
 import { useCrestStore } from '@/store/crestStore'
 import { supabase } from '@/lib/supabase'
 import { useGameStore } from '@/store/gameStore'
+import { loadGuestRuns, saveGuestRuns, withGuestRun } from '@/lib/guestRuns'
 import {
   scoreRun, invalidRun, type RunRow,
   WC_ROUND_TO_POSITION, CL_ROUND_TO_POSITION, CUSTOM_CL_ROUND_TO_POSITION,
@@ -162,6 +163,42 @@ setRunQueueDeps({
   },
 })
 
+// ── A guest's runs (Phase 10.5, option C) ─────────────────────────────────────
+// No account, no session: a guest's finished run is kept here, not sent. At
+// sign-up the new account adopts them: each gets the account's id and goes
+// into the ordinary queue, which sends them under the account that's signed
+// in (its own check, above) and dates them by when they were played. Only at
+// sign-up: on a shared phone, signing in to someone's existing account mustn't
+// hand them a stranger's runs. Every run is kept (no cap: none is ever dropped
+// to make room); if the browser's storage is full, the save fails and says so,
+// with a retry, rather than losing an older run.
+/** Thrown by a save with no account: the run is on the phone, waiting for one. */
+export class GuestKeptError extends Error { constructor() { super('kept on the phone for a guest') } }
+
+async function keepGuestRun(item: QueuedRun): Promise<void> {
+  const list = withGuestRun(await loadGuestRuns(), item)
+  await saveGuestRuns(list)
+  log.info('save', `guest: run kept on the phone (${list.length} waiting)`)
+}
+
+/** At sign-up: the guest's runs become the new account's and go up through the queue. */
+export async function adoptGuestRuns(userId: string): Promise<number> {
+  const list = await loadGuestRuns()
+  if (!list.length) return 0
+  for (const r of list) await queueRun({ ...r, payload: { ...r.payload, user_id: userId } })
+  await saveGuestRuns([])
+  log.info('save', `guest: ${list.length} run(s) handed to the new account`)
+  // submit-run takes ten a minute; past that the queue holds the rest back
+  // ("not now"), so send again a minute later until they're all up, rather
+  // than waiting for the next start or return to the app.
+  const again = async (tries: number) => {
+    const left = await flushSavedRuns('guest runs adopted')
+    if (left > 0 && tries < 30) setTimeout(() => { void again(tries + 1) }, 65_000)
+  }
+  void again(0)
+  return list.length
+}
+
 // The run on the result screen right now, if it went into the queue: when the
 // queue sends it, its id lands on the store, so its link appears (and the save
 // line turns to "Saved to your runs").
@@ -217,6 +254,10 @@ async function insertRun(row: Record<string, unknown>): Promise<void> {
   t0 = Date.now()
   const kb = Math.round(JSON.stringify(payload).length / 1024)
   log.info('save', `run payload ${kb} KB, JSON in ${Date.now() - t0} ms; the saved row reached the screen in ${stateMs} ms`)
+  // Phase 10.5 (docs/release/09-GUESTS.md, option C): a guest has no account,
+  // so the run waits on the phone, every one of them, until the player makes
+  // one (adoptGuestRuns). "Keep my runs" keeps them.
+  if (!payload.user_id) { await keepGuestRun({ clientId, playedAt, payload }); throw new GuestKeptError() }
   keepJustPlayed(payload, clientId, playedAt)
   const invalid = invalidRun(row as RunRow)
   if (invalid) log.warn('save', `saveRun: this run would be refused by the server: ${invalid}`)
@@ -251,7 +292,7 @@ export async function saveRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
   extra?: RunExtra
-  userId: string
+  userId: string | null   // null: a guest (Phase 10.5), kept on the phone
   mode: GameMode
   formation: string
   teamOvr: number
@@ -325,7 +366,7 @@ export async function saveWCRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
   extra?: RunExtra
-  userId: string
+  userId: string | null   // null: a guest (Phase 10.5), kept on the phone
   formation: string
   teamOvr: number
   result: WCSeasonResult
@@ -375,7 +416,7 @@ export async function saveCLRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
   extra?: RunExtra
-  userId: string
+  userId: string | null   // null: a guest (Phase 10.5), kept on the phone
   formation: string
   teamOvr: number
   result: CLSeasonResult
@@ -429,7 +470,7 @@ export async function saveCustomUclRun(params: {
   /** P8-150: the pundits' place for you and the field's size, for the career's line against them. */
   punditsOnYou?: { predicted: number; field: number } | null
   extra?: RunExtra
-  userId: string
+  userId: string | null   // null: a guest (Phase 10.5), kept on the phone
   formation: string
   teamOvr: number
   result: CLSeasonResult

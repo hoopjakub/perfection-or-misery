@@ -4,7 +4,7 @@ import { useUserStore } from '@/store/userStore'
 import { useGameStore } from '@/store/gameStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { announceNewAchievements } from '@/lib/achievementToast'
-import { RunQueuedError } from '@/db/queries/runs'
+import { RunQueuedError, GuestKeptError } from '@/db/queries/runs'
 
 // ── useRunSave ───────────────────────────────────────────────────────────────
 // Every result screen used to save the run only when you pressed Play Again or
@@ -24,7 +24,7 @@ import { RunQueuedError } from '@/db/queries/runs'
 
 export type RunSaveStatus =
   | 'off'      // not a savable run: history view or the quick-sim tester
-  | 'guest'    // playing without an account — nothing will be kept
+  | 'guest'    // playing without an account: kept on the phone until one is made (Phase 10.5)
   | 'waiting'  // savable, stats still computing
   | 'saving'
   | 'saved'
@@ -44,11 +44,11 @@ export function useRunSave({ applies, history, signedIn, ready }: {
   )
 
   const start = useCallback((): Promise<void> => {
-    if (!applies || !signedIn || !task.current) return Promise.resolve()
+    if (!applies || !task.current) return Promise.resolve()
     // Saving or already saved → reuse, never insert twice. A failed attempt
     // cleared this, so a retry (or leaving the screen) tries once more.
     if (inflight.current) return inflight.current
-    setStatus('saving')
+    setStatus(signedIn ? 'saving' : 'guest')
     const p = task.current().then(
       () => {
         setStatus('saved')
@@ -57,6 +57,9 @@ export function useRunSave({ applies, history, signedIn, ready }: {
         if (id) announceNewAchievements(id)
       },
       (e) => {
+        // Phase 10.5: a guest's run, on the phone until an account adopts it.
+        // It stays "in flight" so leaving the screen doesn't keep it twice.
+        if (e instanceof GuestKeptError) { setStatus('guest'); return }
         // P8.5-24: saved on the phone instead, not lost. It stays "in flight"
         // so leaving the screen doesn't try again: the queue sends it.
         if (e instanceof RunQueuedError) {
@@ -106,7 +109,7 @@ export function useRunSave({ applies, history, signedIn, ready }: {
   }, [applies])
 
   useEffect(() => {
-    if (applies && signedIn && ready) void start()
+    if (applies && ready) void start()
     if (applies && !signedIn) useUserStore.setState({ guestFinishedRun: true })
   }, [applies, signedIn, ready, start])
 

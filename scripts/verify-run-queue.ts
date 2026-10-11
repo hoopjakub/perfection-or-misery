@@ -14,7 +14,7 @@
  *   - offline, a flush sends nothing and keeps everything, in order;
  *   - queueing the same run twice keeps one.
  */
-import { enqueue, flushQueue, requeueRefused, flushOnUserChange, type QueueDeps, type QueuedRun, type RefusedRun, type SendOutcome } from '../src/lib/runQueue'
+import { enqueue, flushQueue, requeueRefused, flushOnUserChange, withGuestRun, type QueueDeps, type QueuedRun, type RefusedRun, type SendOutcome } from '../src/lib/runQueue'
 
 let failures = 0
 const check = (c: boolean, msg: string) => { if (!c) { failures++; console.log(`❌ ${msg}`) } }
@@ -137,6 +137,32 @@ const run = (n: number): QueuedRun => ({ clientId: `c${n}`, playedAt: `2026-10-0
   }
 
   console.log(`${failures} failed`)
+  // ── Phase 10.5: a guest's runs, every one kept, oldest first, never twice ──
+  {
+    const run = (n: number): QueuedRun => ({ clientId: `g${n}`, playedAt: new Date(Date.UTC(2026, 9, 1, 0, n)).toISOString(), payload: { n } })
+    let list: QueuedRun[] = []
+    for (let n = 25; n >= 1; n--) list = withGuestRun(list, run(n))   // added newest first, on purpose
+    check(list.length === 25, `guest: ${list.length} kept of 25 (none may be dropped)`)
+    check(list[0].clientId === 'g1' && list[24].clientId === 'g25', `guest: oldest first (${list[0].clientId}…${list[24].clientId})`)
+    list = withGuestRun(list, run(7))
+    check(list.length === 25 && list.filter(r => r.clientId === 'g7').length === 1, 'guest: the same run kept twice')
+    // And the 25 go up through the queue in order, ten at a time against a
+    // server that answers "not now" past ten a minute, none lost.
+    let store: QueuedRun[] = []
+    const sent: string[] = []
+    let minute = 0
+    const deps: QueueDeps = {
+      load: async () => store, save: async l => { store = l },
+      send: async item => (minute >= 10 ? { result: 'offline', why: '429' } : (minute++, sent.push(item.clientId), { result: 'sent' })),
+      loadRefused: async () => [], saveRefused: async () => {},
+    }
+    for (const r of list) await enqueue(deps, r)
+    let rounds = 0
+    while (store.length && rounds < 5) { minute = 0; await flushQueue(deps); rounds++ }
+    check(sent.length === 25 && rounds === 3, `guest: 25 sent in ${rounds} rounds of ten a minute (${sent.length} sent)`)
+    check(sent.join() === list.map(r => r.clientId).join(), 'guest: sent out of order')
+    console.log(`guest runs: 25 kept and sent in ${rounds} rounds`)
+  }
   if (failures === 0) console.log('✅ ALL CHECKS PASSED')
   process.exit(failures === 0 ? 0 : 1)
 })()

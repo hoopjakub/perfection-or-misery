@@ -175,7 +175,7 @@ export const saveLedger = { run: 'not attempted', career: 'not attempted', schem
  */
 export function saveLedgerLine(status: string, history: boolean): string | null {
   if (status === 'waiting' || history) return null
-  return status === 'off' ? 'skipped · tester' : status === 'guest' ? 'skipped · guest' : status
+  return status === 'off' ? 'skipped · tester' : status === 'guest' ? 'on the phone · guest' : status
 }
 export function noteSave(part: 'run' | 'career', state: string): void {
   if (saveLedger[part] === state) return
