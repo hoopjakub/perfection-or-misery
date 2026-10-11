@@ -16,7 +16,11 @@ import path from 'path'
 import Database from 'better-sqlite3'
 
 const dir = process.argv[2]
-if (!dir || !existsSync(dir)) { console.error('usage: npx tsx scripts/verify-legal-bundle.ts <export dir>'); process.exit(1) }
+// --update: an over-the-air update's export (expo export -p android). It ships
+// no database (the phone keeps the APK's), so instead its code must point at
+// the public one and never the personal one.
+const update = process.argv.includes('--update')
+if (!dir || !existsSync(dir)) { console.error('usage: npx tsx scripts/verify-legal-bundle.ts <export dir> [--update]'); process.exit(1) }
 let failures = 0
 const check = (c: boolean, msg: string) => { if (!c) { failures++; console.log(`❌ ${msg}`) } }
 
@@ -30,7 +34,10 @@ const dbs: string[] = []
   for (const f of readdirSync(d)) {
     const p = path.join(d, f)
     if (statSync(p).isDirectory()) walk(p)
-    else if (p.endsWith('.js')) js += readFileSync(p, 'utf8')
+    // .hbc: an Android export is Hermes bytecode, whose strings are stored as
+    // text. This read only .js until 11 Oct 2026, so a phone update's export
+    // was checked against nothing and passed (found the day after its first use).
+    else if (p.endsWith('.js') || p.endsWith('.hbc')) js += readFileSync(p, 'utf8')
     else if (p.endsWith('.db')) dbs.push(p)
   }
 })(dir)
@@ -51,7 +58,11 @@ for (const r of rows('players.csv')) {
   if (js.includes(real)) playerHits.push(real)
 }
 check(playerHits.length === 0, `${playerHits.length} real player names in the bundle: ${playerHits.slice(0, 10).join(' | ')}`)
-check(dbs.length === 1 && /players_legal/.test(dbs[0]), `the export ships ${dbs.map(d => path.basename(d)).join(', ') || 'no database'}, not only players_legal`)
+check(js.length > 1_000_000, `only ${js.length} characters of code were read: the check would pass on nothing`)
+if (update) {
+  check(dbs.length === 0, `an update ships ${dbs.length} database(s); the phone keeps the APK's`)
+  check(js.includes('players_legal') && !js.includes('players_v5'), 'the update’s code points at the personal database, or at none')
+} else check(dbs.length === 1 && /players_legal/.test(dbs[0]), `the export ships ${dbs.map(d => path.basename(d)).join(', ') || 'no database'}, not only players_legal`)
 for (const d of dbs) {
   const db = new Database(d, { readonly: true })
   const n = (db.prepare("SELECT count(*) n FROM clubs WHERE name IN ('Real Madrid','Manchester United','Juventus FC','Bayern Munich')").get() as { n: number }).n

@@ -568,3 +568,13 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 | 975-89 | **An old guest session**: on a phone that still has build 17's guest session, after the update it starts as a guest with no errors | phone | unchecked |
 | 975-90 | **The clean-up**: after the update is everywhere, `supabase/guests-cleanup.sql` step 1, then step 2; `guests_left` 0 | Supabase | unchecked |
 | 975-91 | **The settings**: then turn on *Require current password when updating* (Authentication → Providers → Email) and, optionally, turn **off** anonymous sign-ins; sign-up and sign-in still work | Supabase | unchecked |
+
+## Phase 10.5 · The maintainer's phone, 11 October 2026
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-92 | **The personal build beside the public one**: `app.config.js` gives the personal build (`EXPO_PUBLIC_BRAND_MODE=real`) its own package, `com.yolotime4564.perfectionormisery.personal`, and the name *PoM Personal*. Build it once (`npx eas-cli build -p android --profile production-personal`, interactively: EAS asks to make a keystore for the new package); it installs **beside** the public app, with crests, the World Cup mark and real names, and the public updates never reach it | phone | unchecked |
+| 975-93 | **Signing out forgets the account**: sign out (You → Sign out); your crest, pin colour, the You badge and Home's *Again* mode are gone; language, light/dark, speed and the warnings stay (the device's) | web + phone | unchecked |
+| 975-94 | **The wordmark**: Home, the PC rail and the story page read *PERFECTION / OR MISERY* | web | unchecked |
+| 975-95 | **No cup as a league**: play All Time (and pick from League mode's list) a few times; never the Europa Cup's or Conference Cup's 36 clubs as a league; League mode's list has no Europa or Conference Cup. Fixed through one list (`src/data/cupFields.ts`), checked in `verify-spin` (the league pool went from 970 to 898 club-seasons) | phone + web | unchecked |
+| 975-96 | **Updates reach both builds**: `npx tsx scripts/publish-update.ts --message "…"` exports twice, checks the public one is clean and the personal one is personal, then publishes to production, production-personal and preview-personal. Once the personal build (975-92) is installed, an update keeps its crests and names | phone | unchecked |

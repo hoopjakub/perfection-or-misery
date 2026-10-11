@@ -1013,6 +1013,9 @@ export const COMPETITION_MAP: Record<string, number> = {
   'ligue_1': require('../../assets/crests/competitions/ligue_1.png'),
   'premier_league': require('../../assets/crests/competitions/premier_league.png'),
   'serie_a': require('../../assets/crests/competitions/serie_a.png'),
+  // Added by hand (11 Oct 2026, the maintainer's own file; the scraper is gone):
+  // the personal build only. This map is swapped out of the public build (metro.config.js).
+  'world_cup': require('../../assets/crests/competitions/world_cup.png'),
 }
 
 export function getLogo(key: string | null | undefined): number | null {

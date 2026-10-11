@@ -183,8 +183,11 @@ export function Wordmark({ roles, size = 'superL' }: { roles: Roles; size?: 'sup
   return (
     <View accessible accessibilityRole="header" accessibilityLabel="Perfection or Misery">
       <KitText t={size} color={roles.text}>PERFECTION</KitText>
+      {/* The "or" (the maintainer, 11 Oct 2026: the name is "Perfection or
+          Misery" everywhere but the logo): on the second line, so the first
+          stays the width it was. */}
       <View style={styles.miseryWrap}>
-        <KitText t={size} color={roles.text}>MISERY</KitText>
+        <KitText t={size} color={roles.text}>OR MISERY</KitText>
         <Stripe roles={roles} band={4} style={[styles.underline, { height: size === 'superL' ? 10 : 8 }]} />
       </View>
     </View>

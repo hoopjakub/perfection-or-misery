@@ -3,6 +3,7 @@
 // matchday history — NO UI — so you land straight on the result/stats screens.
 // Nothing here is persisted to the DB; it's purely a tester.
 
+import { isCupField } from '@/data/cupFields'
 import { shuffle } from '../lib/rng'
 import { compareStandings } from './standings'
 import type { Formation, DraftedPlayer, LeagueSeason, LeagueSeasonWithTeams } from '@/types/game'
@@ -129,7 +130,7 @@ async function eligibleLeagues(teamOvr: number): Promise<LeagueSeasonWithTeams[]
   const rows = await getAllClubSeasons()
   const map = new Map<string, LeagueSeasonWithTeams>()
   for (const cs of rows) {
-    if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_') || cs.league_id.startsWith('cucl_')) continue
+    if (isCupField(cs.league_id)) continue
     const key = `${cs.league_id}_${cs.year_start}`
     if (!map.has(key)) {
       map.set(key, {

@@ -81,11 +81,27 @@ export const useUserStore = create<UserStore>((set, get) => ({
   signOut: async () => {
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null, isGuest: true })
-    useCrestStore.getState().setMine(null)
-    useCrestStore.getState().setPin(null)
-    useCrestStore.getState().setActive(null)
+    forgetAccount()
   },
 }))
+
+// Phase 10.5 (the maintainer, 11 Oct 2026: "custom crest doesn't reset when you
+// sign out"): what the app holds for the account, dropped the moment it signs
+// out, by whichever way (You → Sign out, deleting the account, a session that
+// ends). Here, in the listener, because every way passes it; the store's own
+// signOut() did part of this and the You screen never called it.
+// Kept on purpose: the device's preferences (language, light or dark, speed,
+// motion, the warnings), like any app; the screens kept per account (src/lib/
+// kept.ts, keyed by the account's id, so another account never sees them); a
+// run in progress and a guest's runs (the device's, not the account's).
+function forgetAccount() {
+  useCrestStore.getState().setMine(null)
+  useCrestStore.getState().setPin(null)
+  useCrestStore.getState().setActive(null)
+  // Lazily: noticeStore and settingsStore read this store, so a static import would be a cycle.
+  import('./noticeStore').then(m => m.useNoticeStore.getState().clear()).catch(() => {})
+  import('./settingsStore').then(m => m.useSettingsStore.getState().setLastRun(null)).catch(() => {})
+}
 
 export function initAuthListener() {
   supabase.auth.onAuthStateChange((event, session) => {
@@ -98,6 +114,7 @@ export function initAuthListener() {
         isGuest:   true,
         isLoading: false,
       })
+      forgetAccount()
       return
     }
 

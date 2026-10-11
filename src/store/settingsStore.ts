@@ -61,7 +61,7 @@ export type LastRun = { mode: string; difficulty: string | null }
 
 type SettingsStore = Settings & {
   lastRun: LastRun | null
-  setLastRun: (r: LastRun) => void
+  setLastRun: (r: LastRun | null) => void
   setSkipWarning: (on: boolean) => void
   setNoBenchWarning: (on: boolean) => void
   setReduceMotion: (on: boolean) => void

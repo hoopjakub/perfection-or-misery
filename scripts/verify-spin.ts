@@ -7,6 +7,7 @@
 //  · a club fact keyed by something that isn't a club (the draft looks facts
 //    up by club; 18 of 20 were keyed by ids the data rebuild had renamed, and
 //    the draft asked by season besides, so none ever showed: L-14).
+import { NOT_A_CUP_SQL, isCupField } from '../src/data/cupFields'
 import path from 'path'
 import Database from 'better-sqlite3'
 import { spinItem, type ClubSeasonRow } from '../src/engine/draft'
@@ -23,12 +24,14 @@ const rows = (where: string) => db.prepare(
 
 const cases: [GameMode, string][] = [
   ['world_cup', `WHERE l.id LIKE 'wc_%'`], ['champions_league', `WHERE l.id LIKE 'ucl_%'`],
-  ['league', `WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%'`],
+  ['league', `WHERE ${NOT_A_CUP_SQL}`],
 ]
 let items = 0
 for (const [mode, where] of cases) {
   const pool = rows(where)
   check(pool.length > 0, `${mode}: no seasons in the pool`)
+  // 11 Oct 2026: a league's pool holds no cup's field (an All Time run was drawn into the Europa Cup's 36 clubs).
+  if (mode === 'league') check(!pool.some(c => isCupField(c.league_id)), `league: the pool holds a cup's field: ${[...new Set(pool.filter(c => isCupField(c.league_id)).map(c => c.league_id))].join(', ')}`)
   for (const c of pool) {
     const it = spinItem(mode, c)
     items++

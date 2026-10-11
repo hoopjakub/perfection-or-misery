@@ -12,6 +12,7 @@ import { router } from 'expo-router'
 import { useGameStore } from '@/store/gameStore'
 import { getAllClubSeasons, getClubSeasonsForMode } from '@/db/queries/seasons'
 import { filterEligibleLeagues, spinPlacement, buildLeagueSeason, sideName } from '@/engine/placement'
+import { isCupField } from '@/data/cupFields'
 import { useUserStore } from '@/store/userStore'
 import { activateCrestFor } from '@/store/crestStore'
 import { calcTeamOvr } from '@/engine/rating'
@@ -263,7 +264,7 @@ function LeaguePlacement() {
     getAllClubSeasons().then(rows => {
       const seasons = new Map<string, LeagueSeasonWithTeams>()
       for (const cs of rows) {
-        if (cs.league_id.startsWith('ucl_') || cs.league_id.startsWith('wc_') || cs.league_id.startsWith('cucl_')) continue
+        if (isCupField(cs.league_id)) continue   // every cup's field (src/data/cupFields.ts), the Europa and Conference Cups included
         if (mode === 'league' && selectedLeague && cs.league_id !== selectedLeague) continue
         const key = `${cs.league_id}_${cs.year_start}`
         if (!seasons.has(key)) {

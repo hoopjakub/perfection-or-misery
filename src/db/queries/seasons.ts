@@ -1,3 +1,4 @@
+import { NOT_A_CUP_SQL } from '@/data/cupFields'
 import { getDb } from '../setup'
 import { timeAsync } from '@/diag/perf'
 import type { LeagueSeasonWithTeams } from '@/types/game'
@@ -117,7 +118,7 @@ export async function getAvailableLeagues(): Promise<LeagueOption[]> {
      FROM leagues l
      JOIN clubs c ON c.league_id = l.id
      JOIN club_seasons cs ON cs.club_id = c.id
-     WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%'
+     WHERE ${NOT_A_CUP_SQL}
      ORDER BY l.name ASC`
   )
 }
@@ -252,10 +253,10 @@ async function getClubSeasonsForModeNow(
   } else if (mode === 'champions_league_custom') {
     whereClause = `WHERE l.id LIKE 'cucl_%'`
   } else if (mode === 'league' && leagueId) {
-    whereClause = `WHERE l.id = ? AND l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%' AND l.id NOT LIKE 'uel_%' AND l.id NOT LIKE 'uecl_%'`
+    whereClause = `WHERE l.id = ? AND ${NOT_A_CUP_SQL}`
     params.push(leagueId)
   } else {
-    whereClause = `WHERE l.id NOT LIKE 'ucl_%' AND l.id NOT LIKE 'wc_%' AND l.id NOT LIKE 'cucl_%' AND l.id NOT LIKE 'uel_%' AND l.id NOT LIKE 'uecl_%'`
+    whereClause = `WHERE ${NOT_A_CUP_SQL}`
   }
 
   return db.getAllAsync<ClubSeasonRow>(

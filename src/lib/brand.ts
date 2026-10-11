@@ -81,7 +81,9 @@ export function markColoursOf(clubId?: string | null, flag?: string | null): [st
  *  mark of its own, drawn in the kit (A-11): the real one isn't licensable
  *  (the maturita licensing notes), so it's the same in both brand modes. */
 export function competitionCrestFor(competitionId: string | null | undefined, name: string): Crest {
-  if (competitionId === 'world_cup') return { kind: 'mark', mark: 'world_cup' }
+  // The personal build has the real World Cup logo (assets/crests/competitions/
+  // world_cup.png, 11 Oct 2026); the public one keeps our drawn mark.
+  if (competitionId === 'world_cup' && BRAND_MODE !== 'real') return { kind: 'mark', mark: 'world_cup' }
   if (BRAND_MODE === 'real') {
     const source = getCompetitionLogo(competitionId)
     if (source != null) return { kind: 'image', source }

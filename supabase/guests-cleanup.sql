@@ -24,14 +24,20 @@ select
   count(*) filter (where u.is_anonymous and exists (select 1 from public.runs r where r.user_id = u.id)) as guests_with_runs_kept
 from auth.users u;
 
--- ── Step 2 · Delete (one transaction: all or nothing) ───────────────────────
--- Uncomment and run when step 1 looks right. The profile goes first (the
--- profiles table may not cascade from auth.users), then the auth user.
--- begin;
---   create temporary table old_guests on commit drop as
---     select u.id from auth.users u
---     where u.is_anonymous and not exists (select 1 from public.runs r where r.user_id = u.id);
---   delete from public.profiles p using old_guests g where p.id = g.id and coalesce(p.is_guest, true);
---   delete from auth.users u using old_guests g where u.id = g.id;
---   select count(*) as guests_left from auth.users where is_anonymous;
--- commit;
+-- ── Step 2 · Delete (one statement, so all or nothing) ─────────────────────
+-- Run when step 1 looks right. One statement on purpose: the SQL editor
+-- doesn't keep a temporary table from one statement to the next (a first
+-- version used one, 11 Oct: "relation old_guests does not exist"). The
+-- profiles go in the same statement as the auth users, so whether or not
+-- profiles cascades from auth.users, nothing is left half done.
+with old_guests as (
+  select u.id from auth.users u
+  where u.is_anonymous and not exists (select 1 from public.runs r where r.user_id = u.id)
+), gone_profiles as (
+  delete from public.profiles p using old_guests g where p.id = g.id and coalesce(p.is_guest, true)
+  returning p.id
+)
+delete from auth.users u using old_guests g where u.id = g.id;
+
+-- Then, to check (0 expected):
+select count(*) as guests_left from auth.users where is_anonymous;
