@@ -28,7 +28,7 @@ const check = (c: boolean, msg: string) => { if (!c) { failures++; console.log(`
 // "Derry City and Strabane"; Montana is a Bulgarian town).
 const ALLOWED = new Set(['Derry City', 'Montana'])
 
-let js = ''
+let js = '', hbc = false
 const dbs: string[] = []
 ;(function walk(d: string) {
   for (const f of readdirSync(d)) {
@@ -37,7 +37,7 @@ const dbs: string[] = []
     // .hbc: an Android export is Hermes bytecode, whose strings are stored as
     // text. This read only .js until 11 Oct 2026, so a phone update's export
     // was checked against nothing and passed (found the day after its first use).
-    else if (p.endsWith('.js') || p.endsWith('.hbc')) js += readFileSync(p, 'utf8')
+    else if (p.endsWith('.js') || p.endsWith('.hbc')) { js += readFileSync(p, 'utf8'); hbc ||= p.endsWith('.hbc') }
     else if (p.endsWith('.db')) dbs.push(p)
   }
 })(dir)
@@ -60,9 +60,12 @@ for (const r of rows('players.csv')) {
 check(playerHits.length === 0, `${playerHits.length} real player names in the bundle: ${playerHits.slice(0, 10).join(' | ')}`)
 // The abbreviations (11 Oct 2026): renamed by the same table, so none may be left.
 // The rename table itself ships (renameText runs on stored runs too), so its
-// own entries and quick test are left out.
-const table = js.replace(/\[['"](UECL|UCL|UEL)['"],/g, '').replace(/\|UCL\|UEL\|UECL\//g, '/')
-const abbr = [...new Set(table.match(/\b(UCL|UEL|UECL)\b/g) ?? [])]
+// own entries and quick test are left out. Hermes bytecode keeps each string
+// once, the table's entries as bare 'UCL', 'UEL', 'UECL', so there one copy
+// of each is the table's and a second would be a screen's.
+const table = js.replace(/\[['"](UECL|UCL|UEL)['"],/g, '').replace(/Ligue 1\|UCL\|UEL\|UECL/g, '')
+const allowed = hbc ? 1 : 0
+const abbr = ['UCL', 'UEL', 'UECL'].filter(a => (table.match(new RegExp(`\\b${a}\\b`, 'g'))?.length ?? 0) > allowed)
 check(abbr.length === 0, `real competition abbreviations in the bundle: ${abbr.join(', ')}`)
 check(js.length > 1_000_000, `only ${js.length} characters of code were read: the check would pass on nothing`)
 if (update) {

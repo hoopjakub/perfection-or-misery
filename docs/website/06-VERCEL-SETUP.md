@@ -29,7 +29,7 @@ Both projects build from one repo, so a change to the game shouldn't rebuild the
 
 ## 4 · Production branch and previews
 
-- **Production branch:** `main` for both.
+- **Production branch:** `master` for both.
 - **Preview deployments:** on for pull requests; set **Deployment Protection → Standard Protection** with **Vercel Authentication**, so a preview of an unfinished page isn't public. **Checked 9 Oct:** both are on every plan at no charge; Password Protection isn't on Hobby ([Deployment Protection](https://vercel.com/docs/deployment-protection)).
 - **Old deployments go sooner on Hobby** (reported in 2026: a 30-day cap and the three most recent production deployments kept): keep the release tag in git, not an old deployment, as the way back.
 
@@ -71,3 +71,7 @@ The game's project already serves `assetlinks.json` as JSON (P8-174); leave that
 - [ ] Previews protected.
 - [ ] `latest.json` reachable and not cached.
 - [ ] Run links from a chat still open the app (the game's address unchanged).
+
+## The deploy order (12 Oct 2026)
+
+The website no longer deploys on its own: `landing/vercel.json` turns its Git deploys off, and `.github/workflows/deploy-site.yml` calls its Deploy Hook (GitHub secret `SITE_DEPLOY_HOOK`) a minute after Vercel reports the game's production deployment. The site's build reads the game's `/latest.json`, so the game goes first. To deploy the site by hand: GitHub → Actions → *Deploy the website after the game* → Run workflow.

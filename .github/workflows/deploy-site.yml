@@ -1,0 +1,37 @@
+# The website (landing/) deploys after the game, never beside it: the site's
+# build reads the game's /latest.json (the Android download), so the game's
+# new deployment has to be live first. Both are Vercel projects on this one
+# repository; the site's own Git deploys are off (landing/vercel.json) and this
+# calls its Deploy Hook once Vercel reports the game's production deployment.
+#
+# Setup: Vercel → the website project → Settings → Git → Deploy Hooks, a hook
+# for `master`; its URL goes in GitHub → Settings → Secrets → Actions as
+# SITE_DEPLOY_HOOK (anyone with the URL can start a build, so never commit it).
+name: Deploy the website after the game
+
+on:
+  repository_dispatch:
+    types:
+      - 'vercel.deployment.success'
+      # A push the game's build skips still deploys the site.
+      - 'vercel.deployment.ignored'
+      - 'vercel.deployment.skipped'
+  # By hand, from the Actions tab.
+  workflow_dispatch:
+
+jobs:
+  deploy-site:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.client_payload.project.name == 'perfection-or-misery' &&
+       github.event.client_payload.environment == 'production')
+    steps:
+      # A minute for the game's new deployment to reach its domain.
+      - name: Wait for the game
+        if: github.event_name == 'repository_dispatch'
+        run: sleep 60
+      - name: Deploy the website
+        run: curl -fsS -X POST "$HOOK"
+        env:
+          HOOK: ${{ secrets.SITE_DEPLOY_HOOK }}
