@@ -31,7 +31,9 @@ export default function VersionsScreen() {
           <View style={styles.list}>
             {v.changes.map((c, i) => <KitText key={i} t="body" color={roles.text}>{`• ${c}`}</KitText>)}
           </View>
-          <KitText t="tag" color={roles.textFaint}>{t('screens.from', { source: v.source })}</KitText>
+          {/* v.source (where each version's list came from: a roadmap batch, a
+              doc) stays in the data for us; it was printed here until the PC
+              sweep (11 Oct 2026) found "…not committed yet" on a public screen. */}
         </View>
       ))}
     </KitScreen>

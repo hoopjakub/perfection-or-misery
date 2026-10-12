@@ -58,6 +58,12 @@ for (const r of rows('players.csv')) {
   if (js.includes(real)) playerHits.push(real)
 }
 check(playerHits.length === 0, `${playerHits.length} real player names in the bundle: ${playerHits.slice(0, 10).join(' | ')}`)
+// The abbreviations (11 Oct 2026): renamed by the same table, so none may be left.
+// The rename table itself ships (renameText runs on stored runs too), so its
+// own entries and quick test are left out.
+const table = js.replace(/\[['"](UECL|UCL|UEL)['"],/g, '').replace(/\|UCL\|UEL\|UECL\//g, '/')
+const abbr = [...new Set(table.match(/\b(UCL|UEL|UECL)\b/g) ?? [])]
+check(abbr.length === 0, `real competition abbreviations in the bundle: ${abbr.join(', ')}`)
 check(js.length > 1_000_000, `only ${js.length} characters of code were read: the check would pass on nothing`)
 if (update) {
   check(dbs.length === 0, `an update ships ${dbs.length} database(s); the phone keeps the APK's`)

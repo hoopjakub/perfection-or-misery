@@ -65,7 +65,7 @@ export function CupPane({ roles, cup, country, playerClubId, onTie }: {
         {cup.winner
           ? (cup.winner.isPlayer ? t('season.youWonCup', { cup: cup.name }) : t('season.clubWonCup', { club: cup.winner.clubName, cup: cup.name }))
           : yourOut ? t('season.wentOut', { round: label(yourOut.label).toLowerCase() })
-          : next ? t('season.nextRound', { round: label(next.label), md: next.afterMatchday }) + (youHaveBye ? t('season.bye', { round: label(cup.rounds[1]?.label).toLowerCase() }) : '')
+          : next ? t('season.nextRound', { round: label(next.label), md: next.afterMatchday }) + (youHaveBye ? t('season.byeInto', { round: label(cup.rounds[1]?.label).toLowerCase() }) : '')
           : ''}
         {t('season.cupFormat')}
       </KitText>

@@ -578,3 +578,17 @@ The site is `landing/` (Astro); setup in [`website/06-VERCEL-SETUP.md`](website/
 | 975-94 | **The wordmark**: Home, the PC rail and the story page read *PERFECTION / OR MISERY* | web | unchecked |
 | 975-95 | **No cup as a league**: play All Time (and pick from League mode's list) a few times; never the Europa Cup's or Conference Cup's 36 clubs as a league; League mode's list has no Europa or Conference Cup. Fixed through one list (`src/data/cupFields.ts`), checked in `verify-spin` (the league pool went from 970 to 898 club-seasons) | phone + web | unchecked |
 | 975-96 | **Updates reach both builds**: `npx tsx scripts/publish-update.ts --message "…"` exports twice, checks the public one is clean and the personal one is personal, then publishes to production, production-personal and preview-personal. Once the personal build (975-92) is installed, an update keeps its crests and names | phone | unchecked |
+
+## Phase 10.5 · The PC sweep, 11–12 October 2026 (docs/pc-sweep.md)
+
+| # | What to check | Where | Status |
+|---|---|---|---|
+| 975-97 | **Dark from the first paint**: with dark mode on, open `/runs` (or any screen) directly in a new tab; the ground is dark, not light | web | unchecked |
+| 975-98 | **Two tabs**: open the game in a second tab; it says another tab has the game; close the first and the second loads by itself and plays a run | web | unchecked |
+| 975-99 | **Leaving mid-run**: during a run, reload or close the tab; the browser asks first | web | unchecked |
+| 975-100 | **No abbreviations**: in the public build a league table's zones and Ranks' chips read EC / EuC / CC, never UCL / UEL / UECL; `verify-legal-bundle` passes on a fresh export | web + phone | unchecked |
+| 975-101 | **The bye**: a cup where you skip a round says which round you start in (EN + SK) | web | unchecked |
+| 975-102 | **Versions**: no source line under each version | web | unchecked |
+| 975-103 | **Run labels**: a Cursed or Chaos run's label doesn't say its mode twice | web | unchecked |
+| 975-104 | **Device, not phone**: Settings, Home's guest line and the saving lines say *device* (SK *zariadenie*) | web | unchecked |
+| 975-105 | **Browser Back in a run's pages**: finish a run (or open one from Runs), open a player, then the hub; the browser's Back returns to the result each time, never to a hub with the result's address. Also Home → mode select → onward → Back lands on mode select | web | unchecked |

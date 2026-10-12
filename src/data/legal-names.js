@@ -36,6 +36,13 @@ const RENAMES = [
   ['Champions League', 'European Cup'],
   ['Europa League', 'Europa Cup'],
   ['Conference League', 'Conference Cup'],
+  // The abbreviations are the marks too (the PC sweep, 11 Oct 2026: the
+  // table's zones read UCL / UEL / UECL and Ranks had a "UCL Finals" chip in
+  // the public build). Whole words, upper case, so the code's own ids
+  // ('ucl', 'ucl_…') are untouched.
+  ['UECL', 'CC'],
+  ['UCL', 'EC'],
+  ['UEL', 'EuC'],
   // The five leagues the game names in its own copy (the database's league rows
   // use legalLeagueName below, by country, because "Premier League" is four
   // different leagues there).
@@ -59,7 +66,8 @@ function renameText(text) {
   // The quick test before the table. "liga" in lower case too: the Slovak names
   // write it so ("Európska liga", "Konferenčná liga"), and with "Liga" only
   // those two shipped unrenamed in the legal build (found 9 Oct 2026).
-  if (typeof text !== 'string' || !/UEFA|FIFA|League|[Ll]iga|Serie A|Bundesliga|Ligue 1/.test(text)) return text
+  // The abbreviations too: without them here "UCL" alone was never renamed.
+  if (typeof text !== 'string' || !/UEFA|FIFA|League|[Ll]iga|Serie A|Bundesliga|Ligue 1|UCL|UEL|UECL/.test(text)) return text
   let out = text
   for (const [re, to] of PATTERNS) out = out.replace(re, (_m, before) => before + to)
   return out

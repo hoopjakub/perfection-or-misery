@@ -2,7 +2,7 @@
 // evaluated, so `t()` at module level anywhere reads the right one (src/i18n).
 // Keep this the first import.
 import '@/i18n'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Text, Pressable, Platform, AppState } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack, router, usePathname, type ErrorBoundaryProps } from 'expo-router'
@@ -216,6 +216,19 @@ export default function RootLayout() {
   // side on a 1920 monitor, with the rail floating inside them.
   const webFrame = { flex: 1 }
 
+  // Phase 10.5 (the PC sweep, 11 Oct 2026): the web's static HTML is drawn in
+  // cotton (the server can't know the visitor's light or dark), and React's
+  // hydration in production doesn't correct differing styles, only text. So a
+  // page opened directly (a refresh, a bookmark, /privacy from the website) in
+  // dark mode stayed light; the tabs only came right because another text
+  // difference made React redraw them (React error #418). When this launch's
+  // ground isn't the static one, the tree is drawn once more from scratch
+  // after hydration: one redraw, dark-mode visitors only, nothing lost (the
+  // run lives in the stores, outside the tree).
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => { setHydrated(true) }, [])
+  const groundKey = Platform.OS === 'web' && hydrated && EVERYDAY !== 'cotton' ? 'client-ground' : 'static-ground'
+
   // Native: the fonts are local files, a frame or two away, so wait for them.
   // Web (Phase 6, Lighthouse): don't. The static HTML already holds the page,
   // and hiding it until nine font files arrived put first paint at 4.5 s on a
@@ -223,7 +236,7 @@ export default function RootLayout() {
   if (Platform.OS !== 'web' && !fontsLoaded && !fontError) return null
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView key={groundKey} style={{ flex: 1 }}>
       {/* P8-45: Settings' "Less motion" stills every spring and transition in
           the app; off, the phone's own setting decides, as before. */}
       {/* Mounted only when on: Reanimated warns every time the config mounts

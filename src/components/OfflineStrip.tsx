@@ -6,6 +6,7 @@ import { KitText, Stripe, Icon } from '@/components/kit'
 import { EVERYDAY } from '@/lib/appearance'
 import { useOnline } from '@/lib/online'
 import { useRunQueue } from '@/lib/runQueue'
+import { useDbElsewhere } from '@/lib/dbTab'
 import { router } from 'expo-router'
 
 // Offline strip (Phase 6). The game itself runs offline from the bundled
@@ -20,6 +21,17 @@ export function OfflineStrip() {
   const online = useOnline()
   const waiting = useRunQueue(s => s.count)
   const refused = useRunQueue(s => s.refused)
+  // The PC sweep: the game is open in another tab, which has the database (src/lib/dbTab.ts).
+  const elsewhere = useDbElsewhere(s => s.waiting)
+  if (elsewhere) {
+    return (
+      <View style={[styles.strip, { backgroundColor: roles.surface, borderBottomColor: roles.line }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
+        <Stripe roles={roles} band={4} style={styles.edge} />
+        <Icon name="warning" size={16} color={roles.text} />
+        <KitText t="tag" color={roles.text} style={{ flex: 1 }}>{t('common.otherTab')}</KitText>
+      </View>
+    )
+  }
   // P9.75-06: a run the server refused is kept, not deleted, and said here, in
   // misery red, until it's sent again from Diagnostics. Before, it vanished.
   if (refused > 0) {

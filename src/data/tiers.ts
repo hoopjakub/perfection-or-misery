@@ -121,7 +121,10 @@ export function runMeta(run: { league_name: string; year_start?: number | null; 
   const h = run.difficulty_meta?.hardness
   const diff = run.difficulty && PRESET_DIFFICULTIES.has(run.difficulty) ? ` · ${t(`difficulty.${run.difficulty}` as 'difficulty.easy')}`
     : run.difficulty === 'custom' ? ` · ${typeof h === 'number' ? t('tiers.metaCustomH', { h: dec(h) }) : t('tiers.metaCustom')}` : ''
-  return `${run.league_name}${season} · ${mode}${diff}`.toUpperCase()
+  // The PC sweep (11 Oct 2026): a World Cup run read "WORLD CUP · WORLD CUP",
+  // the competition and the mode being the same name; the mode then goes.
+  const sameName = run.league_name.trim().toLowerCase() === String(mode).trim().toLowerCase()
+  return `${run.league_name}${season}${sameName ? '' : ` · ${mode}`}${diff}`.toUpperCase()
 }
 import { COMP_WEIGHT } from '../../supabase/functions/_shared/score'
 import { t, dec } from '@/i18n'

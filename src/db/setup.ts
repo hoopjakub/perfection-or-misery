@@ -4,6 +4,7 @@ import { log } from '@/diag/log'
 import { timeAsync } from '@/diag/perf'
 import { Asset } from 'expo-asset'
 import { Platform } from 'react-native'
+import { holdDbLock } from '@/lib/dbTab'
 import * as FileSystem from 'expo-file-system/legacy'
 // The bundled database, by flavour: metro.config.js swaps ./dbAsset for
 // ./dbAsset.legal (generic competition names) in the legal build (P8.5-30).
@@ -30,7 +31,9 @@ let _initPromise: Promise<SQLite.SQLiteDatabase> | null = null
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db
-  if (!_initPromise) _initPromise = initDb()
+  // A failed open isn't kept: the next call tries again (the PC sweep: a
+  // second tab's failure was cached, so it never recovered).
+  if (!_initPromise) _initPromise = initDb().catch(e => { _initPromise = null; throw e })
   return _initPromise
 }
 
@@ -48,6 +51,9 @@ async function initDb(): Promise<SQLite.SQLiteDatabase> {
 // since we never write to this database.
 async function initBundledDbWeb(): Promise<void> {
   if (_db) return
+  // One tab at a time holds the database's storage (src/lib/dbTab.ts): wait
+  // for it here, with a strip saying why, instead of failing.
+  await holdDbLock()
   // Phase 9: the web's biggest boot cost (a ~11 MB download), timed apart from opening it.
   const bytes = await timeAsync('db:fetch', async () => {
     const asset = Asset.fromModule(DB_ASSET)

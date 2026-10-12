@@ -70,7 +70,13 @@ export function useSimBackGuard(active: boolean) {
         if (!settling) ask()
       }
       window.addEventListener('popstate', onPopState)
-      return () => window.removeEventListener('popstate', onPopState)
+      // The PC sweep (11 Oct 2026): a refresh or closing the tab mid-run lost
+      // the whole run without a word ("Your last run was stopped during its
+      // season, so it's gone"). The browser now asks first, with its own
+      // dialog (a page may not word it).
+      const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+      window.addEventListener('beforeunload', onBeforeUnload)
+      return () => { window.removeEventListener('popstate', onPopState); window.removeEventListener('beforeunload', onBeforeUnload) }
     }
   }, [active]))
 }
